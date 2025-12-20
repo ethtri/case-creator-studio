@@ -5,6 +5,8 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
 import { toast } from "sonner";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { CartSheet } from "@/components/CartSheet";
 import {
   Type,
   Image,
@@ -18,6 +20,7 @@ import {
   AlertTriangle,
   Upload,
   Eye,
+  ArrowLeft,
 } from "lucide-react";
 
 interface DesignElement {
@@ -274,11 +277,21 @@ const DesignEditor = () => {
       {/* Top Bar */}
       <header className="h-14 bg-card border-b border-border flex items-center justify-between px-4">
         <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/catalog")}
+            className="gap-1"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </Button>
+          <div className="h-6 w-px bg-border" />
           <Link to="/" className="flex items-center gap-2">
             <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
           </Link>
-          <div className="h-6 w-px bg-border" />
-          <div className="text-sm">
+          <div className="h-6 w-px bg-border hidden sm:block" />
+          <div className="text-sm hidden sm:block">
             <span className="text-muted-foreground">Designing for </span>
             <span className="font-medium">{variant.brand} {variant.model}</span>
             <span className="text-muted-foreground"> • </span>
@@ -286,6 +299,8 @@ const DesignEditor = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <CartSheet />
           <Button variant="outline" size="sm" onClick={handlePreview}>
             <Eye className="w-4 h-4 mr-1" />
             Preview

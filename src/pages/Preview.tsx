@@ -3,7 +3,11 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
-import { ChevronLeft, ShoppingCart, RotateCcw, BadgeCheck, Truck } from "lucide-react";
+import { ChevronLeft, ShoppingCart, RotateCcw, BadgeCheck, Truck, Check } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { CartSheet } from "@/components/CartSheet";
+import { useCart } from "@/contexts/CartContext";
+import { toast } from "sonner";
 
 const Preview = () => {
   const { variantId } = useParams();
@@ -11,6 +15,8 @@ const Preview = () => {
   const [variant, setVariant] = useState<PhoneVariant | null>(null);
   const [designPreview, setDesignPreview] = useState<string | null>(null);
   const [activeView, setActiveView] = useState(0);
+  const [addedToCart, setAddedToCart] = useState(false);
+  const { addToCart } = useCart();
 
   useEffect(() => {
     const foundVariant = getVariantById(variantId || "");
@@ -23,6 +29,15 @@ const Preview = () => {
       setDesignPreview(preview);
     }
   }, [variantId]);
+
+  const handleAddToCart = () => {
+    if (variant && designPreview) {
+      addToCart(variant, designPreview);
+      setAddedToCart(true);
+      toast.success("Added to cart!");
+      setTimeout(() => setAddedToCart(false), 2000);
+    }
+  };
 
   const mockupViews = [
     { name: "Front", angle: 0 },
@@ -49,16 +64,14 @@ const Preview = () => {
             </Link>
           </div>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <CartSheet />
             <Button
               variant="outline"
               onClick={() => navigate(`/design/${variantId}`)}
             >
               <ChevronLeft className="w-4 h-4 mr-1" />
               Back to Editor
-            </Button>
-            <Button className="bg-cta hover:bg-cta/90 text-cta-foreground" onClick={() => navigate(`/checkout/${variantId}`)}>
-              <ShoppingCart className="w-4 h-4 mr-1" />
-              Proceed to Checkout
             </Button>
           </div>
         </div>
@@ -179,14 +192,32 @@ const Preview = () => {
               <div className="flex flex-col gap-3">
                 <Button
                   size="xl"
-                  className="w-full bg-cta hover:bg-cta/90 text-cta-foreground"
-                  onClick={() => navigate(`/checkout/${variantId}`)}
+                  className={`w-full ${addedToCart ? 'bg-success hover:bg-success/90' : 'bg-cta hover:bg-cta/90'} text-cta-foreground`}
+                  onClick={handleAddToCart}
+                  disabled={addedToCart}
                 >
-                  <ShoppingCart className="w-5 h-5 mr-2" />
-                  Add to Cart - ${variant.price.toFixed(2)}
+                  {addedToCart ? (
+                    <>
+                      <Check className="w-5 h-5 mr-2" />
+                      Added to Cart!
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="w-5 h-5 mr-2" />
+                      Add to Cart - ${variant.price.toFixed(2)}
+                    </>
+                  )}
                 </Button>
                 <Button
                   variant="outline"
+                  size="lg"
+                  className="w-full"
+                  onClick={() => navigate("/catalog")}
+                >
+                  Design Another Case
+                </Button>
+                <Button
+                  variant="ghost"
                   size="lg"
                   className="w-full"
                   onClick={() => navigate(`/design/${variantId}`)}
