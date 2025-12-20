@@ -6,11 +6,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
 import { toast } from "sonner";
-import { ChevronLeft, Lock, CreditCard, Package } from "lucide-react";
+import { ChevronLeft, Lock, CreditCard, Package, Trash2 } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { useCart } from "@/contexts/CartContext";
 
 const Checkout = () => {
   const { variantId } = useParams();
   const navigate = useNavigate();
+  const { items, removeFromCart, totalPrice } = useCart();
   const [variant, setVariant] = useState<PhoneVariant | null>(null);
   const [designPreview, setDesignPreview] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -78,13 +81,16 @@ const Checkout = () => {
               <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
             </Link>
           </div>
-          <Button
-            variant="ghost"
-            onClick={() => navigate(`/preview/${variantId}`)}
-          >
-            <ChevronLeft className="w-4 h-4 mr-1" />
-            Back to Preview
-          </Button>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/catalog")}
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Continue Shopping
+            </Button>
+          </div>
         </div>
       </nav>
 
@@ -259,37 +265,48 @@ const Checkout = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.2 }}
               >
-                <h2 className="text-lg font-semibold mb-4">Order Summary</h2>
+                <h2 className="text-lg font-semibold mb-4">Order Summary ({items.length} items)</h2>
 
-                {/* Product preview */}
-                <div className="flex gap-4 pb-4 border-b border-border">
-                  <div
-                    className="w-16 h-24 rounded-xl flex items-center justify-center overflow-hidden"
-                    style={{ backgroundColor: variant.colorHex }}
-                  >
-                    {designPreview && (
-                      <img
-                        src={designPreview}
-                        alt="Design preview"
-                        className="w-full h-full object-cover"
+                {/* Cart items */}
+                <div className="space-y-4 pb-4 border-b border-border max-h-64 overflow-y-auto">
+                  {items.map((item) => (
+                    <div key={item.id} className="flex gap-3">
+                      <div
+                        className="w-12 h-18 rounded-lg flex-shrink-0 overflow-hidden"
+                        style={{
+                          backgroundImage: `url(${item.designPreview})`,
+                          backgroundSize: "cover",
+                          backgroundPosition: "center",
+                          backgroundColor: item.variant.colorHex,
+                        }}
                       />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium text-sm">Custom Case</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {variant.brand} {variant.model}
-                    </p>
-                    <p className="text-sm text-muted-foreground">{variant.color}</p>
-                  </div>
-                  <p className="font-medium">${variant.price.toFixed(2)}</p>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-sm truncate">
+                          {item.variant.brand} {item.variant.model}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">{item.variant.color}</p>
+                        <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <p className="font-medium text-sm">${(item.variant.price * item.quantity).toFixed(2)}</p>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-destructive"
+                          onClick={() => removeFromCart(item.id)}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
 
                 {/* Totals */}
                 <div className="py-4 space-y-2">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span>${variant.price.toFixed(2)}</span>
+                    <span>${totalPrice.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground flex items-center gap-1">

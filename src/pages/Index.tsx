@@ -5,6 +5,8 @@ import { Smartphone, Palette, Package, ChevronRight, Truck, RotateCcw, BadgeChec
 import heroWide from "@/assets/hero-wide.png";
 import heroNarrow from "@/assets/hero-narrow.png";
 import { phoneVariants } from "@/data/phoneVariants";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { CartSheet } from "@/components/CartSheet";
 
 const steps = [
   {
@@ -65,17 +67,23 @@ const Index = () => {
             <Link to="/orders" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               My Orders
             </Link>
+            <ThemeToggle />
+            <CartSheet />
             <Link to="/catalog">
               <Button className="bg-cta hover:bg-cta/90 text-cta-foreground">
                 Start Designing
               </Button>
             </Link>
           </div>
-          <Link to="/catalog" className="md:hidden">
-            <Button size="sm" className="bg-cta hover:bg-cta/90 text-cta-foreground">
-              Design
-            </Button>
-          </Link>
+          <div className="md:hidden flex items-center gap-2">
+            <ThemeToggle />
+            <CartSheet />
+            <Link to="/catalog">
+              <Button size="sm" className="bg-cta hover:bg-cta/90 text-cta-foreground">
+                Design
+              </Button>
+            </Link>
+          </div>
         </div>
       </nav>
 

@@ -4,6 +4,8 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { phoneVariants, getPhoneModels, getBrands } from "@/data/phoneVariants";
 import { ChevronRight, Filter } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { CartSheet } from "@/components/CartSheet";
 
 const Catalog = () => {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
@@ -25,12 +27,14 @@ const Catalog = () => {
             <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
           </Link>
           <div className="flex items-center gap-4">
-            <Link to="/catalog">
+            <Link to="/catalog" className="hidden md:block">
               <Button variant="ghost">Browse Cases</Button>
             </Link>
-            <Link to="/orders">
+            <Link to="/orders" className="hidden md:block">
               <Button variant="ghost">My Orders</Button>
             </Link>
+            <ThemeToggle />
+            <CartSheet />
           </div>
         </div>
       </nav>

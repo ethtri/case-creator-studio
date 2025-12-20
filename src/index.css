@@ -6,6 +6,83 @@
 
 @layer base {
   :root {
+    /* Snapcase Design System - Light Mode */
+    --background: 0 0% 98%;
+    --foreground: 260 50% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 260 50% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 260 50% 10%;
+
+    /* Deep purple primary */
+    --primary: 320 100% 35%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Teal secondary - CTA color */
+    --secondary: 167 60% 33%;
+    --secondary-foreground: 0 0% 100%;
+
+    /* Muted tones */
+    --muted: 260 10% 92%;
+    --muted-foreground: 260 10% 40%;
+
+    /* Magenta accent */
+    --accent: 330 75% 50%;
+    --accent-foreground: 0 0% 100%;
+
+    /* Teal CTA */
+    --cta: 167 60% 33%;
+    --cta-foreground: 0 0% 100%;
+
+    /* Status colors */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 167 60% 33%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 260 50% 10%;
+
+    /* Borders and inputs */
+    --border: 260 10% 85%;
+    --input: 260 10% 85%;
+    --ring: 167 60% 33%;
+
+    --radius: 0.75rem;
+
+    /* Custom tokens */
+    --surface-elevated: 0 0% 100%;
+    --surface-sunken: 260 10% 95%;
+    --shadow-soft: 0 4px 20px -2px hsl(260 50% 20% / 0.08);
+    --shadow-medium: 0 8px 30px -4px hsl(260 50% 20% / 0.12);
+    --shadow-strong: 0 20px 60px -10px hsl(260 50% 20% / 0.2);
+
+    /* Hero gradient - light version */
+    --gradient-start: 260 50% 3%;
+    --gradient-mid: 310 70% 8%;
+    --gradient-end: 340 100% 20%;
+
+    /* Canvas specific */
+    --canvas-bg: 260 10% 92%;
+    --canvas-grid: 260 10% 85%;
+    --canvas-safe-area: 167 60% 33%;
+    --canvas-bleed: 0 72% 51%;
+
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 260 50% 10%;
+    --sidebar-primary: 167 60% 33%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 260 10% 95%;
+    --sidebar-accent-foreground: 260 50% 10%;
+    --sidebar-border: 260 10% 90%;
+    --sidebar-ring: 167 60% 33%;
+  }
+
+  .dark {
     /* Snapcase Design System - Dark Purple/Magenta */
     --background: 260 50% 3%;
     --foreground: 20 20% 96%;
@@ -16,19 +93,15 @@
     --popover: 280 40% 8%;
     --popover-foreground: 20 20% 96%;
 
-    /* Deep purple primary */
     --primary: 320 100% 30%;
     --primary-foreground: 20 20% 96%;
 
-    /* Teal secondary - CTA color */
     --secondary: 167 60% 33%;
     --secondary-foreground: 20 20% 96%;
 
-    /* Muted tones */
     --muted: 280 30% 15%;
     --muted-foreground: 280 10% 60%;
 
-    /* Magenta accent */
     --accent: 330 75% 45%;
     --accent-foreground: 20 20% 96%;
 
@@ -36,8 +109,7 @@
     --cta: 167 60% 33%;
     --cta-foreground: 20 20% 96%;
 
-    /* Status colors */
-    --destructive: 0 72% 51%;
+    --destructive: 0 62% 45%;
     --destructive-foreground: 20 20% 96%;
 
     --success: 167 60% 33%;
@@ -46,73 +118,19 @@
     --warning: 38 92% 50%;
     --warning-foreground: 260 50% 5%;
 
-    /* Borders and inputs */
     --border: 280 20% 18%;
     --input: 280 20% 18%;
     --ring: 167 60% 33%;
 
-    --radius: 0.75rem;
-
-    /* Custom tokens */
     --surface-elevated: 280 40% 10%;
     --surface-sunken: 260 50% 5%;
     --shadow-soft: 0 4px 20px -2px hsl(320 100% 20% / 0.15);
     --shadow-medium: 0 8px 30px -4px hsl(320 100% 20% / 0.25);
     --shadow-strong: 0 20px 60px -10px hsl(320 100% 20% / 0.4);
 
-    /* Hero gradient */
-    --gradient-start: 260 50% 3%;
-    --gradient-mid: 310 70% 8%;
-    --gradient-end: 340 100% 20%;
-
     /* Canvas specific */
     --canvas-bg: 280 30% 12%;
     --canvas-grid: 280 20% 20%;
-    --canvas-safe-area: 167 60% 33%;
-    --canvas-bleed: 0 72% 51%;
-
-    /* Sidebar */
-    --sidebar-background: 280 40% 6%;
-    --sidebar-foreground: 20 20% 90%;
-    --sidebar-primary: 167 60% 33%;
-    --sidebar-primary-foreground: 20 20% 96%;
-    --sidebar-accent: 280 30% 15%;
-    --sidebar-accent-foreground: 20 20% 96%;
-    --sidebar-border: 280 20% 15%;
-    --sidebar-ring: 167 60% 33%;
-  }
-
-  .dark {
-    --background: 260 50% 3%;
-    --foreground: 20 20% 96%;
-
-    --card: 280 40% 8%;
-    --card-foreground: 20 20% 96%;
-
-    --popover: 280 40% 8%;
-    --popover-foreground: 20 20% 96%;
-
-    --primary: 320 100% 30%;
-    --primary-foreground: 20 20% 96%;
-
-    --secondary: 167 60% 33%;
-    --secondary-foreground: 20 20% 96%;
-
-    --muted: 280 30% 15%;
-    --muted-foreground: 280 10% 60%;
-
-    --accent: 330 75% 45%;
-    --accent-foreground: 20 20% 96%;
-
-    --destructive: 0 62% 45%;
-    --destructive-foreground: 20 20% 96%;
-
-    --border: 280 20% 18%;
-    --input: 280 20% 18%;
-    --ring: 167 60% 33%;
-
-    --surface-elevated: 280 40% 10%;
-    --surface-sunken: 260 50% 5%;
 
     --sidebar-background: 280 40% 6%;
     --sidebar-foreground: 20 20% 90%;
