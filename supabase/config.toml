@@ -1,5 +1,8 @@
 project_id = "jwlwymzyqfxulmldfijo"
 
+[functions.lookup-orders]
+verify_jwt = false
+
 [functions.create-checkout]
 verify_jwt = false
 
