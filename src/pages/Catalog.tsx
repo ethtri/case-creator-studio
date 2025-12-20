@@ -1,0 +1,182 @@
+import { useState, useMemo } from "react";
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { phoneVariants, getPhoneModels, getBrands } from "@/data/phoneVariants";
+import { Sparkles, ChevronRight, Filter, Check } from "lucide-react";
+
+const Catalog = () => {
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const brands = getBrands();
+  const phoneModels = getPhoneModels();
+
+  const filteredModels = useMemo(() => {
+    const entries = Array.from(phoneModels.entries());
+    if (!selectedBrand) return entries;
+    return entries.filter(([key]) => key.startsWith(selectedBrand));
+  }, [phoneModels, selectedBrand]);
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Navigation */}
+      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50">
+        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <span className="font-semibold text-lg">CaseStudio</span>
+          </Link>
+          <div className="flex items-center gap-4">
+            <Link to="/catalog">
+              <Button variant="ghost">Browse Cases</Button>
+            </Link>
+            <Link to="/orders">
+              <Button variant="ghost">My Orders</Button>
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* Header */}
+      <section className="pt-28 pb-12">
+        <div className="container mx-auto px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">
+              Choose Your Phone
+            </h1>
+            <p className="text-muted-foreground text-lg max-w-xl">
+              Select your phone model to start designing your custom case
+            </p>
+          </motion.div>
+
+          {/* Brand Filter */}
+          <motion.div
+            className="flex items-center gap-3 mt-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <Button
+              variant={selectedBrand === null ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedBrand(null)}
+            >
+              All Brands
+            </Button>
+            {brands.map((brand) => (
+              <Button
+                key={brand}
+                variant={selectedBrand === brand ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedBrand(brand)}
+              >
+                {brand}
+              </Button>
+            ))}
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Phone Models Grid */}
+      <section className="pb-24">
+        <div className="container mx-auto px-6">
+          <div className="space-y-16">
+            {filteredModels.map(([modelName, variants], modelIndex) => (
+              <motion.div
+                key={modelName}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: modelIndex * 0.1 }}
+              >
+                <h2 className="text-2xl font-semibold mb-6">{modelName}</h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {variants.map((variant, index) => (
+                    <motion.div
+                      key={variant.id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                    >
+                      <Link to={`/design/${variant.id}`}>
+                        <div className="group relative bg-card rounded-2xl p-6 shadow-soft hover:shadow-medium transition-all duration-300 cursor-pointer border border-border/50 hover:border-accent/30">
+                          {/* Phone Preview */}
+                          <div className="relative aspect-[3/4] mb-4 flex items-center justify-center">
+                            <div 
+                              className="w-20 h-40 rounded-2xl shadow-medium transition-transform duration-300 group-hover:scale-105"
+                              style={{ backgroundColor: variant.colorHex }}
+                            >
+                              <div 
+                                className="w-full h-full rounded-2xl border-4"
+                                style={{ 
+                                  borderColor: variant.colorHex === '#f5f5f7' || variant.colorHex === '#f5f0e8' 
+                                    ? 'rgba(0,0,0,0.1)' 
+                                    : 'rgba(255,255,255,0.2)' 
+                                }}
+                              >
+                                {/* Notch */}
+                                <div className="w-8 h-2 mx-auto mt-2 rounded-full bg-black/20" />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Color swatch */}
+                          <div className="flex items-center gap-2 mb-3">
+                            <div 
+                              className="w-4 h-4 rounded-full border border-border"
+                              style={{ backgroundColor: variant.colorHex }}
+                            />
+                            <span className="text-sm text-muted-foreground">
+                              {variant.color}
+                            </span>
+                          </div>
+
+                          {/* Price */}
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold">
+                              ${variant.price.toFixed(2)}
+                            </span>
+                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                              <ChevronRight className="w-4 h-4 text-accent" />
+                            </div>
+                          </div>
+
+                          {/* Hover overlay */}
+                          <div className="absolute inset-0 rounded-2xl ring-2 ring-accent ring-opacity-0 group-hover:ring-opacity-100 transition-all pointer-events-none" />
+                        </div>
+                      </Link>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-12 border-t border-border">
+        <div className="container mx-auto px-6">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-primary-foreground" />
+              </div>
+              <span className="font-semibold">CaseStudio</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              © 2024 CaseStudio. All rights reserved.
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default Catalog;
