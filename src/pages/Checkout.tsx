@@ -9,13 +9,13 @@ import { toast } from "sonner";
 import { ChevronLeft, Lock, CreditCard, Package, Trash2 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useCart } from "@/contexts/CartContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const Checkout = () => {
   const { variantId } = useParams();
   const navigate = useNavigate();
-  const { items, removeFromCart, totalPrice } = useCart();
+  const { items, removeFromCart, totalPrice, clearCart } = useCart();
   const [variant, setVariant] = useState<PhoneVariant | null>(null);
-  const [designPreview, setDesignPreview] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -34,11 +34,6 @@ const Checkout = () => {
     if (foundVariant) {
       setVariant(foundVariant);
     }
-
-    const preview = sessionStorage.getItem("designPreview");
-    if (preview) {
-      setDesignPreview(preview);
-    }
   }, [variantId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,23 +45,66 @@ const Checkout = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (items.length === 0) {
+      toast.error("Your cart is empty");
+      return;
+    }
+
     setIsProcessing(true);
 
-    // Simulate checkout process
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      // Prepare cart items for checkout
+      const cartItems = items.map((item) => ({
+        variantId: item.variant.id,
+        brand: item.variant.brand,
+        model: item.variant.model,
+        price: item.variant.price,
+        quantity: item.quantity,
+        designPreview: item.designPreview,
+      }));
 
-    toast.success("Order placed successfully!");
-    navigate("/orders");
-    setIsProcessing(false);
+      // Call edge function to create Stripe checkout session
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: {
+          items: cartItems,
+          customerEmail: formData.email,
+          customerName: `${formData.firstName} ${formData.lastName}`,
+          shippingAddress: {
+            address: formData.address,
+            city: formData.city,
+            state: formData.state,
+            zip: formData.zip,
+            country: formData.country,
+          },
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (data?.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL received");
+      }
+    } catch (error) {
+      console.error("Checkout error:", error);
+      toast.error("Failed to start checkout. Please try again.");
+      setIsProcessing(false);
+    }
   };
 
   const shippingCost = 4.99;
-  const total = variant ? variant.price + shippingCost : 0;
+  const total = totalPrice + shippingCost;
 
-  if (!variant) {
+  if (items.length === 0 && !variant) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Loading checkout...</p>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <p className="text-muted-foreground">Your cart is empty</p>
+        <Button onClick={() => navigate("/catalog")}>Browse Cases</Button>
       </div>
     );
   }
@@ -219,7 +257,7 @@ const Checkout = () => {
                   </div>
                 </div>
 
-                {/* Payment placeholder */}
+                {/* Payment info */}
                 <div className="bg-card rounded-2xl p-6 shadow-soft">
                   <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
                     <CreditCard className="w-5 h-5" />
@@ -227,7 +265,7 @@ const Checkout = () => {
                   </h2>
                   <div className="bg-muted rounded-lg p-4 text-center">
                     <p className="text-sm text-muted-foreground">
-                      Stripe payment integration will be added here
+                      You'll be redirected to Stripe's secure checkout to complete your payment
                     </p>
                   </div>
                 </div>
@@ -236,17 +274,17 @@ const Checkout = () => {
                   type="submit"
                   size="xl"
                   className="w-full bg-cta hover:bg-cta/90 text-cta-foreground"
-                  disabled={isProcessing}
+                  disabled={isProcessing || items.length === 0}
                 >
                   {isProcessing ? (
                     <>
                       <div className="animate-spin w-4 h-4 border-2 border-accent-foreground border-t-transparent rounded-full mr-2" />
-                      Processing...
+                      Redirecting to payment...
                     </>
                   ) : (
                     <>
                       <Lock className="w-4 h-4 mr-2" />
-                      Place Order - ${total.toFixed(2)}
+                      Pay ${total.toFixed(2)} with Stripe
                     </>
                   )}
                 </Button>

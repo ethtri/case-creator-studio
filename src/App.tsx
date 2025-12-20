@@ -10,6 +10,7 @@ import Catalog from "./pages/Catalog";
 import DesignEditor from "./pages/DesignEditor";
 import Preview from "./pages/Preview";
 import Checkout from "./pages/Checkout";
+import OrderSuccess from "./pages/OrderSuccess";
 import Orders from "./pages/Orders";
 import NotFound from "./pages/NotFound";
 
@@ -30,6 +31,7 @@ const App = () => (
               <Route path="/preview/:variantId" element={<Preview />} />
               <Route path="/checkout/:variantId" element={<Checkout />} />
               <Route path="/checkout" element={<Checkout />} />
+              <Route path="/order-success" element={<OrderSuccess />} />
               <Route path="/orders" element={<Orders />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
