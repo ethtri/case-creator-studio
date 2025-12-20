@@ -1,63 +1,118 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// Allowed origins for CORS
+const ALLOWED_ORIGINS = [
+  "https://snapcase.ai",
+  "https://www.snapcase.ai",
+];
 
-interface CartItem {
-  variantId: string;
-  brand: string;
-  model: string;
-  price: number;
-  quantity: number;
-  designPreview: string;
-}
-
-interface CheckoutRequest {
-  items: CartItem[];
-  customerEmail: string;
-  customerName: string;
-  shippingAddress: {
-    address: string;
-    city: string;
-    state: string;
-    zip: string;
-    country: string;
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin") || "";
+  // Allow localhost for development
+  const isLocalhost = origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1");
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) || isLocalhost ? origin : ALLOWED_ORIGINS[0];
+  
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   };
 }
 
+// Safe error messages that don't expose internal details
+function getSafeErrorMessage(error: unknown): string {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  
+  // Log full error details server-side for debugging
+  console.error("[CREATE-CHECKOUT] Full error details:", {
+    message: errorMessage,
+    stack: error instanceof Error ? error.stack : undefined,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Return safe, generic messages to client
+  if (errorMessage.includes("Customer email is required") || errorMessage.includes("email")) {
+    return "Customer email is required";
+  }
+  if (errorMessage.includes("No items") || errorMessage.includes("items")) {
+    return "Cart cannot be empty";
+  }
+  if (errorMessage.includes("validation") || errorMessage.includes("Invalid")) {
+    return "Invalid order data. Please check your information and try again.";
+  }
+  if (errorMessage.toLowerCase().includes("stripe")) {
+    return "Payment processing error. Please try again or contact support.";
+  }
+  if (errorMessage.toLowerCase().includes("supabase") || errorMessage.toLowerCase().includes("database")) {
+    return "Unable to process your request. Please try again.";
+  }
+  
+  // Default safe message for unknown errors
+  return "An unexpected error occurred. Please contact support if the issue persists.";
+}
+
+// Validation schemas
+const itemSchema = z.object({
+  variantId: z.string().min(1).max(100),
+  brand: z.string().min(1).max(100),
+  model: z.string().min(1).max(100),
+  price: z.number().positive().max(10000),
+  quantity: z.number().int().positive().max(100),
+  designPreview: z.string().max(5000),
+});
+
+const addressSchema = z.object({
+  address: z.string().min(1).max(200),
+  city: z.string().min(1).max(100),
+  state: z.string().min(1).max(50),
+  zip: z.string().min(1).max(20),
+  country: z.string().min(1).max(50),
+});
+
+const checkoutRequestSchema = z.object({
+  items: z.array(itemSchema).min(1).max(50),
+  customerEmail: z.string().email().max(255),
+  customerName: z.string().min(1).max(100),
+  shippingAddress: addressSchema,
+});
+
+// Server-side pricing - single source of truth
+const PRODUCT_PRICE = 24.99;
+const SHIPPING_COST = 4.99;
+
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { items, customerEmail, customerName, shippingAddress }: CheckoutRequest = await req.json();
-
-    if (!items || items.length === 0) {
-      throw new Error("No items in cart");
+    const rawBody = await req.json();
+    
+    // Validate request data with Zod
+    const validationResult = checkoutRequestSchema.safeParse(rawBody);
+    if (!validationResult.success) {
+      console.error("[CREATE-CHECKOUT] Validation error:", validationResult.error.errors);
+      throw new Error("Invalid order data");
     }
-
-    if (!customerEmail) {
-      throw new Error("Customer email is required");
-    }
+    
+    const { items, customerEmail, customerName, shippingAddress } = validationResult.data;
 
     console.log("[CREATE-CHECKOUT] Processing checkout for:", customerEmail);
-    console.log("[CREATE-CHECKOUT] Items:", JSON.stringify(items));
+    console.log("[CREATE-CHECKOUT] Items count:", items.length);
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
     });
 
-    // Calculate totals
-    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const shippingCost = 4.99;
-    const total = subtotal + shippingCost;
+    // Calculate totals using SERVER-SIDE pricing (ignore client prices)
+    const subtotal = items.reduce((sum, item) => sum + PRODUCT_PRICE * item.quantity, 0);
+    const total = subtotal + SHIPPING_COST;
 
-    // Create line items for Stripe
+    // Create line items for Stripe using server-side pricing
     const lineItems = items.map((item) => ({
       price_data: {
         currency: "usd",
@@ -68,7 +123,7 @@ serve(async (req) => {
             variantId: item.variantId,
           },
         },
-        unit_amount: Math.round(item.price * 100), // Convert to cents
+        unit_amount: Math.round(PRODUCT_PRICE * 100), // Convert to cents - use server price
       },
       quantity: item.quantity,
     }));
@@ -84,7 +139,7 @@ serve(async (req) => {
             variantId: "shipping",
           },
         },
-        unit_amount: Math.round(shippingCost * 100),
+        unit_amount: Math.round(SHIPPING_COST * 100),
       },
       quantity: 1,
     });
@@ -134,7 +189,7 @@ serve(async (req) => {
       shipping_address: shippingAddress,
       items: items,
       subtotal: subtotal,
-      shipping_cost: shippingCost,
+      shipping_cost: SHIPPING_COST,
       total: total,
       status: "pending",
     });
@@ -152,9 +207,9 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[CREATE-CHECKOUT] Error:", errorMessage);
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    const corsHeaders = getCorsHeaders(req);
+    const safeMessage = getSafeErrorMessage(error);
+    return new Response(JSON.stringify({ error: safeMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });

@@ -1,23 +1,75 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// Allowed origins for CORS
+const ALLOWED_ORIGINS = [
+  "https://snapcase.ai",
+  "https://www.snapcase.ai",
+];
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin") || "";
+  // Allow localhost for development
+  const isLocalhost = origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1");
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) || isLocalhost ? origin : ALLOWED_ORIGINS[0];
+  
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+}
+
+// Safe error messages that don't expose internal details
+function getSafeErrorMessage(error: unknown): string {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  
+  // Log full error details server-side for debugging
+  console.error("[VERIFY-PAYMENT] Full error details:", {
+    message: errorMessage,
+    stack: error instanceof Error ? error.stack : undefined,
+    timestamp: new Date().toISOString()
+  });
+  
+  // Return safe, generic messages to client
+  if (errorMessage.includes("Session ID is required")) {
+    return "Session ID is required";
+  }
+  if (errorMessage.toLowerCase().includes("stripe")) {
+    return "Payment verification error. Please try again or contact support.";
+  }
+  if (errorMessage.toLowerCase().includes("supabase") || errorMessage.toLowerCase().includes("database")) {
+    return "Unable to verify payment. Please try again.";
+  }
+  
+  // Default safe message for unknown errors
+  return "An unexpected error occurred. Please contact support if the issue persists.";
+}
+
+// Validation schema
+const verifyPaymentSchema = z.object({
+  sessionId: z.string().min(1).max(500),
+});
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { sessionId } = await req.json();
-
-    if (!sessionId) {
+    const rawBody = await req.json();
+    
+    // Validate request data
+    const validationResult = verifyPaymentSchema.safeParse(rawBody);
+    if (!validationResult.success) {
+      console.error("[VERIFY-PAYMENT] Validation error:", validationResult.error.errors);
       throw new Error("Session ID is required");
     }
+    
+    const { sessionId } = validationResult.data;
 
     console.log("[VERIFY-PAYMENT] Verifying session:", sessionId);
 
@@ -75,9 +127,9 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("[VERIFY-PAYMENT] Error:", errorMessage);
-    return new Response(JSON.stringify({ error: errorMessage }), {
+    const corsHeaders = getCorsHeaders(req);
+    const safeMessage = getSafeErrorMessage(error);
+    return new Response(JSON.stringify({ error: safeMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
