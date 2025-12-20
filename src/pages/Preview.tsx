@@ -204,6 +204,14 @@ const Preview = () => {
                   )}
                 </Button>
                 <Button
+                  size="lg"
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => navigate(`/checkout/${variantId}`)}
+                >
+                  Proceed to Checkout
+                </Button>
+                <Button
                   variant="outline"
                   size="lg"
                   className="w-full"
