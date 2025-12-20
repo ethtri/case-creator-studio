@@ -6,6 +6,36 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Printful Store ID: 17088301 (Snapcase)
+const PRINTFUL_STORE_ID = "17088301";
+
+// Printful variant mapping - verified against Printful API v2-beta
+const PRINTFUL_VARIANT_MAP: Record<string, number> = {
+  // iPhone 17 Series (Product ID: 683)
+  "iphone-17-pro-max": 34015,
+  "iphone-17-pro": 34013,
+  "iphone-17-air": 34011,
+  "iphone-17": 34009,
+  // iPhone 16 Series (Product ID: 683)
+  "iphone-16-pro-max": 20297,
+  "iphone-16-pro": 20296,
+  "iphone-16-plus": 20295,
+  "iphone-16": 20294,
+  // iPhone 15 Series (Product ID: 683)
+  "iphone-15-pro-max": 17728,
+  "iphone-15-pro": 17726,
+  "iphone-15-plus": 17724,
+  "iphone-15": 17722,
+  // iPhone 14 Series (Product ID: 683)
+  "iphone-14-pro-max": 16916,
+  "iphone-14-pro": 16912,
+  "iphone-14": 16910,
+  // Samsung Galaxy S24 Series (Product ID: 684)
+  "galaxy-s24-ultra": 18739,
+  "galaxy-s24-plus": 18738,
+  "galaxy-s24": 18737,
+};
+
 interface PrintfulRecipient {
   name: string;
   address1: string;
@@ -14,15 +44,6 @@ interface PrintfulRecipient {
   country_code: string;
   zip: string;
   email: string;
-}
-
-interface PrintfulItem {
-  variant_id: number; // Printful variant ID
-  quantity: number;
-  files: Array<{
-    type: string;
-    url: string;
-  }>;
 }
 
 serve(async (req) => {
@@ -89,22 +110,29 @@ serve(async (req) => {
     };
 
     // Map cart items to Printful items
-    // Note: You'll need to map your variant IDs to Printful product variant IDs
-    const items = (order.items as any[]).map((item) => ({
-      // This is a placeholder - you'll need to map your variants to Printful variant IDs
-      // For example, iPhone 16 Pro Max case might be variant_id: 12345
-      variant_id: getPrintfulVariantId(item.variantId),
-      quantity: item.quantity,
-      files: [
-        {
-          type: "default",
-          url: item.designPreview, // The design image URL
-        },
-      ],
-    }));
+    const items = (order.items as any[]).map((item) => {
+      const variantId = PRINTFUL_VARIANT_MAP[item.variantId];
+      if (!variantId) {
+        console.error("[SUBMIT-PRINTFUL] Unknown variant:", item.variantId);
+        throw new Error(`Unknown variant ID: ${item.variantId}`);
+      }
+      return {
+        variant_id: variantId,
+        quantity: item.quantity,
+        files: [
+          {
+            type: "default",
+            url: item.designPreview,
+          },
+        ],
+      };
+    });
 
-    // Submit to Printful API
-    const printfulResponse = await fetch("https://api.printful.com/orders", {
+    console.log("[SUBMIT-PRINTFUL] Submitting to Printful store:", PRINTFUL_STORE_ID);
+    console.log("[SUBMIT-PRINTFUL] Items:", JSON.stringify(items));
+
+    // Submit to Printful API with store ID
+    const printfulResponse = await fetch(`https://api.printful.com/stores/${PRINTFUL_STORE_ID}/orders`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${printfulApiKey}`,
@@ -125,7 +153,7 @@ serve(async (req) => {
 
     if (!printfulResponse.ok) {
       console.error("[SUBMIT-PRINTFUL] Printful API error:", printfulData);
-      throw new Error(`Printful API error: ${printfulData.error?.message || "Unknown error"}`);
+      throw new Error(`Printful API error: ${printfulData.error?.message || JSON.stringify(printfulData)}`);
     }
 
     console.log("[SUBMIT-PRINTFUL] Printful order created:", printfulData.result?.id);
@@ -157,20 +185,3 @@ serve(async (req) => {
     });
   }
 });
-
-// Helper function to map your variant IDs to Printful variant IDs
-// You'll need to update this with your actual Printful product variant IDs
-function getPrintfulVariantId(variantId: string): number {
-  // This is a placeholder mapping - you'll need to update with real Printful variant IDs
-  // You can find these in your Printful dashboard under Products
-  const variantMap: Record<string, number> = {
-    // iPhone 16 series
-    "iphone-16-pro-max": 0, // Replace with actual Printful variant ID
-    "iphone-16-pro": 0,
-    "iphone-16-plus": 0,
-    "iphone-16": 0,
-    // Add more mappings as needed
-  };
-
-  return variantMap[variantId] || 0;
-}
