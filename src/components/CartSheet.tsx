@@ -67,7 +67,7 @@ export function CartSheet() {
                         {item.variant.brand} {item.variant.model}
                       </h4>
                       <p className="text-xs text-muted-foreground mb-2">
-                        {item.variant.color}
+                        Custom Design
                       </p>
                       
                       <div className="flex items-center justify-between">

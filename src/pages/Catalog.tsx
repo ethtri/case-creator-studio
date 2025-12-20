@@ -109,31 +109,21 @@ const Catalog = () => {
                           {/* Phone Preview */}
                           <div className="relative aspect-[3/4] mb-4 flex items-center justify-center">
                             <div 
-                              className="w-20 h-40 rounded-2xl shadow-medium transition-transform duration-300 group-hover:scale-105"
-                              style={{ backgroundColor: variant.colorHex }}
+                              className="w-20 h-40 rounded-2xl shadow-medium transition-transform duration-300 group-hover:scale-105 bg-muted"
                             >
                               <div 
-                                className="w-full h-full rounded-2xl border-4"
-                                style={{ 
-                                  borderColor: variant.colorHex === '#f5f5f7' || variant.colorHex === '#f5f0e8' 
-                                    ? 'rgba(0,0,0,0.1)' 
-                                    : 'rgba(255,255,255,0.2)' 
-                                }}
+                                className="w-full h-full rounded-2xl border-4 border-border/50"
                               >
                                 {/* Notch */}
-                                <div className="w-8 h-2 mx-auto mt-2 rounded-full bg-black/20" />
+                                <div className="w-8 h-2 mx-auto mt-2 rounded-full bg-foreground/20" />
                               </div>
                             </div>
                           </div>
 
-                          {/* Color swatch */}
-                          <div className="flex items-center gap-2 mb-3">
-                            <div 
-                              className="w-4 h-4 rounded-full border border-border"
-                              style={{ backgroundColor: variant.colorHex }}
-                            />
-                            <span className="text-sm text-muted-foreground">
-                              {variant.color}
+                          {/* Model name */}
+                          <div className="mb-3">
+                            <span className="text-sm font-medium">
+                              {variant.model}
                             </span>
                           </div>
 

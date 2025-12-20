@@ -272,19 +272,18 @@ const Checkout = () => {
                   {items.map((item) => (
                     <div key={item.id} className="flex gap-3">
                       <div
-                        className="w-12 h-18 rounded-lg flex-shrink-0 overflow-hidden"
+                        className="w-12 h-18 rounded-lg flex-shrink-0 overflow-hidden bg-muted"
                         style={{
                           backgroundImage: `url(${item.designPreview})`,
                           backgroundSize: "cover",
                           backgroundPosition: "center",
-                          backgroundColor: item.variant.colorHex,
                         }}
                       />
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-sm truncate">
                           {item.variant.brand} {item.variant.model}
                         </h3>
-                        <p className="text-xs text-muted-foreground">{item.variant.color}</p>
+                        <p className="text-xs text-muted-foreground">Custom Design</p>
                         <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
                       </div>
                       <div className="flex flex-col items-end gap-1">
