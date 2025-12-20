@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Package, ChevronRight, Plus } from "lucide-react";
+import { Package, ChevronRight, Plus } from "lucide-react";
 
 // Mock orders for display
 const mockOrders = [
@@ -36,13 +36,10 @@ const Orders = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/30">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-semibold text-lg">CaseStudio</span>
+            <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link to="/catalog">
@@ -69,7 +66,7 @@ const Orders = () => {
               </p>
             </div>
             <Link to="/catalog">
-              <Button variant="accent">
+              <Button className="bg-cta hover:bg-cta/90 text-cta-foreground">
                 <Plus className="w-4 h-4 mr-1" />
                 New Design
               </Button>
@@ -84,7 +81,7 @@ const Orders = () => {
                 Create your first custom case to get started
               </p>
               <Link to="/catalog">
-                <Button variant="accent">Start Designing</Button>
+                <Button className="bg-cta hover:bg-cta/90 text-cta-foreground">Start Designing</Button>
               </Link>
             </div>
           ) : (

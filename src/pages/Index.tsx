@@ -1,23 +1,51 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Smartphone, Palette, Package, ChevronRight, Sparkles } from "lucide-react";
+import { Smartphone, Palette, Package, ChevronRight, Truck, RotateCcw, BadgeCheck, Clock } from "lucide-react";
+import heroWide from "@/assets/hero-wide.png";
+import heroNarrow from "@/assets/hero-narrow.png";
+import { phoneVariants } from "@/data/phoneVariants";
 
-const features = [
+const steps = [
   {
-    icon: Palette,
-    title: "Design Your Vision",
-    description: "Upload images, add text, shapes, and stickers with our intuitive canvas editor.",
+    number: "01",
+    title: "Choose your model",
+    description: "Pick from the latest iPhone and Samsung devices.",
   },
   {
-    icon: Smartphone,
+    number: "02",
+    title: "Design your case",
+    description: "Upload images, add text, and make it uniquely yours.",
+  },
+  {
+    number: "03",
+    title: "Checkout & ship",
+    description: "We print and ship worldwide via Printful.",
+  },
+];
+
+const popularModels = phoneVariants.slice(0, 4);
+
+const faqs = [
+  {
+    icon: Truck,
+    title: "Worldwide Shipping",
+    description: "Free shipping on orders over $50. Standard delivery 5-10 business days.",
+  },
+  {
+    icon: RotateCcw,
+    title: "Easy Returns",
+    description: "30-day hassle-free returns if you're not completely satisfied.",
+  },
+  {
+    icon: BadgeCheck,
     title: "Premium Quality",
-    description: "High-quality cases for iPhone and Samsung, printed with precision and care.",
+    description: "Durable polycarbonate with matte or glossy finish options.",
   },
   {
-    icon: Package,
-    title: "Fast Fulfillment",
-    description: "Powered by Printful for reliable production and worldwide shipping.",
+    icon: Clock,
+    title: "Fast Turnaround",
+    description: "Orders printed and shipped within 2-5 business days.",
   },
 ];
 
@@ -25,146 +53,100 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/30">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-semibold text-lg">CaseStudio</span>
+            <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
           </Link>
-          <div className="flex items-center gap-4">
-            <Link to="/catalog">
-              <Button variant="ghost">Browse Cases</Button>
+          <div className="hidden md:flex items-center gap-6">
+            <Link to="/catalog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              Browse Cases
             </Link>
-            <Link to="/orders">
-              <Button variant="ghost">My Orders</Button>
+            <Link to="/orders" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              My Orders
             </Link>
             <Link to="/catalog">
-              <Button variant="accent">Start Designing</Button>
+              <Button className="bg-cta hover:bg-cta/90 text-cta-foreground">
+                Start Designing
+              </Button>
             </Link>
           </div>
+          <Link to="/catalog" className="md:hidden">
+            <Button size="sm" className="bg-cta hover:bg-cta/90 text-cta-foreground">
+              Design
+            </Button>
+          </Link>
         </div>
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 overflow-hidden">
-        <div className="container mx-auto px-6">
-          <div className="max-w-4xl mx-auto text-center">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-            >
-              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary text-secondary-foreground text-sm font-medium mb-8">
-                <Sparkles className="w-4 h-4 text-accent" />
-                New: Samsung Galaxy S24 cases now available
-              </span>
-            </motion.div>
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        {/* Background Images - Wide for desktop, Narrow for mobile */}
+        <div className="absolute inset-0">
+          <img 
+            src={heroWide} 
+            alt="" 
+            className="hidden md:block w-full h-full object-cover"
+          />
+          <img 
+            src={heroNarrow} 
+            alt="" 
+            className="md:hidden w-full h-full object-cover"
+          />
+          {/* Dark gradient overlay for readability */}
+          <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-background/50" />
+        </div>
 
+        <div className="container relative z-10 mx-auto px-6 pt-24 pb-16">
+          <div className="max-w-2xl">
             <motion.h1
-              className="text-5xl md:text-7xl font-bold tracking-tight mb-6"
-              initial={{ opacity: 0, y: 20 }}
+              className="font-display text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight text-foreground mb-6"
+              initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
+              transition={{ duration: 0.7 }}
             >
-              Design Your
+              Print your
               <br />
-              <span className="text-accent">Perfect Case</span>
+              story.
             </motion.h1>
 
             <motion.p
-              className="text-xl text-muted-foreground max-w-2xl mx-auto mb-10"
+              className="text-lg md:text-xl text-muted-foreground max-w-md mb-10"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              Create stunning custom phone cases with our powerful design editor.
-              Premium quality, printed and shipped worldwide.
+              Design your own phone case in minutes. We print + ship via Printful.
             </motion.p>
 
             <motion.div
-              className="flex flex-col sm:flex-row items-center justify-center gap-4"
+              className="flex flex-col sm:flex-row items-start gap-4"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
             >
               <Link to="/catalog">
-                <Button variant="hero" size="xl">
-                  Start Designing
-                  <ChevronRight className="w-5 h-5" />
+                <Button size="lg" className="bg-cta hover:bg-cta/90 text-cta-foreground font-semibold px-8 py-6 text-base shadow-glow">
+                  Start designing
+                  <ChevronRight className="w-5 h-5 ml-1" />
                 </Button>
               </Link>
               <Link to="/catalog">
-                <Button variant="hero-outline" size="xl">
-                  Browse Catalog
+                <Button 
+                  size="lg" 
+                  variant="outline" 
+                  className="border-accent/50 text-foreground hover:bg-accent/10 hover:border-accent px-8 py-6 text-base"
+                >
+                  Browse models
                 </Button>
               </Link>
             </motion.div>
           </div>
         </div>
-
-        {/* Hero Image */}
-        <motion.div
-          className="mt-16 relative"
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-        >
-          <div className="container mx-auto px-6">
-            <div className="relative max-w-5xl mx-auto">
-              <div className="aspect-[16/9] rounded-2xl bg-gradient-to-br from-muted to-secondary overflow-hidden shadow-strong">
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="grid grid-cols-3 gap-8 p-12">
-                    {/* Phone mockups */}
-                    <motion.div
-                      className="relative"
-                      animate={{ y: [0, -10, 0] }}
-                      transition={{ duration: 4, repeat: Infinity, delay: 0 }}
-                    >
-                      <div className="w-32 h-64 rounded-3xl bg-gradient-to-b from-foreground/90 to-foreground shadow-strong mx-auto">
-                        <div className="w-full h-full rounded-3xl border-4 border-foreground/10 overflow-hidden">
-                          <div className="w-full h-full bg-gradient-to-br from-accent/20 to-accent/40 flex items-center justify-center">
-                            <span className="text-foreground/20 text-xs font-medium">Your Design</span>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                    <motion.div
-                      className="relative"
-                      animate={{ y: [0, -10, 0] }}
-                      transition={{ duration: 4, repeat: Infinity, delay: 0.5 }}
-                    >
-                      <div className="w-36 h-72 rounded-3xl bg-gradient-to-b from-foreground/90 to-foreground shadow-strong mx-auto">
-                        <div className="w-full h-full rounded-3xl border-4 border-foreground/10 overflow-hidden">
-                          <div className="w-full h-full bg-gradient-to-br from-primary/10 to-primary/30 flex items-center justify-center">
-                            <span className="text-foreground/20 text-xs font-medium">Your Design</span>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                    <motion.div
-                      className="relative"
-                      animate={{ y: [0, -10, 0] }}
-                      transition={{ duration: 4, repeat: Infinity, delay: 1 }}
-                    >
-                      <div className="w-32 h-64 rounded-3xl bg-gradient-to-b from-foreground/90 to-foreground shadow-strong mx-auto">
-                        <div className="w-full h-full rounded-3xl border-4 border-foreground/10 overflow-hidden">
-                          <div className="w-full h-full bg-gradient-to-br from-success/20 to-success/40 flex items-center justify-center">
-                            <span className="text-foreground/20 text-xs font-medium">Your Design</span>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
       </section>
 
-      {/* Features Section */}
+      {/* How it Works Section */}
       <section className="py-24 bg-surface-sunken">
         <div className="container mx-auto px-6">
           <motion.div
@@ -174,77 +156,151 @@ const Index = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Create with Confidence
+            <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
+              How it works
             </h2>
-            <p className="text-muted-foreground max-w-xl mx-auto">
-              Everything you need to design and order your perfect phone case
+            <p className="text-muted-foreground max-w-lg mx-auto">
+              Three simple steps to your custom phone case
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
+          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            {steps.map((step, index) => (
               <motion.div
-                key={feature.title}
-                className="bg-card rounded-2xl p-8 shadow-soft hover:shadow-medium transition-shadow"
+                key={step.number}
+                className="text-center"
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
+                transition={{ duration: 0.6, delay: index * 0.15 }}
               >
-                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-6">
-                  <feature.icon className="w-6 h-6 text-accent" />
+                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-cta/10 border border-cta/30 mb-6">
+                  <span className="font-display font-bold text-cta text-lg">{step.number}</span>
                 </div>
-                <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-                <p className="text-muted-foreground">{feature.description}</p>
+                <h3 className="font-display text-xl font-semibold text-foreground mb-3">{step.title}</h3>
+                <p className="text-muted-foreground text-sm">{step.description}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* Popular Models Section */}
       <section className="py-24">
         <div className="container mx-auto px-6">
           <motion.div
-            className="max-w-4xl mx-auto text-center bg-gradient-to-br from-primary to-primary/80 rounded-3xl p-12 md:p-16 shadow-strong"
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
+            className="flex items-center justify-between mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
-              Ready to Create Your Case?
-            </h2>
-            <p className="text-primary-foreground/80 mb-8 max-w-xl mx-auto">
-              Start designing now and have your custom case delivered to your doorstep.
-            </p>
-            <Link to="/catalog">
-              <Button 
-                variant="secondary" 
-                size="xl"
-                className="font-semibold"
-              >
-                Choose Your Phone
-                <ChevronRight className="w-5 h-5" />
+            <div>
+              <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-2">
+                Popular models
+              </h2>
+              <p className="text-muted-foreground">Start with the most popular devices</p>
+            </div>
+            <Link to="/catalog" className="hidden md:block">
+              <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
+                View all
+                <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
           </motion.div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {popularModels.map((variant, index) => (
+              <motion.div
+                key={variant.id}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+              >
+                <Link to={`/design/${variant.id}`}>
+                  <div className="group bg-card rounded-2xl p-6 border border-border/50 hover:border-cta/30 transition-all duration-300 hover:shadow-medium">
+                    <div className="aspect-square rounded-xl bg-muted/50 mb-4 flex items-center justify-center overflow-hidden">
+                      <div className="w-20 h-40 rounded-2xl bg-gradient-to-b from-muted-foreground/20 to-muted-foreground/10 border border-muted-foreground/20 group-hover:scale-105 transition-transform duration-300" />
+                    </div>
+                    <h3 className="font-semibold text-foreground mb-1">{variant.model}</h3>
+                    <p className="text-sm text-muted-foreground mb-3">{variant.brand}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-cta font-semibold">${variant.price}</span>
+                      <span className="text-xs text-muted-foreground group-hover:text-accent transition-colors">
+                        Design now →
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="mt-8 text-center md:hidden">
+            <Link to="/catalog">
+              <Button variant="outline" className="border-border text-foreground">
+                View all models
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust/FAQ Section */}
+      <section className="py-24 bg-surface-sunken">
+        <div className="container mx-auto px-6">
+          <motion.div
+            className="text-center mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
+              Why Snapcase?
+            </h2>
+            <p className="text-muted-foreground max-w-lg mx-auto">
+              Quality, speed, and satisfaction guaranteed
+            </p>
+          </motion.div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {faqs.map((faq, index) => (
+              <motion.div
+                key={faq.title}
+                className="bg-card rounded-2xl p-6 border border-border/50"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+              >
+                <div className="w-12 h-12 rounded-xl bg-cta/10 flex items-center justify-center mb-4">
+                  <faq.icon className="w-6 h-6 text-cta" />
+                </div>
+                <h3 className="font-semibold text-foreground mb-2">{faq.title}</h3>
+                <p className="text-sm text-muted-foreground">{faq.description}</p>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="py-12 border-t border-border">
+      <footer className="py-12 border-t border-border/30">
         <div className="container mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="font-semibold">CaseStudio</span>
+              <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
+            </div>
+            <div className="flex items-center gap-8 text-sm text-muted-foreground">
+              <a href="#" className="hover:text-foreground transition-colors">Privacy</a>
+              <a href="#" className="hover:text-foreground transition-colors">Terms</a>
+              <a href="#" className="hover:text-foreground transition-colors">Contact</a>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2024 CaseStudio. All rights reserved.
+              © 2024 snapcase.ai. All rights reserved.
             </p>
           </div>
         </div>

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
 import { toast } from "sonner";
-import { Sparkles, ChevronLeft, Lock, CreditCard, Package } from "lucide-react";
+import { ChevronLeft, Lock, CreditCard, Package } from "lucide-react";
 
 const Checkout = () => {
   const { variantId } = useParams();
@@ -75,10 +75,7 @@ const Checkout = () => {
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="font-semibold text-lg">CaseStudio</span>
+              <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
             </Link>
           </div>
           <Button
@@ -231,9 +228,8 @@ const Checkout = () => {
 
                 <Button
                   type="submit"
-                  variant="accent"
                   size="xl"
-                  className="w-full"
+                  className="w-full bg-cta hover:bg-cta/90 text-cta-foreground"
                   disabled={isProcessing}
                 >
                   {isProcessing ? (

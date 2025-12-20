@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { phoneVariants, getPhoneModels, getBrands } from "@/data/phoneVariants";
-import { Sparkles, ChevronRight, Filter, Check } from "lucide-react";
+import { ChevronRight, Filter } from "lucide-react";
 
 const Catalog = () => {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
@@ -19,13 +19,10 @@ const Catalog = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/50">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/30">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-semibold text-lg">CaseStudio</span>
+            <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
           </Link>
           <div className="flex items-center gap-4">
             <Link to="/catalog">
@@ -160,17 +157,14 @@ const Catalog = () => {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 border-t border-border">
+      <footer className="py-12 border-t border-border/30">
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="font-semibold">CaseStudio</span>
+              <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2024 CaseStudio. All rights reserved.
+              © 2024 snapcase.ai. All rights reserved.
             </p>
           </div>
         </div>
