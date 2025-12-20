@@ -87,63 +87,34 @@ const Catalog = () => {
       {/* Phone Models Grid */}
       <section className="pb-24">
         <div className="container mx-auto px-6">
-          <div className="space-y-16">
-            {filteredModels.map(([modelName, variants], modelIndex) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {filteredModels.flatMap(([, variants]) => variants).map((variant, index) => (
               <motion.div
-                key={modelName}
-                initial={{ opacity: 0, y: 20 }}
+                key={variant.id}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: modelIndex * 0.1 }}
+                transition={{ duration: 0.2, delay: index * 0.02 }}
               >
-                <h2 className="text-2xl font-semibold mb-6">{modelName}</h2>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {variants.map((variant, index) => (
-                    <motion.div
-                      key={variant.id}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.3, delay: index * 0.05 }}
-                    >
-                      <Link to={`/design/${variant.id}`}>
-                        <div className="group relative bg-card rounded-2xl p-6 shadow-soft hover:shadow-medium transition-all duration-300 cursor-pointer border border-border/50 hover:border-accent/30">
-                          {/* Phone Preview */}
-                          <div className="relative aspect-[3/4] mb-4 flex items-center justify-center">
-                            <div 
-                              className="w-20 h-40 rounded-2xl shadow-medium transition-transform duration-300 group-hover:scale-105 bg-muted"
-                            >
-                              <div 
-                                className="w-full h-full rounded-2xl border-4 border-border/50"
-                              >
-                                {/* Notch */}
-                                <div className="w-8 h-2 mx-auto mt-2 rounded-full bg-foreground/20" />
-                              </div>
-                            </div>
-                          </div>
+                <Link to={`/design/${variant.id}`}>
+                  <div className="group relative bg-card rounded-xl p-4 hover:shadow-medium transition-all duration-200 cursor-pointer border border-border/50 hover:border-accent/50">
+                    {/* Phone Icon */}
+                    <div className="flex justify-center mb-3">
+                      <div className="w-10 h-20 rounded-lg bg-muted border-2 border-border/50 flex flex-col items-center pt-1">
+                        <div className="w-4 h-1 rounded-full bg-foreground/20" />
+                      </div>
+                    </div>
 
-                          {/* Model name */}
-                          <div className="mb-3">
-                            <span className="text-sm font-medium">
-                              {variant.model}
-                            </span>
-                          </div>
+                    {/* Model name & Price */}
+                    <div className="text-center">
+                      <p className="text-xs text-muted-foreground mb-0.5">{variant.brand}</p>
+                      <p className="text-sm font-medium leading-tight mb-2">{variant.model}</p>
+                      <p className="text-sm font-semibold text-accent">${variant.price.toFixed(2)}</p>
+                    </div>
 
-                          {/* Price */}
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold">
-                              ${variant.price.toFixed(2)}
-                            </span>
-                            <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                              <ChevronRight className="w-4 h-4 text-accent" />
-                            </div>
-                          </div>
-
-                          {/* Hover overlay */}
-                          <div className="absolute inset-0 rounded-2xl ring-2 ring-accent ring-opacity-0 group-hover:ring-opacity-100 transition-all pointer-events-none" />
-                        </div>
-                      </Link>
-                    </motion.div>
-                  ))}
-                </div>
+                    {/* Hover ring */}
+                    <div className="absolute inset-0 rounded-xl ring-2 ring-accent ring-opacity-0 group-hover:ring-opacity-100 transition-all pointer-events-none" />
+                  </div>
+                </Link>
               </motion.div>
             ))}
           </div>
