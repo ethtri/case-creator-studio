@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
-import { Sparkles, ChevronLeft, ShoppingCart, RotateCcw } from "lucide-react";
+import { ChevronLeft, ShoppingCart, RotateCcw, BadgeCheck, Truck } from "lucide-react";
 
 const Preview = () => {
   const { variantId } = useParams();
@@ -45,10 +45,7 @@ const Preview = () => {
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link to="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="font-semibold text-lg">CaseStudio</span>
+              <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
             </Link>
           </div>
           <div className="flex items-center gap-3">
@@ -59,7 +56,7 @@ const Preview = () => {
               <ChevronLeft className="w-4 h-4 mr-1" />
               Back to Editor
             </Button>
-            <Button variant="accent" onClick={() => navigate(`/checkout/${variantId}`)}>
+            <Button className="bg-cta hover:bg-cta/90 text-cta-foreground" onClick={() => navigate(`/checkout/${variantId}`)}>
               <ShoppingCart className="w-4 h-4 mr-1" />
               Proceed to Checkout
             </Button>
@@ -156,8 +153,8 @@ const Preview = () => {
 
               <div className="space-y-4 mb-8">
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                    <Sparkles className="w-4 h-4 text-accent" />
+                  <div className="w-8 h-8 rounded-lg bg-cta/10 flex items-center justify-center shrink-0">
+                    <BadgeCheck className="w-4 h-4 text-cta" />
                   </div>
                   <div>
                     <h4 className="font-medium">Premium Quality</h4>
@@ -167,8 +164,8 @@ const Preview = () => {
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center shrink-0">
-                    <ShoppingCart className="w-4 h-4 text-accent" />
+                  <div className="w-8 h-8 rounded-lg bg-cta/10 flex items-center justify-center shrink-0">
+                    <Truck className="w-4 h-4 text-cta" />
                   </div>
                   <div>
                     <h4 className="font-medium">Fast Shipping</h4>
@@ -181,9 +178,8 @@ const Preview = () => {
 
               <div className="flex flex-col gap-3">
                 <Button
-                  variant="accent"
                   size="xl"
-                  className="w-full"
+                  className="w-full bg-cta hover:bg-cta/90 text-cta-foreground"
                   onClick={() => navigate(`/checkout/${variantId}`)}
                 >
                   <ShoppingCart className="w-5 h-5 mr-2" />

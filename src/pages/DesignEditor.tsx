@@ -6,15 +6,11 @@ import { Button } from "@/components/ui/button";
 import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
 import { toast } from "sonner";
 import {
-  Sparkles,
   Type,
   Image,
   Square,
   CircleIcon,
-  Undo2,
-  Redo2,
   Trash2,
-  Download,
   Layers,
   ZoomIn,
   ZoomOut,
@@ -279,10 +275,7 @@ const DesignEditor = () => {
       <header className="h-14 bg-card border-b border-border flex items-center justify-between px-4">
         <div className="flex items-center gap-4">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center">
-              <Sparkles className="w-3.5 h-3.5 text-primary-foreground" />
-            </div>
-            <span className="font-semibold">CaseStudio</span>
+            <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
           </Link>
           <div className="h-6 w-px bg-border" />
           <div className="text-sm">
@@ -297,7 +290,7 @@ const DesignEditor = () => {
             <Eye className="w-4 h-4 mr-1" />
             Preview
           </Button>
-          <Button variant="accent" size="sm" onClick={handlePreview}>
+          <Button className="bg-cta hover:bg-cta/90 text-cta-foreground" size="sm" onClick={handlePreview}>
             Continue to Checkout
           </Button>
         </div>
