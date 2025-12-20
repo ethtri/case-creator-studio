@@ -2,21 +2,38 @@ import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { phoneVariants, getPhoneModels, getBrands } from "@/data/phoneVariants";
-import { ChevronRight, Filter } from "lucide-react";
+import { Filter, Search } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CartSheet } from "@/components/CartSheet";
 
 const Catalog = () => {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const brands = getBrands();
   const phoneModels = getPhoneModels();
 
   const filteredModels = useMemo(() => {
     const entries = Array.from(phoneModels.entries());
-    if (!selectedBrand) return entries;
-    return entries.filter(([key]) => key.startsWith(selectedBrand));
-  }, [phoneModels, selectedBrand]);
+    let filtered = entries;
+    
+    if (selectedBrand) {
+      filtered = filtered.filter(([key]) => key.startsWith(selectedBrand));
+    }
+    
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered
+        .map(([key, variants]) => [key, variants.filter(v => 
+          v.model.toLowerCase().includes(query) || 
+          v.brand.toLowerCase().includes(query)
+        )] as [string, typeof variants])
+        .filter(([, variants]) => variants.length > 0);
+    }
+    
+    return filtered;
+  }, [phoneModels, selectedBrand, searchQuery]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -55,31 +72,44 @@ const Catalog = () => {
             </p>
           </motion.div>
 
-          {/* Brand Filter */}
+          {/* Search & Brand Filter */}
           <motion.div
-            className="flex items-center gap-3 mt-8"
+            className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
           >
-            <Filter className="w-4 h-4 text-muted-foreground" />
-            <Button
-              variant={selectedBrand === null ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedBrand(null)}
-            >
-              All Brands
-            </Button>
-            {brands.map((brand) => (
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search phones..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            
+            <div className="flex items-center gap-2 flex-wrap">
+              <Filter className="w-4 h-4 text-muted-foreground" />
               <Button
-                key={brand}
-                variant={selectedBrand === brand ? "default" : "outline"}
+                variant={selectedBrand === null ? "default" : "outline"}
                 size="sm"
-                onClick={() => setSelectedBrand(brand)}
+                onClick={() => setSelectedBrand(null)}
               >
-                {brand}
+                All
               </Button>
-            ))}
+              {brands.map((brand) => (
+                <Button
+                  key={brand}
+                  variant={selectedBrand === brand ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedBrand(brand)}
+                >
+                  {brand}
+                </Button>
+              ))}
+            </div>
           </motion.div>
         </div>
       </section>
