@@ -93,10 +93,9 @@ const Preview = () => {
                 transition={{ type: "spring", stiffness: 200, damping: 25 }}
                 style={{ transformStyle: "preserve-3d", perspective: "1000px" }}
               >
-                {/* Phone case mockup */}
+              {/* Phone case mockup */}
                 <div
-                  className="w-48 h-96 rounded-[40px] shadow-strong relative overflow-hidden"
-                  style={{ backgroundColor: variant.colorHex }}
+                  className="w-48 h-96 rounded-[40px] shadow-strong relative overflow-hidden bg-muted"
                 >
                   {/* Design overlay */}
                   {designPreview && (
@@ -152,13 +151,9 @@ const Preview = () => {
                 {variant.brand} {variant.model} Case
               </h1>
 
-              <div className="flex items-center gap-3 mb-6">
-                <div
-                  className="w-6 h-6 rounded-full border border-border"
-                  style={{ backgroundColor: variant.colorHex }}
-                />
-                <span className="text-muted-foreground">{variant.color}</span>
-              </div>
+              <p className="text-muted-foreground mb-6">
+                Custom designed phone case
+              </p>
 
               <div className="text-3xl font-bold mb-8">
                 ${variant.price.toFixed(2)} <span className="text-lg text-muted-foreground font-normal">USD</span>

@@ -294,8 +294,6 @@ const DesignEditor = () => {
           <div className="text-sm hidden sm:block">
             <span className="text-muted-foreground">Designing for </span>
             <span className="font-medium">{variant.brand} {variant.model}</span>
-            <span className="text-muted-foreground"> • </span>
-            <span className="font-medium">{variant.color}</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -439,8 +437,7 @@ const DesignEditor = () => {
           >
             {/* Phone frame */}
             <div
-              className="relative rounded-[32px] shadow-strong p-3"
-              style={{ backgroundColor: variant.colorHex }}
+              className="relative rounded-[32px] shadow-strong p-3 bg-muted"
             >
               <div className="rounded-[28px] overflow-hidden shadow-inner bg-card">
                 <canvas ref={canvasRef} className="block" />
