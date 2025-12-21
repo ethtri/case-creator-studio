@@ -9,6 +9,7 @@ import { CaseCanvas } from "@/components/editor/CaseCanvas";
 import { EditorToolbar } from "@/components/editor/EditorToolbar";
 import { DpiIndicator, getDpiQuality } from "@/components/editor/DpiIndicator";
 import { FillColorPicker } from "@/components/editor/FillColorPicker";
+import { ClipartPicker } from "@/components/editor/ClipartPicker";
 import { useEditorState } from "@/hooks/useEditorState";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ArrowLeft, ShoppingCart } from "lucide-react";
@@ -26,6 +27,7 @@ const DesignEditor = () => {
     hasImage,
     backgroundFill,
     handleToolChange,
+    handleAddClipart,
     handleImageUpload,
     handleFitImage,
     handleRotateImage,
@@ -151,6 +153,23 @@ const DesignEditor = () => {
             </AnimatePresence>
           )}
 
+          {/* Clipart Picker Panel - Desktop */}
+          {!isMobile && (
+            <AnimatePresence>
+              {activeTool === "clipart" && (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute top-4 left-20 z-30"
+                >
+                  <ClipartPicker onSelect={handleAddClipart} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
+
           <CaseCanvas
             ref={canvasRef}
             variant={variant}
@@ -216,6 +235,22 @@ const DesignEditor = () => {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* Mobile Clipart Picker */}
+            <AnimatePresence>
+              {activeTool === "clipart" && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  transition={{ duration: 0.2 }}
+                  className="mb-3"
+                >
+                  <ClipartPicker onSelect={handleAddClipart} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <Button
               className="w-full bg-cta hover:bg-cta/90 text-cta-foreground h-12 text-base font-medium rounded-xl"
               onClick={handleContinue}

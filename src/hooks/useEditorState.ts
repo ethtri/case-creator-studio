@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from "react";
 import { CaseCanvasRef } from "@/components/editor/CaseCanvas";
 import { ToolType } from "@/components/editor/EditorToolbar";
 import { FillValue } from "@/components/editor/FillColorPicker";
+import { ClipartItem } from "@/data/clipartData";
 import { toast } from "sonner";
 
 export const useEditorState = () => {
@@ -18,9 +19,8 @@ export const useEditorState = () => {
       toast.success("Text added");
       setActiveTool("select");
     } else if (tool === "clipart") {
-      // Placeholder - clipart feature coming soon
-      toast.info("Clipart coming soon!");
-      setActiveTool("select");
+      // Toggle clipart panel
+      setActiveTool(activeTool === "clipart" ? "select" : "clipart");
     } else if (tool === "fill") {
       // Toggle fill panel
       setActiveTool(activeTool === "fill" ? "select" : "fill");
@@ -31,6 +31,18 @@ export const useEditorState = () => {
       setActiveTool(tool);
     }
   }, [activeColor, activeTool]);
+
+  const handleAddClipart = useCallback(async (clipart: ClipartItem) => {
+    if (!canvasRef.current) return;
+    
+    try {
+      await canvasRef.current.addClipart(clipart);
+      toast.success(`${clipart.name} added`);
+      setActiveTool("select");
+    } catch {
+      toast.error("Failed to add clipart");
+    }
+  }, []);
 
   const handleBackgroundFillChange = useCallback((fill: FillValue) => {
     setBackgroundFill(fill);
@@ -88,6 +100,7 @@ export const useEditorState = () => {
     backgroundFill,
     setActiveColor,
     handleToolChange,
+    handleAddClipart,
     handleImageUpload,
     handleFitImage,
     handleRotateImage,

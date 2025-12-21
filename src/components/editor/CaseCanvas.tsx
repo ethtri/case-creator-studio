@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
-import { Canvas as FabricCanvas, FabricImage, FabricText, Rect, Gradient } from "fabric";
+import { Canvas as FabricCanvas, FabricImage, FabricText, Rect, Gradient, loadSVGFromString, util } from "fabric";
 import { PhoneVariant } from "@/data/phoneVariants";
 import { DpiIndicator, getDpiQuality } from "./DpiIndicator";
 import { cn } from "@/lib/utils";
 import { FillValue } from "./FillColorPicker";
+import { ClipartItem } from "@/data/clipartData";
 
 // Printful requires 300 DPI - we work at full resolution internally
 const TARGET_DPI = 300;
@@ -12,6 +13,7 @@ const PRINT_INCH_RATIO = TARGET_DPI; // pixels per inch at 300 DPI
 export interface CaseCanvasRef {
   addText: (text: string, color: string) => void;
   addImage: (file: File) => Promise<void>;
+  addClipart: (clipart: ClipartItem) => Promise<void>;
   fitImage: () => void;
   rotateImage: (degrees: number) => void;
   reset: () => void;
@@ -174,6 +176,36 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         fabricCanvas.add(textObj);
         fabricCanvas.setActiveObject(textObj);
         fabricCanvas.renderAll();
+      },
+
+      addClipart: async (clipart: ClipartItem) => {
+        if (!fabricCanvas) return;
+
+        try {
+          const { objects } = await loadSVGFromString(clipart.svg);
+          if (!objects || objects.length === 0) return;
+
+          const group = util.groupSVGElements(objects);
+          
+          // Scale to a reasonable size (about 20% of canvas width)
+          const targetSize = fabricCanvas.width! * 0.2;
+          const scale = targetSize / Math.max(group.width || 100, group.height || 100);
+          
+          group.scale(scale);
+          group.set({
+            left: fabricCanvas.width! / 2,
+            top: fabricCanvas.height! / 2,
+            originX: "center",
+            originY: "center",
+            name: "clipart",
+          });
+
+          fabricCanvas.add(group);
+          fabricCanvas.setActiveObject(group);
+          fabricCanvas.renderAll();
+        } catch (error) {
+          console.error("Failed to add clipart:", error);
+        }
       },
 
       addImage: async (file: File) => {
