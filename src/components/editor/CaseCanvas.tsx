@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
-import { Canvas as FabricCanvas, FabricImage, FabricText, Rect, Gradient, loadSVGFromString, util, FabricObject } from "fabric";
-import { PhoneVariant } from "@/data/phoneVariants";
+import { Canvas as FabricCanvas, FabricImage, FabricText, Rect, Circle, Gradient, loadSVGFromString, util, FabricObject } from "fabric";
+import { PhoneVariant, LensConfig } from "@/data/phoneVariants";
 import { cn } from "@/lib/utils";
 import { FillValue } from "./FillColorPicker";
 import { ClipartItem } from "@/data/clipartData";
@@ -256,57 +256,161 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
       let ry: number;
       switch (camera.shape) {
         case "square":
-          rx = 20 / scale;
-          ry = 20 / scale;
+          rx = scaledCameraWidth * 0.15;
+          ry = scaledCameraWidth * 0.15;
           break;
         case "pill":
-          rx = Math.min(scaledCameraWidth, scaledCameraHeight) / 2;
-          ry = Math.min(scaledCameraWidth, scaledCameraHeight) / 2;
+          rx = scaledCameraWidth * 0.35;
+          ry = scaledCameraWidth * 0.35;
           break;
         case "island":
-          rx = 24 / scale;
-          ry = 24 / scale;
+          rx = scaledCameraWidth * 0.12;
+          ry = scaledCameraWidth * 0.12;
           break;
         case "vertical-strip":
-          rx = 16 / scale;
-          ry = 16 / scale;
+          rx = scaledCameraWidth * 0.4;
+          ry = scaledCameraWidth * 0.4;
           break;
         default:
-          rx = 20 / scale;
-          ry = 20 / scale;
+          rx = scaledCameraWidth * 0.15;
+          ry = scaledCameraWidth * 0.15;
       }
 
-      // Add camera cutout indicator (non-selectable)
-      const cameraRect = new Rect({
+      // Add camera module background (raised look)
+      const cameraModuleShadow = new Rect({
+        left: cameraLeft + 2,
+        top: cameraTop + 2,
+        width: scaledCameraWidth,
+        height: scaledCameraHeight,
+        fill: "rgba(0, 0, 0, 0.15)",
+        rx,
+        ry,
+        selectable: false,
+        evented: false,
+        name: "camera-shadow",
+      });
+      canvas.add(cameraModuleShadow);
+
+      // Camera module main body
+      const cameraModule = new Rect({
         left: cameraLeft,
         top: cameraTop,
         width: scaledCameraWidth,
         height: scaledCameraHeight,
-        fill: "rgba(60, 60, 60, 0.95)",
-        stroke: "rgba(40, 40, 40, 1)",
-        strokeWidth: 2 / scale,
+        fill: "#2a2a2a",
+        stroke: "#1a1a1a",
+        strokeWidth: 1,
         rx,
         ry,
         selectable: false,
         evented: false,
         name: "camera-cutout",
       });
-      canvas.add(cameraRect);
+      canvas.add(cameraModule);
 
-      // Add "Camera" label
-      const cameraLabel = new FabricText("Camera", {
-        left: cameraLeft + scaledCameraWidth / 2,
-        top: cameraTop + scaledCameraHeight / 2,
-        fontSize: Math.max(10, 12 / scale),
-        fill: "rgba(255, 255, 255, 0.7)",
-        fontFamily: "Inter, sans-serif",
-        originX: "center",
-        originY: "center",
-        selectable: false,
-        evented: false,
-        name: "camera-label",
+      // Add individual camera lenses/elements
+      camera.lenses.forEach((lens: LensConfig, index: number) => {
+        const lensX = cameraLeft + (lens.x / 100) * scaledCameraWidth;
+        const lensY = cameraTop + (lens.y / 100) * scaledCameraHeight;
+        const lensRadius = (lens.size / 100) * scaledCameraWidth / 2;
+
+        if (lens.type === "lens") {
+          // Outer lens ring (chrome/silver)
+          const lensRing = new Circle({
+            left: lensX,
+            top: lensY,
+            radius: lensRadius,
+            fill: "#4a4a4a",
+            stroke: "#666",
+            strokeWidth: lensRadius * 0.1,
+            originX: "center",
+            originY: "center",
+            selectable: false,
+            evented: false,
+            name: `camera-lens-ring-${index}`,
+          });
+          canvas.add(lensRing);
+
+          // Inner lens (dark with blue tint)
+          const lensInner = new Circle({
+            left: lensX,
+            top: lensY,
+            radius: lensRadius * 0.75,
+            fill: "#1a1a2e",
+            stroke: "#0a0a15",
+            strokeWidth: 1,
+            originX: "center",
+            originY: "center",
+            selectable: false,
+            evented: false,
+            name: `camera-lens-inner-${index}`,
+          });
+          canvas.add(lensInner);
+
+          // Lens reflection highlight
+          const lensHighlight = new Circle({
+            left: lensX - lensRadius * 0.2,
+            top: lensY - lensRadius * 0.2,
+            radius: lensRadius * 0.25,
+            fill: "rgba(255, 255, 255, 0.15)",
+            originX: "center",
+            originY: "center",
+            selectable: false,
+            evented: false,
+            name: `camera-lens-highlight-${index}`,
+          });
+          canvas.add(lensHighlight);
+
+        } else if (lens.type === "flash") {
+          // Flash LED
+          const flash = new Circle({
+            left: lensX,
+            top: lensY,
+            radius: lensRadius,
+            fill: "#f5f0e0",
+            stroke: "#d4c9a8",
+            strokeWidth: 1,
+            originX: "center",
+            originY: "center",
+            selectable: false,
+            evented: false,
+            name: `camera-flash-${index}`,
+          });
+          canvas.add(flash);
+
+        } else if (lens.type === "sensor") {
+          // Sensor/LiDAR (darker)
+          const sensor = new Circle({
+            left: lensX,
+            top: lensY,
+            radius: lensRadius,
+            fill: "#1a1a1a",
+            stroke: "#333",
+            strokeWidth: 1,
+            originX: "center",
+            originY: "center",
+            selectable: false,
+            evented: false,
+            name: `camera-sensor-${index}`,
+          });
+          canvas.add(sensor);
+
+        } else if (lens.type === "mic") {
+          // Microphone hole
+          const mic = new Circle({
+            left: lensX,
+            top: lensY,
+            radius: lensRadius,
+            fill: "#0a0a0a",
+            originX: "center",
+            originY: "center",
+            selectable: false,
+            evented: false,
+            name: `camera-mic-${index}`,
+          });
+          canvas.add(mic);
+        }
       });
-      canvas.add(cameraLabel);
 
       // Add safe area border (dashed pink outline like reference)
       const safeAreaPadding = 20 / scale;
@@ -776,14 +880,31 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
           ref={containerRef}
           className="flex-1 flex items-center justify-center p-4 pb-8 overflow-hidden"
         >
-          <div className="relative rounded-[2rem] shadow-strong bg-muted/50 p-2">
-            <div className="rounded-[1.75rem] overflow-hidden">
-              <canvas ref={canvasRef} className="block touch-none" />
+          {/* Phone case mockup wrapper */}
+          <div className="relative">
+            {/* Shadow layer */}
+            <div 
+              className="absolute inset-0 rounded-[2.5rem] bg-black/20 blur-xl translate-y-2 scale-95"
+              aria-hidden="true"
+            />
+            {/* Case body */}
+            <div className="relative rounded-[2.25rem] bg-gradient-to-br from-[#e8e8e8] via-[#f5f5f5] to-[#e0e0e0] p-[3px] shadow-xl">
+              {/* Inner case with slight inset */}
+              <div className="rounded-[2.1rem] bg-gradient-to-b from-white/80 to-white/40 p-[2px]">
+                <div className="rounded-[2rem] overflow-hidden ring-1 ring-black/5">
+                  <canvas ref={canvasRef} className="block touch-none" />
+                </div>
+              </div>
             </div>
+            {/* Side edge highlight */}
+            <div 
+              className="absolute top-4 bottom-4 -right-1 w-1 rounded-full bg-gradient-to-b from-white/60 via-white/30 to-white/60"
+              aria-hidden="true"
+            />
           </div>
         </div>
 
-        {/* Print info - hidden on mobile via className passed from parent */}
+        {/* Print info - hidden on mobile */}
         <div className="absolute bottom-4 left-4 text-xs text-muted-foreground hidden md:block">
           Back-only print
         </div>
