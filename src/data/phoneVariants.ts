@@ -2,13 +2,17 @@
 // In production, this would be synced from Printful's catalog API
 
 export type CameraPosition = "top-left" | "top-right" | "top-center";
-export type CameraShape = "square" | "pill" | "island" | "vertical-strip";
+export type CameraShape = "square" | "pill" | "island" | "vertical-strip" | "scattered";
 
 export interface LensConfig {
-  x: number; // position as % of camera module width
-  y: number; // position as % of camera module height
+  x: number; // position as % of camera module width (or print area for scattered)
+  y: number; // position as % of camera module height (or print area for scattered)
   size: number; // size as % of camera module width
   type: "lens" | "flash" | "sensor" | "mic";
+  // For scattered layout, absolute positioning relative to print area
+  absoluteX?: number; // position as % of print area width
+  absoluteY?: number; // position as % of print area height
+  absoluteSize?: number; // size as % of print area width
 }
 
 export interface CameraConfig {
@@ -37,61 +41,68 @@ export interface PhoneVariant {
   camera: CameraConfig;
 }
 
-// iPhone Pro camera (3 lenses + flash) - square module
+// iPhone Pro camera (3 lenses in triangle + flash + sensor) - square module with realistic proportions
 const iphoneProCamera: CameraConfig = {
   position: "top-left",
   shape: "square",
-  widthPercent: 32,
-  heightPercent: 16,
+  widthPercent: 28, // Slightly smaller, more realistic
+  heightPercent: 14, // More square aspect ratio
   offsetPercent: 3,
   lenses: [
-    { x: 22, y: 28, size: 32, type: "lens" },
-    { x: 22, y: 72, size: 32, type: "lens" },
-    { x: 60, y: 50, size: 32, type: "lens" },
-    { x: 78, y: 22, size: 12, type: "flash" },
-    { x: 78, y: 78, size: 8, type: "sensor" },
+    // Triangle arrangement for 3 main lenses
+    { x: 25, y: 30, size: 30, type: "lens" }, // Top-left lens
+    { x: 25, y: 70, size: 30, type: "lens" }, // Bottom-left lens
+    { x: 58, y: 50, size: 30, type: "lens" }, // Right center lens
+    // Flash and sensors on right side
+    { x: 80, y: 25, size: 10, type: "flash" },
+    { x: 80, y: 50, size: 6, type: "sensor" }, // LiDAR
+    { x: 80, y: 75, size: 4, type: "mic" },
   ],
 };
 
-// iPhone standard camera (2 lenses diagonal) - pill/vertical
+// iPhone standard camera (2 lenses diagonal) - pill/vertical with refined proportions
 const iphoneStandardCamera: CameraConfig = {
   position: "top-left",
   shape: "pill",
-  widthPercent: 18,
-  heightPercent: 14,
+  widthPercent: 16, // Narrower
+  heightPercent: 13, // Taller
   offsetPercent: 3,
   lenses: [
-    { x: 50, y: 30, size: 45, type: "lens" },
-    { x: 50, y: 70, size: 45, type: "lens" },
+    { x: 50, y: 28, size: 50, type: "lens" },
+    { x: 50, y: 72, size: 50, type: "lens" },
   ],
 };
 
-// Samsung Ultra camera - vertical strip with 4 lenses
+// Samsung Ultra camera - scattered individual lenses (no housing background)
 const samsungUltraCamera: CameraConfig = {
   position: "top-left",
-  shape: "vertical-strip",
-  widthPercent: 14,
-  heightPercent: 26,
-  offsetPercent: 4,
+  shape: "scattered",
+  widthPercent: 18, // Bounding area for scattered lenses
+  heightPercent: 24,
+  offsetPercent: 3,
   lenses: [
-    { x: 50, y: 14, size: 38, type: "lens" },
-    { x: 50, y: 38, size: 38, type: "lens" },
-    { x: 50, y: 62, size: 38, type: "lens" },
-    { x: 50, y: 86, size: 25, type: "lens" },
+    // Each lens positioned absolutely as % of print area
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 4.5, absoluteY: 2, absoluteSize: 4.2 }, // Top large lens
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 4.5, absoluteY: 6, absoluteSize: 4.2 }, // Second lens
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 4.5, absoluteY: 10, absoluteSize: 3.2 }, // Third lens (periscope)
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 4.5, absoluteY: 13, absoluteSize: 2.4 }, // Fourth lens (smaller)
+    { x: 0, y: 0, size: 0, type: "flash", absoluteX: 9, absoluteY: 3, absoluteSize: 1.2 }, // Flash
+    { x: 0, y: 0, size: 0, type: "sensor", absoluteX: 9, absoluteY: 5, absoluteSize: 0.8 }, // Sensor
   ],
 };
 
-// Samsung standard camera - vertical strip with 3 lenses
+// Samsung standard camera - scattered individual lenses
 const samsungStandardCamera: CameraConfig = {
   position: "top-left",
-  shape: "vertical-strip",
-  widthPercent: 12,
-  heightPercent: 22,
-  offsetPercent: 4,
+  shape: "scattered",
+  widthPercent: 14,
+  heightPercent: 20,
+  offsetPercent: 3.5,
   lenses: [
-    { x: 50, y: 20, size: 42, type: "lens" },
-    { x: 50, y: 50, size: 42, type: "lens" },
-    { x: 50, y: 80, size: 32, type: "lens" },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 4, absoluteY: 2.5, absoluteSize: 4 }, // Top lens
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 4, absoluteY: 6.5, absoluteSize: 4 }, // Middle lens
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 4, absoluteY: 10.5, absoluteSize: 3 }, // Bottom lens
+    { x: 0, y: 0, size: 0, type: "flash", absoluteX: 8, absoluteY: 3.5, absoluteSize: 1 }, // Flash
   ],
 };
 

@@ -255,17 +255,215 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
           cameraLeft = scaledCameraOffset;
       }
 
+      // Helper function to render a realistic camera lens with 3D depth
+      const renderRealisticLens = (
+        ctx: FabricCanvas,
+        x: number,
+        y: number,
+        radius: number,
+        index: number
+      ) => {
+        // Outer raised bezel (silver/chrome ring with gradient effect)
+        const outerBezel = new Circle({
+          left: x,
+          top: y,
+          radius: radius,
+          fill: "#3d3d3d",
+          stroke: "#555",
+          strokeWidth: radius * 0.08,
+          originX: "center",
+          originY: "center",
+          selectable: false,
+          evented: false,
+          name: `camera-lens-bezel-${index}`,
+        });
+        ctx.add(outerBezel);
+
+        // Inner chrome ring
+        const chromeRing = new Circle({
+          left: x,
+          top: y,
+          radius: radius * 0.88,
+          fill: "transparent",
+          stroke: "#6a6a6a",
+          strokeWidth: radius * 0.12,
+          originX: "center",
+          originY: "center",
+          selectable: false,
+          evented: false,
+          name: `camera-lens-chrome-${index}`,
+        });
+        ctx.add(chromeRing);
+
+        // Main lens glass (dark with subtle blue-purple tint)
+        const lensGlass = new Circle({
+          left: x,
+          top: y,
+          radius: radius * 0.72,
+          fill: "#0d0d18",
+          stroke: "#1a1a25",
+          strokeWidth: 1,
+          originX: "center",
+          originY: "center",
+          selectable: false,
+          evented: false,
+          name: `camera-lens-glass-${index}`,
+        });
+        ctx.add(lensGlass);
+
+        // Inner dark ring (aperture effect)
+        const innerRing = new Circle({
+          left: x,
+          top: y,
+          radius: radius * 0.55,
+          fill: "#050508",
+          originX: "center",
+          originY: "center",
+          selectable: false,
+          evented: false,
+          name: `camera-lens-aperture-${index}`,
+        });
+        ctx.add(innerRing);
+
+        // Center reflection dot
+        const centerDot = new Circle({
+          left: x,
+          top: y,
+          radius: radius * 0.15,
+          fill: "#0a0a12",
+          originX: "center",
+          originY: "center",
+          selectable: false,
+          evented: false,
+          name: `camera-lens-center-${index}`,
+        });
+        ctx.add(centerDot);
+
+        // Glass reflection highlight (top-left)
+        const highlight1 = new Circle({
+          left: x - radius * 0.25,
+          top: y - radius * 0.25,
+          radius: radius * 0.18,
+          fill: "rgba(255, 255, 255, 0.12)",
+          originX: "center",
+          originY: "center",
+          selectable: false,
+          evented: false,
+          name: `camera-lens-highlight1-${index}`,
+        });
+        ctx.add(highlight1);
+
+        // Secondary smaller highlight
+        const highlight2 = new Circle({
+          left: x + radius * 0.35,
+          top: y - radius * 0.1,
+          radius: radius * 0.08,
+          fill: "rgba(255, 255, 255, 0.08)",
+          originX: "center",
+          originY: "center",
+          selectable: false,
+          evented: false,
+          name: `camera-lens-highlight2-${index}`,
+        });
+        ctx.add(highlight2);
+      };
+
+      // Helper function to render flash LED
+      const renderFlash = (
+        ctx: FabricCanvas,
+        x: number,
+        y: number,
+        radius: number,
+        index: number
+      ) => {
+        // Flash outer ring
+        const flashRing = new Circle({
+          left: x,
+          top: y,
+          radius: radius,
+          fill: "#d4c9a8",
+          stroke: "#b8a888",
+          strokeWidth: radius * 0.15,
+          originX: "center",
+          originY: "center",
+          selectable: false,
+          evented: false,
+          name: `camera-flash-ring-${index}`,
+        });
+        ctx.add(flashRing);
+
+        // Flash LED center (warm white/yellow)
+        const flashCenter = new Circle({
+          left: x,
+          top: y,
+          radius: radius * 0.7,
+          fill: "#f5f0d8",
+          originX: "center",
+          originY: "center",
+          selectable: false,
+          evented: false,
+          name: `camera-flash-center-${index}`,
+        });
+        ctx.add(flashCenter);
+      };
+
+      // Helper function to render sensor/LiDAR
+      const renderSensor = (
+        ctx: FabricCanvas,
+        x: number,
+        y: number,
+        radius: number,
+        index: number
+      ) => {
+        const sensor = new Circle({
+          left: x,
+          top: y,
+          radius: radius,
+          fill: "#1a1a1a",
+          stroke: "#2a2a2a",
+          strokeWidth: radius * 0.15,
+          originX: "center",
+          originY: "center",
+          selectable: false,
+          evented: false,
+          name: `camera-sensor-${index}`,
+        });
+        ctx.add(sensor);
+      };
+
+      // Helper function to render microphone hole
+      const renderMic = (
+        ctx: FabricCanvas,
+        x: number,
+        y: number,
+        radius: number,
+        index: number
+      ) => {
+        const mic = new Circle({
+          left: x,
+          top: y,
+          radius: radius,
+          fill: "#050505",
+          originX: "center",
+          originY: "center",
+          selectable: false,
+          evented: false,
+          name: `camera-mic-${index}`,
+        });
+        ctx.add(mic);
+      };
+
       // Determine corner radius based on shape
       let rx: number;
       let ry: number;
       switch (camera.shape) {
         case "square":
-          rx = scaledCameraWidth * 0.15;
-          ry = scaledCameraWidth * 0.15;
+          rx = scaledCameraWidth * 0.18;
+          ry = scaledCameraWidth * 0.18;
           break;
         case "pill":
-          rx = scaledCameraWidth * 0.35;
-          ry = scaledCameraWidth * 0.35;
+          rx = scaledCameraWidth * 0.4;
+          ry = scaledCameraWidth * 0.4;
           break;
         case "island":
           rx = scaledCameraWidth * 0.12;
@@ -275,144 +473,132 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
           rx = scaledCameraWidth * 0.4;
           ry = scaledCameraWidth * 0.4;
           break;
+        case "scattered":
+          // No background for scattered layout
+          rx = 0;
+          ry = 0;
+          break;
         default:
           rx = scaledCameraWidth * 0.15;
           ry = scaledCameraWidth * 0.15;
       }
 
-      // Add camera module background (raised look)
-      const cameraModuleShadow = new Rect({
-        left: cameraLeft + 2,
-        top: cameraTop + 2,
-        width: scaledCameraWidth,
-        height: scaledCameraHeight,
-        fill: "rgba(0, 0, 0, 0.15)",
-        rx,
-        ry,
-        selectable: false,
-        evented: false,
-        name: "camera-shadow",
-      });
-      canvas.add(cameraModuleShadow);
+      // Only add camera module background for non-scattered layouts
+      if (camera.shape !== "scattered") {
+        // Add camera module background shadow (raised look)
+        const cameraModuleShadow = new Rect({
+          left: cameraLeft + 3,
+          top: cameraTop + 3,
+          width: scaledCameraWidth,
+          height: scaledCameraHeight,
+          fill: "rgba(0, 0, 0, 0.2)",
+          rx,
+          ry,
+          selectable: false,
+          evented: false,
+          name: "camera-shadow",
+        });
+        canvas.add(cameraModuleShadow);
 
-      // Camera module main body
-      const cameraModule = new Rect({
-        left: cameraLeft,
-        top: cameraTop,
-        width: scaledCameraWidth,
-        height: scaledCameraHeight,
-        fill: "#2a2a2a",
-        stroke: "#1a1a1a",
-        strokeWidth: 1,
-        rx,
-        ry,
-        selectable: false,
-        evented: false,
-        name: "camera-cutout",
-      });
-      canvas.add(cameraModule);
+        // Camera module main body with subtle gradient effect
+        const cameraModule = new Rect({
+          left: cameraLeft,
+          top: cameraTop,
+          width: scaledCameraWidth,
+          height: scaledCameraHeight,
+          fill: "#252525",
+          stroke: "#1a1a1a",
+          strokeWidth: 1.5,
+          rx,
+          ry,
+          selectable: false,
+          evented: false,
+          name: "camera-cutout",
+        });
+        canvas.add(cameraModule);
 
-      // Add individual camera lenses/elements
+        // Add inner highlight for depth
+        const cameraInnerHighlight = new Rect({
+          left: cameraLeft + 2,
+          top: cameraTop + 2,
+          width: scaledCameraWidth - 4,
+          height: scaledCameraHeight - 4,
+          fill: "transparent",
+          stroke: "rgba(255, 255, 255, 0.06)",
+          strokeWidth: 1,
+          rx: rx * 0.9,
+          ry: ry * 0.9,
+          selectable: false,
+          evented: false,
+          name: "camera-inner-highlight",
+        });
+        canvas.add(cameraInnerHighlight);
+      }
+
+      // Render camera lenses/elements
       camera.lenses.forEach((lens: LensConfig, index: number) => {
-        const lensX = cameraLeft + (lens.x / 100) * scaledCameraWidth;
-        const lensY = cameraTop + (lens.y / 100) * scaledCameraHeight;
-        const lensRadius = (lens.size / 100) * scaledCameraWidth / 2;
+        let lensX: number;
+        let lensY: number;
+        let lensRadius: number;
 
-        if (lens.type === "lens") {
-          // Outer lens ring (chrome/silver)
-          const lensRing = new Circle({
-            left: lensX,
-            top: lensY,
-            radius: lensRadius,
-            fill: "#4a4a4a",
-            stroke: "#666",
-            strokeWidth: lensRadius * 0.1,
-            originX: "center",
-            originY: "center",
-            selectable: false,
-            evented: false,
-            name: `camera-lens-ring-${index}`,
-          });
-          canvas.add(lensRing);
+        if (camera.shape === "scattered" && lens.absoluteX !== undefined) {
+          // For scattered layout, use absolute positioning relative to print area
+          lensX = (lens.absoluteX / 100) * displayWidth;
+          lensY = (lens.absoluteY! / 100) * displayHeight;
+          lensRadius = (lens.absoluteSize! / 100) * displayWidth / 2;
 
-          // Inner lens (dark with blue tint)
-          const lensInner = new Circle({
-            left: lensX,
-            top: lensY,
-            radius: lensRadius * 0.75,
-            fill: "#1a1a2e",
-            stroke: "#0a0a15",
-            strokeWidth: 1,
-            originX: "center",
-            originY: "center",
-            selectable: false,
-            evented: false,
-            name: `camera-lens-inner-${index}`,
-          });
-          canvas.add(lensInner);
+          // Add individual shadow for each scattered lens
+          if (lens.type === "lens") {
+            const lensShadow = new Circle({
+              left: lensX + 2,
+              top: lensY + 2,
+              radius: lensRadius * 1.15,
+              fill: "rgba(0, 0, 0, 0.25)",
+              originX: "center",
+              originY: "center",
+              selectable: false,
+              evented: false,
+              name: `camera-lens-shadow-${index}`,
+            });
+            canvas.add(lensShadow);
 
-          // Lens reflection highlight
-          const lensHighlight = new Circle({
-            left: lensX - lensRadius * 0.2,
-            top: lensY - lensRadius * 0.2,
-            radius: lensRadius * 0.25,
-            fill: "rgba(255, 255, 255, 0.15)",
-            originX: "center",
-            originY: "center",
-            selectable: false,
-            evented: false,
-            name: `camera-lens-highlight-${index}`,
-          });
-          canvas.add(lensHighlight);
+            // Add raised bump background for each lens
+            const lensBump = new Circle({
+              left: lensX,
+              top: lensY,
+              radius: lensRadius * 1.12,
+              fill: "#2a2a2a",
+              stroke: "#1a1a1a",
+              strokeWidth: 1,
+              originX: "center",
+              originY: "center",
+              selectable: false,
+              evented: false,
+              name: `camera-lens-bump-${index}`,
+            });
+            canvas.add(lensBump);
+          }
+        } else {
+          // For module-based layouts, use relative positioning
+          lensX = cameraLeft + (lens.x / 100) * scaledCameraWidth;
+          lensY = cameraTop + (lens.y / 100) * scaledCameraHeight;
+          lensRadius = (lens.size / 100) * scaledCameraWidth / 2;
+        }
 
-        } else if (lens.type === "flash") {
-          // Flash LED
-          const flash = new Circle({
-            left: lensX,
-            top: lensY,
-            radius: lensRadius,
-            fill: "#f5f0e0",
-            stroke: "#d4c9a8",
-            strokeWidth: 1,
-            originX: "center",
-            originY: "center",
-            selectable: false,
-            evented: false,
-            name: `camera-flash-${index}`,
-          });
-          canvas.add(flash);
-
-        } else if (lens.type === "sensor") {
-          // Sensor/LiDAR (darker)
-          const sensor = new Circle({
-            left: lensX,
-            top: lensY,
-            radius: lensRadius,
-            fill: "#1a1a1a",
-            stroke: "#333",
-            strokeWidth: 1,
-            originX: "center",
-            originY: "center",
-            selectable: false,
-            evented: false,
-            name: `camera-sensor-${index}`,
-          });
-          canvas.add(sensor);
-
-        } else if (lens.type === "mic") {
-          // Microphone hole
-          const mic = new Circle({
-            left: lensX,
-            top: lensY,
-            radius: lensRadius,
-            fill: "#0a0a0a",
-            originX: "center",
-            originY: "center",
-            selectable: false,
-            evented: false,
-            name: `camera-mic-${index}`,
-          });
-          canvas.add(mic);
+        // Render based on type
+        switch (lens.type) {
+          case "lens":
+            renderRealisticLens(canvas, lensX, lensY, lensRadius, index);
+            break;
+          case "flash":
+            renderFlash(canvas, lensX, lensY, lensRadius, index);
+            break;
+          case "sensor":
+            renderSensor(canvas, lensX, lensY, lensRadius, index);
+            break;
+          case "mic":
+            renderMic(canvas, lensX, lensY, lensRadius, index);
+            break;
         }
       });
 
