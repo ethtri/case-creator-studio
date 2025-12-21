@@ -24,14 +24,14 @@ const DesignEditor = () => {
     activeTool,
     currentDpi,
     hasImage,
-    backgroundColor,
+    backgroundFill,
     handleToolChange,
     handleImageUpload,
     handleFitImage,
     handleRotateImage,
     handleReset,
     handleDpiChange,
-    handleBackgroundColorChange,
+    handleBackgroundFillChange,
     getPreviewData,
   } = useEditorState();
 
@@ -143,8 +143,8 @@ const DesignEditor = () => {
                   className="absolute top-4 left-20 z-30"
                 >
                   <FillColorPicker
-                    currentColor={backgroundColor}
-                    onColorChange={handleBackgroundColorChange}
+                    currentFill={backgroundFill}
+                    onFillChange={handleBackgroundFillChange}
                   />
                 </motion.div>
               )}
@@ -210,8 +210,8 @@ const DesignEditor = () => {
                   className="mb-3"
                 >
                   <FillColorPicker
-                    currentColor={backgroundColor}
-                    onColorChange={handleBackgroundColorChange}
+                    currentFill={backgroundFill}
+                    onFillChange={handleBackgroundFillChange}
                   />
                 </motion.div>
               )}

@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { CaseCanvasRef } from "@/components/editor/CaseCanvas";
 import { ToolType } from "@/components/editor/EditorToolbar";
+import { FillValue } from "@/components/editor/FillColorPicker";
 import { toast } from "sonner";
 
 export const useEditorState = () => {
@@ -9,7 +10,7 @@ export const useEditorState = () => {
   const [activeColor, setActiveColor] = useState("#000000");
   const [currentDpi, setCurrentDpi] = useState<number | null>(null);
   const [hasImage, setHasImage] = useState(false);
-  const [backgroundColor, setBackgroundColor] = useState("#f5f5f5");
+  const [backgroundFill, setBackgroundFill] = useState<FillValue>({ type: "solid", color: "#f5f5f5" });
 
   const handleToolChange = useCallback((tool: ToolType) => {
     if (tool === "text" && canvasRef.current) {
@@ -31,9 +32,9 @@ export const useEditorState = () => {
     }
   }, [activeColor, activeTool]);
 
-  const handleBackgroundColorChange = useCallback((color: string) => {
-    setBackgroundColor(color);
-    canvasRef.current?.setBackgroundColor(color);
+  const handleBackgroundFillChange = useCallback((fill: FillValue) => {
+    setBackgroundFill(fill);
+    canvasRef.current?.setBackgroundFill(fill);
   }, []);
 
   const handleImageUpload = useCallback(async (file: File) => {
@@ -60,8 +61,9 @@ export const useEditorState = () => {
     canvasRef.current?.reset();
     setHasImage(false);
     setCurrentDpi(null);
-    setBackgroundColor("#f5f5f5");
-    canvasRef.current?.setBackgroundColor("#f5f5f5");
+    const defaultFill: FillValue = { type: "solid", color: "#f5f5f5" };
+    setBackgroundFill(defaultFill);
+    canvasRef.current?.setBackgroundFill(defaultFill);
     toast.success("Canvas cleared");
   }, []);
 
@@ -83,7 +85,7 @@ export const useEditorState = () => {
     activeColor,
     currentDpi,
     hasImage,
-    backgroundColor,
+    backgroundFill,
     setActiveColor,
     handleToolChange,
     handleImageUpload,
@@ -91,7 +93,7 @@ export const useEditorState = () => {
     handleRotateImage,
     handleReset,
     handleDpiChange,
-    handleBackgroundColorChange,
+    handleBackgroundFillChange,
     getPreviewData,
     getExportData,
   };

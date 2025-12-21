@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
-import { Canvas as FabricCanvas, FabricImage, FabricText, Rect } from "fabric";
+import { Canvas as FabricCanvas, FabricImage, FabricText, Rect, Gradient } from "fabric";
 import { PhoneVariant } from "@/data/phoneVariants";
 import { DpiIndicator, getDpiQuality } from "./DpiIndicator";
 import { cn } from "@/lib/utils";
+import { FillValue } from "./FillColorPicker";
 
 // Printful requires 300 DPI - we work at full resolution internally
 const TARGET_DPI = 300;
@@ -17,8 +18,8 @@ export interface CaseCanvasRef {
   exportForPrint: () => string;
   getPreview: () => string;
   hasImage: () => boolean;
-  setBackgroundColor: (color: string) => void;
-  getBackgroundColor: () => string;
+  setBackgroundFill: (fill: FillValue) => void;
+  getBackgroundFill: () => FillValue;
 }
 
 interface CaseCanvasProps {
@@ -295,15 +296,42 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         return fabricCanvas.getObjects().some((obj) => (obj as any).name === "user-image");
       },
 
-      setBackgroundColor: (color: string) => {
+      setBackgroundFill: (fill: FillValue) => {
         if (!fabricCanvas) return;
-        fabricCanvas.backgroundColor = color;
+        
+        if (fill.type === "solid") {
+          fabricCanvas.backgroundColor = fill.color;
+        } else {
+          // Create Fabric.js gradient
+          const directionCoords: Record<string, { x1: number; y1: number; x2: number; y2: number }> = {
+            "to-r": { x1: 0, y1: 0, x2: fabricCanvas.width!, y2: 0 },
+            "to-b": { x1: 0, y1: 0, x2: 0, y2: fabricCanvas.height! },
+            "to-br": { x1: 0, y1: 0, x2: fabricCanvas.width!, y2: fabricCanvas.height! },
+            "to-tr": { x1: 0, y1: fabricCanvas.height!, x2: fabricCanvas.width!, y2: 0 },
+          };
+          const coords = directionCoords[fill.direction] || directionCoords["to-r"];
+          
+          const gradient = new Gradient({
+            type: "linear",
+            coords: coords,
+            colorStops: [
+              { offset: 0, color: fill.from },
+              { offset: 1, color: fill.to },
+            ],
+          });
+          fabricCanvas.backgroundColor = gradient;
+        }
         fabricCanvas.renderAll();
       },
 
-      getBackgroundColor: () => {
-        if (!fabricCanvas) return "#f5f5f5";
-        return fabricCanvas.backgroundColor as string || "#f5f5f5";
+      getBackgroundFill: () => {
+        if (!fabricCanvas) return { type: "solid" as const, color: "#f5f5f5" };
+        const bg = fabricCanvas.backgroundColor;
+        if (typeof bg === "string") {
+          return { type: "solid" as const, color: bg || "#f5f5f5" };
+        }
+        // If it's a gradient, return the stored fill value
+        return { type: "solid" as const, color: "#f5f5f5" };
       },
     }));
 
