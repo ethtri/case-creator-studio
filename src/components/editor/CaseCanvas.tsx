@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import { Canvas as FabricCanvas, FabricImage, FabricText, Rect, Gradient, loadSVGFromString, util, FabricObject } from "fabric";
 import { PhoneVariant } from "@/data/phoneVariants";
-import { DpiIndicator, getDpiQuality } from "./DpiIndicator";
 import { cn } from "@/lib/utils";
 import { FillValue } from "./FillColorPicker";
 import { ClipartItem } from "@/data/clipartData";
@@ -725,35 +724,21 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
     }));
 
     return (
-      <div className={cn("relative flex-1 flex flex-col", className)}>
-        {/* DPI Indicator */}
-        <div className="absolute top-4 left-4 z-10">
-          <DpiIndicator dpi={currentDpi} />
-        </div>
-
-        {/* Safe Area label */}
-        {currentDpi !== null && (
-          <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-10">
-            <span className="text-xs text-accent/80 bg-card/80 px-2 py-1 rounded-full border border-accent/20">
-              Safe Area
-            </span>
-          </div>
-        )}
-
+      <div className={cn("relative flex-1 flex flex-col min-h-0", className)}>
         {/* Canvas Container */}
         <div
           ref={containerRef}
-          className="flex-1 flex items-center justify-center p-4 overflow-hidden"
+          className="flex-1 flex items-center justify-center p-4 pb-8 overflow-hidden"
         >
           <div className="relative rounded-[2rem] shadow-strong bg-muted/50 p-2">
             <div className="rounded-[1.75rem] overflow-hidden">
-              <canvas ref={canvasRef} className="block" />
+              <canvas ref={canvasRef} className="block touch-none" />
             </div>
           </div>
         </div>
 
-        {/* Print info */}
-        <div className="absolute bottom-4 left-4 text-xs text-muted-foreground">
+        {/* Print info - hidden on mobile via className passed from parent */}
+        <div className="absolute bottom-4 left-4 text-xs text-muted-foreground hidden md:block">
           Back-only print
         </div>
       </div>

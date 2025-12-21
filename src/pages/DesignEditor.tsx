@@ -244,7 +244,7 @@ const DesignEditor = () => {
           onSelectionChange={handleSelectionChange}
           onLayersChange={handleLayersChange}
           onHistoryChange={handleHistoryChange}
-          className={isMobile ? "pb-32" : ""}
+          className={isMobile ? "pb-44" : ""}
         />
 
           {/* Desktop Footer Actions */}
@@ -291,87 +291,56 @@ const DesignEditor = () => {
             hasImage={hasImage}
           />
           {/* Mobile CTA Button - Above toolbar */}
-          <div className="fixed bottom-[76px] left-0 right-0 px-4 pb-2 bg-gradient-to-t from-card to-transparent pt-4 z-40">
-            {/* Mobile Fill Color Picker */}
+          <div className="fixed bottom-[56px] left-0 right-0 z-40">
+            {/* Mobile Tool Panels */}
             <AnimatePresence>
-              {activeTool === "fill" && (
+              {(activeTool === "fill" || activeTool === "layers" || activeTool === "clipart" || activeTool === "text") && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 20 }}
                   transition={{ duration: 0.2 }}
-                  className="mb-3"
+                  className="mx-4 mb-3 max-h-[40vh] overflow-auto"
                 >
-                  <FillColorPicker
-                    currentFill={backgroundFill}
-                    onFillChange={handleBackgroundFillChange}
-                  />
+                  {activeTool === "fill" && (
+                    <FillColorPicker
+                      currentFill={backgroundFill}
+                      onFillChange={handleBackgroundFillChange}
+                    />
+                  )}
+                  {activeTool === "layers" && (
+                    <LayersPanel
+                      layers={layers}
+                      onToggleVisibility={handleToggleLayerVisibility}
+                      onMoveUp={handleMoveLayerUp}
+                      onMoveDown={handleMoveLayerDown}
+                      onSelect={handleSelectLayer}
+                      onDelete={handleDeleteLayer}
+                    />
+                  )}
+                  {activeTool === "clipart" && (
+                    <ClipartPicker onSelect={handleAddClipart} />
+                  )}
+                  {activeTool === "text" && (
+                    <TextStyler
+                      currentStyle={textStyle}
+                      onStyleChange={handleTextStyleChange}
+                      hasSelectedText={hasSelectedText}
+                    />
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Mobile Layers Panel */}
-            <AnimatePresence>
-              {activeTool === "layers" && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 20 }}
-                  transition={{ duration: 0.2 }}
-                  className="mb-3"
-                >
-                  <LayersPanel
-                    layers={layers}
-                    onToggleVisibility={handleToggleLayerVisibility}
-                    onMoveUp={handleMoveLayerUp}
-                    onMoveDown={handleMoveLayerDown}
-                    onSelect={handleSelectLayer}
-                    onDelete={handleDeleteLayer}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Mobile Clipart Picker */}
-            <AnimatePresence>
-              {activeTool === "clipart" && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 20 }}
-                  transition={{ duration: 0.2 }}
-                  className="mb-3"
-                >
-                  <ClipartPicker onSelect={handleAddClipart} />
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Mobile Text Styler */}
-            <AnimatePresence>
-              {activeTool === "text" && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 20 }}
-                  transition={{ duration: 0.2 }}
-                  className="mb-3"
-                >
-                  <TextStyler
-                    currentStyle={textStyle}
-                    onStyleChange={handleTextStyleChange}
-                    hasSelectedText={hasSelectedText}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <Button
-              className="w-full bg-cta hover:bg-cta/90 text-cta-foreground h-12 text-base font-medium rounded-xl"
-              onClick={handleContinue}
-            >
-              Next: Review
-            </Button>
+            {/* CTA Button */}
+            <div className="px-4 pb-2 bg-gradient-to-t from-card via-card/80 to-transparent pt-3">
+              <Button
+                className="w-full bg-cta hover:bg-cta/90 text-cta-foreground h-11 text-base font-medium rounded-xl shadow-lg"
+                onClick={handleContinue}
+              >
+                Next: Review
+              </Button>
+            </div>
           </div>
         </>
       )}
