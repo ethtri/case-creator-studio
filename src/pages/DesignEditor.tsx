@@ -105,10 +105,21 @@ const DesignEditor = () => {
       {/* Desktop Header */}
       {!isMobile && (
         <header className="h-14 bg-card border-b border-border flex items-center justify-between px-6 z-40">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link to="/" className="flex items-center gap-2">
+              <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
+            </Link>
+            <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+              Canvas Mode
+            </span>
+          </div>
           <nav className="flex items-center gap-6 text-sm">
+            <Link 
+              to={`/design-edm/${variantId}`}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Try EDM Mode
+            </Link>
             <Link to="/" className="text-muted-foreground hover:text-foreground">
               Home
             </Link>
@@ -117,9 +128,6 @@ const DesignEditor = () => {
               className="text-muted-foreground hover:text-foreground"
             >
               Gallery
-            </Link>
-            <Link to="#" className="text-muted-foreground hover:text-foreground">
-              My Account
             </Link>
             <ThemeToggle />
           </nav>
