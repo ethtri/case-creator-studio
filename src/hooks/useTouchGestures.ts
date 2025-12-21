@@ -103,7 +103,10 @@ export const useTouchGestures = (canvas: FabricCanvas | null) => {
       }
     };
 
-    const canvasElement = canvas.getElement();
+    // Access the canvas element safely - in Fabric.js v6, use lowerCanvasEl
+    const canvasElement = (canvas as any).lowerCanvasEl || (canvas as any).el;
+    if (!canvasElement) return;
+    
     const upperCanvas = canvasElement.parentElement?.querySelector(".upper-canvas") as HTMLCanvasElement | null;
     const targetElement = upperCanvas || canvasElement;
 
