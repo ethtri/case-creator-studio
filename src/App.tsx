@@ -8,6 +8,7 @@ import { CartProvider } from "./contexts/CartContext";
 import Index from "./pages/Index";
 import Catalog from "./pages/Catalog";
 import DesignEditor from "./pages/DesignEditor";
+import DesignEditorEDM from "./pages/DesignEditorEDM";
 import Preview from "./pages/Preview";
 import Checkout from "./pages/Checkout";
 import OrderSuccess from "./pages/OrderSuccess";
@@ -28,6 +29,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/catalog" element={<Catalog />} />
               <Route path="/design/:variantId" element={<DesignEditor />} />
+              <Route path="/design-edm/:variantId" element={<DesignEditorEDM />} />
               <Route path="/preview/:variantId" element={<Preview />} />
               <Route path="/checkout/:variantId" element={<Checkout />} />
               <Route path="/checkout" element={<Checkout />} />
