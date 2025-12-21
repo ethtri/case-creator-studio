@@ -37,13 +37,23 @@ const Preview = () => {
     const foundVariant = getVariantById(variantId || "");
     if (foundVariant) {
       setVariant(foundVariant);
+    } else {
+      // If no variant found, redirect to catalog
+      navigate("/catalog");
+      return;
     }
 
+    // Get preview from session storage
     const preview = sessionStorage.getItem("designPreview");
-    if (preview) {
+    const storedVariant = sessionStorage.getItem("designVariant");
+    
+    if (preview && storedVariant === variantId) {
       setDesignPreview(preview);
+    } else if (!preview) {
+      // No design, redirect back to editor
+      navigate(`/design/${variantId}`);
     }
-  }, [variantId]);
+  }, [variantId, navigate]);
 
   const handleAddToCart = () => {
     if (variant && designPreview) {

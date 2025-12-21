@@ -54,24 +54,24 @@ export interface PhoneVariant {
 }
 
 // iPhone Pro camera (3 lenses in triangle + flash + sensor)
-// Real iPhone Pro: camera module ~38mm on ~78mm case width = ~49% of case width
-// But print area is larger than visible case. Printful template shows ~28-30% of print width
-// Height: module is square, so height% = width% * (printWidth/printHeight) for visual square
+// On a real iPhone Pro, the camera module is about 35-40% of the case width
+// For the canvas, we need to account for print area being larger than visible case
+// Using larger percentages to make camera module prominently visible
 const iphoneProCamera: CameraConfig = {
   position: "top-left",
   shape: "square",
-  widthPercent: 30, // ~30% of print area width
-  heightPercent: 15, // Creates visually square module (30% * 1680/3440 ≈ 15%)
-  offsetPercent: 4, // Offset from edge to stay inside safe area
+  widthPercent: 38, // Make camera module significantly larger
+  heightPercent: 19, // Keep visually square (38% * 1680/3440 ≈ 19%)
+  offsetPercent: 6, // Push further from edge to avoid safe area overlap
   lenses: [
     // Triangle arrangement for 3 main lenses
-    { x: 22, y: 22, size: 32, type: "lens" }, // Top-left lens
-    { x: 22, y: 78, size: 32, type: "lens" }, // Bottom-left lens
-    { x: 62, y: 50, size: 32, type: "lens" }, // Right center lens
+    { x: 25, y: 25, size: 30, type: "lens" }, // Top-left lens
+    { x: 25, y: 75, size: 30, type: "lens" }, // Bottom-left lens
+    { x: 65, y: 50, size: 30, type: "lens" }, // Right center lens
     // Flash and sensors
-    { x: 88, y: 22, size: 12, type: "flash" },
-    { x: 88, y: 50, size: 8, type: "sensor" },
-    { x: 88, y: 78, size: 6, type: "mic" },
+    { x: 85, y: 25, size: 10, type: "flash" },
+    { x: 85, y: 50, size: 7, type: "sensor" },
+    { x: 85, y: 75, size: 5, type: "mic" },
   ],
 };
 
@@ -80,12 +80,12 @@ const iphoneProCamera: CameraConfig = {
 const iphoneStandardCamera: CameraConfig = {
   position: "top-left",
   shape: "pill",
-  widthPercent: 16,
-  heightPercent: 14,
-  offsetPercent: 4,
+  widthPercent: 22,
+  heightPercent: 18,
+  offsetPercent: 6,
   lenses: [
-    { x: 50, y: 28, size: 55, type: "lens" },
-    { x: 50, y: 72, size: 55, type: "lens" },
+    { x: 50, y: 30, size: 50, type: "lens" },
+    { x: 50, y: 70, size: 50, type: "lens" },
   ],
 };
 
@@ -93,17 +93,17 @@ const iphoneStandardCamera: CameraConfig = {
 const samsungUltraCamera: CameraConfig = {
   position: "top-left",
   shape: "scattered",
-  widthPercent: 18,
-  heightPercent: 22,
-  offsetPercent: 3,
+  widthPercent: 20,
+  heightPercent: 28,
+  offsetPercent: 5,
   lenses: [
-    // Vertical arrangement of 4 lenses
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 6, absoluteY: 3.5, absoluteSize: 4.5 },
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 6, absoluteY: 7.5, absoluteSize: 4.5 },
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 6, absoluteY: 11.5, absoluteSize: 3.5 },
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 6, absoluteY: 14.5, absoluteSize: 2.8 },
-    { x: 0, y: 0, size: 0, type: "flash", absoluteX: 12, absoluteY: 4.5, absoluteSize: 1.5 },
-    { x: 0, y: 0, size: 0, type: "sensor", absoluteX: 12, absoluteY: 7, absoluteSize: 1 },
+    // Vertical arrangement of 4 lenses - larger and better positioned
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 8, absoluteY: 5, absoluteSize: 6 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 8, absoluteY: 11, absoluteSize: 6 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 8, absoluteY: 16, absoluteSize: 5 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 8, absoluteY: 20.5, absoluteSize: 4 },
+    { x: 0, y: 0, size: 0, type: "flash", absoluteX: 15, absoluteY: 6, absoluteSize: 2 },
+    { x: 0, y: 0, size: 0, type: "sensor", absoluteX: 15, absoluteY: 10, absoluteSize: 1.5 },
   ],
 };
 
@@ -111,14 +111,14 @@ const samsungUltraCamera: CameraConfig = {
 const samsungStandardCamera: CameraConfig = {
   position: "top-left",
   shape: "scattered",
-  widthPercent: 14,
-  heightPercent: 16,
-  offsetPercent: 3,
+  widthPercent: 18,
+  heightPercent: 20,
+  offsetPercent: 5,
   lenses: [
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 5.5, absoluteY: 3.5, absoluteSize: 4 },
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 5.5, absoluteY: 7.5, absoluteSize: 4 },
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 5.5, absoluteY: 11.5, absoluteSize: 3 },
-    { x: 0, y: 0, size: 0, type: "flash", absoluteX: 11, absoluteY: 4.5, absoluteSize: 1.2 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 8, absoluteY: 5, absoluteSize: 5.5 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 8, absoluteY: 10.5, absoluteSize: 5.5 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 8, absoluteY: 15.5, absoluteSize: 4.5 },
+    { x: 0, y: 0, size: 0, type: "flash", absoluteX: 14, absoluteY: 6, absoluteSize: 1.8 },
   ],
 };
 
