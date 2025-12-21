@@ -6,6 +6,7 @@ import { FillValue } from "./FillColorPicker";
 import { ClipartItem } from "@/data/clipartData";
 import { TextStyle } from "./TextStyler";
 import { Layer } from "./LayersPanel";
+import { useTouchGestures } from "@/hooks/useTouchGestures";
 
 // Printful requires 300 DPI - we work at full resolution internally
 const TARGET_DPI = 300;
@@ -63,6 +64,9 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
     const historyRef = useRef<string[]>([]);
     const currentIndexRef = useRef(-1);
     const isRestoringRef = useRef(false);
+
+    // Enable touch gestures for pinch-to-zoom and rotate
+    useTouchGestures(fabricCanvas);
 
     // Helper to generate unique layer IDs
     const generateLayerId = () => {
