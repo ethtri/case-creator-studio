@@ -11,6 +11,7 @@ import { Layer } from "./LayersPanel";
 // Printful requires 300 DPI - we work at full resolution internally
 const TARGET_DPI = 300;
 const PRINT_INCH_RATIO = TARGET_DPI; // pixels per inch at 300 DPI
+const MAX_HISTORY = 50;
 
 export interface CaseCanvasRef {
   addText: (text: string, style: TextStyle) => void;
@@ -34,6 +35,11 @@ export interface CaseCanvasRef {
   moveLayerDown: (id: string) => void;
   selectLayer: (id: string) => void;
   deleteLayer: (id: string) => void;
+  // History management
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
 }
 
 interface CaseCanvasProps {
@@ -42,16 +48,22 @@ interface CaseCanvasProps {
   onDpiChange?: (dpi: number | null) => void;
   onSelectionChange?: (hasText: boolean, style: TextStyle | null) => void;
   onLayersChange?: (layers: Layer[]) => void;
+  onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
 }
 
 export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
-  ({ variant, className, onDpiChange, onSelectionChange, onLayersChange }, ref) => {
+  ({ variant, className, onDpiChange, onSelectionChange, onLayersChange, onHistoryChange }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
     const [currentDpi, setCurrentDpi] = useState<number | null>(null);
     const [canvasScale, setCanvasScale] = useState(1);
     const layerIdCounter = useRef(0);
+    
+    // History state
+    const historyRef = useRef<string[]>([]);
+    const currentIndexRef = useRef(-1);
+    const isRestoringRef = useRef(false);
 
     // Helper to generate unique layer IDs
     const generateLayerId = () => {
@@ -100,6 +112,86 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
       });
       onLayersChange?.(layers);
     }, [fabricCanvas, onLayersChange]);
+
+    // Notify parent of history state changes
+    const notifyHistoryChange = useCallback(() => {
+      const canUndo = currentIndexRef.current > 0;
+      const canRedo = currentIndexRef.current < historyRef.current.length - 1;
+      onHistoryChange?.(canUndo, canRedo);
+    }, [onHistoryChange]);
+
+    // Save current state to history
+    const saveToHistory = useCallback((canvas: FabricCanvas) => {
+      if (isRestoringRef.current) return;
+      
+      // Get only user objects (exclude camera, safe-area, labels)
+      const objects = canvas.getObjects().filter(obj => {
+        const name = (obj as any).name;
+        return name !== "camera-cutout" && name !== "camera-label" && name !== "safe-area";
+      });
+      
+      const state = JSON.stringify({
+        objects: objects.map(obj => obj.toObject(["name", "layerId"])),
+        backgroundColor: canvas.backgroundColor,
+      });
+
+      // Remove any redo states
+      if (currentIndexRef.current < historyRef.current.length - 1) {
+        historyRef.current = historyRef.current.slice(0, currentIndexRef.current + 1);
+      }
+
+      // Add new state
+      historyRef.current.push(state);
+      
+      // Limit history size
+      if (historyRef.current.length > MAX_HISTORY) {
+        historyRef.current.shift();
+      } else {
+        currentIndexRef.current++;
+      }
+
+      notifyHistoryChange();
+    }, [notifyHistoryChange]);
+
+    // Restore state from history
+    const restoreFromHistory = useCallback(async (canvas: FabricCanvas, stateJson: string) => {
+      isRestoringRef.current = true;
+      
+      try {
+        const state = JSON.parse(stateJson);
+        
+        // Remove current user objects
+        canvas.getObjects().forEach(obj => {
+          const name = (obj as any).name;
+          if (name !== "camera-cutout" && name !== "camera-label" && name !== "safe-area") {
+            canvas.remove(obj);
+          }
+        });
+
+        // Restore background
+        canvas.backgroundColor = state.backgroundColor;
+
+        // Restore objects
+        if (state.objects && state.objects.length > 0) {
+          await canvas.loadFromJSON({ objects: state.objects }, () => {
+            // Move restored objects below UI elements
+            const uiObjects = canvas.getObjects().filter(obj => {
+              const name = (obj as any).name;
+              return name === "camera-cutout" || name === "camera-label" || name === "safe-area";
+            });
+            
+            uiObjects.forEach(obj => canvas.bringObjectToFront(obj));
+            canvas.renderAll();
+            notifyLayersChange();
+          });
+        } else {
+          canvas.renderAll();
+          notifyLayersChange();
+        }
+      } finally {
+        isRestoringRef.current = false;
+      }
+    }, [notifyLayersChange]);
 
     // Calculate safe area (camera cutout region)
     const cameraHeight = Math.round(variant.printAreaHeight * 0.12);
@@ -222,6 +314,23 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
       };
     }, [variant, cameraHeight, cameraWidth, cameraPadding, onSelectionChange]);
 
+    // Track object modifications for history
+    useEffect(() => {
+      if (!fabricCanvas) return;
+
+      const handleModified = () => {
+        if (!isRestoringRef.current) {
+          saveToHistory(fabricCanvas);
+        }
+      };
+
+      fabricCanvas.on("object:modified", handleModified);
+      
+      return () => {
+        fabricCanvas.off("object:modified", handleModified);
+      };
+    }, [fabricCanvas, saveToHistory]);
+
     // Calculate DPI when image is added/modified
     const calculateDpi = useCallback(
       (imgWidth: number, imgHeight: number, displayWidth: number, displayHeight: number) => {
@@ -273,6 +382,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         // Trigger selection change and notify layers
         onSelectionChange?.(true, style);
         notifyLayersChange();
+        saveToHistory(fabricCanvas);
       },
 
       updateSelectedTextStyle: (style: Partial<TextStyle>) => {
@@ -333,6 +443,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
           fabricCanvas.setActiveObject(group);
           fabricCanvas.renderAll();
           notifyLayersChange();
+          saveToHistory(fabricCanvas);
         } catch (error) {
           console.error("Failed to add clipart:", error);
         }
@@ -385,6 +496,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
               );
 
               notifyLayersChange();
+              saveToHistory(fabricCanvas);
               resolve();
             } catch (error) {
               reject(error);
@@ -433,6 +545,10 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         setCurrentDpi(null);
         onDpiChange?.(null);
         fabricCanvas.renderAll();
+        // Clear history on reset
+        historyRef.current = [];
+        currentIndexRef.current = -1;
+        notifyHistoryChange();
       },
 
       exportForPrint: () => {
@@ -493,6 +609,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
           fabricCanvas.backgroundColor = gradient;
         }
         fabricCanvas.renderAll();
+        saveToHistory(fabricCanvas);
       },
 
       getBackgroundFill: () => {
@@ -543,6 +660,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         }
         fabricCanvas.renderAll();
         notifyLayersChange();
+        saveToHistory(fabricCanvas);
       },
 
       moveLayerDown: (id: string) => {
@@ -563,6 +681,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         }
         fabricCanvas.renderAll();
         notifyLayersChange();
+        saveToHistory(fabricCanvas);
       },
 
       selectLayer: (id: string) => {
@@ -581,7 +700,28 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         fabricCanvas.remove(obj);
         fabricCanvas.renderAll();
         notifyLayersChange();
+        saveToHistory(fabricCanvas);
       },
+
+      // History management
+      undo: async () => {
+        if (!fabricCanvas || currentIndexRef.current <= 0) return;
+        currentIndexRef.current--;
+        const state = historyRef.current[currentIndexRef.current];
+        await restoreFromHistory(fabricCanvas, state);
+        notifyHistoryChange();
+      },
+
+      redo: async () => {
+        if (!fabricCanvas || currentIndexRef.current >= historyRef.current.length - 1) return;
+        currentIndexRef.current++;
+        const state = historyRef.current[currentIndexRef.current];
+        await restoreFromHistory(fabricCanvas, state);
+        notifyHistoryChange();
+      },
+
+      canUndo: () => currentIndexRef.current > 0,
+      canRedo: () => currentIndexRef.current < historyRef.current.length - 1,
     }));
 
     return (

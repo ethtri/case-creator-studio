@@ -16,6 +16,8 @@ export const useEditorState = () => {
   const [textStyle, setTextStyle] = useState<TextStyle>(defaultTextStyle);
   const [hasSelectedText, setHasSelectedText] = useState(false);
   const [layers, setLayers] = useState<Layer[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
 
   const handleToolChange = useCallback((tool: ToolType) => {
     if (tool === "text") {
@@ -58,6 +60,11 @@ export const useEditorState = () => {
 
   const handleLayersChange = useCallback((newLayers: Layer[]) => {
     setLayers(newLayers);
+  }, []);
+
+  const handleHistoryChange = useCallback((undo: boolean, redo: boolean) => {
+    setCanUndo(undo);
+    setCanRedo(redo);
   }, []);
 
   const handleToggleLayerVisibility = useCallback((id: string) => {
@@ -135,6 +142,14 @@ export const useEditorState = () => {
     setCurrentDpi(dpi);
   }, []);
 
+  const handleUndo = useCallback(() => {
+    canvasRef.current?.undo();
+  }, []);
+
+  const handleRedo = useCallback(() => {
+    canvasRef.current?.redo();
+  }, []);
+
   const getPreviewData = useCallback(() => {
     return canvasRef.current?.getPreview() || "";
   }, []);
@@ -152,10 +167,13 @@ export const useEditorState = () => {
     hasImage,
     backgroundFill,
     layers,
+    canUndo,
+    canRedo,
     handleToolChange,
     handleSelectionChange,
     handleTextStyleChange,
     handleLayersChange,
+    handleHistoryChange,
     handleToggleLayerVisibility,
     handleMoveLayerUp,
     handleMoveLayerDown,
@@ -168,7 +186,10 @@ export const useEditorState = () => {
     handleReset,
     handleDpiChange,
     handleBackgroundFillChange,
+    handleUndo,
+    handleRedo,
     getPreviewData,
     getExportData,
   };
 };
+

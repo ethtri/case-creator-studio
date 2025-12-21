@@ -6,9 +6,8 @@ import {
   Type,
   Smile,
   Paintbrush,
-  Maximize,
-  RotateCw,
   Undo2,
+  Redo2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +20,10 @@ interface EditorToolbarProps {
   onFitImage: () => void;
   onRotateImage: () => void;
   onReset: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
   isMobile: boolean;
   hasImage: boolean;
 }
@@ -29,11 +32,11 @@ export const EditorToolbar = ({
   activeTool,
   onToolChange,
   onImageUpload,
-  onFitImage,
-  onRotateImage,
-  onReset,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
   isMobile,
-  hasImage,
 }: EditorToolbarProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -50,11 +53,25 @@ export const EditorToolbar = ({
     fileInputRef.current?.click();
   };
 
-  // Mobile bottom toolbar - reordered: Layers, File, Text, Clipart, Fill
+  // Mobile bottom toolbar
   if (isMobile) {
     return (
       <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border px-4 pb-safe z-50">
         <div className="flex items-center justify-around py-3">
+          <ToolButton
+            icon={Undo2}
+            label="Undo"
+            onClick={onUndo}
+            isActive={false}
+            disabled={!canUndo}
+          />
+          <ToolButton
+            icon={Redo2}
+            label="Redo"
+            onClick={onRedo}
+            isActive={false}
+            disabled={!canRedo}
+          />
           <ToolButton
             icon={Layers}
             label="Layers"
@@ -97,9 +114,24 @@ export const EditorToolbar = ({
     );
   }
 
-  // Desktop sidebar - reordered: Layers, File, Text, Clipart, Fill
+  // Desktop sidebar
   return (
     <aside className="w-16 bg-card border-r border-border flex flex-col items-center py-4 gap-2">
+      <DesktopToolButton
+        icon={Undo2}
+        onClick={onUndo}
+        isActive={false}
+        tooltip="Undo"
+        disabled={!canUndo}
+      />
+      <DesktopToolButton
+        icon={Redo2}
+        onClick={onRedo}
+        isActive={false}
+        tooltip="Redo"
+        disabled={!canRedo}
+      />
+      <div className="w-8 h-px bg-border my-1" />
       <DesktopToolButton
         icon={Layers}
         onClick={() => onToolChange("layers")}
@@ -178,6 +210,7 @@ interface DesktopToolButtonProps {
   onClick: () => void;
   isActive: boolean;
   tooltip: string;
+  disabled?: boolean;
 }
 
 const DesktopToolButton = ({
@@ -185,15 +218,18 @@ const DesktopToolButton = ({
   onClick,
   isActive,
   tooltip,
+  disabled,
 }: DesktopToolButtonProps) => (
   <Button
     variant={isActive ? "tool-active" : "ghost"}
     size="icon"
     onClick={onClick}
     title={tooltip}
+    disabled={disabled}
     className={cn(
       "w-10 h-10",
-      !isActive && "text-muted-foreground hover:text-foreground"
+      !isActive && !disabled && "text-muted-foreground hover:text-foreground",
+      disabled && "opacity-40"
     )}
   >
     <Icon className="w-5 h-5" />
