@@ -90,20 +90,22 @@ const iphoneStandardCamera: CameraConfig = {
 };
 
 // Samsung Ultra camera - scattered individual lenses (no housing background)
+// Lenses need to be well inside the safe area (which is ~5-6% from edge)
+// Position them at ~15% from left edge with larger sizes
 const samsungUltraCamera: CameraConfig = {
   position: "top-left",
   shape: "scattered",
-  widthPercent: 20,
-  heightPercent: 28,
-  offsetPercent: 5,
+  widthPercent: 25,
+  heightPercent: 35,
+  offsetPercent: 8,
   lenses: [
-    // Vertical arrangement of 4 lenses - larger and better positioned
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 8, absoluteY: 5, absoluteSize: 6 },
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 8, absoluteY: 11, absoluteSize: 6 },
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 8, absoluteY: 16, absoluteSize: 5 },
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 8, absoluteY: 20.5, absoluteSize: 4 },
-    { x: 0, y: 0, size: 0, type: "flash", absoluteX: 15, absoluteY: 6, absoluteSize: 2 },
-    { x: 0, y: 0, size: 0, type: "sensor", absoluteX: 15, absoluteY: 10, absoluteSize: 1.5 },
+    // Vertical arrangement of 4 lenses - much larger and positioned inside safe area
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 14, absoluteY: 6, absoluteSize: 9 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 14, absoluteY: 14, absoluteSize: 9 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 14, absoluteY: 21, absoluteSize: 7 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 14, absoluteY: 27, absoluteSize: 5.5 },
+    { x: 0, y: 0, size: 0, type: "flash", absoluteX: 24, absoluteY: 8, absoluteSize: 3 },
+    { x: 0, y: 0, size: 0, type: "sensor", absoluteX: 24, absoluteY: 14, absoluteSize: 2 },
   ],
 };
 
@@ -111,14 +113,14 @@ const samsungUltraCamera: CameraConfig = {
 const samsungStandardCamera: CameraConfig = {
   position: "top-left",
   shape: "scattered",
-  widthPercent: 18,
-  heightPercent: 20,
-  offsetPercent: 5,
+  widthPercent: 22,
+  heightPercent: 28,
+  offsetPercent: 8,
   lenses: [
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 8, absoluteY: 5, absoluteSize: 5.5 },
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 8, absoluteY: 10.5, absoluteSize: 5.5 },
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 8, absoluteY: 15.5, absoluteSize: 4.5 },
-    { x: 0, y: 0, size: 0, type: "flash", absoluteX: 14, absoluteY: 6, absoluteSize: 1.8 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 14, absoluteY: 6, absoluteSize: 8 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 14, absoluteY: 13.5, absoluteSize: 8 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 14, absoluteY: 20.5, absoluteSize: 6.5 },
+    { x: 0, y: 0, size: 0, type: "flash", absoluteX: 23, absoluteY: 8, absoluteSize: 2.5 },
   ],
 };
 
