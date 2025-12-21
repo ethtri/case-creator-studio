@@ -27,6 +27,17 @@ export interface CameraConfig {
   lenses: LensConfig[];
 }
 
+export interface MockupConfig {
+  // Design overlay area positioning (percentage of mockup dimensions)
+  designArea: {
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+    borderRadius: number;
+  };
+}
+
 export interface PhoneVariant {
   id: string;
   printfulVariantId: number;
@@ -39,6 +50,7 @@ export interface PhoneVariant {
   imageUrl: string;
   mockupUrl?: string;
   camera: CameraConfig;
+  mockup?: MockupConfig;
 }
 
 // iPhone Pro camera (3 lenses in triangle + flash + sensor) - square module with realistic proportions

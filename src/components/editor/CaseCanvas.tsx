@@ -1071,25 +1071,63 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
           ref={containerRef}
           className="flex-1 flex items-center justify-center p-4 pb-8 overflow-hidden"
         >
-          {/* Phone case mockup wrapper */}
+          {/* Realistic Phone case mockup wrapper */}
           <div className="relative">
-            {/* Shadow layer */}
+            {/* Large ambient shadow */}
             <div 
-              className="absolute inset-0 rounded-[2.5rem] bg-black/20 blur-xl translate-y-2 scale-95"
+              className="absolute inset-0 rounded-[3rem] bg-gradient-to-b from-black/10 to-black/30 blur-2xl translate-y-4 scale-[0.92]"
               aria-hidden="true"
             />
-            {/* Case body */}
-            <div className="relative rounded-[2.25rem] bg-gradient-to-br from-[#e8e8e8] via-[#f5f5f5] to-[#e0e0e0] p-[3px] shadow-xl">
-              {/* Inner case with slight inset */}
-              <div className="rounded-[2.1rem] bg-gradient-to-b from-white/80 to-white/40 p-[2px]">
-                <div className="rounded-[2rem] overflow-hidden ring-1 ring-black/5">
+            
+            {/* Case outer body with metallic frame effect */}
+            <div className="relative rounded-[2.5rem] bg-gradient-to-br from-[#d1d1d6] via-[#e5e5ea] to-[#c7c7cc] p-[2px] shadow-2xl">
+              {/* Highlight edge (top-left light reflection) */}
+              <div 
+                className="absolute inset-0 rounded-[2.5rem] bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none"
+                aria-hidden="true"
+              />
+              
+              {/* Inner case layer */}
+              <div className="rounded-[2.4rem] bg-gradient-to-b from-[#fafafa] via-[#f0f0f2] to-[#e8e8ed] p-[2px]">
+                {/* Subtle inner shadow */}
+                <div className="relative rounded-[2.3rem] overflow-hidden shadow-inner ring-1 ring-black/[0.03]">
+                  {/* Soft top reflection on case surface */}
+                  <div 
+                    className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/20 to-transparent pointer-events-none z-10"
+                    aria-hidden="true"
+                  />
+                  
+                  {/* The actual canvas */}
                   <canvas ref={canvasRef} className="block touch-none" />
                 </div>
               </div>
             </div>
-            {/* Side edge highlight */}
+            
+            {/* Right edge highlight - simulates light hitting the edge */}
             <div 
-              className="absolute top-4 bottom-4 -right-1 w-1 rounded-full bg-gradient-to-b from-white/60 via-white/30 to-white/60"
+              className="absolute top-6 bottom-6 -right-0.5 w-[3px] rounded-full bg-gradient-to-b from-white/50 via-white/25 to-white/50"
+              aria-hidden="true"
+            />
+            
+            {/* Left edge shadow */}
+            <div 
+              className="absolute top-6 bottom-6 -left-0.5 w-[2px] rounded-full bg-gradient-to-b from-black/10 via-black/5 to-black/10"
+              aria-hidden="true"
+            />
+            
+            {/* Simulated side buttons (right side) - for realism */}
+            <div 
+              className="absolute right-0 top-[18%] w-[3px] h-8 rounded-l-sm bg-gradient-to-b from-[#b0b0b5] via-[#d0d0d5] to-[#b0b0b5] shadow-sm"
+              aria-hidden="true"
+            />
+            
+            {/* Simulated side buttons (left side - volume) */}
+            <div 
+              className="absolute left-0 top-[22%] w-[3px] h-6 rounded-r-sm bg-gradient-to-b from-[#b0b0b5] via-[#d0d0d5] to-[#b0b0b5] shadow-sm"
+              aria-hidden="true"
+            />
+            <div 
+              className="absolute left-0 top-[30%] w-[3px] h-6 rounded-r-sm bg-gradient-to-b from-[#b0b0b5] via-[#d0d0d5] to-[#b0b0b5] shadow-sm"
               aria-hidden="true"
             />
           </div>
