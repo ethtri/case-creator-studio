@@ -15,6 +15,14 @@ export const useEditorState = () => {
       canvasRef.current.addText("Your Text", activeColor);
       toast.success("Text added");
       setActiveTool("select");
+    } else if (tool === "clipart") {
+      // Placeholder - clipart feature coming soon
+      toast.info("Clipart coming soon!");
+      setActiveTool("select");
+    } else if (tool === "fill") {
+      // Placeholder - fill feature coming soon
+      toast.info("Fill coming soon!");
+      setActiveTool("select");
     } else {
       setActiveTool(tool);
     }

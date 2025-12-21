@@ -1,17 +1,18 @@
 import { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  ImagePlus,
-  Type,
   Layers,
   Upload,
+  Type,
+  Smile,
+  Paintbrush,
   Maximize,
   RotateCw,
   Undo2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type ToolType = "select" | "upload" | "text" | "layers";
+export type ToolType = "select" | "upload" | "text" | "layers" | "clipart" | "fill";
 
 interface EditorToolbarProps {
   activeTool: ToolType;
@@ -49,14 +50,20 @@ export const EditorToolbar = ({
     fileInputRef.current?.click();
   };
 
-  // Mobile bottom toolbar
+  // Mobile bottom toolbar - reordered: Layers, File, Text, Clipart, Fill
   if (isMobile) {
     return (
       <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border px-4 pb-safe z-50">
         <div className="flex items-center justify-around py-3">
           <ToolButton
+            icon={Layers}
+            label="Layers"
+            onClick={() => onToolChange("layers")}
+            isActive={activeTool === "layers"}
+          />
+          <ToolButton
             icon={Upload}
-            label="Upload"
+            label="File"
             onClick={triggerUpload}
             isActive={false}
           />
@@ -67,24 +74,16 @@ export const EditorToolbar = ({
             isActive={activeTool === "text"}
           />
           <ToolButton
-            icon={Maximize}
-            label="Fit"
-            onClick={onFitImage}
-            isActive={false}
-            disabled={!hasImage}
+            icon={Smile}
+            label="Clipart"
+            onClick={() => onToolChange("clipart")}
+            isActive={activeTool === "clipart"}
           />
           <ToolButton
-            icon={RotateCw}
-            label="Rotate"
-            onClick={onRotateImage}
-            isActive={false}
-            disabled={!hasImage}
-          />
-          <ToolButton
-            icon={Undo2}
-            label="Reset"
-            onClick={onReset}
-            isActive={false}
+            icon={Paintbrush}
+            label="Fill"
+            onClick={() => onToolChange("fill")}
+            isActive={activeTool === "fill"}
           />
         </div>
         <input
@@ -98,33 +97,38 @@ export const EditorToolbar = ({
     );
   }
 
-  // Desktop sidebar
+  // Desktop sidebar - reordered: Layers, File, Text, Clipart, Fill
   return (
     <aside className="w-16 bg-card border-r border-border flex flex-col items-center py-4 gap-2">
-      <DesktopToolButton
-        icon={ImagePlus}
-        onClick={triggerUpload}
-        isActive={false}
-        tooltip="Upload Image"
-      />
-      <DesktopToolButton
-        icon={Type}
-        onClick={() => onToolChange("text")}
-        isActive={activeTool === "text"}
-        tooltip="Add Text"
-      />
       <DesktopToolButton
         icon={Layers}
         onClick={() => onToolChange("layers")}
         isActive={activeTool === "layers"}
         tooltip="Layers"
       />
-      <div className="h-px w-8 bg-border my-2" />
       <DesktopToolButton
         icon={Upload}
         onClick={triggerUpload}
         isActive={false}
-        tooltip="Upload"
+        tooltip="File"
+      />
+      <DesktopToolButton
+        icon={Type}
+        onClick={() => onToolChange("text")}
+        isActive={activeTool === "text"}
+        tooltip="Text"
+      />
+      <DesktopToolButton
+        icon={Smile}
+        onClick={() => onToolChange("clipart")}
+        isActive={activeTool === "clipart"}
+        tooltip="Clipart"
+      />
+      <DesktopToolButton
+        icon={Paintbrush}
+        onClick={() => onToolChange("fill")}
+        isActive={activeTool === "fill"}
+        tooltip="Fill"
       />
       <input
         ref={fileInputRef}
