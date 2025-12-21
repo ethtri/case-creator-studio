@@ -1,6 +1,47 @@
-# Welcome to your Lovable project
+# Snapcase App V2
 
-## Project info
+A modern phone case customization platform built with React, TypeScript, and Supabase.
+
+## 🚀 Quick Start
+
+```bash
+# Install dependencies
+npm install
+
+# Set up environment variables (see docs/SETUP_GUIDE.md)
+cp .env.example .env
+# Edit .env with your API keys
+
+# Start development server
+npm run dev
+```
+
+Visit http://localhost:8080
+
+## 📚 Documentation
+
+All project documentation is organized in the [`docs/`](./docs/) directory.
+
+**Quick Links:**
+- **[📖 Documentation Index](./docs/README.md)** - Navigate all docs
+- **[⭐ Quick Reference](./docs/QUICK_REFERENCE.md)** - Common commands
+- **[🤖 AI Agent Prompts](./docs/AI_AGENT_PROMPTS.md)** - For AI agents
+
+**By Category:**
+- **Getting Started**: [Setup Guide](./docs/SETUP_GUIDE.md) | [Quick Reference](./docs/QUICK_REFERENCE.md)
+- **Daily Workflows**: [Development Workflow](./docs/DEVELOPMENT_WORKFLOW.md) | [Error Prevention Checklist](./docs/ERROR_PREVENTION_CHECKLIST.md)
+- **Best Practices**: [Project Management](./docs/PROJECT_MANAGEMENT.md) | [Contributing](./docs/CONTRIBUTING.md)
+- **AI Agents**: [AI Agent Prompts](./docs/AI_AGENT_PROMPTS.md) | [Sprint Template](./docs/sprints/SPRINT_TEMPLATE.md)
+
+## 🛠️ Tech Stack
+
+- **Frontend**: React 18, TypeScript, Vite
+- **UI**: shadcn/ui, Tailwind CSS
+- **Backend**: Supabase (Database, Auth, Edge Functions)
+- **Integrations**: Printful (Fulfillment), Stripe (Payments)
+- **State Management**: React Query, Context API
+
+## 📋 Project Info
 
 **URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
 
@@ -50,15 +91,46 @@ npm run dev
 - Click on "New codespace" to launch a new Codespace environment.
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
-## What technologies are used for this project?
+## 🎯 Key Features
 
-This project is built with:
+- Custom phone case design editor
+- Real-time preview
+- Secure checkout with Stripe
+- Automated order fulfillment with Printful
+- Order tracking and management
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 📖 Available Scripts
+
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run preview      # Preview production build
+npm run lint         # Check code quality
+npm run lint:fix     # Auto-fix linting issues
+npm run type-check   # Check TypeScript types
+npm run check        # Run all quality checks
+npm run audit        # Check for security vulnerabilities
+```
+
+## 🔐 Environment Variables
+
+Required environment variables (see `.env.example`):
+
+- `VITE_SUPABASE_URL` - Supabase project URL
+- `VITE_SUPABASE_PUBLISHABLE_KEY` - Supabase anon key
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (backend)
+- `PRINTFUL_API_KEY` - Printful API key
+- `STRIPE_SECRET_KEY` - Stripe secret key
+
+**⚠️ Never commit `.env` files to version control!**
+
+## 🤝 Contributing
+
+Please read [CONTRIBUTING.md](./docs/CONTRIBUTING.md) for coding standards and guidelines.
+
+## 📝 License
+
+[Add your license here]
 
 ## How can I deploy this project?
 

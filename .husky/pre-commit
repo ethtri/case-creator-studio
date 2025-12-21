@@ -1,0 +1,31 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run linter
+npm run lint
+
+# Check for common issues
+echo "Checking for common issues..."
+
+# Check if .env is being committed
+if git diff --cached --name-only | grep -q "^\.env$"; then
+  echo "❌ ERROR: .env file is being committed!"
+  echo "Please remove .env from your commit."
+  exit 1
+fi
+
+# Check if node_modules is being committed
+if git diff --cached --name-only | grep -q "node_modules"; then
+  echo "❌ ERROR: node_modules is being committed!"
+  echo "Please remove node_modules from your commit."
+  exit 1
+fi
+
+# Check if dist is being committed
+if git diff --cached --name-only | grep -q "^dist"; then
+  echo "⚠️  WARNING: dist folder is being committed!"
+  echo "Consider adding dist to .gitignore if not already there."
+fi
+
+echo "✅ Pre-commit checks passed!"
+

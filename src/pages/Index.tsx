@@ -59,6 +59,7 @@ const Index = () => {
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
+            <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">V2</span>
           </Link>
           <div className="hidden md:flex items-center gap-6">
             <Link to="/catalog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
