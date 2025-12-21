@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -8,6 +8,7 @@ import { CartSheet } from "@/components/CartSheet";
 import { CaseCanvas } from "@/components/editor/CaseCanvas";
 import { EditorToolbar } from "@/components/editor/EditorToolbar";
 import { DpiIndicator, getDpiQuality } from "@/components/editor/DpiIndicator";
+import { FillColorPicker } from "@/components/editor/FillColorPicker";
 import { useEditorState } from "@/hooks/useEditorState";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ArrowLeft, ShoppingCart } from "lucide-react";
@@ -23,12 +24,14 @@ const DesignEditor = () => {
     activeTool,
     currentDpi,
     hasImage,
+    backgroundColor,
     handleToolChange,
     handleImageUpload,
     handleFitImage,
     handleRotateImage,
     handleReset,
     handleDpiChange,
+    handleBackgroundColorChange,
     getPreviewData,
   } = useEditorState();
 
@@ -128,6 +131,26 @@ const DesignEditor = () => {
             </div>
           )}
 
+          {/* Fill Color Picker Panel - Desktop */}
+          {!isMobile && (
+            <AnimatePresence>
+              {activeTool === "fill" && (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute top-4 left-20 z-30"
+                >
+                  <FillColorPicker
+                    currentColor={backgroundColor}
+                    onColorChange={handleBackgroundColorChange}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
+
           <CaseCanvas
             ref={canvasRef}
             variant={variant}
@@ -176,6 +199,23 @@ const DesignEditor = () => {
           />
           {/* Mobile CTA Button - Above toolbar */}
           <div className="fixed bottom-[76px] left-0 right-0 px-4 pb-2 bg-gradient-to-t from-card to-transparent pt-4 z-40">
+            {/* Mobile Fill Color Picker */}
+            <AnimatePresence>
+              {activeTool === "fill" && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  transition={{ duration: 0.2 }}
+                  className="mb-3"
+                >
+                  <FillColorPicker
+                    currentColor={backgroundColor}
+                    onColorChange={handleBackgroundColorChange}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
             <Button
               className="w-full bg-cta hover:bg-cta/90 text-cta-foreground h-12 text-base font-medium rounded-xl"
               onClick={handleContinue}

@@ -9,6 +9,7 @@ export const useEditorState = () => {
   const [activeColor, setActiveColor] = useState("#000000");
   const [currentDpi, setCurrentDpi] = useState<number | null>(null);
   const [hasImage, setHasImage] = useState(false);
+  const [backgroundColor, setBackgroundColor] = useState("#f5f5f5");
 
   const handleToolChange = useCallback((tool: ToolType) => {
     if (tool === "text" && canvasRef.current) {
@@ -20,13 +21,20 @@ export const useEditorState = () => {
       toast.info("Clipart coming soon!");
       setActiveTool("select");
     } else if (tool === "fill") {
-      // Placeholder - fill feature coming soon
-      toast.info("Fill coming soon!");
-      setActiveTool("select");
+      // Toggle fill panel
+      setActiveTool(activeTool === "fill" ? "select" : "fill");
+    } else if (tool === "layers") {
+      // Toggle layers panel
+      setActiveTool(activeTool === "layers" ? "select" : "layers");
     } else {
       setActiveTool(tool);
     }
-  }, [activeColor]);
+  }, [activeColor, activeTool]);
+
+  const handleBackgroundColorChange = useCallback((color: string) => {
+    setBackgroundColor(color);
+    canvasRef.current?.setBackgroundColor(color);
+  }, []);
 
   const handleImageUpload = useCallback(async (file: File) => {
     if (!canvasRef.current) return;
@@ -52,6 +60,8 @@ export const useEditorState = () => {
     canvasRef.current?.reset();
     setHasImage(false);
     setCurrentDpi(null);
+    setBackgroundColor("#f5f5f5");
+    canvasRef.current?.setBackgroundColor("#f5f5f5");
     toast.success("Canvas cleared");
   }, []);
 
@@ -73,6 +83,7 @@ export const useEditorState = () => {
     activeColor,
     currentDpi,
     hasImage,
+    backgroundColor,
     setActiveColor,
     handleToolChange,
     handleImageUpload,
@@ -80,6 +91,7 @@ export const useEditorState = () => {
     handleRotateImage,
     handleReset,
     handleDpiChange,
+    handleBackgroundColorChange,
     getPreviewData,
     getExportData,
   };

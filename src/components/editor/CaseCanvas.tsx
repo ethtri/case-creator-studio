@@ -17,6 +17,8 @@ export interface CaseCanvasRef {
   exportForPrint: () => string;
   getPreview: () => string;
   hasImage: () => boolean;
+  setBackgroundColor: (color: string) => void;
+  getBackgroundColor: () => string;
 }
 
 interface CaseCanvasProps {
@@ -291,6 +293,17 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
       hasImage: () => {
         if (!fabricCanvas) return false;
         return fabricCanvas.getObjects().some((obj) => (obj as any).name === "user-image");
+      },
+
+      setBackgroundColor: (color: string) => {
+        if (!fabricCanvas) return;
+        fabricCanvas.backgroundColor = color;
+        fabricCanvas.renderAll();
+      },
+
+      getBackgroundColor: () => {
+        if (!fabricCanvas) return "#f5f5f5";
+        return fabricCanvas.backgroundColor as string || "#f5f5f5";
       },
     }));
 
