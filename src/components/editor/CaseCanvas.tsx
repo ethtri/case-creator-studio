@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
-import { Canvas as FabricCanvas, FabricImage, FabricText, Rect, Circle, Gradient, loadSVGFromString, util, FabricObject } from "fabric";
-import { PhoneVariant, LensConfig } from "@/data/phoneVariants";
+import { Canvas as FabricCanvas, FabricImage, FabricText, Rect, Gradient, loadSVGFromString, util, FabricObject } from "fabric";
+import { PhoneVariant } from "@/data/phoneVariants";
 import { cn } from "@/lib/utils";
 import { FillValue } from "./FillColorPicker";
 import { ClipartItem } from "@/data/clipartData";
@@ -8,9 +8,12 @@ import { TextStyle } from "./TextStyler";
 import { Layer } from "./LayersPanel";
 import { useTouchGestures } from "@/hooks/useTouchGestures";
 
+// Import mockup images
+import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
+import samsungCaseFront from "@/assets/mockups/samsung-case-front.png";
+
 // Printful requires 300 DPI - we work at full resolution internally
 const TARGET_DPI = 300;
-const PRINT_INCH_RATIO = TARGET_DPI; // pixels per inch at 300 DPI
 const MAX_HISTORY = 50;
 
 export interface CaseCanvasRef {
@@ -55,9 +58,11 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
   ({ variant, className, onDpiChange, onSelectionChange, onLayersChange, onHistoryChange }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const mockupRef = useRef<HTMLImageElement>(null);
     const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
     const [currentDpi, setCurrentDpi] = useState<number | null>(null);
     const [canvasScale, setCanvasScale] = useState(1);
+    const [mockupLoaded, setMockupLoaded] = useState(false);
     const layerIdCounter = useRef(0);
     
     // History state
@@ -67,6 +72,9 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
 
     // Enable touch gestures for pinch-to-zoom and rotate
     useTouchGestures(fabricCanvas);
+
+    // Get mockup image based on brand
+    const mockupImage = variant.brand.toLowerCase() === "apple" ? iphoneCaseFront : samsungCaseFront;
 
     // Helper to generate unique layer IDs
     const generateLayerId = () => {
@@ -127,10 +135,10 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
     const saveToHistory = useCallback((canvas: FabricCanvas) => {
       if (isRestoringRef.current) return;
       
-      // Get only user objects (exclude camera, safe-area, labels)
+      // Get only user objects (exclude safe-area)
       const objects = canvas.getObjects().filter(obj => {
         const name = (obj as any).name;
-        return name !== "camera-cutout" && name !== "camera-label" && name !== "safe-area";
+        return name !== "safe-area";
       });
       
       const state = JSON.stringify({
@@ -166,7 +174,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         // Remove current user objects
         canvas.getObjects().forEach(obj => {
           const name = (obj as any).name;
-          if (name !== "camera-cutout" && name !== "camera-label" && name !== "safe-area") {
+          if (name !== "safe-area") {
             canvas.remove(obj);
           }
         });
@@ -180,7 +188,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
             // Move restored objects below UI elements
             const uiObjects = canvas.getObjects().filter(obj => {
               const name = (obj as any).name;
-              return name === "camera-cutout" || name === "camera-label" || name === "safe-area";
+              return name === "safe-area";
             });
             
             uiObjects.forEach(obj => canvas.bringObjectToFront(obj));
@@ -196,29 +204,26 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
       }
     }, [notifyLayersChange]);
 
-    // Calculate camera dimensions from variant config
-    const { camera } = variant;
-    const cameraWidth = Math.round(variant.printAreaWidth * (camera.widthPercent / 100));
-    const cameraHeight = Math.round(variant.printAreaHeight * (camera.heightPercent / 100));
-    const cameraOffset = Math.round(variant.printAreaWidth * (camera.offsetPercent / 100));
-
-    // Initialize canvas at display size, but track full resolution
+    // Initialize canvas at display size
     useEffect(() => {
-      if (!canvasRef.current || !containerRef.current) return;
+      if (!canvasRef.current || !containerRef.current || !mockupLoaded) return;
 
       const container = containerRef.current;
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight;
+      const mockupEl = mockupRef.current;
+      
+      if (!mockupEl) return;
 
-      // Calculate scale to fit container while maintaining aspect ratio
-      const aspectRatio = variant.printAreaWidth / variant.printAreaHeight;
-      let displayWidth = containerWidth * 0.85;
-      let displayHeight = displayWidth / aspectRatio;
-
-      if (displayHeight > containerHeight * 0.85) {
-        displayHeight = containerHeight * 0.85;
-        displayWidth = displayHeight * aspectRatio;
-      }
+      // Get the actual rendered size of the mockup
+      const mockupRect = mockupEl.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      
+      // Canvas dimensions should match the design area within the mockup
+      // The design area is approximately 92% of mockup width and 94% of height
+      const designAreaWidthPercent = 0.88;
+      const designAreaHeightPercent = 0.90;
+      
+      const displayWidth = mockupRect.width * designAreaWidthPercent;
+      const displayHeight = mockupRect.height * designAreaHeightPercent;
 
       // Scale factor from display to print resolution
       const scale = variant.printAreaWidth / displayWidth;
@@ -232,378 +237,8 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         preserveObjectStacking: true,
       });
 
-      // Calculate camera position and dimensions
-      const scaledCameraWidth = cameraWidth / scale;
-      const scaledCameraHeight = cameraHeight / scale;
-      const scaledCameraOffset = cameraOffset / scale;
-
-      // Determine camera position based on config
-      let cameraLeft: number;
-      let cameraTop = scaledCameraOffset;
-
-      switch (camera.position) {
-        case "top-left":
-          cameraLeft = scaledCameraOffset;
-          break;
-        case "top-right":
-          cameraLeft = displayWidth - scaledCameraWidth - scaledCameraOffset;
-          break;
-        case "top-center":
-          cameraLeft = (displayWidth - scaledCameraWidth) / 2;
-          break;
-        default:
-          cameraLeft = scaledCameraOffset;
-      }
-
-      // Helper function to render a realistic camera lens with 3D depth
-      const renderRealisticLens = (
-        ctx: FabricCanvas,
-        x: number,
-        y: number,
-        radius: number,
-        index: number
-      ) => {
-        // Outer raised bezel (silver/chrome ring with gradient effect)
-        const outerBezel = new Circle({
-          left: x,
-          top: y,
-          radius: radius,
-          fill: "#3d3d3d",
-          stroke: "#555",
-          strokeWidth: radius * 0.08,
-          originX: "center",
-          originY: "center",
-          selectable: false,
-          evented: false,
-          name: `camera-lens-bezel-${index}`,
-        });
-        ctx.add(outerBezel);
-
-        // Inner chrome ring
-        const chromeRing = new Circle({
-          left: x,
-          top: y,
-          radius: radius * 0.88,
-          fill: "transparent",
-          stroke: "#6a6a6a",
-          strokeWidth: radius * 0.12,
-          originX: "center",
-          originY: "center",
-          selectable: false,
-          evented: false,
-          name: `camera-lens-chrome-${index}`,
-        });
-        ctx.add(chromeRing);
-
-        // Main lens glass (dark with subtle blue-purple tint)
-        const lensGlass = new Circle({
-          left: x,
-          top: y,
-          radius: radius * 0.72,
-          fill: "#0d0d18",
-          stroke: "#1a1a25",
-          strokeWidth: 1,
-          originX: "center",
-          originY: "center",
-          selectable: false,
-          evented: false,
-          name: `camera-lens-glass-${index}`,
-        });
-        ctx.add(lensGlass);
-
-        // Inner dark ring (aperture effect)
-        const innerRing = new Circle({
-          left: x,
-          top: y,
-          radius: radius * 0.55,
-          fill: "#050508",
-          originX: "center",
-          originY: "center",
-          selectable: false,
-          evented: false,
-          name: `camera-lens-aperture-${index}`,
-        });
-        ctx.add(innerRing);
-
-        // Center reflection dot
-        const centerDot = new Circle({
-          left: x,
-          top: y,
-          radius: radius * 0.15,
-          fill: "#0a0a12",
-          originX: "center",
-          originY: "center",
-          selectable: false,
-          evented: false,
-          name: `camera-lens-center-${index}`,
-        });
-        ctx.add(centerDot);
-
-        // Glass reflection highlight (top-left)
-        const highlight1 = new Circle({
-          left: x - radius * 0.25,
-          top: y - radius * 0.25,
-          radius: radius * 0.18,
-          fill: "rgba(255, 255, 255, 0.12)",
-          originX: "center",
-          originY: "center",
-          selectable: false,
-          evented: false,
-          name: `camera-lens-highlight1-${index}`,
-        });
-        ctx.add(highlight1);
-
-        // Secondary smaller highlight
-        const highlight2 = new Circle({
-          left: x + radius * 0.35,
-          top: y - radius * 0.1,
-          radius: radius * 0.08,
-          fill: "rgba(255, 255, 255, 0.08)",
-          originX: "center",
-          originY: "center",
-          selectable: false,
-          evented: false,
-          name: `camera-lens-highlight2-${index}`,
-        });
-        ctx.add(highlight2);
-      };
-
-      // Helper function to render flash LED
-      const renderFlash = (
-        ctx: FabricCanvas,
-        x: number,
-        y: number,
-        radius: number,
-        index: number
-      ) => {
-        // Flash outer ring
-        const flashRing = new Circle({
-          left: x,
-          top: y,
-          radius: radius,
-          fill: "#d4c9a8",
-          stroke: "#b8a888",
-          strokeWidth: radius * 0.15,
-          originX: "center",
-          originY: "center",
-          selectable: false,
-          evented: false,
-          name: `camera-flash-ring-${index}`,
-        });
-        ctx.add(flashRing);
-
-        // Flash LED center (warm white/yellow)
-        const flashCenter = new Circle({
-          left: x,
-          top: y,
-          radius: radius * 0.7,
-          fill: "#f5f0d8",
-          originX: "center",
-          originY: "center",
-          selectable: false,
-          evented: false,
-          name: `camera-flash-center-${index}`,
-        });
-        ctx.add(flashCenter);
-      };
-
-      // Helper function to render sensor/LiDAR
-      const renderSensor = (
-        ctx: FabricCanvas,
-        x: number,
-        y: number,
-        radius: number,
-        index: number
-      ) => {
-        const sensor = new Circle({
-          left: x,
-          top: y,
-          radius: radius,
-          fill: "#1a1a1a",
-          stroke: "#2a2a2a",
-          strokeWidth: radius * 0.15,
-          originX: "center",
-          originY: "center",
-          selectable: false,
-          evented: false,
-          name: `camera-sensor-${index}`,
-        });
-        ctx.add(sensor);
-      };
-
-      // Helper function to render microphone hole
-      const renderMic = (
-        ctx: FabricCanvas,
-        x: number,
-        y: number,
-        radius: number,
-        index: number
-      ) => {
-        const mic = new Circle({
-          left: x,
-          top: y,
-          radius: radius,
-          fill: "#050505",
-          originX: "center",
-          originY: "center",
-          selectable: false,
-          evented: false,
-          name: `camera-mic-${index}`,
-        });
-        ctx.add(mic);
-      };
-
-      // Determine corner radius based on shape
-      let rx: number;
-      let ry: number;
-      switch (camera.shape) {
-        case "square":
-          rx = scaledCameraWidth * 0.18;
-          ry = scaledCameraWidth * 0.18;
-          break;
-        case "pill":
-          rx = scaledCameraWidth * 0.4;
-          ry = scaledCameraWidth * 0.4;
-          break;
-        case "island":
-          rx = scaledCameraWidth * 0.12;
-          ry = scaledCameraWidth * 0.12;
-          break;
-        case "vertical-strip":
-          rx = scaledCameraWidth * 0.4;
-          ry = scaledCameraWidth * 0.4;
-          break;
-        case "scattered":
-          // No background for scattered layout
-          rx = 0;
-          ry = 0;
-          break;
-        default:
-          rx = scaledCameraWidth * 0.15;
-          ry = scaledCameraWidth * 0.15;
-      }
-
-      // Only add camera module background for non-scattered layouts
-      if (camera.shape !== "scattered") {
-        // Add camera module background shadow (raised look)
-        const cameraModuleShadow = new Rect({
-          left: cameraLeft + 3,
-          top: cameraTop + 3,
-          width: scaledCameraWidth,
-          height: scaledCameraHeight,
-          fill: "rgba(0, 0, 0, 0.2)",
-          rx,
-          ry,
-          selectable: false,
-          evented: false,
-          name: "camera-shadow",
-        });
-        canvas.add(cameraModuleShadow);
-
-        // Camera module main body with subtle gradient effect
-        const cameraModule = new Rect({
-          left: cameraLeft,
-          top: cameraTop,
-          width: scaledCameraWidth,
-          height: scaledCameraHeight,
-          fill: "#252525",
-          stroke: "#1a1a1a",
-          strokeWidth: 1.5,
-          rx,
-          ry,
-          selectable: false,
-          evented: false,
-          name: "camera-cutout",
-        });
-        canvas.add(cameraModule);
-
-        // Add inner highlight for depth
-        const cameraInnerHighlight = new Rect({
-          left: cameraLeft + 2,
-          top: cameraTop + 2,
-          width: scaledCameraWidth - 4,
-          height: scaledCameraHeight - 4,
-          fill: "transparent",
-          stroke: "rgba(255, 255, 255, 0.06)",
-          strokeWidth: 1,
-          rx: rx * 0.9,
-          ry: ry * 0.9,
-          selectable: false,
-          evented: false,
-          name: "camera-inner-highlight",
-        });
-        canvas.add(cameraInnerHighlight);
-      }
-
-      // Render camera lenses/elements
-      camera.lenses.forEach((lens: LensConfig, index: number) => {
-        let lensX: number;
-        let lensY: number;
-        let lensRadius: number;
-
-        if (camera.shape === "scattered" && lens.absoluteX !== undefined) {
-          // For scattered layout, use absolute positioning relative to print area
-          lensX = (lens.absoluteX / 100) * displayWidth;
-          lensY = (lens.absoluteY! / 100) * displayHeight;
-          lensRadius = (lens.absoluteSize! / 100) * displayWidth / 2;
-
-          // Add individual shadow for each scattered lens
-          if (lens.type === "lens") {
-            const lensShadow = new Circle({
-              left: lensX + 2,
-              top: lensY + 2,
-              radius: lensRadius * 1.15,
-              fill: "rgba(0, 0, 0, 0.25)",
-              originX: "center",
-              originY: "center",
-              selectable: false,
-              evented: false,
-              name: `camera-lens-shadow-${index}`,
-            });
-            canvas.add(lensShadow);
-
-            // Add raised bump background for each lens
-            const lensBump = new Circle({
-              left: lensX,
-              top: lensY,
-              radius: lensRadius * 1.12,
-              fill: "#2a2a2a",
-              stroke: "#1a1a1a",
-              strokeWidth: 1,
-              originX: "center",
-              originY: "center",
-              selectable: false,
-              evented: false,
-              name: `camera-lens-bump-${index}`,
-            });
-            canvas.add(lensBump);
-          }
-        } else {
-          // For module-based layouts, use relative positioning
-          lensX = cameraLeft + (lens.x / 100) * scaledCameraWidth;
-          lensY = cameraTop + (lens.y / 100) * scaledCameraHeight;
-          lensRadius = (lens.size / 100) * scaledCameraWidth / 2;
-        }
-
-        // Render based on type
-        switch (lens.type) {
-          case "lens":
-            renderRealisticLens(canvas, lensX, lensY, lensRadius, index);
-            break;
-          case "flash":
-            renderFlash(canvas, lensX, lensY, lensRadius, index);
-            break;
-          case "sensor":
-            renderSensor(canvas, lensX, lensY, lensRadius, index);
-            break;
-          case "mic":
-            renderMic(canvas, lensX, lensY, lensRadius, index);
-            break;
-        }
-      });
-
-      // Add safe area border (dashed pink outline like reference)
-      const safeAreaPadding = 20 / scale;
+      // Add safe area border (dashed pink outline)
+      const safeAreaPadding = 16;
       const safeArea = new Rect({
         left: safeAreaPadding,
         top: safeAreaPadding,
@@ -613,8 +248,8 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         stroke: "hsl(330, 75%, 60%)",
         strokeWidth: 2,
         strokeDashArray: [8, 4],
-        rx: 24 / scale,
-        ry: 24 / scale,
+        rx: 16,
+        ry: 16,
         selectable: false,
         evented: false,
         name: "safe-area",
@@ -651,7 +286,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         canvas.off("selection:cleared");
         canvas.dispose();
       };
-    }, [variant, cameraHeight, cameraWidth, cameraOffset, camera, onSelectionChange]);
+    }, [variant, mockupLoaded, onSelectionChange]);
 
     // Track object modifications for history
     useEffect(() => {
@@ -1065,7 +700,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
 
     return (
       <div className={cn("relative flex-1 flex flex-col min-h-0", className)}>
-        {/* Canvas Container - key forces clean remount on variant change to avoid DOM conflicts */}
+        {/* Canvas Container */}
         <div
           key={variant.id}
           ref={containerRef}
@@ -1075,59 +710,46 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
           <div className="relative">
             {/* Large ambient shadow */}
             <div 
-              className="absolute inset-0 rounded-[3rem] bg-gradient-to-b from-black/10 to-black/30 blur-2xl translate-y-4 scale-[0.92]"
+              className="absolute inset-0 rounded-[3rem] bg-gradient-to-b from-black/10 to-black/30 blur-2xl translate-y-6 scale-[0.88]"
               aria-hidden="true"
             />
             
-            {/* Case outer body with metallic frame effect */}
-            <div className="relative rounded-[2.5rem] bg-gradient-to-br from-[#d1d1d6] via-[#e5e5ea] to-[#c7c7cc] p-[2px] shadow-2xl">
-              {/* Highlight edge (top-left light reflection) */}
-              <div 
-                className="absolute inset-0 rounded-[2.5rem] bg-gradient-to-br from-white/40 via-transparent to-transparent pointer-events-none"
-                aria-hidden="true"
+            {/* Mockup image as background frame */}
+            <div className="relative">
+              <img
+                ref={mockupRef}
+                src={mockupImage}
+                alt={`${variant.brand} ${variant.model} case`}
+                className="w-auto h-[60vh] max-h-[600px] min-h-[400px] drop-shadow-2xl pointer-events-none select-none"
+                draggable={false}
+                onLoad={() => setMockupLoaded(true)}
               />
               
-              {/* Inner case layer */}
-              <div className="rounded-[2.4rem] bg-gradient-to-b from-[#fafafa] via-[#f0f0f2] to-[#e8e8ed] p-[2px]">
-                {/* Subtle inner shadow */}
-                <div className="relative rounded-[2.3rem] overflow-hidden shadow-inner ring-1 ring-black/[0.03]">
-                  {/* Soft top reflection on case surface */}
-                  <div 
-                    className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-white/20 to-transparent pointer-events-none z-10"
-                    aria-hidden="true"
-                  />
-                  
-                  {/* The actual canvas */}
-                  <canvas ref={canvasRef} className="block touch-none" />
+              {/* Canvas overlay positioned precisely on the design area */}
+              {mockupLoaded && (
+                <div 
+                  className="absolute rounded-[1.5rem] overflow-hidden shadow-inner"
+                  style={{
+                    top: '4%',
+                    left: '5%',
+                    width: '90%',
+                    height: '92%',
+                  }}
+                >
+                  <canvas ref={canvasRef} className="block touch-none w-full h-full" />
                 </div>
-              </div>
+              )}
             </div>
             
-            {/* Right edge highlight - simulates light hitting the edge */}
+            {/* Right edge highlight */}
             <div 
-              className="absolute top-6 bottom-6 -right-0.5 w-[3px] rounded-full bg-gradient-to-b from-white/50 via-white/25 to-white/50"
+              className="absolute top-8 bottom-8 -right-0.5 w-[3px] rounded-full bg-gradient-to-b from-white/40 via-white/20 to-white/40"
               aria-hidden="true"
             />
             
             {/* Left edge shadow */}
             <div 
-              className="absolute top-6 bottom-6 -left-0.5 w-[2px] rounded-full bg-gradient-to-b from-black/10 via-black/5 to-black/10"
-              aria-hidden="true"
-            />
-            
-            {/* Simulated side buttons (right side) - for realism */}
-            <div 
-              className="absolute right-0 top-[18%] w-[3px] h-8 rounded-l-sm bg-gradient-to-b from-[#b0b0b5] via-[#d0d0d5] to-[#b0b0b5] shadow-sm"
-              aria-hidden="true"
-            />
-            
-            {/* Simulated side buttons (left side - volume) */}
-            <div 
-              className="absolute left-0 top-[22%] w-[3px] h-6 rounded-r-sm bg-gradient-to-b from-[#b0b0b5] via-[#d0d0d5] to-[#b0b0b5] shadow-sm"
-              aria-hidden="true"
-            />
-            <div 
-              className="absolute left-0 top-[30%] w-[3px] h-6 rounded-r-sm bg-gradient-to-b from-[#b0b0b5] via-[#d0d0d5] to-[#b0b0b5] shadow-sm"
+              className="absolute top-8 bottom-8 -left-0.5 w-[2px] rounded-full bg-gradient-to-b from-black/15 via-black/08 to-black/15"
               aria-hidden="true"
             />
           </div>
