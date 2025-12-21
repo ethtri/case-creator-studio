@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -15,12 +15,14 @@ import { LayersPanel } from "@/components/editor/LayersPanel";
 import { useEditorState } from "@/hooks/useEditorState";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ArrowLeft, ShoppingCart } from "lucide-react";
+import { toast } from "sonner";
 
 const DesignEditor = () => {
   const { variantId } = useParams();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [variant, setVariant] = useState<PhoneVariant | null>(null);
+  const hasRestoredRef = useRef(false);
 
   const {
     canvasRef,
@@ -53,6 +55,7 @@ const DesignEditor = () => {
     handleUndo,
     handleRedo,
     getPreviewData,
+    getDesignState,
   } = useEditorState();
 
   useEffect(() => {
@@ -64,11 +67,64 @@ const DesignEditor = () => {
     }
   }, [variantId, navigate]);
 
+  useEffect(() => {
+    hasRestoredRef.current = false;
+  }, [variantId]);
+
+  useEffect(() => {
+    if (!variant || !variantId || hasRestoredRef.current) return;
+
+    let cancelled = false;
+    const attemptRestore = () => {
+      if (cancelled || hasRestoredRef.current) return;
+      if (!canvasRef.current) {
+        setTimeout(attemptRestore, 50);
+        return;
+      }
+
+      const storedVariant = sessionStorage.getItem("designVariant");
+      const storedState = sessionStorage.getItem("designState");
+      if (storedState && storedVariant === variantId) {
+        canvasRef.current.loadDesignState(storedState);
+      }
+      hasRestoredRef.current = true;
+    };
+
+    attemptRestore();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [variant, variantId, canvasRef]);
+
+  const saveDesignSnapshot = (showToast: boolean) => {
+    if (!variantId) return false;
+    const previewData = getPreviewData();
+    const designState = getDesignState();
+    if (designState) {
+      sessionStorage.setItem("designState", designState);
+      sessionStorage.setItem("designVariant", variantId);
+    }
+    if (!previewData) {
+      if (showToast) {
+        toast.error("Unable to capture a preview yet. Try again.");
+      }
+      return false;
+    }
+    sessionStorage.setItem("designPreview", previewData);
+    sessionStorage.setItem("designVariant", variantId);
+    if (showToast) {
+      toast.success("Design saved");
+    }
+    return true;
+  };
+
   const handleContinue = () => {
     if (!variant) return;
-    const previewData = getPreviewData();
-    sessionStorage.setItem("designPreview", previewData);
-    sessionStorage.setItem("designVariant", variantId || "");
+    if (!saveDesignSnapshot(false)) {
+      toast.error("Unable to capture a preview yet. Try again.");
+      return;
+    }
     navigate(`/preview/${variantId}`);
   };
 
@@ -258,7 +314,11 @@ const DesignEditor = () => {
           {/* Desktop Footer Actions */}
           {!isMobile && (
             <div className="absolute bottom-6 right-6 flex items-center gap-3 z-20">
-              <Button variant="outline" size="lg">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => saveDesignSnapshot(true)}
+              >
                 Save Design
               </Button>
               <Button

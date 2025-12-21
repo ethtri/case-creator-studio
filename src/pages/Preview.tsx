@@ -152,7 +152,7 @@ const Preview = () => {
                       {/* Design overlay - positioned to match case surface */}
                       {designPreview && (
                         <div 
-                          className={`absolute z-[5] overflow-hidden ${
+                          className={`absolute z-[20] overflow-hidden ${
                             activeView === "front" 
                               ? isApple 
                                 ? "inset-[4%] rounded-[2rem]" 

@@ -23,6 +23,8 @@ export interface CaseCanvasRef {
   reset: () => void;
   exportForPrint: () => string;
   getPreview: () => string;
+  getDesignState: () => string;
+  loadDesignState: (stateJson: string) => Promise<void>;
   hasImage: () => boolean;
   hasSelectedText: () => boolean;
   setBackgroundFill: (fill: FillValue) => void;
@@ -205,6 +207,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
     const [currentDpi, setCurrentDpi] = useState<number | null>(null);
     const [canvasScale, setCanvasScale] = useState(1);
     const layerIdCounter = useRef(0);
+    const pendingStateRef = useRef<string | null>(null);
     
     // History state
     const historyRef = useRef<string[]>([]);
@@ -219,6 +222,22 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
       layerIdCounter.current += 1;
       return `layer-${layerIdCounter.current}`;
     };
+
+    const updateLayerIdCounter = useCallback((objects: FabricObject[]) => {
+      let maxId = layerIdCounter.current;
+      objects.forEach((obj) => {
+        const layerId = (obj as any).layerId as string | undefined;
+        if (!layerId) return;
+        const match = /layer-(\d+)/.exec(layerId);
+        if (match) {
+          const value = Number(match[1]);
+          if (!Number.isNaN(value)) {
+            maxId = Math.max(maxId, value);
+          }
+        }
+      });
+      layerIdCounter.current = maxId;
+    }, []);
 
     // Helper to get layer info from fabric object
     const getLayerFromObject = (obj: FabricObject): Layer | null => {
@@ -269,6 +288,14 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
       onHistoryChange?.(canUndo, canRedo);
     }, [onHistoryChange]);
 
+    const serializeBackgroundColor = useCallback((background: FabricCanvas["backgroundColor"]) => {
+      if (typeof background === "string") return background;
+      if (background && typeof background === "object" && "toObject" in background) {
+        return (background as Gradient).toObject();
+      }
+      return background || "#f5f5f5";
+    }, []);
+
     // Save current state to history
     const saveToHistory = useCallback((canvas: FabricCanvas) => {
       if (isRestoringRef.current) return;
@@ -281,7 +308,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
       
       const state = JSON.stringify({
         objects: objects.map(obj => obj.toObject(["name", "layerId"])),
-        backgroundColor: canvas.backgroundColor,
+        backgroundColor: serializeBackgroundColor(canvas.backgroundColor),
       });
 
       // Remove any redo states
@@ -300,16 +327,26 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
       }
 
       notifyHistoryChange();
-    }, [notifyHistoryChange]);
+    }, [notifyHistoryChange, serializeBackgroundColor]);
 
-    // Restore state from history
-    const restoreFromHistory = useCallback(async (canvas: FabricCanvas, stateJson: string) => {
+    const buildStateJson = useCallback((canvas: FabricCanvas) => {
+      const objects = canvas.getObjects().filter(obj => {
+        const name = (obj as any).name;
+        return name !== "safe-area" && name !== "camera-overlay";
+      });
+
+      return JSON.stringify({
+        objects: objects.map(obj => obj.toObject(["name", "layerId"])),
+        backgroundColor: serializeBackgroundColor(canvas.backgroundColor),
+      });
+    }, [serializeBackgroundColor]);
+
+    const restoreCanvasState = useCallback(async (canvas: FabricCanvas, stateJson: string, resetHistory: boolean) => {
       isRestoringRef.current = true;
-      
+
       try {
         const state = JSON.parse(stateJson);
-        
-        // Remove current user objects
+
         canvas.getObjects().forEach(obj => {
           const name = (obj as any).name;
           if (name !== "safe-area" && name !== "camera-overlay") {
@@ -317,30 +354,43 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
           }
         });
 
-        // Restore background
-        canvas.backgroundColor = state.backgroundColor;
-
-        // Restore objects
-        if (state.objects && state.objects.length > 0) {
-          await canvas.loadFromJSON({ objects: state.objects }, () => {
-            // Move restored objects below UI elements
-            const uiObjects = canvas.getObjects().filter(obj => {
-              const name = (obj as any).name;
-              return name === "safe-area" || name === "camera-overlay";
-            });
-            
-            uiObjects.forEach(obj => canvas.bringObjectToFront(obj));
-            canvas.renderAll();
-            notifyLayersChange();
+        const objects = state.objects || [];
+        if (objects.length > 0) {
+          const enlivened = await util.enlivenObjects<FabricObject>(objects);
+          const uiObjectIndex = canvas.getObjects().findIndex(obj => {
+            const name = (obj as any).name;
+            return name === "camera-overlay" || name === "safe-area";
           });
-        } else {
-          canvas.renderAll();
-          notifyLayersChange();
+          const insertionIndex = uiObjectIndex >= 0 ? uiObjectIndex : canvas.getObjects().length;
+          canvas.insertAt(insertionIndex, ...enlivened);
         }
+
+        const backgroundColor = state.backgroundColor;
+        if (backgroundColor && typeof backgroundColor === "object" && "type" in backgroundColor) {
+          canvas.backgroundColor = await Gradient.fromObject(backgroundColor);
+        } else {
+          canvas.backgroundColor = backgroundColor || "#f5f5f5";
+        }
+        canvas.renderAll();
+        updateLayerIdCounter(canvas.getObjects());
+        notifyLayersChange();
+
+        if (resetHistory) {
+          historyRef.current = [stateJson];
+          currentIndexRef.current = 0;
+          notifyHistoryChange();
+        }
+      } catch (error) {
+        console.error("Failed to restore design state:", error);
       } finally {
         isRestoringRef.current = false;
       }
-    }, [notifyLayersChange]);
+    }, [notifyHistoryChange, notifyLayersChange, updateLayerIdCounter]);
+
+    // Restore state from history
+    const restoreFromHistory = useCallback(async (canvas: FabricCanvas, stateJson: string) => {
+      await restoreCanvasState(canvas, stateJson, false);
+    }, [restoreCanvasState]);
 
     // Initialize canvas with programmatic rendering
     useEffect(() => {
@@ -421,13 +471,26 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
 
       setFabricCanvas(canvas);
 
+      // Reset history for a fresh canvas, then seed the initial empty state
+      historyRef.current = [];
+      currentIndexRef.current = -1;
+      notifyHistoryChange();
+      saveToHistory(canvas);
+
       return () => {
         canvas.off("selection:created", handleSelection);
         canvas.off("selection:updated", handleSelection);
         canvas.off("selection:cleared");
         canvas.dispose();
       };
-    }, [variant, onSelectionChange]);
+    }, [variant, onSelectionChange, notifyHistoryChange, saveToHistory]);
+
+    useEffect(() => {
+      if (!fabricCanvas || !pendingStateRef.current) return;
+      const pendingState = pendingStateRef.current;
+      pendingStateRef.current = null;
+      restoreCanvasState(fabricCanvas, pendingState, true);
+    }, [fabricCanvas, restoreCanvasState]);
 
     // Track object modifications for history
     useEffect(() => {
@@ -525,6 +588,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         if (style.underline !== undefined) activeObj.set("underline", style.underline);
 
         fabricCanvas.renderAll();
+        saveToHistory(fabricCanvas);
       },
 
       getSelectedTextStyle: () => {
@@ -662,6 +726,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
           originY: "center",
         });
         fabricCanvas.renderAll();
+        saveToHistory(fabricCanvas);
       },
 
       rotateImage: (degrees: number) => {
@@ -671,6 +736,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
 
         img.rotate((img.angle || 0) + degrees);
         fabricCanvas.renderAll();
+        saveToHistory(fabricCanvas);
       },
 
       reset: () => {
@@ -733,6 +799,20 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         fabricCanvas.renderAll();
         
         return dataUrl;
+      },
+
+      getDesignState: () => {
+        if (!fabricCanvas) return "";
+        return buildStateJson(fabricCanvas);
+      },
+
+      loadDesignState: async (stateJson: string) => {
+        if (!fabricCanvas) {
+          pendingStateRef.current = stateJson;
+          return;
+        }
+        pendingStateRef.current = null;
+        await restoreCanvasState(fabricCanvas, stateJson, true);
       },
 
       hasImage: () => {
@@ -803,6 +883,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         obj.set("visible", !obj.visible);
         fabricCanvas.renderAll();
         notifyLayersChange();
+        saveToHistory(fabricCanvas);
       },
 
       moveLayerUp: (id: string) => {

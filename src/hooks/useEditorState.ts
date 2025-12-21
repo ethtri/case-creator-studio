@@ -154,6 +154,10 @@ export const useEditorState = () => {
     return canvasRef.current?.getPreview() || "";
   }, []);
 
+  const getDesignState = useCallback(() => {
+    return canvasRef.current?.getDesignState() || "";
+  }, []);
+
   const getExportData = useCallback(() => {
     return canvasRef.current?.exportForPrint() || "";
   }, []);
@@ -189,6 +193,7 @@ export const useEditorState = () => {
     handleUndo,
     handleRedo,
     getPreviewData,
+    getDesignState,
     getExportData,
   };
 };
