@@ -16,8 +16,17 @@ const PRINTFUL_PRODUCT_IDS = {
   'samsung': 684,
 };
 
+const EDM_PREVIEW_CACHE_VERSION = "v4";
+
 const getProductId = (brand: string): number => {
   return brand.toLowerCase() === 'apple' ? PRINTFUL_PRODUCT_IDS.iphone : PRINTFUL_PRODUCT_IDS.samsung;
+};
+
+const isDev = import.meta.env.DEV;
+const debugLog = (...args: unknown[]) => {
+  if (isDev) {
+    console.log(...args);
+  }
 };
 
 const extractNonce = (payload: unknown): string | null => {
@@ -100,6 +109,36 @@ const DesignEditorEDM = () => {
   const [designerHeight, setDesignerHeight] = useState<number | null>(null);
   const resizeIntervalRef = useRef<number | null>(null);
 
+  const prewarmEdmPreview = useCallback(async (templateId: number) => {
+    if (!variant) return;
+    const taskKey = `edmMockupTask_${EDM_PREVIEW_CACHE_VERSION}_${templateId}_${variant.printfulVariantId}`;
+    if (sessionStorage.getItem(taskKey)) return;
+
+    try {
+      const productId = getProductId(variant.brand);
+      const { data, error } = await supabase.functions.invoke("edm-mockup", {
+        body: {
+          action: "create",
+          templateId,
+          variantId: variant.printfulVariantId,
+          productId,
+        },
+      });
+
+      if (error) {
+        debugLog("EDM preview prewarm failed", error);
+        return;
+      }
+
+      const taskId = data?.taskId;
+      if (taskId) {
+        sessionStorage.setItem(taskKey, taskId);
+      }
+    } catch (err) {
+      debugLog("EDM preview prewarm failed", err);
+    }
+  }, [variant]);
+
   useEffect(() => {
     if (!variantId) return;
     const paramDesignId = searchParams.get("designId");
@@ -160,7 +199,7 @@ const DesignEditorEDM = () => {
     script.src = 'https://files.cdn.printful.com/embed/embed.js';
     script.async = true;
     script.onload = () => {
-      console.log('Printful embed.js loaded');
+      debugLog('Printful embed.js loaded');
       scriptLoadedRef.current = true;
     };
     script.onerror = () => {
@@ -177,7 +216,7 @@ const DesignEditorEDM = () => {
   // Initialize the design maker
   const initializeDesignMaker = useCallback(async () => {
     if (!variant || !window.PFDesignMaker || !variantId || !designId) {
-      console.log('Waiting for variant or PFDesignMaker...', { variant: !!variant, PFDesignMaker: !!window.PFDesignMaker });
+      debugLog('Waiting for variant or PFDesignMaker...', { variant: !!variant, PFDesignMaker: !!window.PFDesignMaker });
       return;
     }
 
@@ -188,7 +227,7 @@ const DesignEditorEDM = () => {
       const externalProductId = getOrCreateExternalProductId(designId);
       const productId = getProductId(variant.brand);
 
-      console.log('Requesting nonce for:', { externalProductId, productId, variantId: variant.printfulVariantId });
+      debugLog('Requesting nonce for:', { externalProductId, productId, variantId: variant.printfulVariantId });
 
       // Get nonce from our edge function
       const { data, error: nonceError } = await supabase.functions.invoke('edm-nonce', {
@@ -208,7 +247,7 @@ const DesignEditorEDM = () => {
         throw new Error(data?.error || nonceError?.message || 'Failed to get authentication token');
       }
 
-      console.log('Nonce received, initializing EDM...');
+      debugLog('Nonce received, initializing EDM...');
 
       if (resolvedTemplateId) {
         setTemplateId(resolvedTemplateId);
@@ -245,7 +284,7 @@ const DesignEditorEDM = () => {
         preselectedSizes: [String(variant.printfulVariantId), variant.model],
         steps: ['design'], // Limit EDM navigation to the Design step
         onTemplateSaved: (id: number) => {
-          console.log('Template saved:', id);
+          debugLog('Template saved:', id);
           setTemplateId(id);
           templateIdRef.current = id;
           setIsSaving(false);
@@ -260,13 +299,14 @@ const DesignEditorEDM = () => {
           sessionStorage.setItem(buildDesignKey(designId, "templateId"), id.toString());
           sessionStorage.setItem(buildDesignKey(designId, "variantId"), variantId);
           sessionStorage.setItem("edmDesign:last", designId);
+          void prewarmEdmPreview(id);
           if (continueAfterSaveRef.current) {
             continueAfterSaveRef.current = false;
             navigate(`/preview/${variantId}?designId=${designId}`);
           }
         },
         onDesignStatusUpdate: (status) => {
-          console.log('Design status updated:', status);
+          debugLog('Design status updated:', status);
           const hasChanges = typeof status.designChange === "boolean"
             ? status.designChange
             : !templateIdRef.current && status.hasDesign;
@@ -288,7 +328,7 @@ const DesignEditorEDM = () => {
           }
         },
         onIframeLoaded: () => {
-          console.log('Iframe loaded');
+          debugLog('Iframe loaded');
           applySelectedProduct();
           window.setTimeout(applySelectedProduct, 250);
           setIframeLoaded(true);
@@ -299,7 +339,7 @@ const DesignEditorEDM = () => {
           setError('An error occurred in the design maker');
           setLoading(false);
         },
-        debug: true,
+        debug: isDev,
       });
 
     } catch (err) {

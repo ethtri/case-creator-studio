@@ -55,6 +55,219 @@ function normalizeTaskPayload(payload: unknown): any {
   return result;
 }
 
+function extractErrorMessage(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const data = payload as Record<string, unknown>;
+  const directMessage =
+    data.detail ??
+    data.title ??
+    data.message ??
+    (data as any)?.error?.message ??
+    data.error;
+  if (typeof directMessage === "string" && directMessage.trim()) {
+    return directMessage.trim();
+  }
+
+  const errors = (data as any)?.errors;
+  if (Array.isArray(errors) && errors.length > 0) {
+    const firstError = errors[0];
+    if (typeof firstError === "string") return firstError;
+    const nestedMessage =
+      firstError?.message ??
+      firstError?.detail ??
+      firstError?.title ??
+      null;
+    if (typeof nestedMessage === "string" && nestedMessage.trim()) {
+      return nestedMessage.trim();
+    }
+  }
+
+  return null;
+}
+
+type MockupStyle = {
+  id: number;
+  placement?: string;
+  viewName?: string;
+  categoryName?: string;
+  restrictedToVariants?: number[] | null;
+};
+
+function extractMockupStyles(payload: unknown): MockupStyle[] {
+  if (!payload || typeof payload !== "object") return [];
+  const data = payload as Record<string, unknown>;
+  const raw = (data as any).result?.data ?? (data as any).data ?? (data as any).result ?? data;
+  const entries = Array.isArray(raw) ? raw : (raw as any)?.data ?? [];
+  if (!Array.isArray(entries)) return [];
+
+  const styles: MockupStyle[] = [];
+
+  for (const entry of entries) {
+    if (Array.isArray(entry?.mockup_styles)) {
+      for (const style of entry.mockup_styles) {
+        const idValue = style?.id ?? style?.style_id ?? entry?.style_id ?? entry?.id;
+        const id = Number(idValue);
+        if (!Number.isFinite(id)) continue;
+        styles.push({
+          id,
+          placement: typeof entry?.placement === "string" ? entry.placement : undefined,
+          viewName: typeof style?.view_name === "string"
+            ? style.view_name
+            : typeof entry?.view_name === "string"
+            ? entry.view_name
+            : undefined,
+          categoryName: typeof style?.category_name === "string" ? style.category_name : undefined,
+          restrictedToVariants: Array.isArray(style?.restricted_to_variants)
+            ? style.restricted_to_variants.map((value: unknown) => Number(value)).filter(Number.isFinite)
+            : null,
+        });
+      }
+      continue;
+    }
+
+    const idValue = entry?.id ?? entry?.style_id;
+    const id = Number(idValue);
+    if (!Number.isFinite(id)) continue;
+    styles.push({
+      id,
+      placement: typeof entry?.placement === "string" ? entry.placement : undefined,
+      viewName: typeof entry?.view_name === "string"
+        ? entry.view_name
+        : typeof entry?.display_name === "string"
+        ? entry.display_name
+        : undefined,
+      categoryName: typeof entry?.category_name === "string" ? entry.category_name : undefined,
+      restrictedToVariants: Array.isArray(entry?.restricted_to_variants)
+        ? entry.restricted_to_variants.map((value: unknown) => Number(value)).filter(Number.isFinite)
+        : null,
+    });
+  }
+
+  return styles;
+}
+
+const FRONT_KEYWORDS = ["front", "outside"];
+const ANGLED_KEYWORDS = ["3d", "angle", "angled", "lifestyle", "perspective", "scene", "hand", "desk", "side", "left", "right"];
+
+function normalizeStyleText(style: MockupStyle): string {
+  return [
+    style.placement,
+    style.viewName,
+    style.categoryName,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function matchesAnyKeyword(value: string, keywords: string[]): boolean {
+  return keywords.some((keyword) => value.includes(keyword));
+}
+
+function filterAllowedStyles(styles: MockupStyle[], variantId: number): MockupStyle[] {
+  return styles.filter((style) => {
+    if (!style.restrictedToVariants || style.restrictedToVariants.length === 0) {
+      return true;
+    }
+    return style.restrictedToVariants.includes(variantId);
+  });
+}
+
+function pickPreferredStyleIds(styles: MockupStyle[], variantId: number): number[] {
+  if (!styles.length) return [];
+  const allowedStyles = filterAllowedStyles(styles, variantId);
+
+  if (allowedStyles.length === 0) return [];
+
+  const frontStyles = allowedStyles.filter((style) => matchesAnyKeyword(normalizeStyleText(style), FRONT_KEYWORDS));
+  const angledStyles = allowedStyles.filter((style) => matchesAnyKeyword(normalizeStyleText(style), ANGLED_KEYWORDS));
+
+  const frontId = frontStyles[0]?.id ?? allowedStyles[0]?.id ?? null;
+  const angledId = angledStyles[0]?.id ?? null;
+
+  const ids = [frontId, angledId].filter((value): value is number => typeof value === "number");
+  return Array.from(new Set(ids));
+}
+
+function pickPreferredStyleId(styles: MockupStyle[], variantId: number): number | null {
+  if (!styles.length) return null;
+  const allowedStyles = filterAllowedStyles(styles, variantId);
+
+  if (allowedStyles.length === 0) return null;
+
+  const matchesFront = (style: MockupStyle) => {
+    const combined = normalizeStyleText(style);
+    return matchesAnyKeyword(combined, FRONT_KEYWORDS);
+  };
+
+  const preferred = allowedStyles.find(matchesFront);
+  return preferred?.id ?? allowedStyles[0]?.id ?? null;
+}
+
+function classifyMockup(mockup: any): "front" | "angled" | null {
+  const combined = [
+    mockup?.placement,
+    mockup?.display_name,
+    mockup?.view_name,
+    mockup?.style_name,
+    mockup?.category_name,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (matchesAnyKeyword(combined, ANGLED_KEYWORDS)) {
+    return "angled";
+  }
+
+  if (matchesAnyKeyword(combined, FRONT_KEYWORDS)) {
+    return "front";
+  }
+
+  return null;
+}
+
+function extractMockupUrl(mockup: any): string | null {
+  return mockup?.mockup_url ?? mockup?.mockup_url_s ?? null;
+}
+
+function pickMockupUrls(mockups: any[]): { front: string | null; angled: string | null } {
+  if (!Array.isArray(mockups) || mockups.length === 0) {
+    return { front: null, angled: null };
+  }
+
+  let front: string | null = null;
+  let angled: string | null = null;
+
+  for (const mockup of mockups) {
+    const url = extractMockupUrl(mockup);
+    if (!url) continue;
+
+    const classification = classifyMockup(mockup);
+    if (classification === "front" && !front) {
+      front = url;
+    } else if (classification === "angled" && !angled) {
+      angled = url;
+    }
+  }
+
+  if (!front) {
+    front = extractMockupUrl(mockups[0]);
+  }
+
+  if (!angled) {
+    const fallback = mockups.find((mockup) => extractMockupUrl(mockup) && extractMockupUrl(mockup) !== front);
+    angled = fallback ? extractMockupUrl(fallback) : null;
+  }
+
+  return { front, angled };
+}
+
+function pickMockupUrl(mockups: any[]): string | null {
+  if (!Array.isArray(mockups) || mockups.length === 0) return null;
+  return pickMockupUrls(mockups).front;
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -92,25 +305,9 @@ serve(async (req) => {
         const stylesPayload = await stylesResponse.json();
 
         if (stylesResponse.ok) {
-          const styles = stylesPayload?.result?.data ?? stylesPayload?.data ?? stylesPayload?.result ?? stylesPayload;
-          const entries = Array.isArray(styles) ? styles : styles?.data ?? [];
-          const flattened = Array.isArray(entries)
-            ? entries.flatMap((entry: any) =>
-                Array.isArray(entry?.mockup_styles)
-                  ? entry.mockup_styles.map((style: any) => ({
-                      placement: entry.placement,
-                      viewName: entry.view_name,
-                      id: style?.id,
-                    }))
-                  : []
-              )
-            : [];
-          const frontStyle = flattened.find((entry: any) =>
-            typeof entry?.viewName === "string" && entry.viewName.toLowerCase().includes("front")
-          );
-          const fallbackStyle = flattened[0];
-          const styleId = frontStyle?.id ?? fallbackStyle?.id;
-          resolvedMockupStyles = styleId ? [Number(styleId)] : undefined;
+          const styles = extractMockupStyles(stylesPayload);
+          const styleIds = pickPreferredStyleIds(styles, variantId);
+          resolvedMockupStyles = styleIds.length > 0 ? styleIds : undefined;
         } else {
           console.error("[EDM-MOCKUP] Failed to fetch mockup styles", stylesPayload);
         }
@@ -124,7 +321,7 @@ serve(async (req) => {
           mockup_width_px: 1000,
           products: [
             {
-              source: "template",
+              source: "product_template",
               product_template_id: templateId,
               catalog_variant_ids: [variantId],
               ...(resolvedMockupStyles && resolvedMockupStyles.length > 0
@@ -138,7 +335,8 @@ serve(async (req) => {
       const payload = await response.json();
       if (!response.ok) {
         console.error("[EDM-MOCKUP] Create task failed", payload);
-        return new Response(JSON.stringify({ error: "Failed to create mockup task" }), {
+        const detail = extractErrorMessage(payload);
+        return new Response(JSON.stringify({ error: "Failed to create mockup task", detail }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 502,
         });
@@ -167,7 +365,8 @@ serve(async (req) => {
 
     if (!response.ok) {
       console.error("[EDM-MOCKUP] Status failed", payload);
-      return new Response(JSON.stringify({ error: "Failed to fetch mockup status" }), {
+      const detail = extractErrorMessage(payload);
+      return new Response(JSON.stringify({ error: "Failed to fetch mockup status", detail }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 502,
       });
@@ -182,6 +381,7 @@ serve(async (req) => {
       : [];
 
     let mockupUrl: string | null = null;
+    let mockupUrls: { front: string | null; angled: string | null } | null = null;
     const variantMockups = Array.isArray(result?.catalog_variant_mockups)
       ? result.catalog_variant_mockups[0]
       : result?.catalog_variant_mockups;
@@ -189,9 +389,11 @@ serve(async (req) => {
     const mockupList = variantMockups?.mockups;
 
     if (Array.isArray(mockupList) && mockupList.length > 0) {
-      mockupUrl = mockupList[0]?.mockup_url ?? mockupList[0]?.mockup_url_s;
+      mockupUrls = pickMockupUrls(mockupList);
+      mockupUrl = mockupUrls.front;
     } else if (Array.isArray(result?.mockups) && result?.mockups.length > 0) {
-      mockupUrl = result.mockups[0]?.mockup_url ?? result.mockups[0]?.mockup_url_s;
+      mockupUrls = pickMockupUrls(result.mockups);
+      mockupUrl = mockupUrls.front;
     }
 
     const failureMessages = Array.isArray(failureReasons)
@@ -200,7 +402,12 @@ serve(async (req) => {
           .filter(Boolean)
       : [];
 
-    return new Response(JSON.stringify({ status, mockupUrl, failureReasons: failureMessages }), {
+    return new Response(JSON.stringify({
+      status,
+      mockupUrl,
+      mockupUrls,
+      failureReasons: failureMessages,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,
     });

@@ -25,12 +25,68 @@ const getMockupImage = (brand: string, view: MockupView): string => {
     : (isApple ? iphoneCaseFront : samsungCaseFront);
 };
 
+const extractFunctionErrorMessage = async (
+  error: unknown,
+  response?: Response
+): Promise<string | null> => {
+  if (response) {
+    const contentType = response.headers.get("Content-Type") ?? "";
+    const isJson = contentType.includes("application/json") || contentType.includes("application/problem+json");
+    try {
+      if (isJson) {
+        const payload = await response.clone().json();
+        const failureReasons = Array.isArray(payload?.failureReasons) ? payload.failureReasons : [];
+        const failureReason = failureReasons.find((reason) => typeof reason === "string");
+        const detail =
+          failureReason ??
+          payload?.detail ??
+          payload?.error ??
+          payload?.message ??
+          payload?.title ??
+          payload?.error?.message ??
+          null;
+        if (typeof detail === "string" && detail.trim()) {
+          return detail.trim();
+        }
+      } else {
+        const text = await response.clone().text();
+        if (text) return text;
+      }
+    } catch {
+      // ignore parse failures and fall back to generic error handling
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return null;
+};
+
+const formatEdmPreviewError = (detail: string | null): string => {
+  if (!detail) {
+    return "Please try again.";
+  }
+
+  const normalized = detail.toLowerCase();
+  if (normalized.includes("printful integration error") || normalized.includes("api key")) {
+    return "Preview service isn't configured yet.";
+  }
+  if (normalized.includes("variant not found")) {
+    return "Preview unavailable for this phone model yet.";
+  }
+
+  return detail;
+};
+
 const Preview = () => {
   const { variantId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [variant, setVariant] = useState<PhoneVariant | null>(null);
   const [designPreview, setDesignPreview] = useState<string | null>(null);
+  const [designPreviewAngled, setDesignPreviewAngled] = useState<string | null>(null);
   const [edmTemplateId, setEdmTemplateId] = useState<number | null>(null);
   const [edmPreviewLoading, setEdmPreviewLoading] = useState(false);
   const [edmPreviewError, setEdmPreviewError] = useState<string | null>(null);
@@ -39,6 +95,7 @@ const Preview = () => {
   const [addedToCart, setAddedToCart] = useState(false);
   const [designId, setDesignId] = useState<string | null>(null);
   const { addToCart } = useCart();
+  const EDM_PREVIEW_CACHE_VERSION = "v4";
 
   const buildDesignKey = (id: string, suffix: string) => `edmDesign:${id}:${suffix}`;
   const editorPath = variantId
@@ -66,9 +123,20 @@ const Preview = () => {
     }
 
     // Get preview from session storage
-    const preview = resolvedDesignId
-      ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "preview"))
-      : sessionStorage.getItem("designPreview");
+    const previewVersion = resolvedDesignId
+      ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "previewVersion"))
+      : sessionStorage.getItem("designPreviewVersion");
+    const previewIsFresh = previewVersion === EDM_PREVIEW_CACHE_VERSION;
+    const preview = previewIsFresh
+      ? resolvedDesignId
+        ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "preview"))
+        : sessionStorage.getItem("designPreview")
+      : null;
+    const previewAngled = previewIsFresh
+      ? resolvedDesignId
+        ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "previewAngled"))
+        : sessionStorage.getItem("designPreviewAngled")
+      : null;
     const storedVariant = resolvedDesignId
       ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "variantId"))
       : sessionStorage.getItem("designVariant");
@@ -84,6 +152,9 @@ const Preview = () => {
 
     if (preview && storedVariant === variantId) {
       setDesignPreview(preview);
+      if (previewAngled) {
+        setDesignPreviewAngled(previewAngled);
+      }
       if (resolvedTemplateId) {
         setEdmTemplateId(resolvedTemplateId);
       }
@@ -101,13 +172,29 @@ const Preview = () => {
   useEffect(() => {
     if (!variant || !edmTemplateId) return;
 
-    const cacheKey = `edmPreview_${edmTemplateId}_${variant.printfulVariantId}`;
+    const cacheKey = `edmPreview_${EDM_PREVIEW_CACHE_VERSION}_${edmTemplateId}_${variant.printfulVariantId}`;
+    const cacheKeyAngled = `${cacheKey}_angled`;
     const designPreviewKey = designId ? buildDesignKey(designId, "preview") : null;
-    const cachedPreview = designPreviewKey
-      ? sessionStorage.getItem(designPreviewKey)
-      : sessionStorage.getItem(cacheKey);
+    const designPreviewAngledKey = designId ? buildDesignKey(designId, "previewAngled") : null;
+    const previewVersion = designId
+      ? sessionStorage.getItem(buildDesignKey(designId, "previewVersion"))
+      : sessionStorage.getItem("designPreviewVersion");
+    const previewIsFresh = previewVersion === EDM_PREVIEW_CACHE_VERSION;
+    const cachedPreview = previewIsFresh
+      ? designPreviewKey
+        ? sessionStorage.getItem(designPreviewKey)
+        : sessionStorage.getItem(cacheKey)
+      : null;
+    const cachedPreviewAngled = previewIsFresh
+      ? designPreviewAngledKey
+        ? sessionStorage.getItem(designPreviewAngledKey)
+        : sessionStorage.getItem(cacheKeyAngled)
+      : null;
     if (cachedPreview) {
       setDesignPreview(cachedPreview);
+      if (cachedPreviewAngled) {
+        setDesignPreviewAngled(cachedPreviewAngled);
+      }
       return;
     }
 
@@ -118,11 +205,11 @@ const Preview = () => {
 
       try {
         const productId = variant.brand.toLowerCase() === "apple" ? 683 : 684;
-        const taskKey = `edmMockupTask_${edmTemplateId}_${variant.printfulVariantId}`;
+        const taskKey = `edmMockupTask_${EDM_PREVIEW_CACHE_VERSION}_${edmTemplateId}_${variant.printfulVariantId}`;
         let taskId = sessionStorage.getItem(taskKey);
 
         if (!taskId) {
-          const { data, error } = await supabase.functions.invoke("edm-mockup", {
+          const { data, error, response } = await supabase.functions.invoke("edm-mockup", {
             body: {
               action: "create",
               templateId: edmTemplateId,
@@ -132,7 +219,8 @@ const Preview = () => {
           });
 
           if (error) {
-            throw new Error(error.message);
+            const detail = await extractFunctionErrorMessage(error, response);
+            throw new Error(formatEdmPreviewError(detail) || "Mockup request failed");
           }
 
           taskId = data?.taskId;
@@ -146,7 +234,7 @@ const Preview = () => {
         const maxAttempts = 15;
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
           if (cancelled) return;
-          const { data, error } = await supabase.functions.invoke("edm-mockup", {
+          const { data, error, response } = await supabase.functions.invoke("edm-mockup", {
             body: {
               action: "status",
               taskId,
@@ -154,42 +242,61 @@ const Preview = () => {
           });
 
           if (error) {
-            throw new Error(error.message);
+            const detail = await extractFunctionErrorMessage(error, response);
+            throw new Error(formatEdmPreviewError(detail) || "Mockup request failed");
           }
 
           const status = data?.status;
           const mockupUrl = data?.mockupUrl;
+          const mockupUrls = data?.mockupUrls;
+          const mockupUrlAngled = typeof mockupUrls?.angled === "string" ? mockupUrls.angled : null;
           const failureReasons = Array.isArray(data?.failureReasons) ? data.failureReasons : [];
 
           if (status === "completed" && mockupUrl) {
             sessionStorage.setItem(cacheKey, mockupUrl);
             sessionStorage.setItem("designPreview", mockupUrl);
+            if (mockupUrlAngled && mockupUrlAngled !== mockupUrl) {
+              sessionStorage.setItem(cacheKeyAngled, mockupUrlAngled);
+              sessionStorage.setItem("designPreviewAngled", mockupUrlAngled);
+            }
             if (designPreviewKey) {
               sessionStorage.setItem(designPreviewKey, mockupUrl);
               sessionStorage.setItem(buildDesignKey(designId, "previewKind"), "mockup");
+              sessionStorage.setItem(buildDesignKey(designId, "previewVersion"), EDM_PREVIEW_CACHE_VERSION);
+              if (designPreviewAngledKey && mockupUrlAngled && mockupUrlAngled !== mockupUrl) {
+                sessionStorage.setItem(designPreviewAngledKey, mockupUrlAngled);
+              }
             }
             sessionStorage.setItem("designPreviewKind", "mockup");
+            sessionStorage.setItem("designPreviewVersion", EDM_PREVIEW_CACHE_VERSION);
             setDesignPreview(mockupUrl);
+            if (mockupUrlAngled && mockupUrlAngled !== mockupUrl) {
+              setDesignPreviewAngled(mockupUrlAngled);
+            }
             setPreviewKind("mockup");
             setEdmPreviewLoading(false);
             return;
           }
 
           if (status === "failed") {
+            sessionStorage.removeItem(taskKey);
             throw new Error(failureReasons[0] || "Mockup generation failed");
           }
 
           if (status === "completed" && !mockupUrl) {
+            sessionStorage.removeItem(taskKey);
             throw new Error(failureReasons[0] || "Mockup completed without an image");
           }
 
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
 
+        sessionStorage.removeItem(taskKey);
         throw new Error("Mockup generation timed out");
       } catch (err) {
         if (cancelled) return;
-        const message = err instanceof Error ? err.message : "Failed to generate preview";
+        const rawMessage = err instanceof Error ? err.message : "";
+        const message = rawMessage ? rawMessage : "Failed to generate preview";
         setEdmPreviewError(message);
       } finally {
         if (!cancelled) {
@@ -238,6 +345,17 @@ const Preview = () => {
     { name: "3D View", view: "angled", icon: Eye },
   ];
 
+  const angledAvailable =
+    previewKind !== "mockup" || (!!designPreviewAngled && designPreviewAngled !== designPreview);
+  const showPreviewLoader = edmPreviewLoading;
+  const showViewControls = !showPreviewLoader && !(previewKind === "mockup" && !angledAvailable);
+
+  useEffect(() => {
+    if (activeView === "angled" && !angledAvailable) {
+      setActiveView("front");
+    }
+  }, [activeView, angledAvailable]);
+
   if (!variant) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -251,9 +369,13 @@ const Preview = () => {
 
   const isApple = variant.brand.toLowerCase() === "apple";
   const useMockupPreview = previewKind === "mockup" && !!designPreview;
+  const resolvedActiveView = activeView === "angled" && !angledAvailable ? "front" : activeView;
+  const mockupPreviewSrc = resolvedActiveView === "angled"
+    ? designPreviewAngled ?? designPreview
+    : designPreview;
   const baseImageSrc = useMockupPreview
-    ? designPreview!
-    : getMockupImage(variant.brand, activeView);
+    ? mockupPreviewSrc!
+    : getMockupImage(variant.brand, resolvedActiveView);
 
   return (
     <div className="min-h-screen bg-surface-sunken">
@@ -280,13 +402,13 @@ const Preview = () => {
         </div>
       </nav>
 
-      <div className="container mx-auto px-6 py-12">
-        <div className="grid lg:grid-cols-2 gap-12 items-start">
+      <div className="container mx-auto px-6 py-10 lg:py-12">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
           {/* Mockup Preview */}
-          <div className="sticky top-6">
+          <div className="lg:sticky lg:top-6">
             {/* Main mockup display */}
             <motion.div
-              className="relative bg-gradient-to-br from-muted via-muted/50 to-secondary rounded-3xl p-8 lg:p-12 flex items-center justify-center min-h-[500px] overflow-hidden"
+              className="relative bg-gradient-to-br from-muted via-muted/50 to-secondary rounded-3xl p-5 sm:p-6 lg:p-10 flex items-center justify-center min-h-[360px] sm:min-h-[440px] lg:min-h-[520px] overflow-hidden"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5 }}
@@ -308,7 +430,7 @@ const Preview = () => {
                   style={{ perspective: "1200px" }}
                 >
                   {/* Realistic 3D Phone Case Mockup */}
-                  <div className="relative w-56 lg:w-64">
+                  <div className="relative w-64 sm:w-72 md:w-80 lg:w-96">
                     {/* Large ambient shadow */}
                     <div 
                       className="absolute inset-0 rounded-[2.5rem] bg-gradient-to-b from-black/10 to-black/40 blur-3xl translate-y-8 scale-[0.85]"
@@ -352,6 +474,20 @@ const Preview = () => {
                   </div>
                 </motion.div>
               </AnimatePresence>
+
+              {showPreviewLoader && (
+                <div className="absolute inset-0 z-20 flex items-center justify-center">
+                  <div className="rounded-2xl bg-card/90 px-6 py-5 shadow-lg backdrop-blur-sm border border-border">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full border-2 border-cta border-t-transparent animate-spin" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Printing your preview...</p>
+                        <p className="text-xs text-muted-foreground">This can take a few seconds.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </motion.div>
 
             {(edmPreviewLoading || (edmPreviewError && !designPreview)) && (
@@ -361,50 +497,72 @@ const Preview = () => {
               </div>
             )}
 
-            {/* View toggles - pill style */}
-            <div className="flex items-center justify-center mt-6">
-              <div className="inline-flex rounded-full bg-muted p-1">
-                {mockupViews.map((item) => (
-                  <button
-                    key={item.view}
-                    onClick={() => setActiveView(item.view)}
-                    className={`
-                      relative flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200
-                      ${activeView === item.view 
-                        ? "bg-card text-foreground shadow-sm" 
-                        : "text-muted-foreground hover:text-foreground"
-                      }
-                    `}
-                  >
-                    <item.icon className="w-4 h-4" />
-                    {item.name}
-                  </button>
-                ))}
-              </div>
-            </div>
+            {showViewControls && (
+              <>
+                {/* View toggles - pill style */}
+                <div className="flex items-center justify-center mt-6">
+                  <div className="inline-flex rounded-full bg-muted p-1">
+                    {mockupViews.map((item) => {
+                      const isDisabled = item.view === "angled" && !angledAvailable;
+                      return (
+                        <button
+                          key={item.view}
+                          onClick={() => {
+                            if (!isDisabled) {
+                              setActiveView(item.view);
+                            }
+                          }}
+                          disabled={isDisabled}
+                          className={`
+                            relative flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200
+                            ${activeView === item.view && !isDisabled
+                              ? "bg-card text-foreground shadow-sm" 
+                              : "text-muted-foreground"
+                            }
+                            ${isDisabled ? "opacity-50 cursor-not-allowed" : "hover:text-foreground"}
+                          `}
+                        >
+                          <item.icon className="w-4 h-4" />
+                          {item.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-            {/* Thumbnail strip for quick preview */}
-            <div className="flex items-center justify-center gap-3 mt-4">
-              {mockupViews.map((item) => (
-                <button
-                  key={`thumb-${item.view}`}
-                  onClick={() => setActiveView(item.view)}
-                  className={`
-                    relative w-16 h-20 rounded-xl overflow-hidden transition-all duration-200 bg-muted
-                    ${activeView === item.view 
-                      ? "ring-2 ring-cta ring-offset-2 ring-offset-background" 
-                      : "opacity-60 hover:opacity-100"
-                    }
-                  `}
-                >
-                  <img
-                    src={getMockupImage(variant.brand, item.view)}
-                    alt={item.name}
-                    className="w-full h-full object-cover"
-                  />
-                </button>
-              ))}
-            </div>
+                {/* Thumbnail strip for quick preview */}
+                <div className="flex items-center justify-center gap-3 mt-4">
+                  {mockupViews.map((item) => {
+                    const isDisabled = item.view === "angled" && !angledAvailable;
+                    return (
+                      <button
+                        key={`thumb-${item.view}`}
+                        onClick={() => {
+                          if (!isDisabled) {
+                            setActiveView(item.view);
+                          }
+                        }}
+                        disabled={isDisabled}
+                        className={`
+                          relative w-16 h-20 rounded-xl overflow-hidden transition-all duration-200 bg-muted
+                          ${activeView === item.view && !isDisabled
+                            ? "ring-2 ring-cta ring-offset-2 ring-offset-background" 
+                            : "opacity-60 hover:opacity-100"
+                          }
+                          ${isDisabled ? "cursor-not-allowed opacity-40 hover:opacity-40" : ""}
+                        `}
+                      >
+                        <img
+                          src={getMockupImage(variant.brand, item.view)}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Product Details */}
