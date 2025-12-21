@@ -61,6 +61,8 @@ const itemSchema = z.object({
   price: z.number().positive().max(10000),
   quantity: z.number().int().positive().max(100),
   designPreview: z.string().max(5000),
+  edmTemplateId: z.number().int().positive().nullable().optional(),
+  designId: z.string().max(100).nullable().optional(),
 });
 
 const addressSchema = z.object({
@@ -172,6 +174,8 @@ serve(async (req) => {
           model: i.model,
           quantity: i.quantity,
           designPreview: i.designPreview,
+          edmTemplateId: i.edmTemplateId ?? null,
+          designId: i.designId ?? null,
         }))),
       },
     });

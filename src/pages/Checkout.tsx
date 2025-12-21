@@ -62,6 +62,8 @@ const Checkout = () => {
         price: item.variant.price,
         quantity: item.quantity,
         designPreview: item.designPreview,
+        edmTemplateId: item.edmTemplateId ?? null,
+        designId: item.designId ?? null,
       }));
 
       // Call edge function to create Stripe checkout session

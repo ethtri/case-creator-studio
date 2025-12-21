@@ -166,15 +166,15 @@ const DesignEditor = () => {
               <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
             </Link>
             <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground font-medium">
-              Canvas Mode
+              Canvas (Archived)
             </span>
           </div>
           <nav className="flex items-center gap-6 text-sm">
             <Link 
-              to={`/design-edm/${variantId}`}
+              to={`/design/${variantId}`}
               className="text-muted-foreground hover:text-foreground"
             >
-              Try EDM Mode
+              Open EDM Editor
             </Link>
             <Link to="/" className="text-muted-foreground hover:text-foreground">
               Home
@@ -189,6 +189,19 @@ const DesignEditor = () => {
           </nav>
         </header>
       )}
+
+      <div className="bg-card/70 border-b border-border px-4 py-2 text-sm">
+        <div className="mx-auto max-w-5xl flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <span className="text-muted-foreground">
+            This Canvas editor is archived. Use the EDM editor for all new designs.
+          </span>
+          <Link to={`/design/${variantId}`}>
+            <Button size="sm" variant="outline">
+              Open EDM Editor
+            </Button>
+          </Link>
+        </div>
+      </div>
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">

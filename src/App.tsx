@@ -28,8 +28,9 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/catalog" element={<Catalog />} />
-              <Route path="/design/:variantId" element={<DesignEditor />} />
+              <Route path="/design/:variantId" element={<DesignEditorEDM />} />
               <Route path="/design-edm/:variantId" element={<DesignEditorEDM />} />
+              <Route path="/design-canvas/:variantId" element={<DesignEditor />} />
               <Route path="/preview/:variantId" element={<Preview />} />
               <Route path="/checkout/:variantId" element={<Checkout />} />
               <Route path="/checkout" element={<Checkout />} />

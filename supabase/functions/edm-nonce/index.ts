@@ -1,12 +1,25 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const ALLOWED_ORIGINS = [
+  "https://snapcase.ai",
+  "https://www.snapcase.ai",
+];
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get("origin") || "";
+  const isLocalhost = origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1");
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) || isLocalhost ? origin : ALLOWED_ORIGINS[0];
+
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  };
+}
 
 serve(async (req) => {
   // Handle CORS preflight requests
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -60,11 +73,22 @@ serve(async (req) => {
 
     console.log('Nonce received successfully:', data.result?.nonce ? 'yes' : 'no');
 
+    const rawNonce = data.result?.nonce;
+    const nonceValue = typeof rawNonce === "string" ? rawNonce : rawNonce?.nonce;
+    const templateId =
+      typeof rawNonce === "object" && rawNonce
+        ? rawNonce.template_id
+        : data.result?.template_id;
+    const expiresAt =
+      typeof rawNonce === "object" && rawNonce
+        ? rawNonce.expires_at
+        : data.result?.expires_at;
+
     return new Response(
       JSON.stringify({ 
-        nonce: data.result?.nonce,
-        templateId: data.result?.template_id,
-        expiresAt: data.result?.expires_at,
+        nonce: nonceValue,
+        templateId,
+        expiresAt,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

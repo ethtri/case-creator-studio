@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
@@ -8,6 +8,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { CartSheet } from "@/components/CartSheet";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 // Import mockup images
 import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
@@ -27,13 +28,34 @@ const getMockupImage = (brand: string, view: MockupView): string => {
 const Preview = () => {
   const { variantId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [variant, setVariant] = useState<PhoneVariant | null>(null);
   const [designPreview, setDesignPreview] = useState<string | null>(null);
+  const [edmTemplateId, setEdmTemplateId] = useState<number | null>(null);
+  const [edmPreviewLoading, setEdmPreviewLoading] = useState(false);
+  const [edmPreviewError, setEdmPreviewError] = useState<string | null>(null);
+  const [previewKind, setPreviewKind] = useState<"design" | "mockup">("design");
   const [activeView, setActiveView] = useState<MockupView>("front");
   const [addedToCart, setAddedToCart] = useState(false);
+  const [designId, setDesignId] = useState<string | null>(null);
   const { addToCart } = useCart();
 
+  const buildDesignKey = (id: string, suffix: string) => `edmDesign:${id}:${suffix}`;
+  const editorPath = variantId
+    ? designId
+      ? `/design/${variantId}?designId=${designId}`
+      : `/design/${variantId}`
+    : "/catalog";
+
   useEffect(() => {
+    const paramDesignId = searchParams.get("designId");
+    const fallbackDesignId = sessionStorage.getItem("edmDesign:last");
+    const resolvedDesignId = paramDesignId || fallbackDesignId;
+    if (resolvedDesignId) {
+      setDesignId(resolvedDesignId);
+      sessionStorage.setItem("edmDesign:last", resolvedDesignId);
+    }
+
     const foundVariant = getVariantById(variantId || "");
     if (foundVariant) {
       setVariant(foundVariant);
@@ -44,20 +66,167 @@ const Preview = () => {
     }
 
     // Get preview from session storage
-    const preview = sessionStorage.getItem("designPreview");
-    const storedVariant = sessionStorage.getItem("designVariant");
+    const preview = resolvedDesignId
+      ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "preview"))
+      : sessionStorage.getItem("designPreview");
+    const storedVariant = resolvedDesignId
+      ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "variantId"))
+      : sessionStorage.getItem("designVariant");
+    const storedTemplateId = resolvedDesignId
+      ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "templateId"))
+      : sessionStorage.getItem("edmTemplateId");
+    const storedPreviewKind = resolvedDesignId
+      ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "previewKind"))
+      : sessionStorage.getItem("designPreviewKind");
     
+    const parsedTemplateId = storedTemplateId ? Number(storedTemplateId) : null;
+    const resolvedTemplateId = Number.isNaN(parsedTemplateId) ? null : parsedTemplateId;
+
     if (preview && storedVariant === variantId) {
       setDesignPreview(preview);
-    } else if (!preview) {
+      if (resolvedTemplateId) {
+        setEdmTemplateId(resolvedTemplateId);
+      }
+      if (storedPreviewKind === "mockup") {
+        setPreviewKind("mockup");
+      }
+    } else if (!preview && resolvedTemplateId && storedVariant === variantId) {
+      setEdmTemplateId(resolvedTemplateId);
+    } else if (!preview && !resolvedDesignId) {
       // No design, redirect back to editor
-      navigate(`/design/${variantId}`);
+      navigate(editorPath);
     }
-  }, [variantId, navigate]);
+  }, [variantId, navigate, searchParams, editorPath]);
+
+  useEffect(() => {
+    if (!variant || !edmTemplateId) return;
+
+    const cacheKey = `edmPreview_${edmTemplateId}_${variant.printfulVariantId}`;
+    const designPreviewKey = designId ? buildDesignKey(designId, "preview") : null;
+    const cachedPreview = designPreviewKey
+      ? sessionStorage.getItem(designPreviewKey)
+      : sessionStorage.getItem(cacheKey);
+    if (cachedPreview) {
+      setDesignPreview(cachedPreview);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchPreview = async () => {
+      setEdmPreviewLoading(true);
+      setEdmPreviewError(null);
+
+      try {
+        const productId = variant.brand.toLowerCase() === "apple" ? 683 : 684;
+        const taskKey = `edmMockupTask_${edmTemplateId}_${variant.printfulVariantId}`;
+        let taskId = sessionStorage.getItem(taskKey);
+
+        if (!taskId) {
+          const { data, error } = await supabase.functions.invoke("edm-mockup", {
+            body: {
+              action: "create",
+              templateId: edmTemplateId,
+              variantId: variant.printfulVariantId,
+              productId,
+            },
+          });
+
+          if (error) {
+            throw new Error(error.message);
+          }
+
+          taskId = data?.taskId;
+          if (!taskId) {
+            throw new Error("Mockup task id missing");
+          }
+
+          sessionStorage.setItem(taskKey, taskId);
+        }
+
+        const maxAttempts = 15;
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+          if (cancelled) return;
+          const { data, error } = await supabase.functions.invoke("edm-mockup", {
+            body: {
+              action: "status",
+              taskId,
+            },
+          });
+
+          if (error) {
+            throw new Error(error.message);
+          }
+
+          const status = data?.status;
+          const mockupUrl = data?.mockupUrl;
+          const failureReasons = Array.isArray(data?.failureReasons) ? data.failureReasons : [];
+
+          if (status === "completed" && mockupUrl) {
+            sessionStorage.setItem(cacheKey, mockupUrl);
+            sessionStorage.setItem("designPreview", mockupUrl);
+            if (designPreviewKey) {
+              sessionStorage.setItem(designPreviewKey, mockupUrl);
+              sessionStorage.setItem(buildDesignKey(designId, "previewKind"), "mockup");
+            }
+            sessionStorage.setItem("designPreviewKind", "mockup");
+            setDesignPreview(mockupUrl);
+            setPreviewKind("mockup");
+            setEdmPreviewLoading(false);
+            return;
+          }
+
+          if (status === "failed") {
+            throw new Error(failureReasons[0] || "Mockup generation failed");
+          }
+
+          if (status === "completed" && !mockupUrl) {
+            throw new Error(failureReasons[0] || "Mockup completed without an image");
+          }
+
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+        }
+
+        throw new Error("Mockup generation timed out");
+      } catch (err) {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : "Failed to generate preview";
+        setEdmPreviewError(message);
+      } finally {
+        if (!cancelled) {
+          setEdmPreviewLoading(false);
+        }
+      }
+    };
+
+    fetchPreview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [variant, edmTemplateId, designId]);
+
+  useEffect(() => {
+    if (!designId || edmTemplateId) return;
+    let cancelled = false;
+    const interval = window.setInterval(() => {
+      if (cancelled) return;
+      const storedTemplateId = sessionStorage.getItem(buildDesignKey(designId, "templateId"));
+      if (!storedTemplateId) return;
+      const parsed = Number(storedTemplateId);
+      if (Number.isNaN(parsed)) return;
+      setEdmTemplateId(parsed);
+      window.clearInterval(interval);
+    }, 1000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [designId, edmTemplateId]);
 
   const handleAddToCart = () => {
     if (variant && designPreview) {
-      addToCart(variant, designPreview);
+      addToCart(variant, designPreview, edmTemplateId, designId);
       setAddedToCart(true);
       toast.success("Added to cart!");
       setTimeout(() => setAddedToCart(false), 2000);
@@ -81,6 +250,10 @@ const Preview = () => {
   }
 
   const isApple = variant.brand.toLowerCase() === "apple";
+  const useMockupPreview = previewKind === "mockup" && !!designPreview;
+  const baseImageSrc = useMockupPreview
+    ? designPreview!
+    : getMockupImage(variant.brand, activeView);
 
   return (
     <div className="min-h-screen bg-surface-sunken">
@@ -97,7 +270,8 @@ const Preview = () => {
             <CartSheet />
             <Button
               variant="outline"
-              onClick={() => navigate(`/design/${variantId}`)}
+              onClick={() => navigate(editorPath)}
+              disabled={!variantId}
             >
               <ChevronLeft className="w-4 h-4 mr-1" />
               Back to Editor
@@ -143,14 +317,14 @@ const Preview = () => {
                     {/* Mockup image with design overlay */}
                     <div className="relative">
                       <img
-                        src={getMockupImage(variant.brand, activeView)}
+                        src={baseImageSrc}
                         alt={`${variant.brand} ${variant.model} case`}
                         className="w-full h-auto drop-shadow-2xl relative z-10"
                         draggable={false}
                       />
                       
                       {/* Design overlay - positioned to match case surface */}
-                      {designPreview && (
+                      {designPreview && !useMockupPreview && (
                         <div 
                           className={`absolute z-[20] overflow-hidden ${
                             activeView === "front" 
@@ -179,6 +353,13 @@ const Preview = () => {
                 </motion.div>
               </AnimatePresence>
             </motion.div>
+
+            {(edmPreviewLoading || (edmPreviewError && !designPreview)) && (
+              <div className="mt-4 text-center text-sm text-muted-foreground">
+                {edmPreviewLoading && "Generating EDM preview..."}
+                {edmPreviewError && `EDM preview unavailable: ${edmPreviewError}`}
+              </div>
+            )}
 
             {/* View toggles - pill style */}
             <div className="flex items-center justify-center mt-6">
@@ -326,7 +507,7 @@ const Preview = () => {
                     variant="ghost"
                     size="lg"
                     className="w-full"
-                    onClick={() => navigate(`/design/${variantId}`)}
+                    onClick={() => navigate(editorPath)}
                   >
                     Edit Design
                   </Button>

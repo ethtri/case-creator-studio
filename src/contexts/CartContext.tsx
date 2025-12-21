@@ -5,12 +5,14 @@ export interface CartItem {
   id: string;
   variant: PhoneVariant;
   designPreview: string;
+  edmTemplateId?: number | null;
+  designId?: string | null;
   quantity: number;
 }
 
 interface CartContextType {
   items: CartItem[];
-  addToCart: (variant: PhoneVariant, designPreview: string) => void;
+  addToCart: (variant: PhoneVariant, designPreview: string, edmTemplateId?: number | null, designId?: string | null) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
@@ -23,11 +25,23 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
-  const addToCart = (variant: PhoneVariant, designPreview: string) => {
+  const addToCart = (
+    variant: PhoneVariant,
+    designPreview: string,
+    edmTemplateId?: number | null,
+    designId?: string | null
+  ) => {
     const id = `${variant.id}-${Date.now()}`;
     setItems((prev) => [
       ...prev,
-      { id, variant, designPreview, quantity: 1 },
+      {
+        id,
+        variant,
+        designPreview,
+        edmTemplateId: edmTemplateId ?? null,
+        designId: designId ?? null,
+        quantity: 1,
+      },
     ]);
   };
 
