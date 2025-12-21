@@ -875,8 +875,9 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
 
     return (
       <div className={cn("relative flex-1 flex flex-col min-h-0", className)}>
-        {/* Canvas Container */}
+        {/* Canvas Container - key forces clean remount on variant change to avoid DOM conflicts */}
         <div
+          key={variant.id}
           ref={containerRef}
           className="flex-1 flex items-center justify-center p-4 pb-8 overflow-hidden"
         >
