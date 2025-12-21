@@ -20,14 +20,41 @@ const getProductId = (brand: string): number => {
   return brand.toLowerCase() === 'apple' ? PRINTFUL_PRODUCT_IDS.iphone : PRINTFUL_PRODUCT_IDS.samsung;
 };
 
+const extractNonce = (payload: unknown): string | null => {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const data = payload as { nonce?: unknown; result?: { nonce?: unknown } };
+  const rawNonce = data.nonce ?? data.result?.nonce;
+
+  if (typeof rawNonce === "string") {
+    return rawNonce;
+  }
+
+  if (rawNonce && typeof rawNonce === "object") {
+    const nested = rawNonce as { nonce?: unknown; value?: unknown; token?: unknown };
+    const candidate = nested.nonce ?? nested.value ?? nested.token;
+    return typeof candidate === "string" ? candidate : null;
+  }
+
+  return null;
+};
+
 interface PFDesignMakerConfig {
   elemId: string;
   nonce: string;
   externalProductId: string;
   initProduct: {
     productId: number;
+    technique?: string;
     variantIds?: number[];
   };
+  isVariantSelectionDisabled?: boolean;
+  allowOnlyOneColorToBeSelected?: boolean;
+  allowOnlyOneSizeToBeSelected?: boolean;
+  preselectedSizes?: string[];
+  steps?: string[];
   onTemplateSaved?: (templateId: number) => void;
   onDesignStatusUpdate?: (status: { hasDesign: boolean }) => void;
   onIframeLoaded?: () => void;
@@ -36,7 +63,7 @@ interface PFDesignMakerConfig {
 }
 
 interface PFDesignMakerInstance {
-  sendMessage: (message: { action: string }) => void;
+  sendMessage: (message: { action: string } | { event: string; [key: string]: unknown }) => void;
 }
 
 declare global {
@@ -57,6 +84,11 @@ const DesignEditorEDM = () => {
   const [templateId, setTemplateId] = useState<number | null>(null);
   const designMakerRef = useRef<PFDesignMakerInstance | null>(null);
   const scriptLoadedRef = useRef(false);
+  const headerRef = useRef<HTMLDivElement | null>(null);
+  const infoRef = useRef<HTMLDivElement | null>(null);
+  const footerRef = useRef<HTMLDivElement | null>(null);
+  const [designerHeight, setDesignerHeight] = useState<number | null>(null);
+  const resizeIntervalRef = useRef<number | null>(null);
 
   // Load the Printful embed.js script
   useEffect(() => {
@@ -104,22 +136,37 @@ const DesignEditorEDM = () => {
         },
       });
 
-      if (nonceError || !data?.nonce) {
+      const nonceValue = extractNonce(data);
+
+      if (nonceError || !nonceValue) {
         console.error('Failed to get nonce:', nonceError, data);
         throw new Error(data?.error || nonceError?.message || 'Failed to get authentication token');
       }
 
       console.log('Nonce received, initializing EDM...');
 
+      const initProduct = {
+        productId,
+        technique: "SUBLIMATION",
+        variantIds: [variant.printfulVariantId],
+      };
+
+      const applySelectedProduct = () => {
+        designMakerRef.current?.sendMessage({ event: 'setProduct', ...initProduct });
+        designMakerRef.current?.sendMessage({ event: 'setSteps', steps: ['design'] });
+      };
+
       // Create the design maker instance
       designMakerRef.current = new window.PFDesignMaker({
         elemId: 'printful-designer',
-        nonce: data.nonce,
+        nonce: nonceValue,
         externalProductId,
-        initProduct: {
-          productId,
-          variantIds: [variant.printfulVariantId],
-        },
+        initProduct,
+        isVariantSelectionDisabled: true, // Disable variant selection to prevent product changes
+        allowOnlyOneColorToBeSelected: true,
+        allowOnlyOneSizeToBeSelected: true,
+        preselectedSizes: [String(variant.printfulVariantId), variant.model],
+        steps: ['design'], // Limit EDM navigation to the Design step
         onTemplateSaved: (id: number) => {
           console.log('Template saved:', id);
           setTemplateId(id);
@@ -133,6 +180,8 @@ const DesignEditorEDM = () => {
         },
         onIframeLoaded: () => {
           console.log('Iframe loaded');
+          applySelectedProduct();
+          window.setTimeout(applySelectedProduct, 250);
           setIframeLoaded(true);
           setLoading(false);
         },
@@ -151,6 +200,36 @@ const DesignEditorEDM = () => {
     }
   }, [variant, variantId]);
 
+  const updateDesignerHeight = useCallback(() => {
+    const headerHeight = headerRef.current?.offsetHeight ?? 0;
+    const infoHeight = infoRef.current?.offsetHeight ?? 0;
+    const footerHeight = footerRef.current?.offsetHeight ?? 0;
+    const available = window.innerHeight - headerHeight - infoHeight - footerHeight;
+    setDesignerHeight(Math.max(available, 200));
+  }, []);
+
+  const forceEmbedSizing = useCallback(() => {
+    const container = document.getElementById("printful-designer");
+    if (!container) return;
+
+    container.style.setProperty("height", designerHeight ? `${designerHeight}px` : "100%", "important");
+    container.style.setProperty("min-height", designerHeight ? `${designerHeight}px` : "100%", "important");
+    container.style.setProperty("width", "100%", "important");
+
+    const children = container.querySelectorAll("*");
+    children.forEach((child) => {
+      const element = child as HTMLElement;
+      element.style.setProperty("height", "100%", "important");
+      element.style.setProperty("width", "100%", "important");
+    });
+
+    const iframe = container.querySelector("iframe");
+    if (iframe) {
+      iframe.setAttribute("width", "100%");
+      iframe.setAttribute("height", "100%");
+    }
+  }, [designerHeight]);
+
   // Fetch variant and initialize
   useEffect(() => {
     const foundVariant = getVariantById(variantId || "");
@@ -160,6 +239,16 @@ const DesignEditorEDM = () => {
       navigate("/catalog");
     }
   }, [variantId, navigate]);
+
+  useEffect(() => {
+    updateDesignerHeight();
+    window.addEventListener('resize', updateDesignerHeight);
+    return () => window.removeEventListener('resize', updateDesignerHeight);
+  }, [updateDesignerHeight]);
+
+  useEffect(() => {
+    forceEmbedSizing();
+  }, [designerHeight, forceEmbedSizing]);
 
   // Initialize EDM when variant and script are ready
   useEffect(() => {
@@ -190,6 +279,21 @@ const DesignEditorEDM = () => {
     }
   }, [variant, initializeDesignMaker]);
 
+  useEffect(() => {
+    if (!iframeLoaded) return;
+    forceEmbedSizing();
+    if (resizeIntervalRef.current) {
+      window.clearInterval(resizeIntervalRef.current);
+    }
+    resizeIntervalRef.current = window.setInterval(forceEmbedSizing, 500);
+    return () => {
+      if (resizeIntervalRef.current) {
+        window.clearInterval(resizeIntervalRef.current);
+        resizeIntervalRef.current = null;
+      }
+    };
+  }, [iframeLoaded, forceEmbedSizing]);
+
   const handleSaveDesign = () => {
     if (designMakerRef.current) {
       designMakerRef.current.sendMessage({ action: 'saveDesign' });
@@ -219,7 +323,10 @@ const DesignEditorEDM = () => {
   return (
     <div className="min-h-screen bg-surface-sunken flex flex-col">
       {/* Header */}
-      <header className="h-14 bg-card border-b border-border flex items-center justify-between px-6 z-40 shrink-0">
+      <header
+        ref={headerRef}
+        className="h-14 bg-card border-b border-border flex items-center justify-between px-6 z-40 shrink-0"
+      >
         <div className="flex items-center gap-4">
           <Link to="/" className="flex items-center gap-2">
             <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
@@ -242,7 +349,10 @@ const DesignEditorEDM = () => {
       </header>
 
       {/* Product info bar */}
-      <div className="h-10 bg-card/50 border-b border-border flex items-center justify-center px-4 shrink-0">
+      <div
+        ref={infoRef}
+        className="h-10 bg-card/50 border-b border-border flex items-center justify-center px-4 shrink-0"
+      >
         <span className="text-sm text-muted-foreground">
           Designing: <span className="text-foreground font-medium">{variant.brand} {variant.model}</span>
           <span className="mx-2">•</span>
@@ -296,17 +406,23 @@ const DesignEditorEDM = () => {
         )}
 
         {/* Printful Designer Container */}
-        <div 
-          id="printful-designer" 
-          className="flex-1 w-full"
-          style={{ 
-            opacity: iframeLoaded ? 1 : 0,
-            transition: 'opacity 0.3s ease-in-out',
-          }}
-        />
+        <div className="relative flex-1 w-full">
+          <div 
+            id="printful-designer" 
+            className="flex-1 w-full"
+            style={{ 
+              height: designerHeight ? `${designerHeight}px` : undefined,
+              opacity: iframeLoaded ? 1 : 0,
+              transition: 'opacity 0.3s ease-in-out',
+            }}
+          />
+        </div>
 
         {/* Footer Actions */}
-        <div className="h-16 bg-card border-t border-border flex items-center justify-between px-6 shrink-0">
+        <div
+          ref={footerRef}
+          className="h-16 bg-card border-t border-border flex items-center justify-between px-6 shrink-0"
+        >
           <div className="text-sm text-muted-foreground">
             {templateId ? (
               <span className="text-success">✓ Design saved (Template #{templateId})</span>

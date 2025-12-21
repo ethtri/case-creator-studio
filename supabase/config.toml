@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.submit-printful-order]
 verify_jwt = false
+
+[functions.edm-nonce]
+verify_jwt = false

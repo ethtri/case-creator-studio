@@ -216,3 +216,35 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.5);
 }
+
+/* Ensure Printful EDM fills the editor area. */
+#root,
+html,
+body {
+  height: 100%;
+}
+
+#printful-designer {
+  min-height: 0;
+  flex: 1 1 auto !important;
+  height: 100% !important;
+  min-height: calc(100vh - 10rem);
+  height: calc(100vh - 10rem) !important;
+  display: flex;
+  flex-direction: column;
+}
+
+#printful-designer,
+#printful-designer > iframe,
+#printful-designer > div,
+#printful-designer iframe {
+  width: 100% !important;
+  height: 100% !important;
+  border: 0;
+  display: block;
+}
+
+#printful-designer > * {
+  flex: 1 1 auto;
+  min-height: 0;
+}
