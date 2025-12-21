@@ -54,57 +54,56 @@ export interface PhoneVariant {
 }
 
 // iPhone Pro camera (3 lenses in triangle + flash + sensor)
-// Based on actual iPhone 15/16/17 Pro dimensions: camera module is ~38mm square on a ~78mm wide case
-// That's roughly 48% of width, but the print area is larger than the case visible area
-// For print area: module is about 22% wide and takes up about 11% of height (square module on tall case)
+// Real iPhone Pro: camera module ~38mm on ~78mm case width = ~49% of case width
+// But print area is larger than visible case. Printful template shows ~28-30% of print width
+// Height: module is square, so height% = width% * (printWidth/printHeight) for visual square
 const iphoneProCamera: CameraConfig = {
   position: "top-left",
   shape: "square",
-  widthPercent: 22,
-  heightPercent: 11, // This creates a square module since width/height ratio matches print area
-  offsetPercent: 2.5,
+  widthPercent: 30, // ~30% of print area width
+  heightPercent: 15, // Creates visually square module (30% * 1680/3440 ≈ 15%)
+  offsetPercent: 4, // Offset from edge to stay inside safe area
   lenses: [
-    // Triangle arrangement for 3 main lenses - positioned within the square module
-    { x: 22, y: 25, size: 32, type: "lens" }, // Top-left lens
-    { x: 22, y: 75, size: 32, type: "lens" }, // Bottom-left lens
-    { x: 60, y: 50, size: 32, type: "lens" }, // Right center lens
-    // Flash and sensors on right side
-    { x: 85, y: 25, size: 12, type: "flash" },
-    { x: 85, y: 50, size: 8, type: "sensor" }, // LiDAR
-    { x: 85, y: 75, size: 6, type: "mic" },
+    // Triangle arrangement for 3 main lenses
+    { x: 22, y: 22, size: 32, type: "lens" }, // Top-left lens
+    { x: 22, y: 78, size: 32, type: "lens" }, // Bottom-left lens
+    { x: 62, y: 50, size: 32, type: "lens" }, // Right center lens
+    // Flash and sensors
+    { x: 88, y: 22, size: 12, type: "flash" },
+    { x: 88, y: 50, size: 8, type: "sensor" },
+    { x: 88, y: 78, size: 6, type: "mic" },
   ],
 };
 
 // iPhone standard camera (2 lenses vertical pill)
-// Smaller module, pill-shaped, approximately 12% wide x 10% tall
+// Smaller pill-shaped module
 const iphoneStandardCamera: CameraConfig = {
   position: "top-left",
   shape: "pill",
-  widthPercent: 12,
-  heightPercent: 10,
-  offsetPercent: 2.5,
+  widthPercent: 16,
+  heightPercent: 14,
+  offsetPercent: 4,
   lenses: [
-    { x: 50, y: 30, size: 60, type: "lens" },
-    { x: 50, y: 70, size: 60, type: "lens" },
+    { x: 50, y: 28, size: 55, type: "lens" },
+    { x: 50, y: 72, size: 55, type: "lens" },
   ],
 };
 
 // Samsung Ultra camera - scattered individual lenses (no housing background)
-// Samsung uses individual protruding lenses without a unified housing
 const samsungUltraCamera: CameraConfig = {
   position: "top-left",
   shape: "scattered",
-  widthPercent: 15,
-  heightPercent: 18,
-  offsetPercent: 2,
+  widthPercent: 18,
+  heightPercent: 22,
+  offsetPercent: 3,
   lenses: [
-    // Each lens positioned absolutely as % of print area - vertical arrangement
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 5, absoluteY: 2.5, absoluteSize: 3.5 },
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 5, absoluteY: 6, absoluteSize: 3.5 },
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 5, absoluteY: 9.5, absoluteSize: 2.8 },
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 5, absoluteY: 12.5, absoluteSize: 2.2 },
-    { x: 0, y: 0, size: 0, type: "flash", absoluteX: 9.5, absoluteY: 3.5, absoluteSize: 1.2 },
-    { x: 0, y: 0, size: 0, type: "sensor", absoluteX: 9.5, absoluteY: 5.5, absoluteSize: 0.8 },
+    // Vertical arrangement of 4 lenses
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 6, absoluteY: 3.5, absoluteSize: 4.5 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 6, absoluteY: 7.5, absoluteSize: 4.5 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 6, absoluteY: 11.5, absoluteSize: 3.5 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 6, absoluteY: 14.5, absoluteSize: 2.8 },
+    { x: 0, y: 0, size: 0, type: "flash", absoluteX: 12, absoluteY: 4.5, absoluteSize: 1.5 },
+    { x: 0, y: 0, size: 0, type: "sensor", absoluteX: 12, absoluteY: 7, absoluteSize: 1 },
   ],
 };
 
@@ -112,14 +111,14 @@ const samsungUltraCamera: CameraConfig = {
 const samsungStandardCamera: CameraConfig = {
   position: "top-left",
   shape: "scattered",
-  widthPercent: 12,
-  heightPercent: 14,
-  offsetPercent: 2.5,
+  widthPercent: 14,
+  heightPercent: 16,
+  offsetPercent: 3,
   lenses: [
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 4.5, absoluteY: 2.5, absoluteSize: 3.2 },
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 4.5, absoluteY: 6, absoluteSize: 3.2 },
-    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 4.5, absoluteY: 9.5, absoluteSize: 2.5 },
-    { x: 0, y: 0, size: 0, type: "flash", absoluteX: 8.5, absoluteY: 3.5, absoluteSize: 1 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 5.5, absoluteY: 3.5, absoluteSize: 4 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 5.5, absoluteY: 7.5, absoluteSize: 4 },
+    { x: 0, y: 0, size: 0, type: "lens", absoluteX: 5.5, absoluteY: 11.5, absoluteSize: 3 },
+    { x: 0, y: 0, size: 0, type: "flash", absoluteX: 11, absoluteY: 4.5, absoluteSize: 1.2 },
   ],
 };
 
