@@ -1,6 +1,19 @@
 // Seed data for phone case variants
 // In production, this would be synced from Printful's catalog API
 
+export type CameraPosition = "top-left" | "top-right" | "top-center";
+export type CameraShape = "square" | "pill" | "island" | "vertical-strip";
+
+export interface CameraConfig {
+  position: CameraPosition;
+  shape: CameraShape;
+  // Size as percentage of print area
+  widthPercent: number;
+  heightPercent: number;
+  // Offset from edge as percentage
+  offsetPercent: number;
+}
+
 export interface PhoneVariant {
   id: string;
   printfulVariantId: number;
@@ -12,7 +25,41 @@ export interface PhoneVariant {
   printAreaHeight: number;
   imageUrl: string;
   mockupUrl?: string;
+  camera: CameraConfig;
 }
+
+// Camera configs by phone type
+const iphoneProCamera: CameraConfig = {
+  position: "top-left",
+  shape: "square",
+  widthPercent: 35,
+  heightPercent: 18,
+  offsetPercent: 2,
+};
+
+const iphoneStandardCamera: CameraConfig = {
+  position: "top-left",
+  shape: "pill",
+  widthPercent: 25,
+  heightPercent: 12,
+  offsetPercent: 2,
+};
+
+const samsungUltraCamera: CameraConfig = {
+  position: "top-left",
+  shape: "vertical-strip",
+  widthPercent: 18,
+  heightPercent: 28,
+  offsetPercent: 3,
+};
+
+const samsungStandardCamera: CameraConfig = {
+  position: "top-left",
+  shape: "vertical-strip",
+  widthPercent: 16,
+  heightPercent: 22,
+  offsetPercent: 3,
+};
 
 export const phoneVariants: PhoneVariant[] = [
   // iPhone 17 Series (Snap Case - Product ID: 683)
@@ -26,6 +73,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1680,
     printAreaHeight: 3440,
     imageUrl: "/placeholder.svg",
+    camera: iphoneProCamera,
   },
   {
     id: "iphone-17-pro",
@@ -37,6 +85,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1640,
     printAreaHeight: 3360,
     imageUrl: "/placeholder.svg",
+    camera: iphoneProCamera,
   },
   {
     id: "iphone-17-air",
@@ -48,6 +97,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1600,
     printAreaHeight: 3280,
     imageUrl: "/placeholder.svg",
+    camera: iphoneStandardCamera,
   },
   {
     id: "iphone-17",
@@ -59,6 +109,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1520,
     printAreaHeight: 3120,
     imageUrl: "/placeholder.svg",
+    camera: iphoneStandardCamera,
   },
   // iPhone 16 Series (Snap Case - Product ID: 683)
   {
@@ -71,6 +122,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1680,
     printAreaHeight: 3440,
     imageUrl: "/placeholder.svg",
+    camera: iphoneProCamera,
   },
   {
     id: "iphone-16-pro",
@@ -82,6 +134,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1640,
     printAreaHeight: 3360,
     imageUrl: "/placeholder.svg",
+    camera: iphoneProCamera,
   },
   {
     id: "iphone-16-plus",
@@ -93,6 +146,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1600,
     printAreaHeight: 3280,
     imageUrl: "/placeholder.svg",
+    camera: iphoneStandardCamera,
   },
   {
     id: "iphone-16",
@@ -104,6 +158,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1520,
     printAreaHeight: 3120,
     imageUrl: "/placeholder.svg",
+    camera: iphoneStandardCamera,
   },
   // iPhone 15 Series (Snap Case - Product ID: 683)
   {
@@ -116,6 +171,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1640,
     printAreaHeight: 3360,
     imageUrl: "/placeholder.svg",
+    camera: iphoneProCamera,
   },
   {
     id: "iphone-15-pro",
@@ -127,6 +183,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1560,
     printAreaHeight: 3200,
     imageUrl: "/placeholder.svg",
+    camera: iphoneProCamera,
   },
   {
     id: "iphone-15-plus",
@@ -138,6 +195,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1560,
     printAreaHeight: 3200,
     imageUrl: "/placeholder.svg",
+    camera: iphoneStandardCamera,
   },
   {
     id: "iphone-15",
@@ -149,6 +207,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1520,
     printAreaHeight: 3120,
     imageUrl: "/placeholder.svg",
+    camera: iphoneStandardCamera,
   },
   // iPhone 14 Series (Snap Case - Product ID: 683)
   {
@@ -161,6 +220,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1640,
     printAreaHeight: 3360,
     imageUrl: "/placeholder.svg",
+    camera: iphoneProCamera,
   },
   {
     id: "iphone-14-pro",
@@ -172,6 +232,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1560,
     printAreaHeight: 3200,
     imageUrl: "/placeholder.svg",
+    camera: iphoneProCamera,
   },
   {
     id: "iphone-14",
@@ -183,6 +244,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1520,
     printAreaHeight: 3120,
     imageUrl: "/placeholder.svg",
+    camera: iphoneStandardCamera,
   },
   // Samsung Galaxy S24 Series (Snap Case - Product ID: 684)
   {
@@ -195,6 +257,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1680,
     printAreaHeight: 3440,
     imageUrl: "/placeholder.svg",
+    camera: samsungUltraCamera,
   },
   {
     id: "galaxy-s24-plus",
@@ -206,6 +269,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1600,
     printAreaHeight: 3280,
     imageUrl: "/placeholder.svg",
+    camera: samsungStandardCamera,
   },
   {
     id: "galaxy-s24",
@@ -217,6 +281,7 @@ export const phoneVariants: PhoneVariant[] = [
     printAreaWidth: 1520,
     printAreaHeight: 3120,
     imageUrl: "/placeholder.svg",
+    camera: samsungStandardCamera,
   },
 ];
 

@@ -192,10 +192,11 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
       }
     }, [notifyLayersChange]);
 
-    // Calculate safe area (camera cutout region)
-    const cameraHeight = Math.round(variant.printAreaHeight * 0.12);
-    const cameraWidth = Math.round(variant.printAreaWidth * 0.35);
-    const cameraPadding = 40;
+    // Calculate camera dimensions from variant config
+    const { camera } = variant;
+    const cameraWidth = Math.round(variant.printAreaWidth * (camera.widthPercent / 100));
+    const cameraHeight = Math.round(variant.printAreaHeight * (camera.heightPercent / 100));
+    const cameraOffset = Math.round(variant.printAreaWidth * (camera.offsetPercent / 100));
 
     // Initialize canvas at display size, but track full resolution
     useEffect(() => {
@@ -227,20 +228,65 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         preserveObjectStacking: true,
       });
 
-      // Add camera cutout indicator (non-selectable)
+      // Calculate camera position and dimensions
       const scaledCameraWidth = cameraWidth / scale;
       const scaledCameraHeight = cameraHeight / scale;
-      const scaledCameraPadding = cameraPadding / scale;
+      const scaledCameraOffset = cameraOffset / scale;
 
+      // Determine camera position based on config
+      let cameraLeft: number;
+      let cameraTop = scaledCameraOffset;
+
+      switch (camera.position) {
+        case "top-left":
+          cameraLeft = scaledCameraOffset;
+          break;
+        case "top-right":
+          cameraLeft = displayWidth - scaledCameraWidth - scaledCameraOffset;
+          break;
+        case "top-center":
+          cameraLeft = (displayWidth - scaledCameraWidth) / 2;
+          break;
+        default:
+          cameraLeft = scaledCameraOffset;
+      }
+
+      // Determine corner radius based on shape
+      let rx: number;
+      let ry: number;
+      switch (camera.shape) {
+        case "square":
+          rx = 20 / scale;
+          ry = 20 / scale;
+          break;
+        case "pill":
+          rx = Math.min(scaledCameraWidth, scaledCameraHeight) / 2;
+          ry = Math.min(scaledCameraWidth, scaledCameraHeight) / 2;
+          break;
+        case "island":
+          rx = 24 / scale;
+          ry = 24 / scale;
+          break;
+        case "vertical-strip":
+          rx = 16 / scale;
+          ry = 16 / scale;
+          break;
+        default:
+          rx = 20 / scale;
+          ry = 20 / scale;
+      }
+
+      // Add camera cutout indicator (non-selectable)
       const cameraRect = new Rect({
-        left: displayWidth - scaledCameraWidth - scaledCameraPadding,
-        top: scaledCameraPadding,
+        left: cameraLeft,
+        top: cameraTop,
         width: scaledCameraWidth,
         height: scaledCameraHeight,
-        fill: "rgba(80, 80, 80, 0.9)",
-        stroke: "transparent",
-        rx: 20 / scale,
-        ry: 20 / scale,
+        fill: "rgba(60, 60, 60, 0.95)",
+        stroke: "rgba(40, 40, 40, 1)",
+        strokeWidth: 2 / scale,
+        rx,
+        ry,
         selectable: false,
         evented: false,
         name: "camera-cutout",
@@ -249,10 +295,10 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
 
       // Add "Camera" label
       const cameraLabel = new FabricText("Camera", {
-        left: displayWidth - scaledCameraWidth - scaledCameraPadding + scaledCameraWidth / 2,
-        top: scaledCameraPadding + scaledCameraHeight / 2,
-        fontSize: 11 / scale * canvasScale,
-        fill: "white",
+        left: cameraLeft + scaledCameraWidth / 2,
+        top: cameraTop + scaledCameraHeight / 2,
+        fontSize: Math.max(10, 12 / scale),
+        fill: "rgba(255, 255, 255, 0.7)",
         fontFamily: "Inter, sans-serif",
         originX: "center",
         originY: "center",
@@ -311,7 +357,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         canvas.off("selection:cleared");
         canvas.dispose();
       };
-    }, [variant, cameraHeight, cameraWidth, cameraPadding, onSelectionChange]);
+    }, [variant, cameraHeight, cameraWidth, cameraOffset, camera, onSelectionChange]);
 
     // Track object modifications for history
     useEffect(() => {
