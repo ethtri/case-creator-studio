@@ -3,6 +3,7 @@ import { CaseCanvasRef } from "@/components/editor/CaseCanvas";
 import { ToolType } from "@/components/editor/EditorToolbar";
 import { FillValue } from "@/components/editor/FillColorPicker";
 import { TextStyle, defaultTextStyle } from "@/components/editor/TextStyler";
+import { Layer } from "@/components/editor/LayersPanel";
 import { ClipartItem } from "@/data/clipartData";
 import { toast } from "sonner";
 
@@ -14,6 +15,7 @@ export const useEditorState = () => {
   const [backgroundFill, setBackgroundFill] = useState<FillValue>({ type: "solid", color: "#f5f5f5" });
   const [textStyle, setTextStyle] = useState<TextStyle>(defaultTextStyle);
   const [hasSelectedText, setHasSelectedText] = useState(false);
+  const [layers, setLayers] = useState<Layer[]>([]);
 
   const handleToolChange = useCallback((tool: ToolType) => {
     if (tool === "text") {
@@ -52,6 +54,31 @@ export const useEditorState = () => {
   const handleTextStyleChange = useCallback((style: Partial<TextStyle>) => {
     setTextStyle((prev) => ({ ...prev, ...style }));
     canvasRef.current?.updateSelectedTextStyle(style);
+  }, []);
+
+  const handleLayersChange = useCallback((newLayers: Layer[]) => {
+    setLayers(newLayers);
+  }, []);
+
+  const handleToggleLayerVisibility = useCallback((id: string) => {
+    canvasRef.current?.toggleLayerVisibility(id);
+  }, []);
+
+  const handleMoveLayerUp = useCallback((id: string) => {
+    canvasRef.current?.moveLayerUp(id);
+  }, []);
+
+  const handleMoveLayerDown = useCallback((id: string) => {
+    canvasRef.current?.moveLayerDown(id);
+  }, []);
+
+  const handleSelectLayer = useCallback((id: string) => {
+    canvasRef.current?.selectLayer(id);
+  }, []);
+
+  const handleDeleteLayer = useCallback((id: string) => {
+    canvasRef.current?.deleteLayer(id);
+    toast.success("Layer deleted");
   }, []);
 
   const handleAddClipart = useCallback(async (clipart: ClipartItem) => {
@@ -96,6 +123,7 @@ export const useEditorState = () => {
     setHasImage(false);
     setCurrentDpi(null);
     setHasSelectedText(false);
+    setLayers([]);
     const defaultFill: FillValue = { type: "solid", color: "#f5f5f5" };
     setBackgroundFill(defaultFill);
     canvasRef.current?.setBackgroundFill(defaultFill);
@@ -123,9 +151,16 @@ export const useEditorState = () => {
     currentDpi,
     hasImage,
     backgroundFill,
+    layers,
     handleToolChange,
     handleSelectionChange,
     handleTextStyleChange,
+    handleLayersChange,
+    handleToggleLayerVisibility,
+    handleMoveLayerUp,
+    handleMoveLayerDown,
+    handleSelectLayer,
+    handleDeleteLayer,
     handleAddClipart,
     handleImageUpload,
     handleFitImage,

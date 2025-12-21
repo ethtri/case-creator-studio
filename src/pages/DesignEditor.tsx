@@ -11,6 +11,7 @@ import { DpiIndicator, getDpiQuality } from "@/components/editor/DpiIndicator";
 import { FillColorPicker } from "@/components/editor/FillColorPicker";
 import { ClipartPicker } from "@/components/editor/ClipartPicker";
 import { TextStyler } from "@/components/editor/TextStyler";
+import { LayersPanel } from "@/components/editor/LayersPanel";
 import { useEditorState } from "@/hooks/useEditorState";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ArrowLeft, ShoppingCart } from "lucide-react";
@@ -29,9 +30,16 @@ const DesignEditor = () => {
     currentDpi,
     hasImage,
     backgroundFill,
+    layers,
     handleToolChange,
     handleSelectionChange,
     handleTextStyleChange,
+    handleLayersChange,
+    handleToggleLayerVisibility,
+    handleMoveLayerUp,
+    handleMoveLayerDown,
+    handleSelectLayer,
+    handleDeleteLayer,
     handleAddClipart,
     handleImageUpload,
     handleFitImage,
@@ -158,6 +166,30 @@ const DesignEditor = () => {
             </AnimatePresence>
           )}
 
+          {/* Layers Panel - Desktop */}
+          {!isMobile && (
+            <AnimatePresence>
+              {activeTool === "layers" && (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute top-4 left-20 z-30"
+                >
+                  <LayersPanel
+                    layers={layers}
+                    onToggleVisibility={handleToggleLayerVisibility}
+                    onMoveUp={handleMoveLayerUp}
+                    onMoveDown={handleMoveLayerDown}
+                    onSelect={handleSelectLayer}
+                    onDelete={handleDeleteLayer}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
+
           {/* Clipart Picker Panel - Desktop */}
           {!isMobile && (
             <AnimatePresence>
@@ -201,6 +233,7 @@ const DesignEditor = () => {
             variant={variant}
             onDpiChange={handleDpiChange}
             onSelectionChange={handleSelectionChange}
+            onLayersChange={handleLayersChange}
             className={isMobile ? "pb-32" : ""}
           />
 
@@ -258,6 +291,28 @@ const DesignEditor = () => {
                   <FillColorPicker
                     currentFill={backgroundFill}
                     onFillChange={handleBackgroundFillChange}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Mobile Layers Panel */}
+            <AnimatePresence>
+              {activeTool === "layers" && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  transition={{ duration: 0.2 }}
+                  className="mb-3"
+                >
+                  <LayersPanel
+                    layers={layers}
+                    onToggleVisibility={handleToggleLayerVisibility}
+                    onMoveUp={handleMoveLayerUp}
+                    onMoveDown={handleMoveLayerDown}
+                    onSelect={handleSelectLayer}
+                    onDelete={handleDeleteLayer}
                   />
                 </motion.div>
               )}

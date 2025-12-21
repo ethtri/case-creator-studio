@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { FillValue } from "./FillColorPicker";
 import { ClipartItem } from "@/data/clipartData";
 import { TextStyle } from "./TextStyler";
+import { Layer } from "./LayersPanel";
 
 // Printful requires 300 DPI - we work at full resolution internally
 const TARGET_DPI = 300;
@@ -26,6 +27,13 @@ export interface CaseCanvasRef {
   hasSelectedText: () => boolean;
   setBackgroundFill: (fill: FillValue) => void;
   getBackgroundFill: () => FillValue;
+  // Layer management
+  getLayers: () => Layer[];
+  toggleLayerVisibility: (id: string) => void;
+  moveLayerUp: (id: string) => void;
+  moveLayerDown: (id: string) => void;
+  selectLayer: (id: string) => void;
+  deleteLayer: (id: string) => void;
 }
 
 interface CaseCanvasProps {
@@ -33,15 +41,65 @@ interface CaseCanvasProps {
   className?: string;
   onDpiChange?: (dpi: number | null) => void;
   onSelectionChange?: (hasText: boolean, style: TextStyle | null) => void;
+  onLayersChange?: (layers: Layer[]) => void;
 }
 
 export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
-  ({ variant, className, onDpiChange, onSelectionChange }, ref) => {
+  ({ variant, className, onDpiChange, onSelectionChange, onLayersChange }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
     const [currentDpi, setCurrentDpi] = useState<number | null>(null);
     const [canvasScale, setCanvasScale] = useState(1);
+    const layerIdCounter = useRef(0);
+
+    // Helper to generate unique layer IDs
+    const generateLayerId = () => {
+      layerIdCounter.current += 1;
+      return `layer-${layerIdCounter.current}`;
+    };
+
+    // Helper to get layer info from fabric object
+    const getLayerFromObject = (obj: FabricObject): Layer | null => {
+      const name = (obj as any).name as string | undefined;
+      const layerId = (obj as any).layerId as string | undefined;
+      
+      if (!layerId || !obj.selectable) return null;
+
+      let type: Layer["type"] = "clipart";
+      let displayName = "Element";
+
+      if (name === "user-image") {
+        type = "image";
+        displayName = "Image";
+      } else if (obj instanceof FabricText) {
+        type = "text";
+        displayName = (obj.text as string)?.slice(0, 20) || "Text";
+      } else if (name === "clipart") {
+        type = "clipart";
+        displayName = "Sticker";
+      }
+
+      return {
+        id: layerId,
+        name: displayName,
+        type,
+        visible: obj.visible !== false,
+        locked: !obj.selectable,
+        selected: obj === fabricCanvas?.getActiveObject(),
+      };
+    };
+
+    // Notify parent of layer changes
+    const notifyLayersChange = useCallback(() => {
+      if (!fabricCanvas) return;
+      const layers: Layer[] = [];
+      fabricCanvas.getObjects().forEach((obj) => {
+        const layer = getLayerFromObject(obj);
+        if (layer) layers.push(layer);
+      });
+      onLayersChange?.(layers);
+    }, [fabricCanvas, onLayersChange]);
 
     // Calculate safe area (camera cutout region)
     const cameraHeight = Math.round(variant.printAreaHeight * 0.12);
@@ -194,6 +252,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
     useImperativeHandle(ref, () => ({
       addText: (text: string, style: TextStyle) => {
         if (!fabricCanvas) return;
+        const layerId = generateLayerId();
         const textObj = new FabricText(text, {
           left: fabricCanvas.width! / 2,
           top: fabricCanvas.height! / 2,
@@ -206,12 +265,14 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
           originX: "center",
           originY: "center",
         });
+        (textObj as any).layerId = layerId;
         fabricCanvas.add(textObj);
         fabricCanvas.setActiveObject(textObj);
         fabricCanvas.renderAll();
         
-        // Trigger selection change
+        // Trigger selection change and notify layers
         onSelectionChange?.(true, style);
+        notifyLayersChange();
       },
 
       updateSelectedTextStyle: (style: Partial<TextStyle>) => {
@@ -252,6 +313,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
           if (!objects || objects.length === 0) return;
 
           const group = util.groupSVGElements(objects);
+          const layerId = generateLayerId();
           
           // Scale to a reasonable size (about 20% of canvas width)
           const targetSize = fabricCanvas.width! * 0.2;
@@ -265,10 +327,12 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
             originY: "center",
             name: "clipart",
           });
+          (group as any).layerId = layerId;
 
           fabricCanvas.add(group);
           fabricCanvas.setActiveObject(group);
           fabricCanvas.renderAll();
+          notifyLayersChange();
         } catch (error) {
           console.error("Failed to add clipart:", error);
         }
@@ -283,6 +347,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
             try {
               const imgUrl = event.target?.result as string;
               const img = await FabricImage.fromURL(imgUrl);
+              const layerId = generateLayerId();
 
               // Scale to cover canvas (like "Fit" in reference)
               const scaleX = fabricCanvas.width! / (img.width || 1);
@@ -297,6 +362,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
                 originY: "center",
                 name: "user-image",
               });
+              (img as any).layerId = layerId;
 
               // Remove old user images
               fabricCanvas.getObjects().forEach((obj) => {
@@ -318,6 +384,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
                 (img.height || 0) * scale
               );
 
+              notifyLayersChange();
               resolve();
             } catch (error) {
               reject(error);
@@ -436,6 +503,84 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         }
         // If it's a gradient, return the stored fill value
         return { type: "solid" as const, color: "#f5f5f5" };
+      },
+
+      // Layer management methods
+      getLayers: () => {
+        if (!fabricCanvas) return [];
+        const layers: Layer[] = [];
+        fabricCanvas.getObjects().forEach((obj) => {
+          const layer = getLayerFromObject(obj);
+          if (layer) layers.push(layer);
+        });
+        return layers;
+      },
+
+      toggleLayerVisibility: (id: string) => {
+        if (!fabricCanvas) return;
+        const obj = fabricCanvas.getObjects().find((o) => (o as any).layerId === id);
+        if (!obj) return;
+        obj.set("visible", !obj.visible);
+        fabricCanvas.renderAll();
+        notifyLayersChange();
+      },
+
+      moveLayerUp: (id: string) => {
+        if (!fabricCanvas) return;
+        const objects = fabricCanvas.getObjects();
+        const objIndex = objects.findIndex((o) => (o as any).layerId === id);
+        if (objIndex === -1) return;
+        
+        // Find next selectable layer above
+        for (let i = objIndex + 1; i < objects.length; i++) {
+          if (objects[i].selectable) {
+            // Swap positions by removing and re-adding
+            const obj = objects[objIndex];
+            fabricCanvas.remove(obj);
+            fabricCanvas.insertAt(i, obj);
+            break;
+          }
+        }
+        fabricCanvas.renderAll();
+        notifyLayersChange();
+      },
+
+      moveLayerDown: (id: string) => {
+        if (!fabricCanvas) return;
+        const objects = fabricCanvas.getObjects();
+        const objIndex = objects.findIndex((o) => (o as any).layerId === id);
+        if (objIndex === -1) return;
+        
+        // Find next selectable layer below
+        for (let i = objIndex - 1; i >= 0; i--) {
+          if (objects[i].selectable) {
+            // Swap positions
+            const obj = objects[objIndex];
+            fabricCanvas.remove(obj);
+            fabricCanvas.insertAt(i, obj);
+            break;
+          }
+        }
+        fabricCanvas.renderAll();
+        notifyLayersChange();
+      },
+
+      selectLayer: (id: string) => {
+        if (!fabricCanvas) return;
+        const obj = fabricCanvas.getObjects().find((o) => (o as any).layerId === id);
+        if (!obj || !obj.selectable) return;
+        fabricCanvas.setActiveObject(obj);
+        fabricCanvas.renderAll();
+        notifyLayersChange();
+      },
+
+      deleteLayer: (id: string) => {
+        if (!fabricCanvas) return;
+        const obj = fabricCanvas.getObjects().find((o) => (o as any).layerId === id);
+        if (!obj || !obj.selectable) return;
+        fabricCanvas.remove(obj);
+        fabricCanvas.renderAll();
+        notifyLayersChange();
       },
     }));
 
