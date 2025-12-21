@@ -1,25 +1,29 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
-import { Canvas as FabricCanvas, FabricImage, FabricText, Rect, Gradient, loadSVGFromString, util } from "fabric";
+import { Canvas as FabricCanvas, FabricImage, FabricText, Rect, Gradient, loadSVGFromString, util, FabricObject } from "fabric";
 import { PhoneVariant } from "@/data/phoneVariants";
 import { DpiIndicator, getDpiQuality } from "./DpiIndicator";
 import { cn } from "@/lib/utils";
 import { FillValue } from "./FillColorPicker";
 import { ClipartItem } from "@/data/clipartData";
+import { TextStyle } from "./TextStyler";
 
 // Printful requires 300 DPI - we work at full resolution internally
 const TARGET_DPI = 300;
 const PRINT_INCH_RATIO = TARGET_DPI; // pixels per inch at 300 DPI
 
 export interface CaseCanvasRef {
-  addText: (text: string, color: string) => void;
+  addText: (text: string, style: TextStyle) => void;
   addImage: (file: File) => Promise<void>;
   addClipart: (clipart: ClipartItem) => Promise<void>;
+  updateSelectedTextStyle: (style: Partial<TextStyle>) => void;
+  getSelectedTextStyle: () => TextStyle | null;
   fitImage: () => void;
   rotateImage: (degrees: number) => void;
   reset: () => void;
   exportForPrint: () => string;
   getPreview: () => string;
   hasImage: () => boolean;
+  hasSelectedText: () => boolean;
   setBackgroundFill: (fill: FillValue) => void;
   getBackgroundFill: () => FillValue;
 }
@@ -28,10 +32,11 @@ interface CaseCanvasProps {
   variant: PhoneVariant;
   className?: string;
   onDpiChange?: (dpi: number | null) => void;
+  onSelectionChange?: (hasText: boolean, style: TextStyle | null) => void;
 }
 
 export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
-  ({ variant, className, onDpiChange }, ref) => {
+  ({ variant, className, onDpiChange, onSelectionChange }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
@@ -127,12 +132,37 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
       });
       canvas.add(safeArea);
 
+      // Handle selection changes
+      const handleSelection = () => {
+        const activeObj = canvas.getActiveObject();
+        if (activeObj && activeObj instanceof FabricText && activeObj.selectable) {
+          const style: TextStyle = {
+            fontFamily: (activeObj.fontFamily as string) || "Inter, sans-serif",
+            fontSize: (activeObj.fontSize as number) || 32,
+            color: (activeObj.fill as string) || "#000000",
+            fontWeight: activeObj.fontWeight === "bold" ? "bold" : "normal",
+            fontStyle: activeObj.fontStyle === "italic" ? "italic" : "normal",
+            underline: activeObj.underline || false,
+          };
+          onSelectionChange?.(true, style);
+        } else {
+          onSelectionChange?.(false, null);
+        }
+      };
+
+      canvas.on("selection:created", handleSelection);
+      canvas.on("selection:updated", handleSelection);
+      canvas.on("selection:cleared", () => onSelectionChange?.(false, null));
+
       setFabricCanvas(canvas);
 
       return () => {
+        canvas.off("selection:created", handleSelection);
+        canvas.off("selection:updated", handleSelection);
+        canvas.off("selection:cleared");
         canvas.dispose();
       };
-    }, [variant, cameraHeight, cameraWidth, cameraPadding]);
+    }, [variant, cameraHeight, cameraWidth, cameraPadding, onSelectionChange]);
 
     // Calculate DPI when image is added/modified
     const calculateDpi = useCallback(
@@ -162,20 +192,56 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
 
     // Expose methods via ref
     useImperativeHandle(ref, () => ({
-      addText: (text: string, color: string) => {
+      addText: (text: string, style: TextStyle) => {
         if (!fabricCanvas) return;
         const textObj = new FabricText(text, {
           left: fabricCanvas.width! / 2,
           top: fabricCanvas.height! / 2,
-          fontSize: 32,
-          fill: color,
-          fontFamily: "Inter, sans-serif",
+          fontSize: style.fontSize,
+          fill: style.color,
+          fontFamily: style.fontFamily,
+          fontWeight: style.fontWeight,
+          fontStyle: style.fontStyle,
+          underline: style.underline,
           originX: "center",
           originY: "center",
         });
         fabricCanvas.add(textObj);
         fabricCanvas.setActiveObject(textObj);
         fabricCanvas.renderAll();
+        
+        // Trigger selection change
+        onSelectionChange?.(true, style);
+      },
+
+      updateSelectedTextStyle: (style: Partial<TextStyle>) => {
+        if (!fabricCanvas) return;
+        const activeObj = fabricCanvas.getActiveObject();
+        if (!activeObj || !(activeObj instanceof FabricText) || !activeObj.selectable) return;
+
+        if (style.fontFamily !== undefined) activeObj.set("fontFamily", style.fontFamily);
+        if (style.fontSize !== undefined) activeObj.set("fontSize", style.fontSize);
+        if (style.color !== undefined) activeObj.set("fill", style.color);
+        if (style.fontWeight !== undefined) activeObj.set("fontWeight", style.fontWeight);
+        if (style.fontStyle !== undefined) activeObj.set("fontStyle", style.fontStyle);
+        if (style.underline !== undefined) activeObj.set("underline", style.underline);
+
+        fabricCanvas.renderAll();
+      },
+
+      getSelectedTextStyle: () => {
+        if (!fabricCanvas) return null;
+        const activeObj = fabricCanvas.getActiveObject();
+        if (!activeObj || !(activeObj instanceof FabricText) || !activeObj.selectable) return null;
+
+        return {
+          fontFamily: (activeObj.fontFamily as string) || "Inter, sans-serif",
+          fontSize: (activeObj.fontSize as number) || 32,
+          color: (activeObj.fill as string) || "#000000",
+          fontWeight: activeObj.fontWeight === "bold" ? "bold" : "normal",
+          fontStyle: activeObj.fontStyle === "italic" ? "italic" : "normal",
+          underline: activeObj.underline || false,
+        };
       },
 
       addClipart: async (clipart: ClipartItem) => {
@@ -326,6 +392,12 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
       hasImage: () => {
         if (!fabricCanvas) return false;
         return fabricCanvas.getObjects().some((obj) => (obj as any).name === "user-image");
+      },
+
+      hasSelectedText: () => {
+        if (!fabricCanvas) return false;
+        const activeObj = fabricCanvas.getActiveObject();
+        return activeObj instanceof FabricText && activeObj.selectable === true;
       },
 
       setBackgroundFill: (fill: FillValue) => {
