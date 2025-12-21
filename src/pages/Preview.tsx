@@ -64,7 +64,10 @@ const extractFunctionErrorMessage = async (
   return null;
 };
 
-const formatEdmPreviewError = (detail: string | null): string => {
+const formatEdmPreviewError = (
+  detail: string | null,
+  rateLimitReset?: string | null
+): string => {
   if (!detail) {
     return "Please try again.";
   }
@@ -75,6 +78,15 @@ const formatEdmPreviewError = (detail: string | null): string => {
   }
   if (normalized.includes("variant not found")) {
     return "Preview unavailable for this phone model yet.";
+  }
+  if (normalized.includes("rate limit") || normalized.includes("too many requests")) {
+    if (rateLimitReset) {
+      const resetSeconds = Number(rateLimitReset);
+      if (Number.isFinite(resetSeconds) && resetSeconds > 0) {
+        return `Preview service is busy. Try again in ~${Math.ceil(resetSeconds)}s.`;
+      }
+    }
+    return "Preview service is busy. Please try again in a moment.";
   }
 
   return detail;
@@ -94,6 +106,7 @@ const Preview = () => {
   const [activeView, setActiveView] = useState<MockupView>("front");
   const [addedToCart, setAddedToCart] = useState(false);
   const [designId, setDesignId] = useState<string | null>(null);
+  const [previewRetryNonce, setPreviewRetryNonce] = useState(0);
   const { addToCart } = useCart();
   const EDM_PREVIEW_CACHE_VERSION = "v4";
 
@@ -179,7 +192,7 @@ const Preview = () => {
     const previewVersion = designId
       ? sessionStorage.getItem(buildDesignKey(designId, "previewVersion"))
       : sessionStorage.getItem("designPreviewVersion");
-    const previewIsFresh = previewVersion === EDM_PREVIEW_CACHE_VERSION;
+    const previewIsFresh = previewVersion === EDM_PREVIEW_CACHE_VERSION && previewRetryNonce === 0;
     const cachedPreview = previewIsFresh
       ? designPreviewKey
         ? sessionStorage.getItem(designPreviewKey)
@@ -220,7 +233,8 @@ const Preview = () => {
 
           if (error) {
             const detail = await extractFunctionErrorMessage(error, response);
-            throw new Error(formatEdmPreviewError(detail) || "Mockup request failed");
+            const resetHeader = response?.headers?.get("x-ratelimit-reset") ?? data?.rateLimitReset ?? null;
+            throw new Error(formatEdmPreviewError(detail, resetHeader) || "Mockup request failed");
           }
 
           taskId = data?.taskId;
@@ -243,7 +257,8 @@ const Preview = () => {
 
           if (error) {
             const detail = await extractFunctionErrorMessage(error, response);
-            throw new Error(formatEdmPreviewError(detail) || "Mockup request failed");
+            const resetHeader = response?.headers?.get("x-ratelimit-reset") ?? data?.rateLimitReset ?? null;
+            throw new Error(formatEdmPreviewError(detail, resetHeader) || "Mockup request failed");
           }
 
           const status = data?.status;
@@ -280,19 +295,27 @@ const Preview = () => {
 
           if (status === "failed") {
             sessionStorage.removeItem(taskKey);
-            throw new Error(failureReasons[0] || "Mockup generation failed");
+            const failureMessage = failureReasons[0];
+            if (failureMessage && failureMessage.toLowerCase().includes("rate limit")) {
+              throw new Error("Preview service is busy. Please try again in a moment.");
+            }
+            throw new Error(failureMessage || "Mockup generation failed");
           }
 
           if (status === "completed" && !mockupUrl) {
             sessionStorage.removeItem(taskKey);
-            throw new Error(failureReasons[0] || "Mockup completed without an image");
+            const failureMessage = failureReasons[0];
+            if (failureMessage && failureMessage.toLowerCase().includes("rate limit")) {
+              throw new Error("Preview service is busy. Please try again in a moment.");
+            }
+            throw new Error(failureMessage || "Mockup completed without an image");
           }
 
           await new Promise((resolve) => setTimeout(resolve, 2000));
         }
 
         sessionStorage.removeItem(taskKey);
-        throw new Error("Mockup generation timed out");
+        throw new Error("Preview is taking longer than expected. Please try again.");
       } catch (err) {
         if (cancelled) return;
         const rawMessage = err instanceof Error ? err.message : "";
@@ -310,7 +333,7 @@ const Preview = () => {
     return () => {
       cancelled = true;
     };
-  }, [variant, edmTemplateId, designId]);
+  }, [variant, edmTemplateId, designId, previewRetryNonce]);
 
   useEffect(() => {
     if (!designId || edmTemplateId) return;
@@ -338,6 +361,33 @@ const Preview = () => {
       toast.success("Added to cart!");
       setTimeout(() => setAddedToCart(false), 2000);
     }
+  };
+
+  const handleRetryPreview = () => {
+    if (!variant || !edmTemplateId) return;
+    const cacheKey = `edmPreview_${EDM_PREVIEW_CACHE_VERSION}_${edmTemplateId}_${variant.printfulVariantId}`;
+    const cacheKeyAngled = `${cacheKey}_angled`;
+    const taskKey = `edmMockupTask_${EDM_PREVIEW_CACHE_VERSION}_${edmTemplateId}_${variant.printfulVariantId}`;
+    const designPreviewKey = designId ? buildDesignKey(designId, "preview") : null;
+    const designPreviewAngledKey = designId ? buildDesignKey(designId, "previewAngled") : null;
+
+    sessionStorage.removeItem(cacheKey);
+    sessionStorage.removeItem(cacheKeyAngled);
+    sessionStorage.removeItem(taskKey);
+    sessionStorage.removeItem("designPreview");
+    sessionStorage.removeItem("designPreviewAngled");
+    if (designPreviewKey) {
+      sessionStorage.removeItem(designPreviewKey);
+    }
+    if (designPreviewAngledKey) {
+      sessionStorage.removeItem(designPreviewAngledKey);
+    }
+
+    setEdmPreviewError(null);
+    setPreviewKind("design");
+    setDesignPreview(null);
+    setDesignPreviewAngled(null);
+    setPreviewRetryNonce((value) => value + 1);
   };
 
   const mockupViews: { name: string; view: MockupView; icon: typeof Eye }[] = [
@@ -490,10 +540,22 @@ const Preview = () => {
               )}
             </motion.div>
 
-            {(edmPreviewLoading || (edmPreviewError && !designPreview)) && (
+            {(edmPreviewLoading || edmPreviewError) && (
               <div className="mt-4 text-center text-sm text-muted-foreground">
                 {edmPreviewLoading && "Generating EDM preview..."}
-                {edmPreviewError && `EDM preview unavailable: ${edmPreviewError}`}
+                {edmPreviewError && (
+                  <div className="space-y-2">
+                    <div>{`EDM preview unavailable: ${edmPreviewError}`}</div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8"
+                      onClick={handleRetryPreview}
+                    >
+                      Retry Preview
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
 

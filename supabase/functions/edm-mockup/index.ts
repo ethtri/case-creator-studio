@@ -276,6 +276,20 @@ serve(async (req) => {
   }
 
   try {
+    const rateLimitHeader =
+      req.headers.get("x-ratelimit-remaining") ??
+      req.headers.get("x-rate-limit-remaining") ??
+      null;
+    if (rateLimitHeader !== null) {
+      const remaining = Number(rateLimitHeader);
+      if (Number.isFinite(remaining) && remaining <= 0) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 429,
+        });
+      }
+    }
+
     const rawBody = await req.json();
     const parsed = requestSchema.safeParse(rawBody);
 
@@ -333,10 +347,17 @@ serve(async (req) => {
       });
 
       const payload = await response.json();
+      const rateLimitRemaining = response.headers.get("x-ratelimit-remaining");
+      const rateLimitReset = response.headers.get("x-ratelimit-reset");
       if (!response.ok) {
         console.error("[EDM-MOCKUP] Create task failed", payload);
         const detail = extractErrorMessage(payload);
-        return new Response(JSON.stringify({ error: "Failed to create mockup task", detail }), {
+        return new Response(JSON.stringify({
+          error: "Failed to create mockup task",
+          detail,
+          rateLimitRemaining,
+          rateLimitReset,
+        }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
           status: 502,
         });
@@ -352,7 +373,11 @@ serve(async (req) => {
         });
       }
 
-      return new Response(JSON.stringify({ taskId: String(taskId) }), {
+      return new Response(JSON.stringify({
+        taskId: String(taskId),
+        rateLimitRemaining,
+        rateLimitReset,
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
@@ -362,11 +387,18 @@ serve(async (req) => {
       headers: getPrintfulHeaders(apiKey),
     });
     const payload = await response.json();
+    const rateLimitRemaining = response.headers.get("x-ratelimit-remaining");
+    const rateLimitReset = response.headers.get("x-ratelimit-reset");
 
     if (!response.ok) {
       console.error("[EDM-MOCKUP] Status failed", payload);
       const detail = extractErrorMessage(payload);
-      return new Response(JSON.stringify({ error: "Failed to fetch mockup status", detail }), {
+      return new Response(JSON.stringify({
+        error: "Failed to fetch mockup status",
+        detail,
+        rateLimitRemaining,
+        rateLimitReset,
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 502,
       });
@@ -407,6 +439,8 @@ serve(async (req) => {
       mockupUrl,
       mockupUrls,
       failureReasons: failureMessages,
+      rateLimitRemaining,
+      rateLimitReset,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

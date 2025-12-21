@@ -4,14 +4,12 @@
 - [ ] Pricing/Stripe alignment - ensure EDM pricing and checkout totals match.
 - [ ] Remove Printful references from UI copy - replace with Snapcase-first wording.
 - [ ] EDM error handling + fallback UX - user-friendly error state and retry, no broken flow.
-- [ ] Preview retry control - allow users to re-generate the mockup if Printful fails or times out.
 - [ ] Production allowlist sanity check - confirm Monday launch domains are whitelisted for EDM.
 - [ ] QA smoke test checklist - designer load, save template, preview, checkout, order submission.
 - [ ] Pre-MVP pricing rationalization - include shipping costs; consider dynamic pricing based on costs to target ~20% margin for MVP.
 
 ## Medium Priority
 - [ ] EDM preview debug badge/log - surface when EDM templateId is missing on preview.
-- [ ] Printful rate-limit handling - backoff and retry policy for mockup generation.
 
 ## Low Priority
 - [ ] EDM performance tuning - speed up save/preview transitions for smoother UX (mockup generation latency).
@@ -29,6 +27,8 @@
 - [x] Preview caches and serves front mockups reliably; hides 3D controls when no angled mockup exists.
 - [x] Prewarm EDM mockup task on template save for faster preview load.
 - [x] Gate EDM debug logs to dev-only.
+- [x] Preview retry control to re-generate mockups when Printful fails or times out.
+- [x] Printful rate-limit handling with user-friendly messaging.
 - [x] EDM-first flow - make EDM the primary editor path; archive/stash Fabric.js editor.
 - [x] EDM save flow - remove "Save design" button and auto-save on "Continue to preview" (current Save is broken).
 - [x] Capture EDM templateId + selected variant in session - ensure checkout/order uses EDM state.
