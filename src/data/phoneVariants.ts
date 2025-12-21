@@ -4,6 +4,13 @@
 export type CameraPosition = "top-left" | "top-right" | "top-center";
 export type CameraShape = "square" | "pill" | "island" | "vertical-strip";
 
+export interface LensConfig {
+  x: number; // position as % of camera module width
+  y: number; // position as % of camera module height
+  size: number; // size as % of camera module width
+  type: "lens" | "flash" | "sensor" | "mic";
+}
+
 export interface CameraConfig {
   position: CameraPosition;
   shape: CameraShape;
@@ -12,6 +19,8 @@ export interface CameraConfig {
   heightPercent: number;
   // Offset from edge as percentage
   offsetPercent: number;
+  // Individual camera elements
+  lenses: LensConfig[];
 }
 
 export interface PhoneVariant {
@@ -28,37 +37,62 @@ export interface PhoneVariant {
   camera: CameraConfig;
 }
 
-// Camera configs by phone type
+// iPhone Pro camera (3 lenses + flash) - square module
 const iphoneProCamera: CameraConfig = {
   position: "top-left",
   shape: "square",
-  widthPercent: 35,
-  heightPercent: 18,
-  offsetPercent: 2,
+  widthPercent: 32,
+  heightPercent: 16,
+  offsetPercent: 3,
+  lenses: [
+    { x: 22, y: 28, size: 32, type: "lens" },
+    { x: 22, y: 72, size: 32, type: "lens" },
+    { x: 60, y: 50, size: 32, type: "lens" },
+    { x: 78, y: 22, size: 12, type: "flash" },
+    { x: 78, y: 78, size: 8, type: "sensor" },
+  ],
 };
 
+// iPhone standard camera (2 lenses diagonal) - pill/vertical
 const iphoneStandardCamera: CameraConfig = {
   position: "top-left",
   shape: "pill",
-  widthPercent: 25,
-  heightPercent: 12,
-  offsetPercent: 2,
+  widthPercent: 18,
+  heightPercent: 14,
+  offsetPercent: 3,
+  lenses: [
+    { x: 50, y: 30, size: 45, type: "lens" },
+    { x: 50, y: 70, size: 45, type: "lens" },
+  ],
 };
 
+// Samsung Ultra camera - vertical strip with 4 lenses
 const samsungUltraCamera: CameraConfig = {
   position: "top-left",
   shape: "vertical-strip",
-  widthPercent: 18,
-  heightPercent: 28,
-  offsetPercent: 3,
+  widthPercent: 14,
+  heightPercent: 26,
+  offsetPercent: 4,
+  lenses: [
+    { x: 50, y: 14, size: 38, type: "lens" },
+    { x: 50, y: 38, size: 38, type: "lens" },
+    { x: 50, y: 62, size: 38, type: "lens" },
+    { x: 50, y: 86, size: 25, type: "lens" },
+  ],
 };
 
+// Samsung standard camera - vertical strip with 3 lenses
 const samsungStandardCamera: CameraConfig = {
   position: "top-left",
   shape: "vertical-strip",
-  widthPercent: 16,
+  widthPercent: 12,
   heightPercent: 22,
-  offsetPercent: 3,
+  offsetPercent: 4,
+  lenses: [
+    { x: 50, y: 20, size: 42, type: "lens" },
+    { x: 50, y: 50, size: 42, type: "lens" },
+    { x: 50, y: 80, size: 32, type: "lens" },
+  ],
 };
 
 export const phoneVariants: PhoneVariant[] = [
