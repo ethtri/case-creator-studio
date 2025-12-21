@@ -1,16 +1,12 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
-import { Canvas as FabricCanvas, FabricImage, FabricText, Rect, Gradient, loadSVGFromString, util, FabricObject } from "fabric";
-import { PhoneVariant } from "@/data/phoneVariants";
+import { Canvas as FabricCanvas, FabricImage, FabricText, Rect, Gradient, loadSVGFromString, util, FabricObject, Circle } from "fabric";
+import { PhoneVariant, CameraConfig, LensConfig } from "@/data/phoneVariants";
 import { cn } from "@/lib/utils";
 import { FillValue } from "./FillColorPicker";
 import { ClipartItem } from "@/data/clipartData";
 import { TextStyle } from "./TextStyler";
 import { Layer } from "./LayersPanel";
 import { useTouchGestures } from "@/hooks/useTouchGestures";
-
-// Import mockup images
-import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
-import samsungCaseFront from "@/assets/mockups/samsung-case-front.png";
 
 // Printful requires 300 DPI - we work at full resolution internally
 const TARGET_DPI = 300;
@@ -54,15 +50,160 @@ interface CaseCanvasProps {
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
 }
 
+// Create camera cutout overlay using Fabric.js objects
+const createCameraOverlay = (
+  canvas: FabricCanvas,
+  camera: CameraConfig,
+  canvasWidth: number,
+  canvasHeight: number
+) => {
+  const objects: FabricObject[] = [];
+
+  if (camera.shape === "scattered") {
+    // Samsung-style: individual lenses positioned absolutely
+    camera.lenses.forEach((lens) => {
+      if (lens.absoluteX !== undefined && lens.absoluteY !== undefined && lens.absoluteSize !== undefined) {
+        const cx = (lens.absoluteX / 100) * canvasWidth;
+        const cy = (lens.absoluteY / 100) * canvasHeight;
+        const radius = (lens.absoluteSize / 100) * canvasWidth / 2;
+
+        // Outer ring (dark)
+        const outerRing = new Circle({
+          left: cx,
+          top: cy,
+          radius: radius + 3,
+          fill: "#1a1a1a",
+          stroke: "#333",
+          strokeWidth: 1,
+          originX: "center",
+          originY: "center",
+          selectable: false,
+          evented: false,
+          name: "camera-overlay",
+        });
+
+        // Inner lens (darker with glass effect)
+        const innerLens = new Circle({
+          left: cx,
+          top: cy,
+          radius: radius,
+          fill: lens.type === "lens" ? "#0a0a0a" : lens.type === "flash" ? "#2a2a2a" : "#1a1a1a",
+          stroke: lens.type === "lens" ? "#444" : "#333",
+          strokeWidth: 1,
+          originX: "center",
+          originY: "center",
+          selectable: false,
+          evented: false,
+          name: "camera-overlay",
+        });
+
+        // Lens reflection (subtle highlight)
+        if (lens.type === "lens") {
+          const reflection = new Circle({
+            left: cx - radius * 0.2,
+            top: cy - radius * 0.2,
+            radius: radius * 0.3,
+            fill: "rgba(255, 255, 255, 0.08)",
+            selectable: false,
+            evented: false,
+            name: "camera-overlay",
+          });
+          objects.push(outerRing, innerLens, reflection);
+        } else {
+          objects.push(outerRing, innerLens);
+        }
+      }
+    });
+  } else {
+    // iPhone-style: camera module background with lenses inside
+    const offsetX = (camera.offsetPercent / 100) * canvasWidth;
+    const offsetY = (camera.offsetPercent / 100) * canvasHeight;
+    const moduleWidth = (camera.widthPercent / 100) * canvasWidth;
+    const moduleHeight = (camera.heightPercent / 100) * canvasHeight;
+
+    // Camera module background
+    const moduleCornerRadius = camera.shape === "square" ? moduleWidth * 0.22 : Math.min(moduleWidth, moduleHeight) * 0.45;
+    
+    const moduleBackground = new Rect({
+      left: offsetX,
+      top: offsetY,
+      width: moduleWidth,
+      height: moduleHeight,
+      fill: "#1a1a1a",
+      stroke: "#333",
+      strokeWidth: 2,
+      rx: moduleCornerRadius,
+      ry: moduleCornerRadius,
+      selectable: false,
+      evented: false,
+      name: "camera-overlay",
+    });
+    objects.push(moduleBackground);
+
+    // Add individual lenses
+    camera.lenses.forEach((lens) => {
+      const cx = offsetX + (lens.x / 100) * moduleWidth;
+      const cy = offsetY + (lens.y / 100) * moduleHeight;
+      const radius = (lens.size / 100) * moduleWidth / 2;
+
+      // Outer ring
+      const outerRing = new Circle({
+        left: cx,
+        top: cy,
+        radius: radius + 2,
+        fill: "#0d0d0d",
+        stroke: "#2a2a2a",
+        strokeWidth: 1,
+        originX: "center",
+        originY: "center",
+        selectable: false,
+        evented: false,
+        name: "camera-overlay",
+      });
+
+      // Inner lens
+      const innerLens = new Circle({
+        left: cx,
+        top: cy,
+        radius: radius * 0.85,
+        fill: lens.type === "lens" ? "#050505" : lens.type === "flash" ? "#3a3a3a" : "#1a1a1a",
+        stroke: lens.type === "lens" ? "#333" : "#444",
+        strokeWidth: 1,
+        originX: "center",
+        originY: "center",
+        selectable: false,
+        evented: false,
+        name: "camera-overlay",
+      });
+
+      objects.push(outerRing, innerLens);
+
+      // Add reflection for main lenses
+      if (lens.type === "lens" && radius > 5) {
+        const reflection = new Circle({
+          left: cx - radius * 0.25,
+          top: cy - radius * 0.25,
+          radius: radius * 0.25,
+          fill: "rgba(255, 255, 255, 0.06)",
+          selectable: false,
+          evented: false,
+          name: "camera-overlay",
+        });
+        objects.push(reflection);
+      }
+    });
+  }
+
+  return objects;
+};
+
 export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
   ({ variant, className, onDpiChange, onSelectionChange, onLayersChange, onHistoryChange }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-    const mockupRef = useRef<HTMLImageElement>(null);
     const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
     const [currentDpi, setCurrentDpi] = useState<number | null>(null);
     const [canvasScale, setCanvasScale] = useState(1);
-    const [mockupLoaded, setMockupLoaded] = useState(false);
     const layerIdCounter = useRef(0);
     
     // History state
@@ -72,9 +213,6 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
 
     // Enable touch gestures for pinch-to-zoom and rotate
     useTouchGestures(fabricCanvas);
-
-    // Get mockup image based on brand
-    const mockupImage = variant.brand.toLowerCase() === "apple" ? iphoneCaseFront : samsungCaseFront;
 
     // Helper to generate unique layer IDs
     const generateLayerId = () => {
@@ -135,10 +273,10 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
     const saveToHistory = useCallback((canvas: FabricCanvas) => {
       if (isRestoringRef.current) return;
       
-      // Get only user objects (exclude safe-area)
+      // Get only user objects (exclude safe-area and camera-overlay)
       const objects = canvas.getObjects().filter(obj => {
         const name = (obj as any).name;
-        return name !== "safe-area";
+        return name !== "safe-area" && name !== "camera-overlay";
       });
       
       const state = JSON.stringify({
@@ -174,7 +312,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         // Remove current user objects
         canvas.getObjects().forEach(obj => {
           const name = (obj as any).name;
-          if (name !== "safe-area") {
+          if (name !== "safe-area" && name !== "camera-overlay") {
             canvas.remove(obj);
           }
         });
@@ -188,7 +326,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
             // Move restored objects below UI elements
             const uiObjects = canvas.getObjects().filter(obj => {
               const name = (obj as any).name;
-              return name === "safe-area";
+              return name === "safe-area" || name === "camera-overlay";
             });
             
             uiObjects.forEach(obj => canvas.bringObjectToFront(obj));
@@ -204,26 +342,25 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
       }
     }, [notifyLayersChange]);
 
-    // Initialize canvas at display size
+    // Initialize canvas with programmatic rendering
     useEffect(() => {
-      if (!canvasRef.current || !containerRef.current || !mockupLoaded) return;
+      if (!canvasRef.current || !containerRef.current) return;
 
       const container = containerRef.current;
-      const mockupEl = mockupRef.current;
-      
-      if (!mockupEl) return;
-
-      // Get the actual rendered size of the mockup
-      const mockupRect = mockupEl.getBoundingClientRect();
       const containerRect = container.getBoundingClientRect();
       
-      // Canvas dimensions should match the design area within the mockup
-      // The design area is approximately 92% of mockup width and 94% of height
-      const designAreaWidthPercent = 0.88;
-      const designAreaHeightPercent = 0.90;
+      // Calculate display dimensions based on container and aspect ratio
+      const aspectRatio = variant.printAreaWidth / variant.printAreaHeight;
+      const maxHeight = Math.min(containerRect.height - 80, 550);
+      const maxWidth = containerRect.width - 48;
       
-      const displayWidth = mockupRect.width * designAreaWidthPercent;
-      const displayHeight = mockupRect.height * designAreaHeightPercent;
+      let displayHeight = maxHeight;
+      let displayWidth = displayHeight * aspectRatio;
+      
+      if (displayWidth > maxWidth) {
+        displayWidth = maxWidth;
+        displayHeight = displayWidth / aspectRatio;
+      }
 
       // Scale factor from display to print resolution
       const scale = variant.printAreaWidth / displayWidth;
@@ -237,8 +374,12 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         preserveObjectStacking: true,
       });
 
+      // Add camera cutout overlay (will be on top)
+      const cameraObjects = createCameraOverlay(canvas, variant.camera, displayWidth, displayHeight);
+      cameraObjects.forEach(obj => canvas.add(obj));
+
       // Add safe area border (dashed pink outline)
-      const safeAreaPadding = 16;
+      const safeAreaPadding = 12;
       const safeArea = new Rect({
         left: safeAreaPadding,
         top: safeAreaPadding,
@@ -248,8 +389,8 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         stroke: "hsl(330, 75%, 60%)",
         strokeWidth: 2,
         strokeDashArray: [8, 4],
-        rx: 16,
-        ry: 16,
+        rx: 12,
+        ry: 12,
         selectable: false,
         evented: false,
         name: "safe-area",
@@ -286,7 +427,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         canvas.off("selection:cleared");
         canvas.dispose();
       };
-    }, [variant, mockupLoaded, onSelectionChange]);
+    }, [variant, onSelectionChange]);
 
     // Track object modifications for history
     useEffect(() => {
@@ -349,7 +490,19 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
           originY: "center",
         });
         (textObj as any).layerId = layerId;
-        fabricCanvas.add(textObj);
+        
+        // Insert below UI elements
+        const uiObjectIndex = fabricCanvas.getObjects().findIndex(obj => {
+          const name = (obj as any).name;
+          return name === "camera-overlay" || name === "safe-area";
+        });
+        
+        if (uiObjectIndex > 0) {
+          fabricCanvas.insertAt(uiObjectIndex, textObj);
+        } else {
+          fabricCanvas.add(textObj);
+        }
+        
         fabricCanvas.setActiveObject(textObj);
         fabricCanvas.renderAll();
         
@@ -413,7 +566,18 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
           });
           (group as any).layerId = layerId;
 
-          fabricCanvas.add(group);
+          // Insert below UI elements
+          const uiObjectIndex = fabricCanvas.getObjects().findIndex(obj => {
+            const name = (obj as any).name;
+            return name === "camera-overlay" || name === "safe-area";
+          });
+          
+          if (uiObjectIndex > 0) {
+            fabricCanvas.insertAt(uiObjectIndex, group);
+          } else {
+            fabricCanvas.add(group);
+          }
+          
           fabricCanvas.setActiveObject(group);
           fabricCanvas.renderAll();
           notifyLayersChange();
@@ -456,7 +620,7 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
                 }
               });
 
-              // Add below UI elements
+              // Add at index 0 (bottom)
               fabricCanvas.insertAt(0, img);
               fabricCanvas.setActiveObject(img);
               fabricCanvas.renderAll();
@@ -512,7 +676,8 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
       reset: () => {
         if (!fabricCanvas) return;
         fabricCanvas.getObjects().forEach((obj) => {
-          if (obj.selectable) {
+          const name = (obj as any).name;
+          if (obj.selectable && name !== "camera-overlay" && name !== "safe-area") {
             fabricCanvas.remove(obj);
           }
         });
@@ -528,22 +693,46 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
       exportForPrint: () => {
         if (!fabricCanvas) return "";
 
+        // Temporarily hide camera overlay for export
+        const cameraObjects = fabricCanvas.getObjects().filter(obj => (obj as any).name === "camera-overlay");
+        const safeAreaObjects = fabricCanvas.getObjects().filter(obj => (obj as any).name === "safe-area");
+        
+        cameraObjects.forEach(obj => obj.set("visible", false));
+        safeAreaObjects.forEach(obj => obj.set("visible", false));
+        
         // Export at full Printful resolution
-        return fabricCanvas.toDataURL({
+        const dataUrl = fabricCanvas.toDataURL({
           format: "png",
           quality: 1,
           multiplier: canvasScale,
           enableRetinaScaling: false,
         });
+        
+        // Restore visibility
+        cameraObjects.forEach(obj => obj.set("visible", true));
+        safeAreaObjects.forEach(obj => obj.set("visible", true));
+        fabricCanvas.renderAll();
+        
+        return dataUrl;
       },
 
       getPreview: () => {
         if (!fabricCanvas) return "";
-        return fabricCanvas.toDataURL({
+        
+        // Temporarily hide safe area for preview (keep camera visible)
+        const safeAreaObjects = fabricCanvas.getObjects().filter(obj => (obj as any).name === "safe-area");
+        safeAreaObjects.forEach(obj => obj.set("visible", false));
+        
+        const dataUrl = fabricCanvas.toDataURL({
           format: "png",
           quality: 0.9,
           multiplier: 1,
         });
+        
+        safeAreaObjects.forEach(obj => obj.set("visible", true));
+        fabricCanvas.renderAll();
+        
+        return dataUrl;
       },
 
       hasImage: () => {
@@ -622,9 +811,10 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
         const objIndex = objects.findIndex((o) => (o as any).layerId === id);
         if (objIndex === -1) return;
         
-        // Find next selectable layer above
+        // Find next selectable layer above (excluding UI elements)
         for (let i = objIndex + 1; i < objects.length; i++) {
-          if (objects[i].selectable) {
+          const name = (objects[i] as any).name;
+          if (objects[i].selectable && name !== "camera-overlay" && name !== "safe-area") {
             // Swap positions by removing and re-adding
             const obj = objects[objIndex];
             fabricCanvas.remove(obj);
@@ -698,66 +888,71 @@ export const CaseCanvas = forwardRef<CaseCanvasRef, CaseCanvasProps>(
       canRedo: () => currentIndexRef.current < historyRef.current.length - 1,
     }));
 
+    // Calculate print dimensions in inches for display
+    const printWidthInches = (variant.printAreaWidth / TARGET_DPI).toFixed(2);
+    const printHeightInches = (variant.printAreaHeight / TARGET_DPI).toFixed(2);
+
     return (
       <div className={cn("relative flex-1 flex flex-col min-h-0", className)}>
+        {/* Model name header */}
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 px-3 py-1.5 bg-background/90 backdrop-blur-sm rounded-full border border-border/50 shadow-sm">
+          <span className="text-xs font-medium text-foreground">
+            {variant.brand} {variant.model}
+          </span>
+        </div>
+
         {/* Canvas Container */}
         <div
           key={variant.id}
           ref={containerRef}
-          className="flex-1 flex items-center justify-center p-4 pb-8 overflow-hidden"
+          className="flex-1 flex items-center justify-center p-4 pt-10 pb-8 overflow-hidden"
         >
-          {/* Realistic Phone case mockup wrapper */}
+          {/* Phone case frame */}
           <div className="relative">
-            {/* Large ambient shadow */}
+            {/* Ambient shadow */}
             <div 
-              className="absolute inset-0 rounded-[3rem] bg-gradient-to-b from-black/10 to-black/30 blur-2xl translate-y-6 scale-[0.88]"
+              className="absolute inset-0 rounded-[2rem] bg-gradient-to-b from-black/8 to-black/25 blur-2xl translate-y-4 scale-[0.92]"
               aria-hidden="true"
             />
             
-            {/* Mockup image as background frame */}
-            <div className="relative">
-              <img
-                ref={mockupRef}
-                src={mockupImage}
-                alt={`${variant.brand} ${variant.model} case`}
-                className="w-auto h-[60vh] max-h-[600px] min-h-[400px] drop-shadow-2xl pointer-events-none select-none"
-                draggable={false}
-                onLoad={() => setMockupLoaded(true)}
-              />
+            {/* Case shell */}
+            <div 
+              className="relative bg-background border-2 border-border/60 rounded-[1.75rem] overflow-hidden shadow-xl"
+              style={{
+                boxShadow: "0 8px 32px -8px rgba(0,0,0,0.2), 0 2px 8px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.1)",
+              }}
+            >
+              {/* Canvas */}
+              <canvas ref={canvasRef} className="block touch-none" />
               
-              {/* Canvas overlay positioned precisely on the design area */}
-              {mockupLoaded && (
-                <div 
-                  className="absolute rounded-[1.5rem] overflow-hidden shadow-inner"
-                  style={{
-                    top: '4%',
-                    left: '5%',
-                    width: '90%',
-                    height: '92%',
-                  }}
-                >
-                  <canvas ref={canvasRef} className="block touch-none w-full h-full" />
-                </div>
-              )}
+              {/* Corner radius overlay to simulate case edges */}
+              <div 
+                className="absolute inset-0 pointer-events-none rounded-[1.5rem]"
+                style={{
+                  boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.1), inset 0 2px 4px rgba(0,0,0,0.05)",
+                }}
+              />
             </div>
             
             {/* Right edge highlight */}
             <div 
-              className="absolute top-8 bottom-8 -right-0.5 w-[3px] rounded-full bg-gradient-to-b from-white/40 via-white/20 to-white/40"
+              className="absolute top-6 bottom-6 -right-0.5 w-[2px] rounded-full bg-gradient-to-b from-white/30 via-white/15 to-white/30"
               aria-hidden="true"
             />
             
             {/* Left edge shadow */}
             <div 
-              className="absolute top-8 bottom-8 -left-0.5 w-[2px] rounded-full bg-gradient-to-b from-black/15 via-black/08 to-black/15"
+              className="absolute top-6 bottom-6 -left-0.5 w-[1.5px] rounded-full bg-gradient-to-b from-black/10 via-black/5 to-black/10"
               aria-hidden="true"
             />
           </div>
         </div>
 
         {/* Print info - hidden on mobile */}
-        <div className="absolute bottom-4 left-4 text-xs text-muted-foreground hidden md:block">
-          Back-only print
+        <div className="absolute bottom-4 left-4 text-xs text-muted-foreground hidden md:flex items-center gap-3">
+          <span>Back-only print</span>
+          <span className="text-border">•</span>
+          <span>{printWidthInches}" × {printHeightInches}" @ 300 DPI</span>
         </div>
       </div>
     );
