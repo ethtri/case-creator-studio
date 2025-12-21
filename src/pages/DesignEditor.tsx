@@ -82,16 +82,9 @@ const DesignEditor = () => {
       {/* Desktop Header */}
       {!isMobile && (
         <header className="h-14 bg-card border-b border-border flex items-center justify-between px-6 z-40">
-          <div className="flex items-center gap-4">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-cta flex items-center justify-center">
-                <span className="text-cta-foreground font-bold text-sm">S</span>
-              </div>
-              <span className="font-display font-bold text-lg text-foreground">
-                Snap
-              </span>
-            </Link>
-          </div>
+          <Link to="/" className="flex items-center gap-2">
+            <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
+          </Link>
           <nav className="flex items-center gap-6 text-sm">
             <Link to="/" className="text-muted-foreground hover:text-foreground">
               Home
@@ -161,8 +154,8 @@ const DesignEditor = () => {
 
           {/* Desktop Footer Info */}
           {!isMobile && (
-            <footer className="absolute bottom-6 left-6 text-xs text-muted-foreground">
-              © 2024 Snap. All rights reserved.
+            <footer className="absolute bottom-6 left-6 text-xs text-muted-foreground z-10">
+              © 2024 snapcase.ai
             </footer>
           )}
         </main>
