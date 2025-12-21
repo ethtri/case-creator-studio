@@ -53,54 +53,54 @@ export const EditorToolbar = ({
     fileInputRef.current?.click();
   };
 
-  // Mobile bottom toolbar
+  // Mobile bottom toolbar - simplified layout
   if (isMobile) {
     return (
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border px-4 pb-safe z-50">
-        <div className="flex items-center justify-around py-3">
-          <ToolButton
-            icon={Undo2}
-            label="Undo"
-            onClick={onUndo}
-            isActive={false}
-            disabled={!canUndo}
-          />
-          <ToolButton
-            icon={Redo2}
-            label="Redo"
-            onClick={onRedo}
-            isActive={false}
-            disabled={!canRedo}
-          />
-          <ToolButton
+      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border px-2 pb-safe z-50">
+        <div className="flex items-center justify-between py-2 max-w-md mx-auto">
+          {/* Left group - History */}
+          <div className="flex items-center gap-1">
+            <MobileToolButton
+              icon={Undo2}
+              onClick={onUndo}
+              disabled={!canUndo}
+            />
+            <MobileToolButton
+              icon={Redo2}
+              onClick={onRedo}
+              disabled={!canRedo}
+            />
+          </div>
+          
+          {/* Center group - Main tools */}
+          <div className="flex items-center gap-1">
+            <MobileToolButton
+              icon={Upload}
+              onClick={triggerUpload}
+              isActive={false}
+            />
+            <MobileToolButton
+              icon={Type}
+              onClick={() => onToolChange("text")}
+              isActive={activeTool === "text"}
+            />
+            <MobileToolButton
+              icon={Smile}
+              onClick={() => onToolChange("clipart")}
+              isActive={activeTool === "clipart"}
+            />
+            <MobileToolButton
+              icon={Paintbrush}
+              onClick={() => onToolChange("fill")}
+              isActive={activeTool === "fill"}
+            />
+          </div>
+          
+          {/* Right group - Layers */}
+          <MobileToolButton
             icon={Layers}
-            label="Layers"
             onClick={() => onToolChange("layers")}
             isActive={activeTool === "layers"}
-          />
-          <ToolButton
-            icon={Upload}
-            label="File"
-            onClick={triggerUpload}
-            isActive={false}
-          />
-          <ToolButton
-            icon={Type}
-            label="Text"
-            onClick={() => onToolChange("text")}
-            isActive={activeTool === "text"}
-          />
-          <ToolButton
-            icon={Smile}
-            label="Clipart"
-            onClick={() => onToolChange("clipart")}
-            isActive={activeTool === "clipart"}
-          />
-          <ToolButton
-            icon={Paintbrush}
-            label="Fill"
-            onClick={() => onToolChange("fill")}
-            isActive={activeTool === "fill"}
           />
         </div>
         <input
@@ -202,6 +202,35 @@ const ToolButton = ({
   >
     <Icon className="w-5 h-5" />
     <span className="text-xs">{label}</span>
+  </button>
+);
+
+interface MobileToolButtonProps {
+  icon: React.ComponentType<{ className?: string }>;
+  onClick: () => void;
+  isActive?: boolean;
+  disabled?: boolean;
+}
+
+const MobileToolButton = ({
+  icon: Icon,
+  onClick,
+  isActive = false,
+  disabled = false,
+}: MobileToolButtonProps) => (
+  <button
+    onClick={onClick}
+    disabled={disabled}
+    className={cn(
+      "w-10 h-10 flex items-center justify-center rounded-xl transition-colors",
+      isActive
+        ? "bg-cta/10 text-cta"
+        : disabled
+        ? "text-muted-foreground/40"
+        : "text-muted-foreground active:bg-muted"
+    )}
+  >
+    <Icon className="w-5 h-5" />
   </button>
 );
 
