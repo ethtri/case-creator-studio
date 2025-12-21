@@ -10,6 +10,7 @@ import { EditorToolbar } from "@/components/editor/EditorToolbar";
 import { DpiIndicator, getDpiQuality } from "@/components/editor/DpiIndicator";
 import { FillColorPicker } from "@/components/editor/FillColorPicker";
 import { ClipartPicker } from "@/components/editor/ClipartPicker";
+import { TextStyler } from "@/components/editor/TextStyler";
 import { useEditorState } from "@/hooks/useEditorState";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ArrowLeft, ShoppingCart } from "lucide-react";
@@ -23,10 +24,14 @@ const DesignEditor = () => {
   const {
     canvasRef,
     activeTool,
+    textStyle,
+    hasSelectedText,
     currentDpi,
     hasImage,
     backgroundFill,
     handleToolChange,
+    handleSelectionChange,
+    handleTextStyleChange,
     handleAddClipart,
     handleImageUpload,
     handleFitImage,
@@ -170,10 +175,32 @@ const DesignEditor = () => {
             </AnimatePresence>
           )}
 
+          {/* Text Styler Panel - Desktop */}
+          {!isMobile && (
+            <AnimatePresence>
+              {activeTool === "text" && (
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.2 }}
+                  className="absolute top-4 left-20 z-30"
+                >
+                  <TextStyler
+                    currentStyle={textStyle}
+                    onStyleChange={handleTextStyleChange}
+                    hasSelectedText={hasSelectedText}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          )}
+
           <CaseCanvas
             ref={canvasRef}
             variant={variant}
             onDpiChange={handleDpiChange}
+            onSelectionChange={handleSelectionChange}
             className={isMobile ? "pb-32" : ""}
           />
 
@@ -247,6 +274,25 @@ const DesignEditor = () => {
                   className="mb-3"
                 >
                   <ClipartPicker onSelect={handleAddClipart} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Mobile Text Styler */}
+            <AnimatePresence>
+              {activeTool === "text" && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  transition={{ duration: 0.2 }}
+                  className="mb-3"
+                >
+                  <TextStyler
+                    currentStyle={textStyle}
+                    onStyleChange={handleTextStyleChange}
+                    hasSelectedText={hasSelectedText}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>

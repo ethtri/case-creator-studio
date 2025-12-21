@@ -2,35 +2,57 @@ import { useState, useCallback, useRef } from "react";
 import { CaseCanvasRef } from "@/components/editor/CaseCanvas";
 import { ToolType } from "@/components/editor/EditorToolbar";
 import { FillValue } from "@/components/editor/FillColorPicker";
+import { TextStyle, defaultTextStyle } from "@/components/editor/TextStyler";
 import { ClipartItem } from "@/data/clipartData";
 import { toast } from "sonner";
 
 export const useEditorState = () => {
   const canvasRef = useRef<CaseCanvasRef>(null);
   const [activeTool, setActiveTool] = useState<ToolType>("select");
-  const [activeColor, setActiveColor] = useState("#000000");
   const [currentDpi, setCurrentDpi] = useState<number | null>(null);
   const [hasImage, setHasImage] = useState(false);
   const [backgroundFill, setBackgroundFill] = useState<FillValue>({ type: "solid", color: "#f5f5f5" });
+  const [textStyle, setTextStyle] = useState<TextStyle>(defaultTextStyle);
+  const [hasSelectedText, setHasSelectedText] = useState(false);
 
   const handleToolChange = useCallback((tool: ToolType) => {
-    if (tool === "text" && canvasRef.current) {
-      canvasRef.current.addText("Your Text", activeColor);
-      toast.success("Text added");
-      setActiveTool("select");
+    if (tool === "text") {
+      // Toggle text panel - clicking adds text and opens styling
+      if (activeTool !== "text") {
+        if (canvasRef.current) {
+          canvasRef.current.addText("Your Text", textStyle);
+          toast.success("Text added - customize it in the panel");
+        }
+        setActiveTool("text");
+      } else {
+        setActiveTool("select");
+      }
     } else if (tool === "clipart") {
-      // Toggle clipart panel
       setActiveTool(activeTool === "clipart" ? "select" : "clipart");
     } else if (tool === "fill") {
-      // Toggle fill panel
       setActiveTool(activeTool === "fill" ? "select" : "fill");
     } else if (tool === "layers") {
-      // Toggle layers panel
       setActiveTool(activeTool === "layers" ? "select" : "layers");
     } else {
       setActiveTool(tool);
     }
-  }, [activeColor, activeTool]);
+  }, [activeTool, textStyle]);
+
+  const handleSelectionChange = useCallback((hasText: boolean, style: TextStyle | null) => {
+    setHasSelectedText(hasText);
+    if (style) {
+      setTextStyle(style);
+      // Auto-open text panel when text is selected
+      if (hasText) {
+        setActiveTool("text");
+      }
+    }
+  }, []);
+
+  const handleTextStyleChange = useCallback((style: Partial<TextStyle>) => {
+    setTextStyle((prev) => ({ ...prev, ...style }));
+    canvasRef.current?.updateSelectedTextStyle(style);
+  }, []);
 
   const handleAddClipart = useCallback(async (clipart: ClipartItem) => {
     if (!canvasRef.current) return;
@@ -73,9 +95,11 @@ export const useEditorState = () => {
     canvasRef.current?.reset();
     setHasImage(false);
     setCurrentDpi(null);
+    setHasSelectedText(false);
     const defaultFill: FillValue = { type: "solid", color: "#f5f5f5" };
     setBackgroundFill(defaultFill);
     canvasRef.current?.setBackgroundFill(defaultFill);
+    setTextStyle(defaultTextStyle);
     toast.success("Canvas cleared");
   }, []);
 
@@ -94,12 +118,14 @@ export const useEditorState = () => {
   return {
     canvasRef,
     activeTool,
-    activeColor,
+    textStyle,
+    hasSelectedText,
     currentDpi,
     hasImage,
     backgroundFill,
-    setActiveColor,
     handleToolChange,
+    handleSelectionChange,
+    handleTextStyleChange,
     handleAddClipart,
     handleImageUpload,
     handleFitImage,
