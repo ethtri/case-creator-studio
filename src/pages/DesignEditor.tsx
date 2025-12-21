@@ -31,10 +31,13 @@ const DesignEditor = () => {
     hasImage,
     backgroundFill,
     layers,
+    canUndo,
+    canRedo,
     handleToolChange,
     handleSelectionChange,
     handleTextStyleChange,
     handleLayersChange,
+    handleHistoryChange,
     handleToggleLayerVisibility,
     handleMoveLayerUp,
     handleMoveLayerDown,
@@ -47,6 +50,8 @@ const DesignEditor = () => {
     handleReset,
     handleDpiChange,
     handleBackgroundFillChange,
+    handleUndo,
+    handleRedo,
     getPreviewData,
   } = useEditorState();
 
@@ -132,6 +137,10 @@ const DesignEditor = () => {
             onFitImage={handleFitImage}
             onRotateImage={handleRotateImage}
             onReset={handleReset}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            canUndo={canUndo}
+            canRedo={canRedo}
             isMobile={false}
             hasImage={hasImage}
           />
@@ -228,14 +237,15 @@ const DesignEditor = () => {
             </AnimatePresence>
           )}
 
-          <CaseCanvas
-            ref={canvasRef}
-            variant={variant}
-            onDpiChange={handleDpiChange}
-            onSelectionChange={handleSelectionChange}
-            onLayersChange={handleLayersChange}
-            className={isMobile ? "pb-32" : ""}
-          />
+        <CaseCanvas
+          ref={canvasRef}
+          variant={variant}
+          onDpiChange={handleDpiChange}
+          onSelectionChange={handleSelectionChange}
+          onLayersChange={handleLayersChange}
+          onHistoryChange={handleHistoryChange}
+          className={isMobile ? "pb-32" : ""}
+        />
 
           {/* Desktop Footer Actions */}
           {!isMobile && (
@@ -273,6 +283,10 @@ const DesignEditor = () => {
             onFitImage={handleFitImage}
             onRotateImage={handleRotateImage}
             onReset={handleReset}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            canUndo={canUndo}
+            canRedo={canRedo}
             isMobile={true}
             hasImage={hasImage}
           />
