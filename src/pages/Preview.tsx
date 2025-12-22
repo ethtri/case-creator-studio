@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -96,6 +96,7 @@ const Preview = () => {
   const { variantId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const hasLoggedMissingTemplateRef = useRef(false);
   const [variant, setVariant] = useState<PhoneVariant | null>(null);
   const [designPreview, setDesignPreview] = useState<string | null>(null);
   const [designPreviewAngled, setDesignPreviewAngled] = useState<string | null>(null);
@@ -109,6 +110,7 @@ const Preview = () => {
   const [previewRetryNonce, setPreviewRetryNonce] = useState(0);
   const { addToCart } = useCart();
   const EDM_PREVIEW_CACHE_VERSION = "v4";
+  const isDev = import.meta.env.DEV;
 
   const buildDesignKey = (id: string, suffix: string) => `edmDesign:${id}:${suffix}`;
   const editorPath = variantId
@@ -183,6 +185,14 @@ const Preview = () => {
   }, [variantId, navigate, searchParams, editorPath]);
 
   useEffect(() => {
+    if (!designId || edmTemplateId || hasLoggedMissingTemplateRef.current) return;
+    hasLoggedMissingTemplateRef.current = true;
+    if (isDev) {
+      console.warn("[Preview] EDM templateId missing for design", designId);
+    }
+  }, [designId, edmTemplateId, isDev]);
+
+  useEffect(() => {
     if (!variant || !edmTemplateId) return;
 
     const cacheKey = `edmPreview_${EDM_PREVIEW_CACHE_VERSION}_${edmTemplateId}_${variant.printfulVariantId}`;
@@ -246,6 +256,8 @@ const Preview = () => {
         }
 
         const maxAttempts = 15;
+        const baseDelayMs = 800;
+        const maxDelayMs = 2000;
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
           if (cancelled) return;
           const { data, error, response } = await supabase.functions.invoke("edm-mockup", {
@@ -311,7 +323,8 @@ const Preview = () => {
             throw new Error(failureMessage || "Mockup completed without an image");
           }
 
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+          const delayMs = Math.min(maxDelayMs, baseDelayMs + attempt * 200);
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
         }
 
         sessionStorage.removeItem(taskKey);
@@ -399,6 +412,7 @@ const Preview = () => {
     previewKind !== "mockup" || (!!designPreviewAngled && designPreviewAngled !== designPreview);
   const showPreviewLoader = edmPreviewLoading;
   const showViewControls = !showPreviewLoader && !(previewKind === "mockup" && !angledAvailable);
+  const showMissingTemplateBadge = !!designId && !edmTemplateId;
 
   useEffect(() => {
     if (activeView === "angled" && !angledAvailable) {
@@ -463,6 +477,11 @@ const Preview = () => {
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.5 }}
             >
+              {showMissingTemplateBadge && (
+                <div className="absolute top-4 left-4 rounded-full border border-border bg-card/80 px-3 py-1 text-xs text-muted-foreground shadow-sm">
+                  Template missing: preview limited
+                </div>
+              )}
               {/* Background pattern for visual interest */}
               <div className="absolute inset-0 opacity-[0.03]" style={{
                 backgroundImage: `radial-gradient(circle at 1px 1px, currentColor 1px, transparent 1px)`,

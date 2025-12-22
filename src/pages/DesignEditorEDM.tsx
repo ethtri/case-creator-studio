@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CartSheet } from "@/components/CartSheet";
-import { Loader2, AlertCircle, ExternalLink } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { Loader2, AlertCircle, ExternalLink, ArrowLeft } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -87,9 +88,11 @@ const DesignEditorEDM = () => {
   const { variantId } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const isMobile = useIsMobile();
   const [variant, setVariant] = useState<PhoneVariant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [templateId, setTemplateId] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -203,7 +206,7 @@ const DesignEditorEDM = () => {
       scriptLoadedRef.current = true;
     };
     script.onerror = () => {
-      setError('Failed to load Printful Design Maker script');
+      setError('Failed to load the design editor script');
       setLoading(false);
     };
     document.head.appendChild(script);
@@ -222,6 +225,7 @@ const DesignEditorEDM = () => {
 
     setLoading(true);
     setError(null);
+    setSaveError(null);
 
     try {
       const externalProductId = getOrCreateExternalProductId(designId);
@@ -243,7 +247,7 @@ const DesignEditorEDM = () => {
       const resolvedTemplateId = templateIdFromNonce ?? cachedTemplateId;
 
       if (nonceError || !nonceValue) {
-        console.error('Failed to get nonce:', nonceError, data);
+        debugLog('Failed to get nonce:', nonceError, data);
         throw new Error(data?.error || nonceError?.message || 'Failed to get authentication token');
       }
 
@@ -288,13 +292,13 @@ const DesignEditorEDM = () => {
           setTemplateId(id);
           templateIdRef.current = id;
           setIsSaving(false);
+          setSaveError(null);
           autoSaveInFlightRef.current = false;
           hasUnsavedChangesRef.current = false;
           if (saveTimeoutRef.current) {
             window.clearTimeout(saveTimeoutRef.current);
             saveTimeoutRef.current = null;
           }
-          toast.success('Design saved!');
           // Store template ID for checkout
           sessionStorage.setItem(buildDesignKey(designId, "templateId"), id.toString());
           sessionStorage.setItem(buildDesignKey(designId, "variantId"), variantId);
@@ -335,7 +339,7 @@ const DesignEditorEDM = () => {
           setLoading(false);
         },
         onError: (err) => {
-          console.error('EDM error:', err);
+          debugLog('EDM error:', err);
           setError('An error occurred in the design maker');
           setLoading(false);
         },
@@ -343,7 +347,7 @@ const DesignEditorEDM = () => {
       });
 
     } catch (err) {
-      console.error('Error initializing EDM:', err);
+      debugLog('Error initializing EDM:', err);
       setError(err instanceof Error ? err.message : 'Failed to initialize design maker');
       setLoading(false);
     }
@@ -353,9 +357,10 @@ const DesignEditorEDM = () => {
     const headerHeight = headerRef.current?.offsetHeight ?? 0;
     const infoHeight = infoRef.current?.offsetHeight ?? 0;
     const footerHeight = footerRef.current?.offsetHeight ?? 0;
-    const available = window.innerHeight - headerHeight - infoHeight - footerHeight;
+    const buffer = isMobile ? 8 : 0;
+    const available = window.innerHeight - headerHeight - infoHeight - footerHeight - buffer;
     setDesignerHeight(Math.max(available, 200));
-  }, []);
+  }, [isMobile]);
 
   const forceEmbedSizing = useCallback(() => {
     const container = document.getElementById("printful-designer");
@@ -396,6 +401,10 @@ const DesignEditorEDM = () => {
   }, [updateDesignerHeight]);
 
   useEffect(() => {
+    updateDesignerHeight();
+  }, [isMobile, updateDesignerHeight]);
+
+  useEffect(() => {
     forceEmbedSizing();
   }, [designerHeight, forceEmbedSizing]);
 
@@ -416,7 +425,7 @@ const DesignEditorEDM = () => {
       const timeout = setTimeout(() => {
         clearInterval(interval);
         if (!window.PFDesignMaker) {
-          setError('Printful Design Maker failed to load. Please refresh the page.');
+          setError('Design editor failed to load. Please refresh the page.');
           setLoading(false);
         }
       }, 10000);
@@ -431,11 +440,37 @@ const DesignEditorEDM = () => {
   useEffect(() => {
     if (!iframeLoaded) return;
     forceEmbedSizing();
+
+    let resizeObserver: ResizeObserver | null = null;
+    const container = document.getElementById("printful-designer");
+    if (container && "ResizeObserver" in window) {
+      resizeObserver = new ResizeObserver(() => {
+        forceEmbedSizing();
+      });
+      resizeObserver.observe(container);
+      const iframe = container.querySelector("iframe");
+      if (iframe) {
+        resizeObserver.observe(iframe);
+      }
+    }
+
+    let ticks = 0;
     if (resizeIntervalRef.current) {
       window.clearInterval(resizeIntervalRef.current);
     }
-    resizeIntervalRef.current = window.setInterval(forceEmbedSizing, 500);
+    resizeIntervalRef.current = window.setInterval(() => {
+      forceEmbedSizing();
+      ticks += 1;
+      if (ticks >= 10 && resizeIntervalRef.current) {
+        window.clearInterval(resizeIntervalRef.current);
+        resizeIntervalRef.current = null;
+      }
+    }, 500);
+
     return () => {
+      if (resizeObserver) {
+        resizeObserver.disconnect();
+      }
       if (resizeIntervalRef.current) {
         window.clearInterval(resizeIntervalRef.current);
         resizeIntervalRef.current = null;
@@ -455,7 +490,29 @@ const DesignEditorEDM = () => {
   const handleSaveDesign = () => {
     if (designMakerRef.current) {
       designMakerRef.current.sendMessage({ event: 'saveDesign' });
+    } else {
+      setSaveError("Unable to save right now. Please try again.");
     }
+  };
+
+  const beginSave = (shouldContinue: boolean) => {
+    continueAfterSaveRef.current = shouldContinue;
+    setIsSaving(true);
+    setSaveError(null);
+    toast.info('Saving your design...');
+    if (saveTimeoutRef.current) {
+      window.clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = window.setTimeout(() => {
+      setIsSaving(false);
+      continueAfterSaveRef.current = false;
+      autoSaveInFlightRef.current = false;
+      setSaveError("Save timed out. Please try again.");
+      toast.error('Save timed out. Please try again.');
+    }, 8000);
+    autoSaveInFlightRef.current = true;
+    lastAutoSaveAtRef.current = Date.now();
+    handleSaveDesign();
   };
 
   const handleContinue = () => {
@@ -465,21 +522,7 @@ const DesignEditorEDM = () => {
           toast.info('Finish your design before continuing.');
           return;
         }
-        continueAfterSaveRef.current = true;
-        setIsSaving(true);
-        toast.info('Saving your design...');
-        if (saveTimeoutRef.current) {
-          window.clearTimeout(saveTimeoutRef.current);
-        }
-        saveTimeoutRef.current = window.setTimeout(() => {
-          setIsSaving(false);
-          continueAfterSaveRef.current = false;
-          autoSaveInFlightRef.current = false;
-          toast.error('Save timed out. Please try again.');
-        }, 8000);
-        autoSaveInFlightRef.current = true;
-        lastAutoSaveAtRef.current = Date.now();
-        handleSaveDesign();
+        beginSave(true);
         return;
       }
       if (variantId && designId) {
@@ -492,19 +535,21 @@ const DesignEditorEDM = () => {
         toast.info('Finish your design before continuing.');
         return;
       }
-      continueAfterSaveRef.current = true;
-      setIsSaving(true);
-      toast.info('Saving your design...');
-      if (saveTimeoutRef.current) {
-        window.clearTimeout(saveTimeoutRef.current);
-      }
-      saveTimeoutRef.current = window.setTimeout(() => {
-        setIsSaving(false);
-        continueAfterSaveRef.current = false;
-        autoSaveInFlightRef.current = false;
-        toast.error('Save timed out. Please try again.');
-      }, 8000);
-      handleSaveDesign();
+      beginSave(true);
+    }
+  };
+
+  const handleRetrySave = () => {
+    beginSave(false);
+  };
+
+  const handleRetryEditor = () => {
+    setError(null);
+    setLoading(true);
+    if (window.PFDesignMaker && scriptLoadedRef.current) {
+      initializeDesignMaker();
+    } else {
+      window.location.reload();
     }
   };
 
@@ -522,35 +567,54 @@ const DesignEditorEDM = () => {
   return (
     <div className="min-h-screen bg-surface-sunken flex flex-col">
       {/* Header */}
-      <header
-        ref={headerRef}
-        className="h-14 bg-card border-b border-border flex items-center justify-between px-6 z-40 shrink-0"
-      >
-        <div className="flex items-center gap-4">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
+      {isMobile ? (
+        <header
+          ref={headerRef}
+          className="h-12 bg-card border-b border-border flex items-center justify-between px-4 z-40 shrink-0"
+        >
+          <Link
+            to="/catalog"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="text-sm font-medium">Catalog</span>
           </Link>
-          <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">
-            Editor
-          </span>
-        </div>
-        <nav className="flex items-center gap-4">
-          <ThemeToggle />
+          <div className="text-sm font-semibold text-foreground text-center max-w-[50vw] min-w-0 truncate">
+            Editor <span className="text-xs text-muted-foreground">- {variant.model}</span>
+          </div>
           <CartSheet />
-        </nav>
-      </header>
+        </header>
+      ) : (
+        <header
+          ref={headerRef}
+          className="h-14 bg-card border-b border-border flex items-center justify-between px-6 z-40 shrink-0"
+        >
+          <div className="flex items-center gap-4">
+            <Link to="/" className="flex items-center gap-2">
+              <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
+            </Link>
+            <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">
+              Editor
+            </span>
+          </div>
+          <nav className="flex items-center gap-4">
+            <ThemeToggle />
+            <CartSheet />
+          </nav>
+        </header>
+      )}
 
       {/* Product info bar */}
-      <div
-        ref={infoRef}
-        className="h-10 bg-card/50 border-b border-border flex items-center justify-center px-4 shrink-0"
-      >
-        <span className="text-sm text-muted-foreground">
-          Designing: <span className="text-foreground font-medium">{variant.brand} {variant.model}</span>
-          <span className="mx-2">•</span>
-          Printful Snap Case
-        </span>
-      </div>
+      {!isMobile && (
+        <div
+          ref={infoRef}
+          className="h-10 bg-card/50 border-b border-border flex items-center justify-center px-4 shrink-0"
+        >
+          <span className="text-sm text-muted-foreground">
+            Designing: <span className="text-foreground font-medium">{variant.brand} {variant.model}</span>
+          </span>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-0 relative">
@@ -565,12 +629,12 @@ const DesignEditorEDM = () => {
                 <Button variant="outline" onClick={() => navigate('/catalog')}>
                   Back to Catalog
                 </Button>
-                <Button onClick={() => window.location.reload()}>
+                <Button onClick={handleRetryEditor}>
                   Retry
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground pt-2">
-                Note: Printful EDM requires enterprise access. 
+                Note: The embedded design tool requires enterprise access. 
                 <a 
                   href="https://www.printful.com/enterprise/embedded-design-maker" 
                   target="_blank" 
@@ -590,7 +654,7 @@ const DesignEditorEDM = () => {
             <div className="text-center space-y-4">
               <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
               <div>
-                <p className="text-foreground font-medium">Loading Printful Design Maker</p>
+                <p className="text-foreground font-medium">Loading design editor</p>
                 <p className="text-sm text-muted-foreground">This may take a few seconds...</p>
               </div>
             </div>
@@ -611,28 +675,59 @@ const DesignEditorEDM = () => {
         </div>
 
         {/* Footer Actions */}
+        {!isMobile && (
+          <div
+            ref={footerRef}
+            className="h-12 bg-card border-t border-border flex items-center justify-between px-6 shrink-0 sticky bottom-0 z-30"
+          >
+            <div className="text-sm text-muted-foreground">
+              {saveError ? (
+                <span className="text-destructive">{saveError}</span>
+              ) : templateId ? (
+                <span className="text-success">Design saved (Template #{templateId})</span>
+              ) : (
+                <span>Design your case using our editor</span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              {saveError && (
+                <Button variant="outline" size="sm" onClick={handleRetrySave}>
+                  Retry save
+                </Button>
+              )}
+              <Button 
+                className="bg-cta hover:bg-cta/90 text-cta-foreground"
+                disabled={isSaving}
+                onClick={handleContinue}
+              >
+                {isSaving ? "Saving..." : "Continue to Preview"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+      {isMobile && (
         <div
           ref={footerRef}
-          className="h-16 bg-card border-t border-border flex items-center justify-between px-6 shrink-0"
+          className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-card via-card/90 to-transparent px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
         >
-          <div className="text-sm text-muted-foreground">
-            {templateId ? (
-              <span className="text-success">✓ Design saved (Template #{templateId})</span>
-            ) : (
-              <span>Design your case using Printful's tools</span>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <Button 
-              className="bg-cta hover:bg-cta/90 text-cta-foreground"
-              disabled={isSaving}
-              onClick={handleContinue}
-            >
-              {isSaving ? "Saving..." : "Continue to Preview"}
-            </Button>
-          </div>
+          {saveError && (
+            <div className="mb-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center justify-between">
+              <span>{saveError}</span>
+              <Button variant="outline" size="sm" onClick={handleRetrySave}>
+                Retry
+              </Button>
+            </div>
+          )}
+          <Button 
+            className="w-full bg-cta hover:bg-cta/90 text-cta-foreground h-12 text-base font-medium rounded-xl shadow-lg"
+            disabled={isSaving}
+            onClick={handleContinue}
+          >
+            {isSaving ? "Saving..." : "Continue to Preview"}
+          </Button>
         </div>
-      </div>
+      )}
     </div>
   );
 };

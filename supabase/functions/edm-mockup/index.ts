@@ -55,6 +55,32 @@ const requestSchema = z.discriminatedUnion("action", [
 
 const PRINTFUL_STORE_ID = "17088301";
 const PRINTFUL_API_BASE = "https://api.printful.com/v2";
+const STYLE_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const STYLE_CACHE_EMPTY_TTL_MS = 30 * 60 * 1000;
+const styleIdCache = new Map<string, { ids: number[]; expiresAt: number }>();
+
+function getStyleCacheKey(productId: number, variantId: number): string {
+  return `${productId}:${variantId}`;
+}
+
+function getCachedStyleIds(productId: number, variantId: number): number[] | null {
+  const key = getStyleCacheKey(productId, variantId);
+  const cached = styleIdCache.get(key);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    styleIdCache.delete(key);
+    return null;
+  }
+  return cached.ids;
+}
+
+function setCachedStyleIds(productId: number, variantId: number, ids: number[]): void {
+  const ttl = ids.length > 0 ? STYLE_CACHE_TTL_MS : STYLE_CACHE_EMPTY_TTL_MS;
+  styleIdCache.set(getStyleCacheKey(productId, variantId), {
+    ids,
+    expiresAt: Date.now() + ttl,
+  });
+}
 
 function getPrintfulHeaders(apiKey: string): HeadersInit {
   return {
@@ -335,17 +361,23 @@ serve(async (req) => {
       let resolvedMockupStyles = mockupStyleIds;
 
       if ((!resolvedMockupStyles || resolvedMockupStyles.length === 0) && productId) {
-        const stylesResponse = await fetch(`${PRINTFUL_API_BASE}/catalog-products/${productId}/mockup-styles`, {
-          headers: getPrintfulHeaders(apiKey),
-        });
-        const stylesPayload = await stylesResponse.json();
-
-        if (stylesResponse.ok) {
-          const styles = extractMockupStyles(stylesPayload);
-          const styleIds = pickPreferredStyleIds(styles, variantId);
-          resolvedMockupStyles = styleIds.length > 0 ? styleIds : undefined;
+        const cached = getCachedStyleIds(productId, variantId);
+        if (cached) {
+          resolvedMockupStyles = cached.length > 0 ? cached : undefined;
         } else {
-          console.error("[EDM-MOCKUP] Failed to fetch mockup styles", stylesPayload);
+          const stylesResponse = await fetch(`${PRINTFUL_API_BASE}/catalog-products/${productId}/mockup-styles`, {
+            headers: getPrintfulHeaders(apiKey),
+          });
+          const stylesPayload = await stylesResponse.json();
+
+          if (stylesResponse.ok) {
+            const styles = extractMockupStyles(stylesPayload);
+            const styleIds = pickPreferredStyleIds(styles, variantId);
+            setCachedStyleIds(productId, variantId, styleIds);
+            resolvedMockupStyles = styleIds.length > 0 ? styleIds : undefined;
+          } else {
+            console.error("[EDM-MOCKUP] Failed to fetch mockup styles", stylesPayload);
+          }
         }
       }
 
