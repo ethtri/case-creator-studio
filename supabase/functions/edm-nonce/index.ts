@@ -3,12 +3,34 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 const ALLOWED_ORIGINS = [
   "https://snapcase.ai",
   "https://www.snapcase.ai",
+  "https://snapcaseappv2.vercel.app",
 ];
+
+const VERCEL_PROJECT_PREFIXES = ["snapcaseappv2"];
+
+function isAllowedOrigin(origin: string): boolean {
+  if (!origin) {
+    return false;
+  }
+
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    return true;
+  }
+
+  if (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1")) {
+    return true;
+  }
+
+  if (origin.endsWith(".vercel.app")) {
+    return VERCEL_PROJECT_PREFIXES.some((prefix) => origin.includes(prefix));
+  }
+
+  return false;
+}
 
 function getCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("origin") || "";
-  const isLocalhost = origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1");
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) || isLocalhost ? origin : ALLOWED_ORIGINS[0];
+  const allowedOrigin = isAllowedOrigin(origin) ? origin : ALLOWED_ORIGINS[0];
 
   return {
     "Access-Control-Allow-Origin": allowedOrigin,

@@ -8,22 +8,22 @@ Single place to track cutover from Lovable to owned infra.
 Vercel + Supabase is the canonical production pipeline. Lovable is optional only.
 
 ## Vercel
-- [ ] Project created and linked to this repo
-- [ ] `VITE_SUPABASE_URL` set in Vercel
-- [ ] `VITE_SUPABASE_PUBLISHABLE_KEY` set in Vercel
-- [ ] Production deploy succeeds
+- [x] Project created and linked to this repo
+- [x] `VITE_SUPABASE_URL` set in Vercel
+- [x] `VITE_SUPABASE_PUBLISHABLE_KEY` set in Vercel
+- [x] Production deploy succeeds
 - [ ] Preview deploys succeed
 
 ## Supabase (Edge Functions + CORS)
-- [ ] Functions deployed (`edm-nonce`, `edm-mockup`, `submit-printful-order`, any others)
-- [ ] CORS allowlist includes Vercel domain
+- [x] Functions deployed (`edm-nonce`, `edm-mockup`, `create-checkout`, `lookup-orders`, `verify-payment`, `submit-printful-order`, any others)
+- [x] CORS allowlist includes Vercel domain
 - [ ] Service role key configured for functions
 - [ ] Printful API key configured for functions
 - [ ] Stripe secret key configured for functions
 
 ## Domain (Optional)
-- [ ] Custom domain connected in Vercel
-- [ ] Domain added to Supabase CORS
+- [x] Custom domain connected in Vercel
+- [x] Domain added to Supabase CORS
 
 ## Validation
 - [ ] Run `Docs/QA_SMOKE_TEST_CHECKLIST.md`
@@ -31,4 +31,4 @@ Vercel + Supabase is the canonical production pipeline. Lovable is optional only
 
 ## Cutover Decision
 - [ ] Disable Lovable publish or stop using it for deploys
-- [ ] Production traffic pointed to Vercel URL
+- [x] Production traffic pointed to Vercel URL
