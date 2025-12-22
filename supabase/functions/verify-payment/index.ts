@@ -102,12 +102,35 @@ serve(async (req) => {
 
     const paymentIntent = session.payment_intent as Stripe.PaymentIntent;
 
+    const updateData: Record<string, unknown> = {
+      status: "paid",
+      stripe_payment_intent_id: paymentIntent?.id,
+    };
+
+    const shippingDetails = session.shipping_details;
+    const customerDetails = session.customer_details;
+    const shippingAddress = shippingDetails?.address;
+
+    if (shippingDetails?.name) {
+      updateData.customer_name = shippingDetails.name;
+    } else if (customerDetails?.name) {
+      updateData.customer_name = customerDetails.name;
+    }
+
+    if (shippingAddress && (shippingAddress.line1 || shippingAddress.city || shippingAddress.postal_code)) {
+      const addressLine = [shippingAddress.line1, shippingAddress.line2].filter(Boolean).join(" ");
+      updateData.shipping_address = {
+        address: addressLine,
+        city: shippingAddress.city ?? "",
+        state: shippingAddress.state ?? "",
+        zip: shippingAddress.postal_code ?? "",
+        country: shippingAddress.country ?? "",
+      };
+    }
+
     const { data: order, error: updateError } = await supabaseClient
       .from("orders")
-      .update({
-        status: "paid",
-        stripe_payment_intent_id: paymentIntent?.id,
-      })
+      .update(updateData)
       .eq("stripe_session_id", sessionId)
       .select()
       .single();

@@ -18,16 +18,7 @@ const Checkout = () => {
   const [variant, setVariant] = useState<PhoneVariant | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const [formData, setFormData] = useState({
-    email: "",
-    firstName: "",
-    lastName: "",
-    address: "",
-    city: "",
-    state: "",
-    zip: "",
-    country: "United States",
-  });
+  const [email, setEmail] = useState("");
 
   useEffect(() => {
     const foundVariant = getVariantById(variantId || "");
@@ -35,13 +26,6 @@ const Checkout = () => {
       setVariant(foundVariant);
     }
   }, [variantId]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,15 +54,7 @@ const Checkout = () => {
       const { data, error } = await supabase.functions.invoke("create-checkout", {
         body: {
           items: cartItems,
-          customerEmail: formData.email,
-          customerName: `${formData.firstName} ${formData.lastName}`,
-          shippingAddress: {
-            address: formData.address,
-            city: formData.city,
-            state: formData.state,
-            zip: formData.zip,
-            country: formData.country,
-          },
+          customerEmail: email,
         },
       });
 
@@ -159,104 +135,22 @@ const Checkout = () => {
               >
                 {/* Contact */}
                 <div className="bg-card rounded-2xl p-6 shadow-soft">
-                  <h2 className="text-lg font-semibold mb-4">Contact Information</h2>
+                  <h2 className="text-lg font-semibold mb-4">Contact Email</h2>
                   <div>
                     <Label htmlFor="email">Email</Label>
                     <Input
                       id="email"
-                      name="email"
                       type="email"
                       required
-                      value={formData.email}
-                      onChange={handleInputChange}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@example.com"
                       className="mt-1"
                     />
                   </div>
-                </div>
-
-                {/* Shipping */}
-                <div className="bg-card rounded-2xl p-6 shadow-soft">
-                  <h2 className="text-lg font-semibold mb-4">Shipping Address</h2>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="firstName">First Name</Label>
-                      <Input
-                        id="firstName"
-                        name="firstName"
-                        required
-                        value={formData.firstName}
-                        onChange={handleInputChange}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input
-                        id="lastName"
-                        name="lastName"
-                        required
-                        value={formData.lastName}
-                        onChange={handleInputChange}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <Label htmlFor="address">Address</Label>
-                      <Input
-                        id="address"
-                        name="address"
-                        required
-                        value={formData.address}
-                        onChange={handleInputChange}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="city">City</Label>
-                      <Input
-                        id="city"
-                        name="city"
-                        required
-                        value={formData.city}
-                        onChange={handleInputChange}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="state">State</Label>
-                      <Input
-                        id="state"
-                        name="state"
-                        required
-                        value={formData.state}
-                        onChange={handleInputChange}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="zip">ZIP Code</Label>
-                      <Input
-                        id="zip"
-                        name="zip"
-                        required
-                        value={formData.zip}
-                        onChange={handleInputChange}
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="country">Country</Label>
-                      <Input
-                        id="country"
-                        name="country"
-                        value={formData.country}
-                        onChange={handleInputChange}
-                        className="mt-1"
-                        disabled
-                      />
-                    </div>
-                  </div>
+                  <p className="text-xs text-muted-foreground mt-3">
+                    Shipping details will be collected securely in Stripe checkout.
+                  </p>
                 </div>
 
                 {/* Payment info */}

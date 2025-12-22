@@ -1,11 +1,9 @@
 # Backlog
 
 ## High Priority
-- [ ] Pricing/Stripe alignment - ensure EDM pricing and checkout totals match.
 - [ ] Remove Printful references from UI copy - replace with Snapcase-first wording.
 - [ ] EDM error handling + fallback UX - user-friendly error state and retry, no broken flow.
 - [ ] Production allowlist sanity check - confirm Monday launch domains are whitelisted for EDM.
-- [ ] QA smoke test checklist - designer load, save template, preview, checkout, order submission.
 - [ ] Pre-MVP pricing rationalization - include shipping costs; consider dynamic pricing based on costs to target ~20% margin for MVP.
 
 ## Medium Priority
@@ -22,6 +20,8 @@
 - [ ] Post-MVP catalog thumbnails - replace generic phone images with standardized, higher-quality variant-specific icons; evaluate licensed library or generate assets with gen AI.
 
 ## Completed
+- [x] Pricing/Stripe alignment - ensure EDM pricing and checkout totals match.
+- [x] QA smoke test checklist - designer load, save template, preview, checkout, order submission.
 - [x] EDM preview uses Printful mockup tasks with product_template source and variant-specific mockup styles.
 - [x] EDM preview no longer shows blank cases; surfaced Printful failure reasons in UI.
 - [x] Preview caches and serves front mockups reliably; hides 3D controls when no angled mockup exists.

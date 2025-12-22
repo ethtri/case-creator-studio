@@ -65,23 +65,13 @@ const itemSchema = z.object({
   designId: z.string().max(100).nullable().optional(),
 });
 
-const addressSchema = z.object({
-  address: z.string().min(1).max(200),
-  city: z.string().min(1).max(100),
-  state: z.string().min(1).max(50),
-  zip: z.string().min(1).max(20),
-  country: z.string().min(1).max(50),
-});
-
 const checkoutRequestSchema = z.object({
   items: z.array(itemSchema).min(1).max(50),
   customerEmail: z.string().email().max(255),
-  customerName: z.string().min(1).max(100),
-  shippingAddress: addressSchema,
 });
 
 // Server-side pricing - single source of truth
-const PRODUCT_PRICE = 24.99;
+const PRODUCT_PRICE = 29.99;
 const SHIPPING_COST = 4.99;
 
 serve(async (req) => {
@@ -101,17 +91,23 @@ serve(async (req) => {
       throw new Error("Invalid order data");
     }
     
-    const { items, customerEmail, customerName, shippingAddress } = validationResult.data;
+    const { items: requestItems, customerEmail } = validationResult.data;
 
     console.log("[CREATE-CHECKOUT] Processing checkout for:", customerEmail);
-    console.log("[CREATE-CHECKOUT] Items count:", items.length);
+    console.log("[CREATE-CHECKOUT] Items count:", requestItems.length);
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
     });
 
-    // Calculate totals using SERVER-SIDE pricing (ignore client prices)
-    const subtotal = items.reduce((sum, item) => sum + PRODUCT_PRICE * item.quantity, 0);
+    // Normalize items using server-side pricing
+    const items = requestItems.map((item) => ({
+      ...item,
+      price: PRODUCT_PRICE,
+    }));
+
+    // Calculate totals using server-side pricing
+    const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const total = subtotal + SHIPPING_COST;
 
     // Create line items for Stripe using server-side pricing
@@ -125,7 +121,7 @@ serve(async (req) => {
             variantId: item.variantId,
           },
         },
-        unit_amount: Math.round(PRODUCT_PRICE * 100), // Convert to cents - use server price
+        unit_amount: Math.round(item.price * 100), // Convert to cents - use server price
       },
       quantity: item.quantity,
     }));
@@ -164,14 +160,14 @@ serve(async (req) => {
       success_url: `${origin}/order-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/checkout`,
       shipping_address_collection: {
-        allowed_countries: ["US", "CA", "GB", "AU"],
+        allowed_countries: ["US"],
       },
       metadata: {
-        customerName,
         itemsJson: JSON.stringify(items.map(i => ({
           variantId: i.variantId,
           brand: i.brand,
           model: i.model,
+          price: i.price,
           quantity: i.quantity,
           designPreview: i.designPreview,
           edmTemplateId: i.edmTemplateId ?? null,
@@ -189,8 +185,6 @@ serve(async (req) => {
     const { error: orderError } = await supabaseClient.from("orders").insert({
       stripe_session_id: session.id,
       customer_email: customerEmail,
-      customer_name: customerName,
-      shipping_address: shippingAddress,
       items: items,
       subtotal: subtotal,
       shipping_cost: SHIPPING_COST,

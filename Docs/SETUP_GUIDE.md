@@ -55,6 +55,7 @@ bun install
    
    # Stripe
    STRIPE_SECRET_KEY=your_stripe_secret_key
+   STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret
    ```
 
 3. **Get API Keys**:
