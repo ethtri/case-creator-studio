@@ -16,7 +16,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css,md}\"",
     "clean": "rm -rf dist node_modules/.vite",
     "audit": "npm audit",
-    "audit:fix": "npm audit fix"
+    "audit:fix": "npm audit fix",
+    "sync:status": "node scripts/sync-current-status.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

@@ -1,35 +1,23 @@
 # QA Smoke Test Checklist
 
-Purpose: quick end-to-end validation of the editor → preview → cart → checkout → order flow.
+Goal: validate the editor → preview → cart → checkout → order flow fast.
 
 ## Prerequisites
-- Valid Stripe test keys configured in `.env` for checkout.
-- Supabase project accessible (functions deployed or local).
-- Printful API key configured for order submission.
+- Stripe test keys in `.env`
+- Supabase reachable (functions deployed or local)
+- Printful API key configured (for submission)
 
-## Test Steps
-1. Open the app and navigate to the editor.
-2. Create a simple design and continue to preview.
-3. Verify the preview renders and shows the selected device variant.
-4. Add the item to cart from preview.
-5. Open the cart and confirm:
-   - Item name matches the selected variant.
-   - Unit price shows `$29.99`.
-   - Quantity controls update totals.
-6. Proceed to checkout.
-7. Fill contact + shipping details and submit checkout.
-8. In Stripe Checkout, verify:
-   - Line items show $29.99 per case.
-   - Shipping line item shows $4.99.
-   - Total matches subtotal + shipping.
-9. Complete payment (test mode).
-10. Confirm order success page shows the correct total.
-11. Verify order record in Supabase:
-    - `subtotal` is `29.99 * quantity`.
-    - `shipping_cost` is `4.99`.
-    - `total` matches subtotal + shipping.
-12. (Optional) Submit order to Printful and confirm status transitions.
+## Steps (10 minutes)
+1. Open editor, create a simple design, continue to preview.
+2. Verify preview renders and matches the selected variant.
+3. Add to cart; confirm name + unit price + quantity changes.
+4. Checkout with test shipping details.
+5. In Stripe, verify line items + shipping + total.
+6. Complete payment in test mode.
+7. Confirm success page totals.
+8. Verify Supabase order record totals.
+9. (Optional) Submit to Printful; confirm status transitions.
 
-## Expected Results
-- Pricing is consistent across catalog, cart, checkout, Stripe, and order records.
-- No errors or regressions in the editor → preview → checkout flow.
+## Expected
+- Pricing consistent across cart, Stripe, and order records.
+- No errors or regressions in editor → preview → checkout.

@@ -1,40 +1,20 @@
 # Backlog
 
-## High Priority
+Short, prioritized list only. Use P0/P1/P2. Move done items to git history.
+
+## P0 (MVP Launch)
 - [ ] Remove Printful references from UI copy - replace with Snapcase-first wording.
 - [ ] EDM error handling + fallback UX - user-friendly error state and retry, no broken flow.
-- [ ] Production allowlist sanity check - confirm Monday launch domains are whitelisted for EDM.
-- [ ] Pre-MVP pricing rationalization - include shipping costs; consider dynamic pricing based on costs to target ~20% margin for MVP.
+- [ ] Production allowlist sanity check - confirm launch domains are whitelisted for EDM.
+- [ ] Pre-MVP pricing rationalization - include shipping costs; target ~20% margin for MVP.
 
-## Medium Priority
+## P1 (Post-Launch Soon)
 - [ ] EDM preview debug badge/log - surface when EDM templateId is missing on preview.
-
-## Low Priority
-- [ ] EDM performance tuning - speed up save/preview transitions for smoother UX (mockup generation latency).
-- [ ] Post-MVP logging polish - audit/remove remaining production debug logs across EDM + preview flows.
 - [ ] Cache Printful mockup style IDs per product/variant to reduce API chatter.
 
-## Ideas / Future
-- [ ] Explore 3D mockups for newer variants that only expose a single front style in Printful.
-- [ ] Post-MVP accounts - add login to let users save designs to their account and view design history.
-- [ ] Post-MVP catalog thumbnails - replace generic phone images with standardized, higher-quality variant-specific icons; evaluate licensed library or generate assets with gen AI.
-
-## Completed
-- [x] Pricing/Stripe alignment - ensure EDM pricing and checkout totals match.
-- [x] QA smoke test checklist - designer load, save template, preview, checkout, order submission.
-- [x] EDM preview uses Printful mockup tasks with product_template source and variant-specific mockup styles.
-- [x] EDM preview no longer shows blank cases; surfaced Printful failure reasons in UI.
-- [x] Preview caches and serves front mockups reliably; hides 3D controls when no angled mockup exists.
-- [x] Prewarm EDM mockup task on template save for faster preview load.
-- [x] Gate EDM debug logs to dev-only.
-- [x] Preview retry control to re-generate mockups when Printful fails or times out.
-- [x] Printful rate-limit handling with user-friendly messaging.
-- [x] EDM-first flow - make EDM the primary editor path; archive/stash Fabric.js editor.
-- [x] EDM save flow - remove "Save design" button and auto-save on "Continue to preview" (current Save is broken).
-- [x] Capture EDM templateId + selected variant in session - ensure checkout/order uses EDM state.
-- [x] EDM design persistence - returning to EDM shows blank design; persist template across visits.
-- [x] EDM continue-to-preview regression - button no longer navigates to preview; investigate save callback flow.
-
-## Moved to Sprint
-- [x] [Description] - Sprint [N] on [Date]
-
+## P2 (Later)
+- [ ] EDM performance tuning - speed up save/preview transitions (mockup latency).
+- [ ] Post-MVP logging polish - audit/remove remaining production debug logs across EDM + preview flows.
+- [ ] Explore 3D mockups for variants with only a single front style.
+- [ ] Accounts - login to save designs and view history.
+- [ ] Catalog thumbnails - replace generic images with standardized variant icons.
