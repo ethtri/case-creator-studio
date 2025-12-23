@@ -48,8 +48,8 @@ const Contact = () => {
               <h2 className="text-xl font-semibold text-foreground mb-3">Email support</h2>
               <p>
                 Email us at{" "}
-                <a href="mailto:support@snapcase.ai" className="text-foreground underline">
-                  support@snapcase.ai
+                <a href="mailto:Support@bloomjoysweets.com" className="text-foreground underline">
+                  Support@bloomjoysweets.com
                 </a>
                 . Include your order number for the fastest response.
               </p>

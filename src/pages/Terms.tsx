@@ -91,8 +91,8 @@ const Terms = () => {
               <h2 className="text-xl font-semibold text-foreground mb-3">Contact</h2>
               <p>
                 Questions about these terms? Reach us at{" "}
-                <a href="mailto:support@snapcase.ai" className="text-foreground underline">
-                  support@snapcase.ai
+                <a href="mailto:Support@bloomjoysweets.com" className="text-foreground underline">
+                  Support@bloomjoysweets.com
                 </a>
                 .
               </p>
