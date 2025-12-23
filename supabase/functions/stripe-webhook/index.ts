@@ -130,7 +130,32 @@ serve(async (req) => {
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
   if (order?.id && supabaseUrl && serviceRoleKey) {
-    if (!updateData.shipping_address) {
+    const shipping = order.shipping_address as any;
+    const hasShipping = Boolean(
+      shipping?.address &&
+        shipping?.city &&
+        shipping?.zip &&
+        shipping?.country &&
+        shipping?.state
+    );
+
+    if (!order.printful_order_id) {
+      if (hasShipping && (!order.printful_status || order.printful_status === "needs_shipping")) {
+        await supabaseClient
+          .from("orders")
+          .update({ printful_status: "pending", printful_last_error: null })
+          .eq("id", order.id);
+      }
+
+      if (!hasShipping && !order.printful_status) {
+        await supabaseClient
+          .from("orders")
+          .update({ printful_status: "needs_shipping", printful_last_error: "Missing shipping address" })
+          .eq("id", order.id);
+      }
+    }
+
+    if (!hasShipping) {
       console.warn("[STRIPE-WEBHOOK] Missing shipping address; skipping Printful submission.");
       return new Response("OK", { status: 200 });
     }

@@ -21,7 +21,12 @@ export type Database = {
           customer_name: string | null
           id: string
           items: Json
+          printful_attempts: number
+          printful_last_attempt_at: string | null
+          printful_last_error: string | null
+          printful_next_attempt_at: string | null
           printful_order_id: string | null
+          printful_refund_id: string | null
           printful_status: string | null
           shipping_address: Json | null
           shipping_cost: number
@@ -38,7 +43,12 @@ export type Database = {
           customer_name?: string | null
           id?: string
           items: Json
+          printful_attempts?: number
+          printful_last_attempt_at?: string | null
+          printful_last_error?: string | null
+          printful_next_attempt_at?: string | null
           printful_order_id?: string | null
+          printful_refund_id?: string | null
           printful_status?: string | null
           shipping_address?: Json | null
           shipping_cost?: number
@@ -55,7 +65,12 @@ export type Database = {
           customer_name?: string | null
           id?: string
           items?: Json
+          printful_attempts?: number
+          printful_last_attempt_at?: string | null
+          printful_last_error?: string | null
+          printful_next_attempt_at?: string | null
           printful_order_id?: string | null
+          printful_refund_id?: string | null
           printful_status?: string | null
           shipping_address?: Json | null
           shipping_cost?: number

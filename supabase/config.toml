@@ -12,6 +12,9 @@ verify_jwt = false
 [functions.submit-printful-order]
 verify_jwt = false
 
+[functions.printful-retry]
+verify_jwt = true
+
 [functions.edm-nonce]
 verify_jwt = false
 
