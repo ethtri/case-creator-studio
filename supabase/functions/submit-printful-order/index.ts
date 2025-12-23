@@ -58,10 +58,11 @@ function getSafeErrorMessage(error: unknown): string {
 // Printful Store ID: 17088301 (Snapcase)
 const PRINTFUL_STORE_ID = "17088301";
 const PRINTFUL_API_BASE = "https://api.printful.com/v2";
-const PRINTFUL_DEFAULT_TECHNIQUE = "uv_print";
+const PRINTFUL_DEFAULT_TECHNIQUE = "sublimation";
 const MAX_PRINTFUL_ATTEMPTS = 4;
 const PRINTFUL_RETRY_DELAY_MS = 5 * 60 * 1000;
 const variantConfigCache = new Map<number, { placement: string; technique: string }>();
+const productConfigCache = new Map<number, { placements: string[]; techniques: string[] }>();
 
 function getPrintfulHeaders(apiKey: string): HeadersInit {
   return {
@@ -100,6 +101,35 @@ function pickPreferredValue(values: string[], preferred: string[]): string | nul
     if (matchIndex >= 0) return values[matchIndex];
   }
   return values[0] ?? null;
+}
+
+async function getProductConfig(productId: number, apiKey: string): Promise<{ placements: string[]; techniques: string[] }> {
+  const cached = productConfigCache.get(productId);
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(`${PRINTFUL_API_BASE}/catalog-products/${productId}`, {
+      headers: getPrintfulHeaders(apiKey),
+    });
+
+    if (!response.ok) {
+      const fallback = { placements: [], techniques: [] };
+      productConfigCache.set(productId, fallback);
+      return fallback;
+    }
+
+    const payload = await response.json();
+    const data = payload?.result ?? payload?.data ?? payload ?? {};
+    const placements = extractStringList(data?.placements ?? data?.placement_types ?? data?.placement);
+    const techniques = extractStringList(data?.techniques ?? data?.technique_keys ?? data?.technique);
+    const resolved = { placements, techniques };
+    productConfigCache.set(productId, resolved);
+    return resolved;
+  } catch {
+    const fallback = { placements: [], techniques: [] };
+    productConfigCache.set(productId, fallback);
+    return fallback;
+  }
 }
 
 function normalizeCountryCode(value: string | null | undefined): string {
@@ -141,13 +171,19 @@ async function getVariantConfig(catalogVariantId: number, apiKey: string): Promi
 
     const payload = await response.json();
     const data = payload?.result ?? payload?.data ?? payload ?? {};
-    const placements = extractStringList(
+    let placements = extractStringList(
       data?.placements ?? data?.placement_types ?? data?.placement ?? data?.placement_dimensions
     );
-    const techniques = extractStringList(data?.techniques ?? data?.technique_keys ?? data?.technique);
+    let techniques = extractStringList(data?.techniques ?? data?.technique_keys ?? data?.technique);
 
-    const placement = pickPreferredValue(placements, ["front", "outside", "back"]) ?? "front";
-    const technique = pickPreferredValue(techniques, [PRINTFUL_DEFAULT_TECHNIQUE, "sublimation"]) ?? PRINTFUL_DEFAULT_TECHNIQUE;
+    if ((placements.length === 0 || techniques.length === 0) && typeof data?.catalog_product_id === "number") {
+      const productConfig = await getProductConfig(data.catalog_product_id, apiKey);
+      if (placements.length === 0) placements = productConfig.placements;
+      if (techniques.length === 0) techniques = productConfig.techniques;
+    }
+
+    const placement = pickPreferredValue(placements, ["front", "outside", "back", "default"]) ?? "front";
+    const technique = pickPreferredValue(techniques, [PRINTFUL_DEFAULT_TECHNIQUE, "uv_print"]) ?? PRINTFUL_DEFAULT_TECHNIQUE;
     const resolved = { placement, technique };
     variantConfigCache.set(catalogVariantId, resolved);
     return resolved;
