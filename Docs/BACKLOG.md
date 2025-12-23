@@ -9,8 +9,9 @@ Short, prioritized list only. Use P0/P1/P2. Move done items to git history.
 - [x] Pre-MVP pricing rationalization - include shipping costs; target ~20% margin for MVP.
 - [x] Designer mobile UX optimization - maximize EDM editor space by removing redundant text, make "Continue to preview" easier to access (floating footer/button), add a clear back-to-catalog button if the user picked the wrong case type.
 - [x] Orders missing shipping address in Supabase after Stripe checkout - update Stripe session parsing (shipping_details + collected_information + customer_details).
-- [ ] Verify automatic Printful submission after Stripe webhook (no manual trigger) - confirm new paid orders move to processing and record printful_order_id + printful_status.
+- [ ] Fix automatic Printful submission after Stripe webhook (no manual trigger) - ensure checkout.session.completed invokes submit-printful-order, writes printful_order_id/printful_status, and transitions status to processing.
 - [ ] Confirm Printful orders auto-confirm (not draft) after adding confirm=true - run live checkout and verify status in Printful + Supabase.
+- [ ] Add Printful failure guardrails - retry submission (3 attempts over ~15 minutes) and auto-refund in Stripe if all retries fail; mark order status failed + store last_error.
 - [ ] Clean up test artifacts - refund live Stripe test charges and cancel or archive draft Printful orders created during validation.
 
 ## P1 (Post-Launch Soon)
