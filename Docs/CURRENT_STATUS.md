@@ -11,27 +11,20 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - None listed. Update if anything is actively blocked.
 
 ## Top 3 Next Tasks
-1. P0: Verify automatic Printful submission after Stripe webhook (no manual trigger).
-2. P0: Confirm auto-confirmed Printful orders (not drafts) after confirm=true.
-3. P0: Clean up test artifacts (refund Stripe live tests, cancel draft Printful orders).
+1. P0: Fix automatic Printful submission after Stripe webhook (no manual trigger) - ensure checkout.session.completed invokes submit-printful-order, writes printful_order_id/printful_status, and transitions status to processing.
+2. P0: Confirm Printful orders auto-confirm (not draft) after adding confirm=true - run live checkout and verify status in Printful + Supabase.
+3. P0: Clean up test artifacts - refund live Stripe test charges and cancel or archive draft Printful orders created during validation.
 
 ## Now / Next / Later
 **Now**
-- P0: Verify automatic Printful submission after Stripe webhook (no manual trigger).
+- P0: Fix automatic Printful submission after Stripe webhook (no manual trigger) - ensure checkout.session.completed invokes submit-printful-order, writes printful_order_id/printful_status, and transitions status to processing.
 
 **Next**
-- P0: Confirm auto-confirmed Printful orders (not drafts) after confirm=true.
-- P0: Clean up test artifacts (refund Stripe live tests, cancel draft Printful orders).
+- P0: Confirm Printful orders auto-confirm (not draft) after adding confirm=true - run live checkout and verify status in Printful + Supabase.
+- P0: Clean up test artifacts - refund live Stripe test charges and cancel or archive draft Printful orders created during validation.
 
 **Later**
-- P2: Explore 3D mockups for variants with only a single front style.
-- P2: Accounts - login to save designs and view history.
-- P2: Catalog thumbnails - replace generic images with standardized variant icons.
-
-## Recent Completed
-- Stripe live checkout now captures shipping address in Supabase orders.
-- Stripe webhook + Printful v2 payload updates deployed; Printful order creation succeeds.
-- Printful auto-confirm enabled for new orders.
+- None
 
 ## Notes
 - Use `Docs/BACKLOG.md` for priorities.

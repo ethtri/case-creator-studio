@@ -433,13 +433,6 @@ const DesignEditorEDM = () => {
     container.style.setProperty("min-height", designerHeight ? `${designerHeight}px` : "100%", "important");
     container.style.setProperty("width", "100%", "important");
 
-    const children = container.querySelectorAll("*");
-    children.forEach((child) => {
-      const element = child as HTMLElement;
-      element.style.setProperty("height", "100%", "important");
-      element.style.setProperty("width", "100%", "important");
-    });
-
     const iframe = container.querySelector("iframe");
     if (iframe) {
       iframe.setAttribute("width", "100%");
