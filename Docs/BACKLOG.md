@@ -1,6 +1,6 @@
 # Backlog
 
-Short, prioritized list only. Use P0/P1/P2. Move done items to git history.
+Short, prioritized list only. Use P0/P1/P2. Remove completed items after verification to keep it short.
 
 ## P0 (MVP Launch)
 - [x] Remove Printful references from UI copy - replace with Snapcase-first wording.
@@ -11,7 +11,8 @@ Short, prioritized list only. Use P0/P1/P2. Move done items to git history.
 - [x] Orders missing shipping address in Supabase after Stripe checkout - update Stripe session parsing (shipping_details + collected_information + customer_details).
 - [ ] Fix automatic Printful submission after Stripe webhook (no manual trigger) - ensure checkout.session.completed invokes submit-printful-order, writes printful_order_id/printful_status, and transitions status to processing.
 - [ ] Confirm Printful orders auto-confirm (not draft) after adding confirm=true - run live checkout and verify status in Printful + Supabase.
-- [ ] Add Printful failure guardrails - retry submission (3 attempts over ~15 minutes) and auto-refund in Stripe if all retries fail; mark order status failed + store last_error.
+- [x] Add Printful failure guardrails - retry submission (initial + 3 retries over ~15 minutes) and auto-refund in Stripe if all retries fail; mark order status failed + store last_error.
+- [x] Schedule `printful-retry` cron (*/5) in Supabase.
 - [ ] Clean up test artifacts - refund live Stripe test charges and cancel or archive draft Printful orders created during validation.
 
 ## P1 (Post-Launch Soon)

@@ -69,6 +69,7 @@ Vercel should auto-detect your Vite setup, but verify these settings:
 **Install Command:**
 - Should show: `npm install` ✅
 - If not, type: `npm install`
+Note: Vercel uses `npm install`; for local verification use `npm ci` (see `AGENTS.md`).
 
 **Click "Continue" or "Next"** (don't deploy yet!)
 
@@ -170,7 +171,7 @@ For now, you can test if everything works. If you see CORS errors in the browser
 
 **Good news:** Once set up, Vercel automatically:
 
-- ✅ **Deploys on every push** to `main` branch → Production
+- ✅ **Deploys on every merge** to `main` (via PRs; direct pushes are not allowed, see `AGENTS.md`) → Production
 - ✅ **Creates preview URLs** for every pull request
 - ✅ **Redeploys** when you push new commits
 
@@ -239,4 +240,5 @@ After setup, verify:
 Once these steps are complete, your app will be live and automatically update on every code push!
 
 **Need help?** Just ask me (Cursor AI) and I'll guide you through any step!
+
 

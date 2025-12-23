@@ -1,11 +1,11 @@
 # Deployment Status (Vercel + Supabase)
 
-Single place to track cutover from Lovable to owned infra.
+Single place to track production readiness and cutover.
 
 **Last updated:** 2025-12-23
 
 ## Goal
-Vercel + Supabase is the canonical production pipeline. Lovable is optional only.
+Vercel + Supabase is the canonical production pipeline.
 
 ## Vercel
 - [x] Project created and linked to this repo
@@ -15,7 +15,8 @@ Vercel + Supabase is the canonical production pipeline. Lovable is optional only
 - [ ] Preview deploys succeed
 
 ## Supabase (Edge Functions + CORS)
-- [x] Functions deployed (`edm-nonce`, `edm-mockup`, `create-checkout`, `lookup-orders`, `verify-payment`, `submit-printful-order`, any others)
+- [x] Functions deployed (`edm-nonce`, `edm-mockup`, `create-checkout`, `lookup-orders`, `verify-payment`, `submit-printful-order`, `printful-retry`)
+- [x] `printful-retry` scheduled (cron `*/5 * * * *`)
 - [x] CORS allowlist includes Vercel domain
 - [x] Service role key configured for functions
 - [x] Printful API key configured for functions
@@ -31,5 +32,4 @@ Vercel + Supabase is the canonical production pipeline. Lovable is optional only
 - [ ] No critical errors in Vercel/Supabase logs during test
 
 ## Cutover Decision
-- [ ] Disable Lovable publish or stop using it for deploys
 - [x] Production traffic pointed to Vercel URL
