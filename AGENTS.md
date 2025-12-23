@@ -27,27 +27,22 @@
 - Expand scope beyond `Docs/MVP_SCOPE.md`.
 
 ## Definition of Done (task)
-Done means: code change + docs updated (if P0) + verification run + PR opened (cloud) or ready to PR (local).
+Done means: code change + docs updated (if P0) + verification run + PR opened.
 
 ## Version control protocol (must follow)
 
 ### Never
 - Never commit or push directly to `main`.
 
-### Local mode (Codex CLI / IDE in Cursor)
-- Assume a branch already exists and is checked out.
-- Do NOT create branches.
-- Make changes and commit to the current branch.
-- Leave the worktree clean (no uncommitted changes).
-
-### Cloud/GitHub mode (Codex mobile/cloud or PR-based work)
-- Create a new branch for the task.
-- Open a PR into `main`.
+### Unified workflow (all agents)
+- Always create a new branch for the task.
 - Branch naming: `agent/<short-task-slug>`.
+- Open a PR into `main` for every change, even for local work.
+- Run verification on the PR branch; local testing happens by checking out that branch.
 
 ### PR requirements (always)
 - PR description includes:
-  - Summary (1–3 bullets)
+  - Summary (1-3 bullets)
   - Files changed
   - Verification commands + results:
     - npm ci
