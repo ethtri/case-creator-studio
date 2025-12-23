@@ -141,13 +141,25 @@ const Preview = () => {
     const previewVersion = resolvedDesignId
       ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "previewVersion"))
       : sessionStorage.getItem("designPreviewVersion");
+    const previewDirtyAtRaw = resolvedDesignId
+      ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "previewDirtyAt"))
+      : null;
+    const previewGeneratedAtRaw = resolvedDesignId
+      ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "previewGeneratedAt"))
+      : sessionStorage.getItem("designPreviewGeneratedAt");
+    const previewDirtyAt = previewDirtyAtRaw ? Number(previewDirtyAtRaw) : null;
+    const previewGeneratedAt = previewGeneratedAtRaw ? Number(previewGeneratedAtRaw) : null;
     const previewIsFresh = previewVersion === EDM_PREVIEW_CACHE_VERSION;
-    const preview = previewIsFresh
+    const previewIsCurrent =
+      previewIsFresh &&
+      previewRetryNonce === 0 &&
+      (!previewDirtyAt || (previewGeneratedAt !== null && previewGeneratedAt >= previewDirtyAt));
+    const preview = previewIsCurrent
       ? resolvedDesignId
         ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "preview"))
         : sessionStorage.getItem("designPreview")
       : null;
-    const previewAngled = previewIsFresh
+    const previewAngled = previewIsCurrent
       ? resolvedDesignId
         ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "previewAngled"))
         : sessionStorage.getItem("designPreviewAngled")
@@ -164,6 +176,19 @@ const Preview = () => {
     
     const parsedTemplateId = storedTemplateId ? Number(storedTemplateId) : null;
     const resolvedTemplateId = Number.isNaN(parsedTemplateId) ? null : parsedTemplateId;
+
+    if (!previewIsCurrent) {
+      const designPreviewKey = resolvedDesignId ? buildDesignKey(resolvedDesignId, "preview") : null;
+      const designPreviewAngledKey = resolvedDesignId ? buildDesignKey(resolvedDesignId, "previewAngled") : null;
+      if (designPreviewKey) {
+        sessionStorage.removeItem(designPreviewKey);
+      }
+      if (designPreviewAngledKey) {
+        sessionStorage.removeItem(designPreviewAngledKey);
+      }
+      sessionStorage.removeItem("designPreview");
+      sessionStorage.removeItem("designPreviewAngled");
+    }
 
     if (preview && storedVariant === variantId) {
       setDesignPreview(preview);
@@ -182,7 +207,7 @@ const Preview = () => {
       // No design, redirect back to editor
       navigate(editorPath);
     }
-  }, [variantId, navigate, searchParams, editorPath]);
+  }, [variantId, navigate, searchParams, editorPath, previewRetryNonce]);
 
   useEffect(() => {
     if (!designId || edmTemplateId || hasLoggedMissingTemplateRef.current) return;
@@ -202,7 +227,18 @@ const Preview = () => {
     const previewVersion = designId
       ? sessionStorage.getItem(buildDesignKey(designId, "previewVersion"))
       : sessionStorage.getItem("designPreviewVersion");
-    const previewIsFresh = previewVersion === EDM_PREVIEW_CACHE_VERSION && previewRetryNonce === 0;
+    const previewDirtyAtRaw = designId
+      ? sessionStorage.getItem(buildDesignKey(designId, "previewDirtyAt"))
+      : null;
+    const previewGeneratedAtRaw = designId
+      ? sessionStorage.getItem(buildDesignKey(designId, "previewGeneratedAt"))
+      : sessionStorage.getItem("designPreviewGeneratedAt");
+    const previewDirtyAt = previewDirtyAtRaw ? Number(previewDirtyAtRaw) : null;
+    const previewGeneratedAt = previewGeneratedAtRaw ? Number(previewGeneratedAtRaw) : null;
+    const previewIsFresh =
+      previewVersion === EDM_PREVIEW_CACHE_VERSION &&
+      previewRetryNonce === 0 &&
+      (!previewDirtyAt || (previewGeneratedAt !== null && previewGeneratedAt >= previewDirtyAt));
     const cachedPreview = previewIsFresh
       ? designPreviewKey
         ? sessionStorage.getItem(designPreviewKey)
@@ -256,8 +292,8 @@ const Preview = () => {
         }
 
         const maxAttempts = 15;
-        const baseDelayMs = 800;
-        const maxDelayMs = 2000;
+        const baseDelayMs = 550;
+        const maxDelayMs = 1800;
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
           if (cancelled) return;
           const { data, error, response } = await supabase.functions.invoke("edm-mockup", {
@@ -290,12 +326,15 @@ const Preview = () => {
               sessionStorage.setItem(designPreviewKey, mockupUrl);
               sessionStorage.setItem(buildDesignKey(designId, "previewKind"), "mockup");
               sessionStorage.setItem(buildDesignKey(designId, "previewVersion"), EDM_PREVIEW_CACHE_VERSION);
+              sessionStorage.setItem(buildDesignKey(designId, "previewGeneratedAt"), Date.now().toString());
+              sessionStorage.removeItem(buildDesignKey(designId, "previewDirtyAt"));
               if (designPreviewAngledKey && mockupUrlAngled && mockupUrlAngled !== mockupUrl) {
                 sessionStorage.setItem(designPreviewAngledKey, mockupUrlAngled);
               }
             }
             sessionStorage.setItem("designPreviewKind", "mockup");
             sessionStorage.setItem("designPreviewVersion", EDM_PREVIEW_CACHE_VERSION);
+            sessionStorage.setItem("designPreviewGeneratedAt", Date.now().toString());
             setDesignPreview(mockupUrl);
             if (mockupUrlAngled && mockupUrlAngled !== mockupUrl) {
               setDesignPreviewAngled(mockupUrlAngled);
@@ -383,17 +422,26 @@ const Preview = () => {
     const taskKey = `edmMockupTask_${EDM_PREVIEW_CACHE_VERSION}_${edmTemplateId}_${variant.printfulVariantId}`;
     const designPreviewKey = designId ? buildDesignKey(designId, "preview") : null;
     const designPreviewAngledKey = designId ? buildDesignKey(designId, "previewAngled") : null;
+    const designPreviewDirtyKey = designId ? buildDesignKey(designId, "previewDirtyAt") : null;
+    const designPreviewGeneratedKey = designId ? buildDesignKey(designId, "previewGeneratedAt") : null;
 
     sessionStorage.removeItem(cacheKey);
     sessionStorage.removeItem(cacheKeyAngled);
     sessionStorage.removeItem(taskKey);
     sessionStorage.removeItem("designPreview");
     sessionStorage.removeItem("designPreviewAngled");
+    sessionStorage.removeItem("designPreviewGeneratedAt");
     if (designPreviewKey) {
       sessionStorage.removeItem(designPreviewKey);
     }
     if (designPreviewAngledKey) {
       sessionStorage.removeItem(designPreviewAngledKey);
+    }
+    if (designPreviewDirtyKey) {
+      sessionStorage.removeItem(designPreviewDirtyKey);
+    }
+    if (designPreviewGeneratedKey) {
+      sessionStorage.removeItem(designPreviewGeneratedKey);
     }
 
     setEdmPreviewError(null);

@@ -159,7 +159,7 @@ const DesignEditorEDM = () => {
     setDesignId(nextDesignId);
     sessionStorage.setItem("edmDesign:last", nextDesignId);
     sessionStorage.setItem(buildDesignKey(nextDesignId, "variantId"), variantId);
-  }, [variantId, searchParams, setSearchParams]);
+  }, [variantId, searchParams, setSearchParams, buildDesignKey]);
 
   useEffect(() => {
     templateIdRef.current = null;
@@ -167,9 +167,9 @@ const DesignEditorEDM = () => {
     autoSaveInFlightRef.current = false;
   }, [designId]);
 
-  const buildDesignKey = (id: string, suffix: string) => `edmDesign:${id}:${suffix}`;
+  const buildDesignKey = useCallback((id: string, suffix: string) => `edmDesign:${id}:${suffix}`, []);
 
-  const getOrCreateExternalProductId = (id: string) => {
+  const getOrCreateExternalProductId = useCallback((id: string) => {
     const key = buildDesignKey(id, "externalProductId");
     const existing = sessionStorage.getItem(key);
     if (existing) {
@@ -178,14 +178,14 @@ const DesignEditorEDM = () => {
     const created = `snapcase-${id}-${Date.now()}`;
     sessionStorage.setItem(key, created);
     return created;
-  };
+  }, [buildDesignKey]);
 
-  const getStoredTemplateId = (id: string) => {
+  const getStoredTemplateId = useCallback((id: string) => {
     const raw = sessionStorage.getItem(buildDesignKey(id, "templateId"));
     if (!raw) return null;
     const parsed = Number(raw);
     return Number.isNaN(parsed) ? null : parsed;
-  };
+  }, [buildDesignKey]);
 
   const generateDesignId = () => {
     if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -193,6 +193,43 @@ const DesignEditorEDM = () => {
     }
     return `design-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   };
+
+  const clearPreviewCache = useCallback((includeGlobalKeys = false) => {
+    if (!designId) return;
+
+    const designPreviewKey = buildDesignKey(designId, "preview");
+    const designPreviewAngledKey = buildDesignKey(designId, "previewAngled");
+    const designPreviewKindKey = buildDesignKey(designId, "previewKind");
+    const designPreviewVersionKey = buildDesignKey(designId, "previewVersion");
+    const designPreviewDirtyKey = buildDesignKey(designId, "previewDirtyAt");
+    const designPreviewGeneratedKey = buildDesignKey(designId, "previewGeneratedAt");
+
+    sessionStorage.removeItem(designPreviewKey);
+    sessionStorage.removeItem(designPreviewAngledKey);
+    sessionStorage.removeItem(designPreviewKindKey);
+    sessionStorage.removeItem(designPreviewVersionKey);
+    sessionStorage.removeItem(designPreviewGeneratedKey);
+
+    const now = Date.now();
+    sessionStorage.setItem(designPreviewDirtyKey, now.toString());
+
+    if (includeGlobalKeys) {
+      sessionStorage.removeItem("designPreview");
+      sessionStorage.removeItem("designPreviewAngled");
+      sessionStorage.removeItem("designPreviewKind");
+      sessionStorage.removeItem("designPreviewVersion");
+      sessionStorage.removeItem("designPreviewGeneratedAt");
+    }
+
+    if (templateIdRef.current && variant) {
+      const cacheKey = `edmPreview_${EDM_PREVIEW_CACHE_VERSION}_${templateIdRef.current}_${variant.printfulVariantId}`;
+      const cacheKeyAngled = `${cacheKey}_angled`;
+      const taskKey = `edmMockupTask_${EDM_PREVIEW_CACHE_VERSION}_${templateIdRef.current}_${variant.printfulVariantId}`;
+      sessionStorage.removeItem(cacheKey);
+      sessionStorage.removeItem(cacheKeyAngled);
+      sessionStorage.removeItem(taskKey);
+    }
+  }, [buildDesignKey, designId, variant]);
 
   // Load the Printful embed.js script
   useEffect(() => {
@@ -324,6 +361,9 @@ const DesignEditorEDM = () => {
           } else if (!templateIdRef.current && status.hasDesign) {
             hasUnsavedChangesRef.current = true;
           }
+          if (hasChanges) {
+            clearPreviewCache(true);
+          }
           designValidRef.current = isValid;
           if (hasChanges && isValid && !autoSaveInFlightRef.current && canAutoSave) {
             autoSaveInFlightRef.current = true;
@@ -351,7 +391,17 @@ const DesignEditorEDM = () => {
       setError(err instanceof Error ? err.message : 'Failed to initialize design maker');
       setLoading(false);
     }
-  }, [variant, variantId, designId, navigate]);
+  }, [
+    variant,
+    variantId,
+    designId,
+    navigate,
+    clearPreviewCache,
+    getOrCreateExternalProductId,
+    getStoredTemplateId,
+    prewarmEdmPreview,
+    buildDesignKey,
+  ]);
 
   const updateDesignerHeight = useCallback(() => {
     const headerHeight = headerRef.current?.offsetHeight ?? 0;
