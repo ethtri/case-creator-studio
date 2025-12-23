@@ -108,6 +108,7 @@ const Preview = () => {
   const [addedToCart, setAddedToCart] = useState(false);
   const [designId, setDesignId] = useState<string | null>(null);
   const [previewRetryNonce, setPreviewRetryNonce] = useState(0);
+  const autoRetryRef = useRef<{ timer: number | null; count: number }>({ timer: null, count: 0 });
   const { addToCart } = useCart();
   const EDM_PREVIEW_CACHE_VERSION = "v4";
   const isDev = import.meta.env.DEV;
@@ -280,7 +281,14 @@ const Preview = () => {
           if (error) {
             const detail = await extractFunctionErrorMessage(error, response);
             const resetHeader = response?.headers?.get("x-ratelimit-reset") ?? data?.rateLimitReset ?? null;
-            throw new Error(formatEdmPreviewError(detail, resetHeader) || "Mockup request failed");
+            const resetSeconds = resetHeader ? Number(resetHeader) : null;
+            const err = new Error(formatEdmPreviewError(detail, resetHeader) || "Mockup request failed");
+            if (detail?.toLowerCase().includes("rate limit") || detail?.toLowerCase().includes("too many requests")) {
+              (err as { rateLimitResetSeconds?: number | null }).rateLimitResetSeconds = Number.isFinite(resetSeconds)
+                ? resetSeconds
+                : null;
+            }
+            throw err;
           }
 
           taskId = data?.taskId;
@@ -306,7 +314,14 @@ const Preview = () => {
           if (error) {
             const detail = await extractFunctionErrorMessage(error, response);
             const resetHeader = response?.headers?.get("x-ratelimit-reset") ?? data?.rateLimitReset ?? null;
-            throw new Error(formatEdmPreviewError(detail, resetHeader) || "Mockup request failed");
+            const resetSeconds = resetHeader ? Number(resetHeader) : null;
+            const err = new Error(formatEdmPreviewError(detail, resetHeader) || "Mockup request failed");
+            if (detail?.toLowerCase().includes("rate limit") || detail?.toLowerCase().includes("too many requests")) {
+              (err as { rateLimitResetSeconds?: number | null }).rateLimitResetSeconds = Number.isFinite(resetSeconds)
+                ? resetSeconds
+                : null;
+            }
+            throw err;
           }
 
           const status = data?.status;
@@ -340,6 +355,7 @@ const Preview = () => {
               setDesignPreviewAngled(mockupUrlAngled);
             }
             setPreviewKind("mockup");
+            autoRetryRef.current.count = 0;
             setEdmPreviewLoading(false);
             return;
           }
@@ -348,7 +364,9 @@ const Preview = () => {
             sessionStorage.removeItem(taskKey);
             const failureMessage = failureReasons[0];
             if (failureMessage && failureMessage.toLowerCase().includes("rate limit")) {
-              throw new Error("Preview service is busy. Please try again in a moment.");
+              const err = new Error("Preview service is busy. Please try again in a moment.");
+              (err as { rateLimitResetSeconds?: number | null }).rateLimitResetSeconds = 2;
+              throw err;
             }
             throw new Error(failureMessage || "Mockup generation failed");
           }
@@ -357,7 +375,9 @@ const Preview = () => {
             sessionStorage.removeItem(taskKey);
             const failureMessage = failureReasons[0];
             if (failureMessage && failureMessage.toLowerCase().includes("rate limit")) {
-              throw new Error("Preview service is busy. Please try again in a moment.");
+              const err = new Error("Preview service is busy. Please try again in a moment.");
+              (err as { rateLimitResetSeconds?: number | null }).rateLimitResetSeconds = 2;
+              throw err;
             }
             throw new Error(failureMessage || "Mockup completed without an image");
           }
@@ -372,6 +392,24 @@ const Preview = () => {
         if (cancelled) return;
         const rawMessage = err instanceof Error ? err.message : "";
         const message = rawMessage ? rawMessage : "Failed to generate preview";
+        const rateLimitResetSeconds = (err as { rateLimitResetSeconds?: number | null }).rateLimitResetSeconds ?? null;
+        const isRateLimit =
+          Boolean(rateLimitResetSeconds) ||
+          message.toLowerCase().includes("preview service is busy") ||
+          message.toLowerCase().includes("rate limit");
+        if (isRateLimit && autoRetryRef.current.count < 3) {
+          autoRetryRef.current.count += 1;
+          const delayMs = Math.min(8000, Math.max(1500, (rateLimitResetSeconds ?? 2) * 1000));
+          setEdmPreviewError(`Preview service is busy. Retrying in ~${Math.ceil(delayMs / 1000)}s.`);
+          if (autoRetryRef.current.timer) {
+            window.clearTimeout(autoRetryRef.current.timer);
+          }
+          autoRetryRef.current.timer = window.setTimeout(() => {
+            setPreviewRetryNonce((value) => value + 1);
+          }, delayMs);
+          return;
+        }
+        autoRetryRef.current.count = 0;
         setEdmPreviewError(message);
       } finally {
         if (!cancelled) {
@@ -384,6 +422,10 @@ const Preview = () => {
 
     return () => {
       cancelled = true;
+      if (autoRetryRef.current.timer) {
+        window.clearTimeout(autoRetryRef.current.timer);
+        autoRetryRef.current.timer = null;
+      }
     };
   }, [variant, edmTemplateId, designId, previewRetryNonce]);
 
@@ -448,6 +490,11 @@ const Preview = () => {
     setPreviewKind("design");
     setDesignPreview(null);
     setDesignPreviewAngled(null);
+    autoRetryRef.current.count = 0;
+    if (autoRetryRef.current.timer) {
+      window.clearTimeout(autoRetryRef.current.timer);
+      autoRetryRef.current.timer = null;
+    }
     setPreviewRetryNonce((value) => value + 1);
   };
 
