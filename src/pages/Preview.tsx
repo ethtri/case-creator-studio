@@ -488,8 +488,6 @@ const Preview = () => {
 
     setEdmPreviewError(null);
     setPreviewKind("design");
-    setDesignPreview(null);
-    setDesignPreviewAngled(null);
     autoRetryRef.current.count = 0;
     if (autoRetryRef.current.timer) {
       window.clearTimeout(autoRetryRef.current.timer);
@@ -508,7 +506,7 @@ const Preview = () => {
   const showPreviewLoader = edmPreviewLoading;
   const showViewControls =
     !showPreviewLoader &&
-    !edmPreviewError &&
+    (!edmPreviewError || Boolean(designPreview)) &&
     !(previewKind === "mockup" && !angledAvailable);
   const showMissingTemplateBadge = !!designId && !edmTemplateId;
 
@@ -662,7 +660,11 @@ const Preview = () => {
                 {edmPreviewLoading && "Generating EDM preview..."}
                 {edmPreviewError && (
                   <div className="space-y-2">
-                    <div>{`EDM preview unavailable: ${edmPreviewError}`}</div>
+                    <div>
+                      {designPreview
+                        ? "Updating preview..."
+                        : `EDM preview unavailable: ${edmPreviewError}`}
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"
