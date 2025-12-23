@@ -506,7 +506,10 @@ const Preview = () => {
   const angledAvailable =
     previewKind !== "mockup" || (!!designPreviewAngled && designPreviewAngled !== designPreview);
   const showPreviewLoader = edmPreviewLoading;
-  const showViewControls = !showPreviewLoader && !(previewKind === "mockup" && !angledAvailable);
+  const showViewControls =
+    !showPreviewLoader &&
+    !edmPreviewError &&
+    !(previewKind === "mockup" && !angledAvailable);
   const showMissingTemplateBadge = !!designId && !edmTemplateId;
 
   useEffect(() => {
