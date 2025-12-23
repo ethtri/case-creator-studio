@@ -110,6 +110,7 @@ const Preview = () => {
   const [designId, setDesignId] = useState<string | null>(null);
   const [previewRetryNonce, setPreviewRetryNonce] = useState(0);
   const autoRetryRef = useRef<{ timer: number | null; count: number }>({ timer: null, count: 0 });
+  const autoRetryInFlightRef = useRef(false);
   const previewErrorTimerRef = useRef<number | null>(null);
   const { addToCart } = useCart();
   const EDM_PREVIEW_CACHE_VERSION = "v4";
@@ -265,6 +266,7 @@ const Preview = () => {
       setEdmPreviewLoading(true);
       setEdmPreviewError(null);
       setShowPreviewError(false);
+      autoRetryInFlightRef.current = false;
       if (previewErrorTimerRef.current) {
         window.clearTimeout(previewErrorTimerRef.current);
         previewErrorTimerRef.current = null;
@@ -363,6 +365,7 @@ const Preview = () => {
             }
             setPreviewKind("mockup");
             autoRetryRef.current.count = 0;
+            autoRetryInFlightRef.current = false;
             setEdmPreviewLoading(false);
             return;
           }
@@ -406,6 +409,7 @@ const Preview = () => {
           message.toLowerCase().includes("rate limit");
         if (isRateLimit && autoRetryRef.current.count < 3) {
           autoRetryRef.current.count += 1;
+          autoRetryInFlightRef.current = true;
           const delayMs = Math.min(8000, Math.max(1500, (rateLimitResetSeconds ?? 2) * 1000));
           setEdmPreviewError(`Preview service is busy. Retrying in ~${Math.ceil(delayMs / 1000)}s.`);
           if (autoRetryRef.current.timer) {
@@ -417,12 +421,13 @@ const Preview = () => {
           return;
         }
         autoRetryRef.current.count = 0;
+        autoRetryInFlightRef.current = false;
         setEdmPreviewError(message);
         previewErrorTimerRef.current = window.setTimeout(() => {
           setShowPreviewError(true);
-        }, 6000);
+        }, 30000);
       } finally {
-        if (!cancelled) {
+        if (!cancelled && !autoRetryInFlightRef.current) {
           setEdmPreviewLoading(false);
         }
       }
