@@ -344,10 +344,11 @@ const DesignEditorEDM = () => {
           sessionStorage.setItem(buildDesignKey(designId, "variantId"), variantId);
           sessionStorage.setItem("edmDesign:last", designId);
           clearPreviewCache(true);
-          void prewarmEdmPreview(id);
           if (continueAfterSaveRef.current) {
             continueAfterSaveRef.current = false;
             navigate(`/preview/${variantId}?designId=${designId}`);
+          } else {
+            void prewarmEdmPreview(id);
           }
         },
         onDesignStatusUpdate: (status) => {
@@ -418,8 +419,9 @@ const DesignEditorEDM = () => {
     const infoHeight = infoRef.current?.offsetHeight ?? 0;
     const footerHeight = footerRef.current?.offsetHeight ?? 0;
     const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-    const buffer = isMobile ? 16 : 0;
-    const available = viewportHeight - headerHeight - infoHeight - footerHeight - buffer;
+    const footerOffset = isMobile ? 0 : footerHeight;
+    const buffer = isMobile ? 8 : 0;
+    const available = viewportHeight - headerHeight - infoHeight - footerOffset - buffer;
     setDesignerHeight(Math.max(available, 200));
   }, [isMobile]);
 
@@ -588,6 +590,11 @@ const DesignEditorEDM = () => {
   };
 
   const handleContinue = () => {
+    if (isSaving || autoSaveInFlightRef.current) {
+      continueAfterSaveRef.current = true;
+      toast.info('Saving your latest changes...');
+      return;
+    }
     if (templateId) {
       if (designValidRef.current === false) {
         toast.info('Finish your design before continuing.');
