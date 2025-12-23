@@ -204,6 +204,31 @@ serve(async (req) => {
       console.log("[VERIFY-PAYMENT] Order updated to paid:", order?.id);
     }
 
+    if (order?.id && !order.printful_order_id) {
+      const shipping = order.shipping_address as any;
+      const hasShipping = Boolean(
+        shipping?.address &&
+          shipping?.city &&
+          shipping?.zip &&
+          shipping?.country &&
+          shipping?.state
+      );
+
+      if (hasShipping && (!order.printful_status || order.printful_status === "needs_shipping")) {
+        await supabaseClient
+          .from("orders")
+          .update({ printful_status: "pending", printful_last_error: null })
+          .eq("id", order.id);
+      }
+
+      if (!hasShipping && !order.printful_status) {
+        await supabaseClient
+          .from("orders")
+          .update({ printful_status: "needs_shipping", printful_last_error: "Missing shipping address" })
+          .eq("id", order.id);
+      }
+    }
+
     return new Response(JSON.stringify({ 
       success: true,
       order: order,

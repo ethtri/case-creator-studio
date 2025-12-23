@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
@@ -37,6 +38,9 @@ function getSafeErrorMessage(error: unknown): string {
   if (errorMessage.includes("Order must be paid")) {
     return "Order cannot be processed at this time";
   }
+  if (errorMessage.toLowerCase().includes("shipping address")) {
+    return "Shipping address is required to fulfill this order.";
+  }
   if (errorMessage.includes("Unknown variant")) {
     return "One or more items could not be fulfilled. Our team has been notified.";
   }
@@ -54,7 +58,9 @@ function getSafeErrorMessage(error: unknown): string {
 // Printful Store ID: 17088301 (Snapcase)
 const PRINTFUL_STORE_ID = "17088301";
 const PRINTFUL_API_BASE = "https://api.printful.com/v2";
-const PRINTFUL_DEFAULT_TECHNIQUE = "sublimation";
+const PRINTFUL_DEFAULT_TECHNIQUE = "uv_print";
+const MAX_PRINTFUL_ATTEMPTS = 4;
+const PRINTFUL_RETRY_DELAY_MS = 5 * 60 * 1000;
 const variantConfigCache = new Map<number, { placement: string; technique: string }>();
 
 function getPrintfulHeaders(apiKey: string): HeadersInit {
@@ -96,6 +102,28 @@ function pickPreferredValue(values: string[], preferred: string[]): string | nul
   return values[0] ?? null;
 }
 
+function normalizeCountryCode(value: string | null | undefined): string {
+  if (!value) return "US";
+  const trimmed = value.trim();
+  if (trimmed.length === 2) {
+    return trimmed.toUpperCase();
+  }
+  if (trimmed.toLowerCase() === "united states") {
+    return "US";
+  }
+  return trimmed;
+}
+
+function hasRequiredShippingFields(shippingAddress: any): boolean {
+  return Boolean(
+    shippingAddress?.address &&
+      shippingAddress?.city &&
+      shippingAddress?.zip &&
+      shippingAddress?.country &&
+      shippingAddress?.state
+  );
+}
+
 async function getVariantConfig(catalogVariantId: number, apiKey: string): Promise<{ placement: string; technique: string }> {
   const cached = variantConfigCache.get(catalogVariantId);
   if (cached) return cached;
@@ -106,7 +134,7 @@ async function getVariantConfig(catalogVariantId: number, apiKey: string): Promi
     });
 
     if (!response.ok) {
-      const fallback = { placement: "default", technique: PRINTFUL_DEFAULT_TECHNIQUE };
+      const fallback = { placement: "front", technique: PRINTFUL_DEFAULT_TECHNIQUE };
       variantConfigCache.set(catalogVariantId, fallback);
       return fallback;
     }
@@ -116,13 +144,13 @@ async function getVariantConfig(catalogVariantId: number, apiKey: string): Promi
     const placements = extractStringList(data?.placements ?? data?.placement_types ?? data?.placement);
     const techniques = extractStringList(data?.techniques ?? data?.technique_keys ?? data?.technique);
 
-    const placement = pickPreferredValue(placements, ["front", "outside", "default"]) ?? "default";
+    const placement = pickPreferredValue(placements, ["front", "outside", "back"]) ?? "front";
     const technique = pickPreferredValue(techniques, [PRINTFUL_DEFAULT_TECHNIQUE, "sublimation"]) ?? PRINTFUL_DEFAULT_TECHNIQUE;
     const resolved = { placement, technique };
     variantConfigCache.set(catalogVariantId, resolved);
     return resolved;
   } catch {
-    const fallback = { placement: "default", technique: PRINTFUL_DEFAULT_TECHNIQUE };
+    const fallback = { placement: "front", technique: PRINTFUL_DEFAULT_TECHNIQUE };
     variantConfigCache.set(catalogVariantId, fallback);
     return fallback;
   }
@@ -177,6 +205,11 @@ serve(async (req) => {
   
   // No CORS headers for this endpoint since it shouldn't be called from browsers
 
+  let supabaseClient: ReturnType<typeof createClient> | null = null;
+  let order: any | null = null;
+  let orderId: string | null = null;
+  let attemptNumber: number | null = null;
+
   try {
     const rawBody = await req.json();
     
@@ -187,25 +220,27 @@ serve(async (req) => {
       throw new Error("Order ID is required");
     }
     
-    const { orderId } = validationResult.data;
+    orderId = validationResult.data.orderId;
 
     console.log("[SUBMIT-PRINTFUL] Processing order:", orderId);
 
-    const supabaseClient = createClient(
+    supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
     // Get order from database
-    const { data: order, error: orderError } = await supabaseClient
+    const { data: orderData, error: orderError } = await supabaseClient
       .from("orders")
       .select("*")
       .eq("id", orderId)
       .single();
 
-    if (orderError || !order) {
+    if (orderError || !orderData) {
       throw new Error("Order not found");
     }
+
+    order = orderData;
 
     if (order.status !== "paid") {
       throw new Error("Order must be paid before submitting to Printful");
@@ -222,19 +257,65 @@ serve(async (req) => {
       });
     }
 
+    const shippingAddress = order.shipping_address as any;
+    if (!hasRequiredShippingFields(shippingAddress)) {
+      await supabaseClient
+        .from("orders")
+        .update({
+          printful_status: "needs_shipping",
+          printful_last_error: "Missing shipping address",
+          printful_next_attempt_at: null,
+        })
+        .eq("id", orderId);
+      throw new Error("Missing shipping address");
+    }
+
+    if (order.printful_attempts >= MAX_PRINTFUL_ATTEMPTS) {
+      attemptNumber = order.printful_attempts ?? MAX_PRINTFUL_ATTEMPTS;
+      throw new Error("Order fulfillment retries exhausted");
+    }
+
+    attemptNumber = (order.printful_attempts ?? 0) + 1;
+    const attemptTimestamp = new Date().toISOString();
+    let claimQuery = supabaseClient
+      .from("orders")
+      .update({
+        printful_status: "submitting",
+        printful_attempts: attemptNumber,
+        printful_last_attempt_at: attemptTimestamp,
+        printful_next_attempt_at: null,
+        printful_last_error: null,
+      })
+      .eq("id", orderId)
+      .is("printful_order_id", null);
+
+    if (order.printful_status) {
+      claimQuery = claimQuery.eq("printful_status", order.printful_status);
+    } else {
+      claimQuery = claimQuery.is("printful_status", null);
+    }
+
+    const { data: claimedRows, error: claimError } = await claimQuery.select("id");
+    if (claimError || !claimedRows || claimedRows.length === 0) {
+      console.warn("[SUBMIT-PRINTFUL] Order already processing or state changed:", orderId);
+      return new Response(JSON.stringify({ success: true, message: "Order already processing" }), {
+        headers: { "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
     const printfulApiKey = Deno.env.get("PRINTFUL_API_KEY");
     if (!printfulApiKey) {
       throw new Error("Printful integration error");
     }
 
     // Build Printful order
-    const shippingAddress = order.shipping_address as any;
     const recipient: PrintfulRecipient = {
       name: order.customer_name || "Customer",
       address1: shippingAddress?.address || "",
       city: shippingAddress?.city || "",
       state_code: shippingAddress?.state || "",
-      country_code: shippingAddress?.country === "United States" ? "US" : shippingAddress?.country || "US",
+      country_code: normalizeCountryCode(shippingAddress?.country),
       zip: shippingAddress?.zip || "",
       email: order.customer_email,
     };
@@ -288,8 +369,9 @@ serve(async (req) => {
     const printfulData = await printfulResponse.json();
 
     if (!printfulResponse.ok) {
+      const errorDetail = printfulData?.error?.message ?? printfulData?.error ?? printfulData?.message ?? "Printful API error";
       console.error("[SUBMIT-PRINTFUL] Printful API error:", printfulData);
-      throw new Error("Printful API error");
+      throw new Error(`Printful API error: ${errorDetail}`);
     }
 
     const printfulResult = printfulData?.result ?? printfulData?.data ?? printfulData;
@@ -306,6 +388,8 @@ serve(async (req) => {
           printful_order_id: String(printfulOrderId),
           printful_status: printfulStatus ?? "submitted",
           status: "processing",
+          printful_next_attempt_at: null,
+          printful_last_error: null,
         })
         .eq("id", orderId);
     } else {
@@ -319,6 +403,42 @@ serve(async (req) => {
       status: 200,
     });
   } catch (error: unknown) {
+    if (supabaseClient && orderId && attemptNumber !== null) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const maxAttemptsReached = attemptNumber >= MAX_PRINTFUL_ATTEMPTS;
+      const nextAttemptAt = maxAttemptsReached
+        ? null
+        : new Date(Date.now() + PRINTFUL_RETRY_DELAY_MS).toISOString();
+
+      const updatePayload: Record<string, unknown> = {
+        printful_status: maxAttemptsReached ? "failed" : "retry",
+        printful_last_error: errorMessage,
+        printful_next_attempt_at: nextAttemptAt,
+      };
+
+      if (maxAttemptsReached) {
+        updatePayload.status = "failed";
+
+        try {
+          if (order?.stripe_payment_intent_id && !order?.printful_refund_id) {
+            const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+              apiVersion: "2025-08-27.basil",
+            });
+            const refund = await stripe.refunds.create({
+              payment_intent: order.stripe_payment_intent_id,
+              reason: "failed",
+            });
+            updatePayload.printful_refund_id = refund.id;
+          }
+        } catch (refundError) {
+          const refundMessage = refundError instanceof Error ? refundError.message : String(refundError);
+          updatePayload.printful_last_error = `${errorMessage}; Refund failed: ${refundMessage}`;
+        }
+      }
+
+      await supabaseClient.from("orders").update(updatePayload).eq("id", orderId);
+    }
+
     const safeMessage = getSafeErrorMessage(error);
     return new Response(JSON.stringify({ error: safeMessage }), {
       headers: { "Content-Type": "application/json" },
