@@ -2,6 +2,47 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
+type ShippingDetails = {
+  name?: string | null;
+  address?: {
+    line1?: string | null;
+    line2?: string | null;
+    city?: string | null;
+    state?: string | null;
+    postal_code?: string | null;
+    country?: string | null;
+  } | null;
+};
+
+const extractShippingDetails = (session: Stripe.Checkout.Session): ShippingDetails | null => {
+  const direct = session.shipping_details;
+  if (direct?.address) {
+    return direct;
+  }
+
+  const collected = session.collected_information?.shipping_details as ShippingDetails | null | undefined;
+  if (collected?.address) {
+    return collected;
+  }
+
+  const customerAddress = session.customer_details?.address;
+  if (customerAddress) {
+    return {
+      name: session.customer_details?.name ?? null,
+      address: {
+        line1: customerAddress.line1 ?? null,
+        line2: customerAddress.line2 ?? null,
+        city: customerAddress.city ?? null,
+        state: customerAddress.state ?? null,
+        postal_code: customerAddress.postal_code ?? null,
+        country: customerAddress.country ?? null,
+      },
+    };
+  }
+
+  return null;
+};
+
 serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -47,9 +88,9 @@ serve(async (req) => {
   );
 
   const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
-  const shippingDetails = session.shipping_details;
+  const shippingDetails = extractShippingDetails(session);
   const customerDetails = session.customer_details;
-  const shippingAddress = shippingDetails?.address;
+  const shippingAddress = shippingDetails?.address ?? null;
 
   const updateData: Record<string, unknown> = {
     status: "paid",

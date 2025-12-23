@@ -53,6 +53,80 @@ function getSafeErrorMessage(error: unknown): string {
 
 // Printful Store ID: 17088301 (Snapcase)
 const PRINTFUL_STORE_ID = "17088301";
+const PRINTFUL_API_BASE = "https://api.printful.com/v2";
+const PRINTFUL_DEFAULT_TECHNIQUE = "sublimation";
+const variantConfigCache = new Map<number, { placement: string; technique: string }>();
+
+function getPrintfulHeaders(apiKey: string): HeadersInit {
+  return {
+    "Authorization": `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+    "X-PF-Store-ID": PRINTFUL_STORE_ID,
+  };
+}
+
+function extractStringList(value: unknown): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) {
+    return value
+      .map((entry) => {
+        if (typeof entry === "string") return entry;
+        if (entry && typeof entry === "object") {
+          const candidate = (entry as any).placement ?? (entry as any).name ?? (entry as any).key ?? null;
+          return typeof candidate === "string" ? candidate : null;
+        }
+        return null;
+      })
+      .filter((entry): entry is string => Boolean(entry));
+  }
+  if (value && typeof value === "object") {
+    const candidate = (value as any).placement ?? (value as any).name ?? (value as any).key ?? null;
+    return typeof candidate === "string" ? [candidate] : [];
+  }
+  if (typeof value === "string") return [value];
+  return [];
+}
+
+function pickPreferredValue(values: string[], preferred: string[]): string | null {
+  const normalized = values.map((value) => value.toLowerCase());
+  for (const option of preferred) {
+    const matchIndex = normalized.indexOf(option.toLowerCase());
+    if (matchIndex >= 0) return values[matchIndex];
+  }
+  return values[0] ?? null;
+}
+
+async function getVariantConfig(catalogVariantId: number, apiKey: string): Promise<{ placement: string; technique: string }> {
+  const cached = variantConfigCache.get(catalogVariantId);
+  if (cached) return cached;
+
+  try {
+    const response = await fetch(`${PRINTFUL_API_BASE}/catalog-variants/${catalogVariantId}`, {
+      headers: getPrintfulHeaders(apiKey),
+    });
+
+    if (!response.ok) {
+      const fallback = { placement: "default", technique: PRINTFUL_DEFAULT_TECHNIQUE };
+      variantConfigCache.set(catalogVariantId, fallback);
+      return fallback;
+    }
+
+    const payload = await response.json();
+    const data = payload?.result ?? payload?.data ?? payload ?? {};
+    const placements = extractStringList(data?.placements ?? data?.placement_types ?? data?.placement);
+    const techniques = extractStringList(data?.techniques ?? data?.technique_keys ?? data?.technique);
+
+    const placement = pickPreferredValue(placements, ["front", "outside", "default"]) ?? "default";
+    const technique = pickPreferredValue(techniques, [PRINTFUL_DEFAULT_TECHNIQUE, "sublimation"]) ?? PRINTFUL_DEFAULT_TECHNIQUE;
+    const resolved = { placement, technique };
+    variantConfigCache.set(catalogVariantId, resolved);
+    return resolved;
+  } catch {
+    const fallback = { placement: "default", technique: PRINTFUL_DEFAULT_TECHNIQUE };
+    variantConfigCache.set(catalogVariantId, fallback);
+    return fallback;
+  }
+}
 
 // Printful variant mapping - verified against Printful API v2-beta
 const PRINTFUL_VARIANT_MAP: Record<string, number> = {
@@ -165,38 +239,44 @@ serve(async (req) => {
       email: order.customer_email,
     };
 
-    // Map cart items to Printful items
-    const items = (order.items as any[]).map((item) => {
-      const variantId = PRINTFUL_VARIANT_MAP[item.variantId];
-      if (!variantId) {
+    // Map cart items to Printful order_items (v2)
+    const orderItems = await Promise.all((order.items as any[]).map(async (item) => {
+      const catalogVariantId = PRINTFUL_VARIANT_MAP[item.variantId];
+      if (!catalogVariantId) {
         console.error("[SUBMIT-PRINTFUL] Unknown variant:", item.variantId);
         throw new Error("Unknown variant ID");
       }
+      const variantConfig = await getVariantConfig(catalogVariantId, printfulApiKey);
       return {
-        variant_id: variantId,
+        source: "catalog",
+        catalog_variant_id: catalogVariantId,
         quantity: item.quantity,
-        files: [
+        placements: [
           {
-            type: "default",
-            url: item.designPreview,
+            placement: variantConfig.placement,
+            technique: variantConfig.technique,
+            layers: [
+              {
+                type: "file",
+                url: item.designPreview,
+              },
+            ],
           },
         ],
       };
-    });
+    }));
 
     console.log("[SUBMIT-PRINTFUL] Submitting to Printful store:", PRINTFUL_STORE_ID);
-    console.log("[SUBMIT-PRINTFUL] Items count:", items.length);
+    console.log("[SUBMIT-PRINTFUL] Items count:", orderItems.length);
 
-    // Submit to Printful API with store ID
-    const printfulResponse = await fetch(`https://api.printful.com/stores/${PRINTFUL_STORE_ID}/orders`, {
+    // Submit to Printful API (v2) with store header
+    const printfulResponse = await fetch(`${PRINTFUL_API_BASE}/orders`, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${printfulApiKey}`,
-        "Content-Type": "application/json",
-      },
+      headers: getPrintfulHeaders(printfulApiKey),
       body: JSON.stringify({
+        confirm: true,
         recipient,
-        items,
+        order_items: orderItems,
         retail_costs: {
           subtotal: order.subtotal.toString(),
           shipping: order.shipping_cost.toString(),
@@ -212,17 +292,25 @@ serve(async (req) => {
       throw new Error("Printful API error");
     }
 
-    console.log("[SUBMIT-PRINTFUL] Printful order created:", printfulData.result?.id);
+    const printfulResult = printfulData?.result ?? printfulData?.data ?? printfulData;
+    const printfulOrderId = printfulResult?.id ?? printfulResult?.order?.id ?? null;
+    const printfulStatus = printfulResult?.status ?? printfulResult?.order?.status ?? null;
+
+    console.log("[SUBMIT-PRINTFUL] Printful order created:", printfulOrderId);
 
     // Update order with Printful info
-    await supabaseClient
-      .from("orders")
-      .update({
-        printful_order_id: printfulData.result?.id?.toString(),
-        printful_status: printfulData.result?.status,
-        status: "processing",
-      })
-      .eq("id", orderId);
+    if (printfulOrderId) {
+      await supabaseClient
+        .from("orders")
+        .update({
+          printful_order_id: String(printfulOrderId),
+          printful_status: printfulStatus ?? "submitted",
+          status: "processing",
+        })
+        .eq("id", orderId);
+    } else {
+      console.warn("[SUBMIT-PRINTFUL] Printful response missing order id", printfulData);
+    }
 
     return new Response(JSON.stringify({ 
       success: true, 

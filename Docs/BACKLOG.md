@@ -8,10 +8,15 @@ Short, prioritized list only. Use P0/P1/P2. Move done items to git history.
 - [x] Production allowlist sanity check - confirm launch domains are whitelisted for EDM.
 - [x] Pre-MVP pricing rationalization - include shipping costs; target ~20% margin for MVP.
 - [x] Designer mobile UX optimization - maximize EDM editor space by removing redundant text, make "Continue to preview" easier to access (floating footer/button), add a clear back-to-catalog button if the user picked the wrong case type.
+- [x] Orders missing shipping address in Supabase after Stripe checkout - update Stripe session parsing (shipping_details + collected_information + customer_details).
+- [ ] Verify automatic Printful submission after Stripe webhook (no manual trigger) - confirm new paid orders move to processing and record printful_order_id + printful_status.
+- [ ] Confirm Printful orders auto-confirm (not draft) after adding confirm=true - run live checkout and verify status in Printful + Supabase.
+- [ ] Clean up test artifacts - refund live Stripe test charges and cancel or archive draft Printful orders created during validation.
 
 ## P1 (Post-Launch Soon)
 - [x] EDM preview debug badge/log - surface when EDM templateId is missing on preview.
 - [x] Cache Printful mockup style IDs per product/variant to reduce API chatter.
+- [ ] Narrow Stripe webhook events (currently wildcard) after verification - restrict to checkout.session.completed + async_payment_succeeded.
 
 ## P2 (Later)
 - [x] EDM performance tuning - speed up save/preview transitions (mockup latency).

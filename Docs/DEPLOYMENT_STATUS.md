@@ -2,7 +2,7 @@
 
 Single place to track cutover from Lovable to owned infra.
 
-**Last updated:** 2025-12-22
+**Last updated:** 2025-12-23
 
 ## Goal
 Vercel + Supabase is the canonical production pipeline. Lovable is optional only.
@@ -17,9 +17,10 @@ Vercel + Supabase is the canonical production pipeline. Lovable is optional only
 ## Supabase (Edge Functions + CORS)
 - [x] Functions deployed (`edm-nonce`, `edm-mockup`, `create-checkout`, `lookup-orders`, `verify-payment`, `submit-printful-order`, any others)
 - [x] CORS allowlist includes Vercel domain
-- [ ] Service role key configured for functions
-- [ ] Printful API key configured for functions
-- [ ] Stripe secret key configured for functions
+- [x] Service role key configured for functions
+- [x] Printful API key configured for functions
+- [x] Stripe secret key configured for functions
+- [x] Stripe webhook endpoint configured (live) and secret set in Supabase
 
 ## Domain (Optional)
 - [x] Custom domain connected in Vercel
