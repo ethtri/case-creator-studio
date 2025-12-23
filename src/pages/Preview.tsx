@@ -103,12 +103,14 @@ const Preview = () => {
   const [edmTemplateId, setEdmTemplateId] = useState<number | null>(null);
   const [edmPreviewLoading, setEdmPreviewLoading] = useState(false);
   const [edmPreviewError, setEdmPreviewError] = useState<string | null>(null);
+  const [showPreviewError, setShowPreviewError] = useState(false);
   const [previewKind, setPreviewKind] = useState<"design" | "mockup">("design");
   const [activeView, setActiveView] = useState<MockupView>("front");
   const [addedToCart, setAddedToCart] = useState(false);
   const [designId, setDesignId] = useState<string | null>(null);
   const [previewRetryNonce, setPreviewRetryNonce] = useState(0);
   const autoRetryRef = useRef<{ timer: number | null; count: number }>({ timer: null, count: 0 });
+  const previewErrorTimerRef = useRef<number | null>(null);
   const { addToCart } = useCart();
   const EDM_PREVIEW_CACHE_VERSION = "v4";
   const isDev = import.meta.env.DEV;
@@ -262,6 +264,11 @@ const Preview = () => {
     const fetchPreview = async () => {
       setEdmPreviewLoading(true);
       setEdmPreviewError(null);
+      setShowPreviewError(false);
+      if (previewErrorTimerRef.current) {
+        window.clearTimeout(previewErrorTimerRef.current);
+        previewErrorTimerRef.current = null;
+      }
 
       try {
         const productId = variant.brand.toLowerCase() === "apple" ? 683 : 684;
@@ -411,6 +418,9 @@ const Preview = () => {
         }
         autoRetryRef.current.count = 0;
         setEdmPreviewError(message);
+        previewErrorTimerRef.current = window.setTimeout(() => {
+          setShowPreviewError(true);
+        }, 6000);
       } finally {
         if (!cancelled) {
           setEdmPreviewLoading(false);
@@ -422,6 +432,10 @@ const Preview = () => {
 
     return () => {
       cancelled = true;
+      if (previewErrorTimerRef.current) {
+        window.clearTimeout(previewErrorTimerRef.current);
+        previewErrorTimerRef.current = null;
+      }
       if (autoRetryRef.current.timer) {
         window.clearTimeout(autoRetryRef.current.timer);
         autoRetryRef.current.timer = null;
@@ -655,10 +669,10 @@ const Preview = () => {
               )}
             </motion.div>
 
-            {(edmPreviewLoading || edmPreviewError) && (
+            {(edmPreviewLoading || (edmPreviewError && showPreviewError)) && (
               <div className="mt-4 text-center text-sm text-muted-foreground">
                 {edmPreviewLoading && "Generating EDM preview..."}
-                {edmPreviewError && (
+                {edmPreviewError && showPreviewError && (
                   <div className="space-y-2">
                     <div>
                       {designPreview
