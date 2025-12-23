@@ -589,6 +589,14 @@ const DesignEditorEDM = () => {
 
   const handleContinue = () => {
     if (templateId) {
+      if (designValidRef.current === false) {
+        toast.info('Finish your design before continuing.');
+        return;
+      }
+      if (!isSaving && !autoSaveInFlightRef.current) {
+        beginSave(true);
+        return;
+      }
       if (hasUnsavedChangesRef.current) {
         if (!designValidRef.current) {
           toast.info('Finish your design before continuing.');
@@ -781,7 +789,7 @@ const DesignEditorEDM = () => {
       {isMobile && (
         <div
           ref={footerRef}
-          className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-card via-card/90 to-transparent px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+          className="sticky bottom-0 z-40 bg-gradient-to-t from-card via-card/90 to-transparent px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shrink-0"
         >
           {saveError && (
             <div className="mb-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center justify-between">
