@@ -141,7 +141,9 @@ async function getVariantConfig(catalogVariantId: number, apiKey: string): Promi
 
     const payload = await response.json();
     const data = payload?.result ?? payload?.data ?? payload ?? {};
-    const placements = extractStringList(data?.placements ?? data?.placement_types ?? data?.placement);
+    const placements = extractStringList(
+      data?.placements ?? data?.placement_types ?? data?.placement ?? data?.placement_dimensions
+    );
     const techniques = extractStringList(data?.techniques ?? data?.technique_keys ?? data?.technique);
 
     const placement = pickPreferredValue(placements, ["front", "outside", "back"]) ?? "front";
