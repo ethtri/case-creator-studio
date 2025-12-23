@@ -102,6 +102,7 @@ const DesignEditorEDM = () => {
   const saveTimeoutRef = useRef<number | null>(null);
   const autoSaveInFlightRef = useRef(false);
   const templateIdRef = useRef<number | null>(null);
+  const hasSeenStatusRef = useRef(false);
   const lastAutoSaveAtRef = useRef(0);
   const hasUnsavedChangesRef = useRef(false);
   const designValidRef = useRef(false);
@@ -111,6 +112,8 @@ const DesignEditorEDM = () => {
   const footerRef = useRef<HTMLDivElement | null>(null);
   const [designerHeight, setDesignerHeight] = useState<number | null>(null);
   const resizeIntervalRef = useRef<number | null>(null);
+
+  const buildDesignKey = useCallback((id: string, suffix: string) => `edmDesign:${id}:${suffix}`, []);
 
   const prewarmEdmPreview = useCallback(async (templateId: number) => {
     if (!variant) return;
@@ -165,9 +168,9 @@ const DesignEditorEDM = () => {
     templateIdRef.current = null;
     setTemplateId(null);
     autoSaveInFlightRef.current = false;
+    hasSeenStatusRef.current = false;
+    hasUnsavedChangesRef.current = false;
   }, [designId]);
-
-  const buildDesignKey = useCallback((id: string, suffix: string) => `edmDesign:${id}:${suffix}`, []);
 
   const getOrCreateExternalProductId = useCallback((id: string) => {
     const key = buildDesignKey(id, "externalProductId");
@@ -340,6 +343,7 @@ const DesignEditorEDM = () => {
           sessionStorage.setItem(buildDesignKey(designId, "templateId"), id.toString());
           sessionStorage.setItem(buildDesignKey(designId, "variantId"), variantId);
           sessionStorage.setItem("edmDesign:last", designId);
+          clearPreviewCache(true);
           void prewarmEdmPreview(id);
           if (continueAfterSaveRef.current) {
             continueAfterSaveRef.current = false;
@@ -348,16 +352,21 @@ const DesignEditorEDM = () => {
         },
         onDesignStatusUpdate: (status) => {
           debugLog('Design status updated:', status);
-          const hasChanges = typeof status.designChange === "boolean"
+          const hasExplicitChange = typeof status.designChange === "boolean";
+          const hasChanges = hasExplicitChange
             ? status.designChange
-            : !templateIdRef.current && status.hasDesign;
+            : hasSeenStatusRef.current
+              ? status.hasDesign
+              : !templateIdRef.current && status.hasDesign;
           const isValid = typeof status.designValid === "boolean"
             ? status.designValid
             : status.hasDesign;
           const now = Date.now();
           const canAutoSave = now - lastAutoSaveAtRef.current > 1200;
-          if (typeof status.designChange === "boolean") {
+          if (hasExplicitChange) {
             hasUnsavedChangesRef.current = status.designChange;
+          } else if (hasSeenStatusRef.current && status.hasDesign) {
+            hasUnsavedChangesRef.current = true;
           } else if (!templateIdRef.current && status.hasDesign) {
             hasUnsavedChangesRef.current = true;
           }
@@ -365,6 +374,7 @@ const DesignEditorEDM = () => {
             clearPreviewCache(true);
           }
           designValidRef.current = isValid;
+          hasSeenStatusRef.current = true;
           if (hasChanges && isValid && !autoSaveInFlightRef.current && canAutoSave) {
             autoSaveInFlightRef.current = true;
             lastAutoSaveAtRef.current = now;
@@ -407,8 +417,9 @@ const DesignEditorEDM = () => {
     const headerHeight = headerRef.current?.offsetHeight ?? 0;
     const infoHeight = infoRef.current?.offsetHeight ?? 0;
     const footerHeight = footerRef.current?.offsetHeight ?? 0;
-    const buffer = isMobile ? 8 : 0;
-    const available = window.innerHeight - headerHeight - infoHeight - footerHeight - buffer;
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const buffer = isMobile ? 16 : 0;
+    const available = viewportHeight - headerHeight - infoHeight - footerHeight - buffer;
     setDesignerHeight(Math.max(available, 200));
   }, [isMobile]);
 
@@ -446,8 +457,19 @@ const DesignEditorEDM = () => {
 
   useEffect(() => {
     updateDesignerHeight();
+    const viewport = window.visualViewport;
     window.addEventListener('resize', updateDesignerHeight);
-    return () => window.removeEventListener('resize', updateDesignerHeight);
+    if (viewport) {
+      viewport.addEventListener('resize', updateDesignerHeight);
+      viewport.addEventListener('scroll', updateDesignerHeight);
+    }
+    return () => {
+      window.removeEventListener('resize', updateDesignerHeight);
+      if (viewport) {
+        viewport.removeEventListener('resize', updateDesignerHeight);
+        viewport.removeEventListener('scroll', updateDesignerHeight);
+      }
+    };
   }, [updateDesignerHeight]);
 
   useEffect(() => {
