@@ -421,7 +421,8 @@ const DesignEditorEDM = () => {
     const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
     const footerOffset = isMobile ? 0 : footerHeight;
     const buffer = isMobile ? 8 : 0;
-    const available = viewportHeight - headerHeight - infoHeight - footerOffset - buffer;
+    const extraMobileHeight = isMobile ? Math.max(120, Math.round(viewportHeight * 0.15)) : 0;
+    const available = viewportHeight - headerHeight - infoHeight - footerOffset - buffer + extraMobileHeight;
     setDesignerHeight(Math.max(available, 200));
   }, [isMobile]);
 
