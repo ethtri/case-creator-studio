@@ -102,6 +102,7 @@ const DesignEditorEDM = () => {
   const saveTimeoutRef = useRef<number | null>(null);
   const autoSaveInFlightRef = useRef(false);
   const templateIdRef = useRef<number | null>(null);
+  const hasSeenStatusRef = useRef(false);
   const lastAutoSaveAtRef = useRef(0);
   const hasUnsavedChangesRef = useRef(false);
   const designValidRef = useRef(false);
@@ -111,6 +112,8 @@ const DesignEditorEDM = () => {
   const footerRef = useRef<HTMLDivElement | null>(null);
   const [designerHeight, setDesignerHeight] = useState<number | null>(null);
   const resizeIntervalRef = useRef<number | null>(null);
+
+  const buildDesignKey = useCallback((id: string, suffix: string) => `edmDesign:${id}:${suffix}`, []);
 
   const prewarmEdmPreview = useCallback(async (templateId: number) => {
     if (!variant) return;
@@ -159,17 +162,17 @@ const DesignEditorEDM = () => {
     setDesignId(nextDesignId);
     sessionStorage.setItem("edmDesign:last", nextDesignId);
     sessionStorage.setItem(buildDesignKey(nextDesignId, "variantId"), variantId);
-  }, [variantId, searchParams, setSearchParams]);
+  }, [variantId, searchParams, setSearchParams, buildDesignKey]);
 
   useEffect(() => {
     templateIdRef.current = null;
     setTemplateId(null);
     autoSaveInFlightRef.current = false;
+    hasSeenStatusRef.current = false;
+    hasUnsavedChangesRef.current = false;
   }, [designId]);
 
-  const buildDesignKey = (id: string, suffix: string) => `edmDesign:${id}:${suffix}`;
-
-  const getOrCreateExternalProductId = (id: string) => {
+  const getOrCreateExternalProductId = useCallback((id: string) => {
     const key = buildDesignKey(id, "externalProductId");
     const existing = sessionStorage.getItem(key);
     if (existing) {
@@ -178,14 +181,14 @@ const DesignEditorEDM = () => {
     const created = `snapcase-${id}-${Date.now()}`;
     sessionStorage.setItem(key, created);
     return created;
-  };
+  }, [buildDesignKey]);
 
-  const getStoredTemplateId = (id: string) => {
+  const getStoredTemplateId = useCallback((id: string) => {
     const raw = sessionStorage.getItem(buildDesignKey(id, "templateId"));
     if (!raw) return null;
     const parsed = Number(raw);
     return Number.isNaN(parsed) ? null : parsed;
-  };
+  }, [buildDesignKey]);
 
   const generateDesignId = () => {
     if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -193,6 +196,43 @@ const DesignEditorEDM = () => {
     }
     return `design-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   };
+
+  const clearPreviewCache = useCallback((includeGlobalKeys = false) => {
+    if (!designId) return;
+
+    const designPreviewKey = buildDesignKey(designId, "preview");
+    const designPreviewAngledKey = buildDesignKey(designId, "previewAngled");
+    const designPreviewKindKey = buildDesignKey(designId, "previewKind");
+    const designPreviewVersionKey = buildDesignKey(designId, "previewVersion");
+    const designPreviewDirtyKey = buildDesignKey(designId, "previewDirtyAt");
+    const designPreviewGeneratedKey = buildDesignKey(designId, "previewGeneratedAt");
+
+    sessionStorage.removeItem(designPreviewKey);
+    sessionStorage.removeItem(designPreviewAngledKey);
+    sessionStorage.removeItem(designPreviewKindKey);
+    sessionStorage.removeItem(designPreviewVersionKey);
+    sessionStorage.removeItem(designPreviewGeneratedKey);
+
+    const now = Date.now();
+    sessionStorage.setItem(designPreviewDirtyKey, now.toString());
+
+    if (includeGlobalKeys) {
+      sessionStorage.removeItem("designPreview");
+      sessionStorage.removeItem("designPreviewAngled");
+      sessionStorage.removeItem("designPreviewKind");
+      sessionStorage.removeItem("designPreviewVersion");
+      sessionStorage.removeItem("designPreviewGeneratedAt");
+    }
+
+    if (templateIdRef.current && variant) {
+      const cacheKey = `edmPreview_${EDM_PREVIEW_CACHE_VERSION}_${templateIdRef.current}_${variant.printfulVariantId}`;
+      const cacheKeyAngled = `${cacheKey}_angled`;
+      const taskKey = `edmMockupTask_${EDM_PREVIEW_CACHE_VERSION}_${templateIdRef.current}_${variant.printfulVariantId}`;
+      sessionStorage.removeItem(cacheKey);
+      sessionStorage.removeItem(cacheKeyAngled);
+      sessionStorage.removeItem(taskKey);
+    }
+  }, [buildDesignKey, designId, variant]);
 
   // Load the Printful embed.js script
   useEffect(() => {
@@ -303,28 +343,39 @@ const DesignEditorEDM = () => {
           sessionStorage.setItem(buildDesignKey(designId, "templateId"), id.toString());
           sessionStorage.setItem(buildDesignKey(designId, "variantId"), variantId);
           sessionStorage.setItem("edmDesign:last", designId);
-          void prewarmEdmPreview(id);
+          clearPreviewCache(true);
           if (continueAfterSaveRef.current) {
             continueAfterSaveRef.current = false;
             navigate(`/preview/${variantId}?designId=${designId}`);
+          } else {
+            void prewarmEdmPreview(id);
           }
         },
         onDesignStatusUpdate: (status) => {
           debugLog('Design status updated:', status);
-          const hasChanges = typeof status.designChange === "boolean"
+          const hasExplicitChange = typeof status.designChange === "boolean";
+          const hasChanges = hasExplicitChange
             ? status.designChange
-            : !templateIdRef.current && status.hasDesign;
+            : hasSeenStatusRef.current
+              ? status.hasDesign
+              : !templateIdRef.current && status.hasDesign;
           const isValid = typeof status.designValid === "boolean"
             ? status.designValid
             : status.hasDesign;
           const now = Date.now();
           const canAutoSave = now - lastAutoSaveAtRef.current > 1200;
-          if (typeof status.designChange === "boolean") {
+          if (hasExplicitChange) {
             hasUnsavedChangesRef.current = status.designChange;
+          } else if (hasSeenStatusRef.current && status.hasDesign) {
+            hasUnsavedChangesRef.current = true;
           } else if (!templateIdRef.current && status.hasDesign) {
             hasUnsavedChangesRef.current = true;
           }
+          if (hasChanges) {
+            clearPreviewCache(true);
+          }
           designValidRef.current = isValid;
+          hasSeenStatusRef.current = true;
           if (hasChanges && isValid && !autoSaveInFlightRef.current && canAutoSave) {
             autoSaveInFlightRef.current = true;
             lastAutoSaveAtRef.current = now;
@@ -351,14 +402,27 @@ const DesignEditorEDM = () => {
       setError(err instanceof Error ? err.message : 'Failed to initialize design maker');
       setLoading(false);
     }
-  }, [variant, variantId, designId, navigate]);
+  }, [
+    variant,
+    variantId,
+    designId,
+    navigate,
+    clearPreviewCache,
+    getOrCreateExternalProductId,
+    getStoredTemplateId,
+    prewarmEdmPreview,
+    buildDesignKey,
+  ]);
 
   const updateDesignerHeight = useCallback(() => {
     const headerHeight = headerRef.current?.offsetHeight ?? 0;
     const infoHeight = infoRef.current?.offsetHeight ?? 0;
     const footerHeight = footerRef.current?.offsetHeight ?? 0;
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const footerOffset = isMobile ? 0 : footerHeight;
     const buffer = isMobile ? 8 : 0;
-    const available = window.innerHeight - headerHeight - infoHeight - footerHeight - buffer;
+    const extraMobileHeight = isMobile ? Math.max(120, Math.round(viewportHeight * 0.15)) : 0;
+    const available = viewportHeight - headerHeight - infoHeight - footerOffset - buffer + extraMobileHeight;
     setDesignerHeight(Math.max(available, 200));
   }, [isMobile]);
 
@@ -369,13 +433,6 @@ const DesignEditorEDM = () => {
     container.style.setProperty("height", designerHeight ? `${designerHeight}px` : "100%", "important");
     container.style.setProperty("min-height", designerHeight ? `${designerHeight}px` : "100%", "important");
     container.style.setProperty("width", "100%", "important");
-
-    const children = container.querySelectorAll("*");
-    children.forEach((child) => {
-      const element = child as HTMLElement;
-      element.style.setProperty("height", "100%", "important");
-      element.style.setProperty("width", "100%", "important");
-    });
 
     const iframe = container.querySelector("iframe");
     if (iframe) {
@@ -396,8 +453,19 @@ const DesignEditorEDM = () => {
 
   useEffect(() => {
     updateDesignerHeight();
+    const viewport = window.visualViewport;
     window.addEventListener('resize', updateDesignerHeight);
-    return () => window.removeEventListener('resize', updateDesignerHeight);
+    if (viewport) {
+      viewport.addEventListener('resize', updateDesignerHeight);
+      viewport.addEventListener('scroll', updateDesignerHeight);
+    }
+    return () => {
+      window.removeEventListener('resize', updateDesignerHeight);
+      if (viewport) {
+        viewport.removeEventListener('resize', updateDesignerHeight);
+        viewport.removeEventListener('scroll', updateDesignerHeight);
+      }
+    };
   }, [updateDesignerHeight]);
 
   useEffect(() => {
@@ -516,7 +584,20 @@ const DesignEditorEDM = () => {
   };
 
   const handleContinue = () => {
+    if (isSaving || autoSaveInFlightRef.current) {
+      continueAfterSaveRef.current = true;
+      toast.info('Saving your latest changes...');
+      return;
+    }
     if (templateId) {
+      if (designValidRef.current === false) {
+        toast.info('Finish your design before continuing.');
+        return;
+      }
+      if (!isSaving && !autoSaveInFlightRef.current) {
+        beginSave(true);
+        return;
+      }
       if (hasUnsavedChangesRef.current) {
         if (!designValidRef.current) {
           toast.info('Finish your design before continuing.');
@@ -709,7 +790,7 @@ const DesignEditorEDM = () => {
       {isMobile && (
         <div
           ref={footerRef}
-          className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-t from-card via-card/90 to-transparent px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
+          className="sticky bottom-0 z-40 bg-gradient-to-t from-card via-card/90 to-transparent px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shrink-0"
         >
           {saveError && (
             <div className="mb-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center justify-between">

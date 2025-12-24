@@ -25,6 +25,10 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 - [x] Post-MVP logging polish - audit/remove remaining production debug logs across EDM + preview flows.
 - [x] Post-MVP share card branding - replace Lovable icon/banner with Snapcase assets for SMS/social previews.
 - [x] Post-MVP SEO optimization - metadata, sitemap, and structured data review.
+- [ ] EDM mobile UX - editor requires slight scroll to reach bottom toolbar on small screens.
+- [ ] Preview mockup throughput - validate Printful rate limits under concurrent load and add queue/backoff if needed.
 - [ ] Explore 3D mockups for variants with only a single front style.
 - [ ] Accounts - login to save designs and view history.
 - [ ] Catalog thumbnails - replace generic images with standardized variant icons.
+
+

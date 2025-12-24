@@ -103,11 +103,15 @@ const Preview = () => {
   const [edmTemplateId, setEdmTemplateId] = useState<number | null>(null);
   const [edmPreviewLoading, setEdmPreviewLoading] = useState(false);
   const [edmPreviewError, setEdmPreviewError] = useState<string | null>(null);
+  const [showPreviewError, setShowPreviewError] = useState(false);
   const [previewKind, setPreviewKind] = useState<"design" | "mockup">("design");
   const [activeView, setActiveView] = useState<MockupView>("front");
   const [addedToCart, setAddedToCart] = useState(false);
   const [designId, setDesignId] = useState<string | null>(null);
   const [previewRetryNonce, setPreviewRetryNonce] = useState(0);
+  const autoRetryRef = useRef<{ timer: number | null; count: number }>({ timer: null, count: 0 });
+  const autoRetryInFlightRef = useRef(false);
+  const previewErrorTimerRef = useRef<number | null>(null);
   const { addToCart } = useCart();
   const EDM_PREVIEW_CACHE_VERSION = "v4";
   const isDev = import.meta.env.DEV;
@@ -141,13 +145,25 @@ const Preview = () => {
     const previewVersion = resolvedDesignId
       ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "previewVersion"))
       : sessionStorage.getItem("designPreviewVersion");
+    const previewDirtyAtRaw = resolvedDesignId
+      ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "previewDirtyAt"))
+      : null;
+    const previewGeneratedAtRaw = resolvedDesignId
+      ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "previewGeneratedAt"))
+      : sessionStorage.getItem("designPreviewGeneratedAt");
+    const previewDirtyAt = previewDirtyAtRaw ? Number(previewDirtyAtRaw) : null;
+    const previewGeneratedAt = previewGeneratedAtRaw ? Number(previewGeneratedAtRaw) : null;
     const previewIsFresh = previewVersion === EDM_PREVIEW_CACHE_VERSION;
-    const preview = previewIsFresh
+    const previewIsCurrent =
+      previewIsFresh &&
+      previewRetryNonce === 0 &&
+      (!previewDirtyAt || (previewGeneratedAt !== null && previewGeneratedAt >= previewDirtyAt));
+    const preview = previewIsCurrent
       ? resolvedDesignId
         ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "preview"))
         : sessionStorage.getItem("designPreview")
       : null;
-    const previewAngled = previewIsFresh
+    const previewAngled = previewIsCurrent
       ? resolvedDesignId
         ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "previewAngled"))
         : sessionStorage.getItem("designPreviewAngled")
@@ -164,6 +180,19 @@ const Preview = () => {
     
     const parsedTemplateId = storedTemplateId ? Number(storedTemplateId) : null;
     const resolvedTemplateId = Number.isNaN(parsedTemplateId) ? null : parsedTemplateId;
+
+    if (!previewIsCurrent) {
+      const designPreviewKey = resolvedDesignId ? buildDesignKey(resolvedDesignId, "preview") : null;
+      const designPreviewAngledKey = resolvedDesignId ? buildDesignKey(resolvedDesignId, "previewAngled") : null;
+      if (designPreviewKey) {
+        sessionStorage.removeItem(designPreviewKey);
+      }
+      if (designPreviewAngledKey) {
+        sessionStorage.removeItem(designPreviewAngledKey);
+      }
+      sessionStorage.removeItem("designPreview");
+      sessionStorage.removeItem("designPreviewAngled");
+    }
 
     if (preview && storedVariant === variantId) {
       setDesignPreview(preview);
@@ -182,7 +211,7 @@ const Preview = () => {
       // No design, redirect back to editor
       navigate(editorPath);
     }
-  }, [variantId, navigate, searchParams, editorPath]);
+  }, [variantId, navigate, searchParams, editorPath, previewRetryNonce]);
 
   useEffect(() => {
     if (!designId || edmTemplateId || hasLoggedMissingTemplateRef.current) return;
@@ -202,7 +231,18 @@ const Preview = () => {
     const previewVersion = designId
       ? sessionStorage.getItem(buildDesignKey(designId, "previewVersion"))
       : sessionStorage.getItem("designPreviewVersion");
-    const previewIsFresh = previewVersion === EDM_PREVIEW_CACHE_VERSION && previewRetryNonce === 0;
+    const previewDirtyAtRaw = designId
+      ? sessionStorage.getItem(buildDesignKey(designId, "previewDirtyAt"))
+      : null;
+    const previewGeneratedAtRaw = designId
+      ? sessionStorage.getItem(buildDesignKey(designId, "previewGeneratedAt"))
+      : sessionStorage.getItem("designPreviewGeneratedAt");
+    const previewDirtyAt = previewDirtyAtRaw ? Number(previewDirtyAtRaw) : null;
+    const previewGeneratedAt = previewGeneratedAtRaw ? Number(previewGeneratedAtRaw) : null;
+    const previewIsFresh =
+      previewVersion === EDM_PREVIEW_CACHE_VERSION &&
+      previewRetryNonce === 0 &&
+      (!previewDirtyAt || (previewGeneratedAt !== null && previewGeneratedAt >= previewDirtyAt));
     const cachedPreview = previewIsFresh
       ? designPreviewKey
         ? sessionStorage.getItem(designPreviewKey)
@@ -225,6 +265,12 @@ const Preview = () => {
     const fetchPreview = async () => {
       setEdmPreviewLoading(true);
       setEdmPreviewError(null);
+      setShowPreviewError(false);
+      autoRetryInFlightRef.current = false;
+      if (previewErrorTimerRef.current) {
+        window.clearTimeout(previewErrorTimerRef.current);
+        previewErrorTimerRef.current = null;
+      }
 
       try {
         const productId = variant.brand.toLowerCase() === "apple" ? 683 : 684;
@@ -244,7 +290,14 @@ const Preview = () => {
           if (error) {
             const detail = await extractFunctionErrorMessage(error, response);
             const resetHeader = response?.headers?.get("x-ratelimit-reset") ?? data?.rateLimitReset ?? null;
-            throw new Error(formatEdmPreviewError(detail, resetHeader) || "Mockup request failed");
+            const resetSeconds = resetHeader ? Number(resetHeader) : null;
+            const err = new Error(formatEdmPreviewError(detail, resetHeader) || "Mockup request failed");
+            if (detail?.toLowerCase().includes("rate limit") || detail?.toLowerCase().includes("too many requests")) {
+              (err as { rateLimitResetSeconds?: number | null }).rateLimitResetSeconds = Number.isFinite(resetSeconds)
+                ? resetSeconds
+                : null;
+            }
+            throw err;
           }
 
           taskId = data?.taskId;
@@ -256,8 +309,8 @@ const Preview = () => {
         }
 
         const maxAttempts = 15;
-        const baseDelayMs = 800;
-        const maxDelayMs = 2000;
+        const baseDelayMs = 550;
+        const maxDelayMs = 1800;
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
           if (cancelled) return;
           const { data, error, response } = await supabase.functions.invoke("edm-mockup", {
@@ -270,7 +323,14 @@ const Preview = () => {
           if (error) {
             const detail = await extractFunctionErrorMessage(error, response);
             const resetHeader = response?.headers?.get("x-ratelimit-reset") ?? data?.rateLimitReset ?? null;
-            throw new Error(formatEdmPreviewError(detail, resetHeader) || "Mockup request failed");
+            const resetSeconds = resetHeader ? Number(resetHeader) : null;
+            const err = new Error(formatEdmPreviewError(detail, resetHeader) || "Mockup request failed");
+            if (detail?.toLowerCase().includes("rate limit") || detail?.toLowerCase().includes("too many requests")) {
+              (err as { rateLimitResetSeconds?: number | null }).rateLimitResetSeconds = Number.isFinite(resetSeconds)
+                ? resetSeconds
+                : null;
+            }
+            throw err;
           }
 
           const status = data?.status;
@@ -290,17 +350,22 @@ const Preview = () => {
               sessionStorage.setItem(designPreviewKey, mockupUrl);
               sessionStorage.setItem(buildDesignKey(designId, "previewKind"), "mockup");
               sessionStorage.setItem(buildDesignKey(designId, "previewVersion"), EDM_PREVIEW_CACHE_VERSION);
+              sessionStorage.setItem(buildDesignKey(designId, "previewGeneratedAt"), Date.now().toString());
+              sessionStorage.removeItem(buildDesignKey(designId, "previewDirtyAt"));
               if (designPreviewAngledKey && mockupUrlAngled && mockupUrlAngled !== mockupUrl) {
                 sessionStorage.setItem(designPreviewAngledKey, mockupUrlAngled);
               }
             }
             sessionStorage.setItem("designPreviewKind", "mockup");
             sessionStorage.setItem("designPreviewVersion", EDM_PREVIEW_CACHE_VERSION);
+            sessionStorage.setItem("designPreviewGeneratedAt", Date.now().toString());
             setDesignPreview(mockupUrl);
             if (mockupUrlAngled && mockupUrlAngled !== mockupUrl) {
               setDesignPreviewAngled(mockupUrlAngled);
             }
             setPreviewKind("mockup");
+            autoRetryRef.current.count = 0;
+            autoRetryInFlightRef.current = false;
             setEdmPreviewLoading(false);
             return;
           }
@@ -309,7 +374,9 @@ const Preview = () => {
             sessionStorage.removeItem(taskKey);
             const failureMessage = failureReasons[0];
             if (failureMessage && failureMessage.toLowerCase().includes("rate limit")) {
-              throw new Error("Preview service is busy. Please try again in a moment.");
+              const err = new Error("Preview service is busy. Please try again in a moment.");
+              (err as { rateLimitResetSeconds?: number | null }).rateLimitResetSeconds = 2;
+              throw err;
             }
             throw new Error(failureMessage || "Mockup generation failed");
           }
@@ -318,7 +385,9 @@ const Preview = () => {
             sessionStorage.removeItem(taskKey);
             const failureMessage = failureReasons[0];
             if (failureMessage && failureMessage.toLowerCase().includes("rate limit")) {
-              throw new Error("Preview service is busy. Please try again in a moment.");
+              const err = new Error("Preview service is busy. Please try again in a moment.");
+              (err as { rateLimitResetSeconds?: number | null }).rateLimitResetSeconds = 2;
+              throw err;
             }
             throw new Error(failureMessage || "Mockup completed without an image");
           }
@@ -333,9 +402,32 @@ const Preview = () => {
         if (cancelled) return;
         const rawMessage = err instanceof Error ? err.message : "";
         const message = rawMessage ? rawMessage : "Failed to generate preview";
+        const rateLimitResetSeconds = (err as { rateLimitResetSeconds?: number | null }).rateLimitResetSeconds ?? null;
+        const isRateLimit =
+          Boolean(rateLimitResetSeconds) ||
+          message.toLowerCase().includes("preview service is busy") ||
+          message.toLowerCase().includes("rate limit");
+        if (isRateLimit && autoRetryRef.current.count < 3) {
+          autoRetryRef.current.count += 1;
+          autoRetryInFlightRef.current = true;
+          const delayMs = Math.min(8000, Math.max(1500, (rateLimitResetSeconds ?? 2) * 1000));
+          setEdmPreviewError(`Preview service is busy. Retrying in ~${Math.ceil(delayMs / 1000)}s.`);
+          if (autoRetryRef.current.timer) {
+            window.clearTimeout(autoRetryRef.current.timer);
+          }
+          autoRetryRef.current.timer = window.setTimeout(() => {
+            setPreviewRetryNonce((value) => value + 1);
+          }, delayMs);
+          return;
+        }
+        autoRetryRef.current.count = 0;
+        autoRetryInFlightRef.current = false;
         setEdmPreviewError(message);
+        previewErrorTimerRef.current = window.setTimeout(() => {
+          setShowPreviewError(true);
+        }, 30000);
       } finally {
-        if (!cancelled) {
+        if (!cancelled && !autoRetryInFlightRef.current) {
           setEdmPreviewLoading(false);
         }
       }
@@ -345,6 +437,14 @@ const Preview = () => {
 
     return () => {
       cancelled = true;
+      if (previewErrorTimerRef.current) {
+        window.clearTimeout(previewErrorTimerRef.current);
+        previewErrorTimerRef.current = null;
+      }
+      if (autoRetryRef.current.timer) {
+        window.clearTimeout(autoRetryRef.current.timer);
+        autoRetryRef.current.timer = null;
+      }
     };
   }, [variant, edmTemplateId, designId, previewRetryNonce]);
 
@@ -383,23 +483,35 @@ const Preview = () => {
     const taskKey = `edmMockupTask_${EDM_PREVIEW_CACHE_VERSION}_${edmTemplateId}_${variant.printfulVariantId}`;
     const designPreviewKey = designId ? buildDesignKey(designId, "preview") : null;
     const designPreviewAngledKey = designId ? buildDesignKey(designId, "previewAngled") : null;
+    const designPreviewDirtyKey = designId ? buildDesignKey(designId, "previewDirtyAt") : null;
+    const designPreviewGeneratedKey = designId ? buildDesignKey(designId, "previewGeneratedAt") : null;
 
     sessionStorage.removeItem(cacheKey);
     sessionStorage.removeItem(cacheKeyAngled);
     sessionStorage.removeItem(taskKey);
     sessionStorage.removeItem("designPreview");
     sessionStorage.removeItem("designPreviewAngled");
+    sessionStorage.removeItem("designPreviewGeneratedAt");
     if (designPreviewKey) {
       sessionStorage.removeItem(designPreviewKey);
     }
     if (designPreviewAngledKey) {
       sessionStorage.removeItem(designPreviewAngledKey);
     }
+    if (designPreviewDirtyKey) {
+      sessionStorage.removeItem(designPreviewDirtyKey);
+    }
+    if (designPreviewGeneratedKey) {
+      sessionStorage.removeItem(designPreviewGeneratedKey);
+    }
 
     setEdmPreviewError(null);
     setPreviewKind("design");
-    setDesignPreview(null);
-    setDesignPreviewAngled(null);
+    autoRetryRef.current.count = 0;
+    if (autoRetryRef.current.timer) {
+      window.clearTimeout(autoRetryRef.current.timer);
+      autoRetryRef.current.timer = null;
+    }
     setPreviewRetryNonce((value) => value + 1);
   };
 
@@ -411,7 +523,10 @@ const Preview = () => {
   const angledAvailable =
     previewKind !== "mockup" || (!!designPreviewAngled && designPreviewAngled !== designPreview);
   const showPreviewLoader = edmPreviewLoading;
-  const showViewControls = !showPreviewLoader && !(previewKind === "mockup" && !angledAvailable);
+  const showViewControls =
+    !showPreviewLoader &&
+    (!edmPreviewError || Boolean(designPreview)) &&
+    !(previewKind === "mockup" && !angledAvailable);
   const showMissingTemplateBadge = !!designId && !edmTemplateId;
 
   useEffect(() => {
@@ -559,12 +674,16 @@ const Preview = () => {
               )}
             </motion.div>
 
-            {(edmPreviewLoading || edmPreviewError) && (
+            {(edmPreviewLoading || (edmPreviewError && showPreviewError)) && (
               <div className="mt-4 text-center text-sm text-muted-foreground">
                 {edmPreviewLoading && "Generating EDM preview..."}
-                {edmPreviewError && (
+                {edmPreviewError && showPreviewError && (
                   <div className="space-y-2">
-                    <div>{`EDM preview unavailable: ${edmPreviewError}`}</div>
+                    <div>
+                      {designPreview
+                        ? "Updating preview..."
+                        : `EDM preview unavailable: ${edmPreviewError}`}
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"
