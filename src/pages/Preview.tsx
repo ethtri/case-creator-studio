@@ -3,12 +3,13 @@ import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
-import { ChevronLeft, ShoppingCart, BadgeCheck, Truck, Check, Smartphone, Eye } from "lucide-react";
+import { ChevronLeft, ShoppingCart, BadgeCheck, Truck, Check, Smartphone, Eye, Bookmark } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CartSheet } from "@/components/CartSheet";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Import mockup images
 import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
@@ -113,8 +114,11 @@ const Preview = () => {
   const autoRetryInFlightRef = useRef(false);
   const previewErrorTimerRef = useRef<number | null>(null);
   const { addToCart } = useCart();
+  const { user, isEmailVerified } = useAuth();
   const EDM_PREVIEW_CACHE_VERSION = "v4";
   const isDev = import.meta.env.DEV;
+  const [externalProductId, setExternalProductId] = useState<string | null>(null);
+  const [isSavingDesign, setIsSavingDesign] = useState(false);
 
   const buildDesignKey = (id: string, suffix: string) => `edmDesign:${id}:${suffix}`;
   const editorPath = variantId
@@ -131,6 +135,10 @@ const Preview = () => {
       setDesignId(resolvedDesignId);
       sessionStorage.setItem("edmDesign:last", resolvedDesignId);
     }
+    const storedExternalProductId = resolvedDesignId
+      ? sessionStorage.getItem(buildDesignKey(resolvedDesignId, "externalProductId"))
+      : null;
+    setExternalProductId(storedExternalProductId);
 
     const foundVariant = getVariantById(variantId || "");
     if (foundVariant) {
@@ -469,11 +477,50 @@ const Preview = () => {
 
   const handleAddToCart = () => {
     if (variant && designPreview) {
-      addToCart(variant, designPreview, edmTemplateId, designId);
+      addToCart(variant, designPreview, edmTemplateId, designId, externalProductId);
       setAddedToCart(true);
       toast.success("Added to cart!");
       setTimeout(() => setAddedToCart(false), 2000);
     }
+  };
+
+  const handleSaveDesign = async () => {
+    if (!user) {
+      const redirectTarget = encodeURIComponent(`/preview/${variantId}${designId ? `?designId=${designId}` : ""}`);
+      navigate(`/auth?redirect=${redirectTarget}`);
+      return;
+    }
+    if (!isEmailVerified) {
+      toast.info("Please verify your email to save designs.");
+      return;
+    }
+    if (!variant || !designPreview || !designId) {
+      toast.error("Design isn't ready to save yet.");
+      return;
+    }
+    if (!edmTemplateId) {
+      toast.error("Finish saving your design before saving it to your account.");
+      return;
+    }
+
+    setIsSavingDesign(true);
+    const { error } = await supabase.functions.invoke("save-design", {
+      body: {
+        designId,
+        variantId: variant.id,
+        edmTemplateId,
+        externalProductId,
+        previewUrl: designPreview,
+        previewUrlAngled: designPreviewAngled,
+      },
+    });
+
+    if (error) {
+      toast.error("Unable to save design. Please try again.");
+    } else {
+      toast.success("Design saved to your account.");
+    }
+    setIsSavingDesign(false);
   };
 
   const handleRetryPreview = () => {
@@ -843,6 +890,17 @@ const Preview = () => {
                   )}
                 </Button>
                 
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="w-full h-12"
+                  onClick={handleSaveDesign}
+                  disabled={isSavingDesign}
+                >
+                  <Bookmark className="w-4 h-4 mr-2" />
+                  {isSavingDesign ? "Saving..." : "Save Design"}
+                </Button>
+
                 <Button
                   size="lg"
                   variant="secondary"

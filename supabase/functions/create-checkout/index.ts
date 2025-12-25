@@ -85,6 +85,7 @@ const itemSchema = z.object({
   designPreview: z.string().max(5000),
   edmTemplateId: z.number().int().positive().nullable().optional(),
   designId: z.string().max(100).nullable().optional(),
+  externalProductId: z.string().max(200).nullable().optional(),
 });
 
 const checkoutRequestSchema = z.object({
@@ -115,7 +116,28 @@ serve(async (req) => {
     
     const { items: requestItems, customerEmail } = validationResult.data;
 
-    console.log("[CREATE-CHECKOUT] Processing checkout for:", customerEmail);
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+    const authHeader = req.headers.get("authorization") || req.headers.get("Authorization") || "";
+    let authUserId: string | null = null;
+    let authUserEmail: string | null = null;
+
+    if (supabaseUrl && supabaseAnonKey && authHeader) {
+      const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: authData, error: authError } = await supabaseAuth.auth.getUser();
+      if (authError) {
+        console.warn("[CREATE-CHECKOUT] Auth lookup failed:", authError.message);
+      } else {
+        authUserId = authData?.user?.id ?? null;
+        authUserEmail = authData?.user?.email ?? null;
+      }
+    }
+
+    const resolvedEmail = authUserEmail ?? customerEmail;
+
+    console.log("[CREATE-CHECKOUT] Processing checkout for:", resolvedEmail);
     console.log("[CREATE-CHECKOUT] Items count:", requestItems.length);
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
@@ -165,7 +187,7 @@ serve(async (req) => {
     });
 
     // Check if customer exists
-    const customers = await stripe.customers.list({ email: customerEmail, limit: 1 });
+    const customers = await stripe.customers.list({ email: resolvedEmail, limit: 1 });
     let customerId: string | undefined;
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
@@ -176,7 +198,7 @@ serve(async (req) => {
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
-      customer_email: customerId ? undefined : customerEmail,
+      customer_email: customerId ? undefined : resolvedEmail,
       line_items: lineItems,
       mode: "payment",
       success_url: `${origin}/order-success?session_id={CHECKOUT_SESSION_ID}`,
@@ -194,19 +216,21 @@ serve(async (req) => {
           designPreview: i.designPreview,
           edmTemplateId: i.edmTemplateId ?? null,
           designId: i.designId ?? null,
+          externalProductId: i.externalProductId ?? null,
         }))),
       },
     });
 
     // Create order record in database
     const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
+      supabaseUrl,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
     const { error: orderError } = await supabaseClient.from("orders").insert({
       stripe_session_id: session.id,
-      customer_email: customerEmail,
+      customer_email: resolvedEmail,
+      user_id: authUserId,
       items: items,
       subtotal: subtotal,
       shipping_cost: SHIPPING_COST,

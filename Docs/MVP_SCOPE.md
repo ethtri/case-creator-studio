@@ -2,7 +2,7 @@
 
 Single source of truth for launch scope. Keep changes explicit.
 
-**Last updated:** 2025-12-22
+**Last updated:** 2025-12-24
 
 ## In Scope (MVP)
 - EDM-first editor flow for phone cases
@@ -10,9 +10,9 @@ Single source of truth for launch scope. Keep changes explicit.
 - Cart and checkout flow
 - Stripe test-mode payments
 - Order submission to Printful (happy path)
+- Accounts (email/password + OAuth), saved designs, and order history
 
 ## Out of Scope (Post-MVP)
-- Accounts, design history, and login
 - 3D mockups beyond available Printful styles
 - Advanced catalog thumbnails and asset library
 - Performance tuning beyond basic stability fixes

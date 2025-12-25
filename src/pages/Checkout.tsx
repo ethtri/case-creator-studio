@@ -10,11 +10,13 @@ import { ChevronLeft, Lock, CreditCard, Package, Trash2 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Checkout = () => {
   const { variantId } = useParams();
   const navigate = useNavigate();
   const { items, removeFromCart, totalPrice, clearCart } = useCart();
+  const { user } = useAuth();
   const [variant, setVariant] = useState<PhoneVariant | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -26,6 +28,12 @@ const Checkout = () => {
       setVariant(foundVariant);
     }
   }, [variantId]);
+
+  useEffect(() => {
+    if (user?.email) {
+      setEmail(user.email);
+    }
+  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,13 +56,14 @@ const Checkout = () => {
         designPreview: item.designPreview,
         edmTemplateId: item.edmTemplateId ?? null,
         designId: item.designId ?? null,
+        externalProductId: item.externalProductId ?? null,
       }));
 
       // Call edge function to create Stripe checkout session
       const { data, error } = await supabase.functions.invoke("create-checkout", {
         body: {
           items: cartItems,
-          customerEmail: email,
+          customerEmail: user?.email ?? email,
         },
       });
 
@@ -146,6 +155,7 @@ const Checkout = () => {
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@example.com"
                       className="mt-1"
+                      disabled={isProcessing || !!user?.email}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground mt-3">
