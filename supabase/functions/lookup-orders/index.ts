@@ -51,8 +51,8 @@ function getSafeErrorMessage(error: unknown): string {
     timestamp: new Date().toISOString()
   });
   
-  if (errorMessage.includes("email")) {
-    return "Please provide a valid email address";
+  if (errorMessage.includes("email") || errorMessage.includes("zip")) {
+    return "Please provide a valid email and ZIP code";
   }
   if (errorMessage.includes("validation") || errorMessage.includes("Invalid")) {
     return "Invalid request. Please check your information.";
@@ -63,7 +63,8 @@ function getSafeErrorMessage(error: unknown): string {
 
 // Validation schema
 const lookupRequestSchema = z.object({
-  email: z.string().email().max(255).transform(e => e.toLowerCase().trim()),
+  email: z.string().email().max(255).transform((e) => e.toLowerCase().trim()),
+  zip: z.string().min(2).max(20).transform((value) => value.trim()),
 });
 
 serve(async (req) => {
@@ -86,7 +87,7 @@ serve(async (req) => {
       });
     }
     
-    const { email } = validationResult.data;
+    const { email, zip } = validationResult.data;
 
     console.log("[LOOKUP-ORDERS] Looking up orders for email:", email);
 
@@ -100,15 +101,16 @@ serve(async (req) => {
       .from("orders")
       .select("id, created_at, status, printful_status, total, items, shipping_cost, subtotal")
       .eq("customer_email", email)
+      .eq("shipping_address->>zip", zip)
       .order("created_at", { ascending: false })
-      .limit(50);
+      .limit(20);
 
     if (queryError) {
       console.error("[LOOKUP-ORDERS] Database error:", queryError);
       throw new Error("Database query failed");
     }
 
-    console.log("[LOOKUP-ORDERS] Found", orders?.length || 0, "orders for email");
+    console.log("[LOOKUP-ORDERS] Found", orders?.length || 0, "orders for email/zip");
 
     // Transform orders for client (don't expose internal IDs directly in URLs)
     const safeOrders = (orders || []).map(order => ({

@@ -24,7 +24,7 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - P0: Clean up test artifacts - refund live Stripe test charges and cancel or archive draft Printful orders created during validation.
 
 **Later**
-- None
+- P0: Accounts - email/password + OAuth login, saved designs, and authenticated order history.
 
 ## Notes
 - Use `Docs/BACKLOG.md` for priorities.

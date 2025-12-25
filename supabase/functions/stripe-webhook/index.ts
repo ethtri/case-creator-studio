@@ -14,6 +14,22 @@ type ShippingDetails = {
   } | null;
 };
 
+type OrderItem = {
+  designId?: string | null;
+  designPreview?: string | null;
+  variantId?: string | null;
+  externalProductId?: string | null;
+  edmTemplateId?: number | null;
+};
+
+type OrderShippingAddress = {
+  address?: string | null;
+  city?: string | null;
+  zip?: string | null;
+  country?: string | null;
+  state?: string | null;
+};
+
 const extractShippingDetails = (session: Stripe.Checkout.Session): ShippingDetails | null => {
   const direct = session.shipping_details;
   if (direct?.address) {
@@ -126,11 +142,37 @@ serve(async (req) => {
     return new Response("Database update failed", { status: 500 });
   }
 
+  if (order?.user_id && Array.isArray(order.items)) {
+    const items = order.items as OrderItem[];
+    const designRows = items
+      .filter((item) => item?.designId && item?.designPreview && item?.variantId)
+      .map((item) => ({
+        user_id: order.user_id,
+        design_id: item.designId,
+        external_product_id: item.externalProductId ?? null,
+        edm_template_id: item.edmTemplateId ?? null,
+        variant_id: item.variantId,
+        preview_url: item.designPreview,
+        source: "purchase",
+        order_id: order.id,
+      }));
+
+    if (designRows.length > 0) {
+      const { error: designError } = await supabaseClient
+        .from("designs")
+        .upsert(designRows, { onConflict: "user_id,design_id" });
+
+      if (designError) {
+        console.error("[STRIPE-WEBHOOK] Failed to save purchase designs:", designError);
+      }
+    }
+  }
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
   if (order?.id && supabaseUrl && serviceRoleKey) {
-    const shipping = order.shipping_address as any;
+    const shipping = order.shipping_address as OrderShippingAddress | null;
     const hasShipping = Boolean(
       shipping?.address &&
         shipping?.city &&

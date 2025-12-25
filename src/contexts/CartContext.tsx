@@ -7,12 +7,19 @@ export interface CartItem {
   designPreview: string;
   edmTemplateId?: number | null;
   designId?: string | null;
+  externalProductId?: string | null;
   quantity: number;
 }
 
 interface CartContextType {
   items: CartItem[];
-  addToCart: (variant: PhoneVariant, designPreview: string, edmTemplateId?: number | null, designId?: string | null) => void;
+  addToCart: (
+    variant: PhoneVariant,
+    designPreview: string,
+    edmTemplateId?: number | null,
+    designId?: string | null,
+    externalProductId?: string | null
+  ) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
@@ -29,7 +36,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
     variant: PhoneVariant,
     designPreview: string,
     edmTemplateId?: number | null,
-    designId?: string | null
+    designId?: string | null,
+    externalProductId?: string | null
   ) => {
     const id = `${variant.id}-${Date.now()}`;
     setItems((prev) => [
@@ -40,6 +48,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         designPreview,
         edmTemplateId: edmTemplateId ?? null,
         designId: designId ?? null,
+        externalProductId: externalProductId ?? null,
         quantity: 1,
       },
     ]);

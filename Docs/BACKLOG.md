@@ -14,6 +14,7 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 - [x] Add Printful failure guardrails - retry submission (initial + 3 retries over ~15 minutes) and auto-refund in Stripe if all retries fail; mark order status failed + store last_error.
 - [x] Schedule `printful-retry` cron (*/5) in Supabase.
 - [ ] Clean up test artifacts - refund live Stripe test charges and cancel or archive draft Printful orders created during validation.
+- [ ] Accounts - email/password + OAuth login, saved designs, and authenticated order history.
 
 ## P1 (Post-Launch Soon)
 - [x] EDM preview debug badge/log - surface when EDM templateId is missing on preview.
@@ -28,7 +29,6 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 - [ ] EDM mobile UX - editor requires slight scroll to reach bottom toolbar on small screens.
 - [ ] Preview mockup throughput - validate Printful rate limits under concurrent load and add queue/backoff if needed.
 - [ ] Explore 3D mockups for variants with only a single front style.
-- [ ] Accounts - login to save designs and view history.
 - [ ] Catalog thumbnails - replace generic images with standardized variant icons.
 
 

@@ -20,3 +20,18 @@ verify_jwt = false
 
 [functions.stripe-webhook]
 verify_jwt = false
+
+[functions.my-orders]
+verify_jwt = true
+
+[functions.claim-orders]
+verify_jwt = true
+
+[functions.save-design]
+verify_jwt = true
+
+[functions.list-designs]
+verify_jwt = true
+
+[functions.delete-design]
+verify_jwt = true
