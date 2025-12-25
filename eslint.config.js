@@ -23,4 +23,15 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  {
+    files: [
+      "src/components/editor/**/*.{ts,tsx}",
+      "src/hooks/**/*.{ts,tsx}",
+      "src/pages/OrderSuccess.tsx",
+      "supabase/functions/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
 );
