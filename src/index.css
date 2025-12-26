@@ -228,8 +228,6 @@ body {
   min-height: 0;
   flex: 1 1 auto !important;
   height: 100% !important;
-  min-height: calc(100vh - 10rem);
-  height: calc(100vh - 10rem) !important;
   display: flex;
   flex-direction: column;
 }
