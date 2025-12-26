@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Package, Plus, Loader2, ClipboardCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { CartSheet } from "@/components/CartSheet";
 import { RequireAuth } from "@/components/RequireAuth";
-import { useAuth } from "@/contexts/AuthContext";
+import { SiteMenu } from "@/components/SiteMenu";
 
 interface OrderItem {
   brand: string;
@@ -39,7 +40,6 @@ const statusColors: Record<string, string> = {
 };
 
 const OrdersContent = () => {
-  const { signOut } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [claimZip, setClaimZip] = useState("");
@@ -112,16 +112,9 @@ const OrdersContent = () => {
           <Link to="/" className="flex items-center gap-2">
             <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
           </Link>
-          <div className="flex items-center gap-4">
-            <Link to="/designs">
-              <Button variant="ghost">My Designs</Button>
-            </Link>
-            <Link to="/catalog">
-              <Button variant="ghost">Browse Cases</Button>
-            </Link>
-            <Button variant="ghost" onClick={signOut}>
-              Sign Out
-            </Button>
+          <div className="flex items-center gap-3">
+            <CartSheet />
+            <SiteMenu />
           </div>
         </div>
       </nav>

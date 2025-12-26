@@ -3,11 +3,12 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { RequireAuth } from "@/components/RequireAuth";
+import { CartSheet } from "@/components/CartSheet";
+import { SiteMenu } from "@/components/SiteMenu";
 import { supabase } from "@/integrations/supabase/client";
 import { getVariantById } from "@/data/phoneVariants";
 import { toast } from "sonner";
 import { Palette, Trash2 } from "lucide-react";
-import { useAuth } from "@/contexts/AuthContext";
 
 type SavedDesign = {
   id: string;
@@ -27,7 +28,6 @@ const buildDesignKey = (id: string, suffix: string) => `edmDesign:${id}:${suffix
 
 const DesignsContent = () => {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
   const [designs, setDesigns] = useState<SavedDesign[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -93,17 +93,8 @@ const DesignsContent = () => {
             <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
           </Link>
           <div className="flex items-center gap-3">
-            <Link to="/orders">
-              <Button variant="ghost">My Orders</Button>
-            </Link>
-            <Link to="/catalog">
-              <Button className="bg-cta hover:bg-cta/90 text-cta-foreground">
-                Start New Design
-              </Button>
-            </Link>
-            <Button variant="ghost" onClick={signOut}>
-              Sign Out
-            </Button>
+            <CartSheet />
+            <SiteMenu />
           </div>
         </div>
       </nav>
@@ -121,6 +112,11 @@ const DesignsContent = () => {
                 Resume, edit, or reorder your saved Snapcase designs.
               </p>
             </div>
+            <Link to="/catalog">
+              <Button className="bg-cta hover:bg-cta/90 text-cta-foreground">
+                Start New Design
+              </Button>
+            </Link>
           </div>
 
           {isLoading ? (

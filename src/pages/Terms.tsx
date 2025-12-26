@@ -1,8 +1,7 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { CartSheet } from "@/components/CartSheet";
+import { SiteMenu } from "@/components/SiteMenu";
 
 const Terms = () => {
   return (
@@ -12,15 +11,9 @@ const Terms = () => {
           <Link to="/" className="flex items-center gap-2">
             <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
           </Link>
-          <div className="flex items-center gap-4">
-            <Link to="/catalog" className="hidden md:block">
-              <Button variant="ghost">Browse Cases</Button>
-            </Link>
-            <Link to="/orders" className="hidden md:block">
-              <Button variant="ghost">My Orders</Button>
-            </Link>
-            <ThemeToggle />
+          <div className="flex items-center gap-3">
             <CartSheet />
+            <SiteMenu />
           </div>
         </div>
       </nav>

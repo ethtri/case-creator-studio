@@ -34,5 +34,7 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 - [ ] Preview mockup throughput - validate Printful rate limits under concurrent load and add queue/backoff if needed.
 - [ ] Explore 3D mockups for variants with only a single front style.
 - [ ] Catalog thumbnails - replace generic images with standardized variant icons.
+- [ ] Unify account menu in editor top bars (DesignEditor + DesignEditorEDM) for consistent access without changing the mobile-optimized EDM header/banner.
+- [ ] Review remaining navigation CTAs (Popular models "View all", menu labeling) for redundancy and clarity.
 
 

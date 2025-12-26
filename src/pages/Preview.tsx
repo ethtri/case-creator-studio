@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
 import { ChevronLeft, ShoppingCart, BadgeCheck, Truck, Check, Smartphone, Eye, Bookmark } from "lucide-react";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { CartSheet } from "@/components/CartSheet";
+import { SiteMenu } from "@/components/SiteMenu";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -614,8 +614,8 @@ const Preview = () => {
             </Link>
           </div>
           <div className="flex items-center gap-3">
-            <ThemeToggle />
             <CartSheet />
+            <SiteMenu showBrowse={false} />
             <Button
               variant="outline"
               onClick={() => navigate(editorPath)}

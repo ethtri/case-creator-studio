@@ -3,6 +3,8 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CartSheet } from "@/components/CartSheet";
+import { SiteMenu } from "@/components/SiteMenu";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
@@ -99,9 +101,10 @@ const Auth = () => {
           <Link to="/" className="flex items-center gap-2">
             <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
           </Link>
-          <Link to="/catalog">
-            <Button variant="ghost">Browse Cases</Button>
-          </Link>
+          <div className="flex items-center gap-3">
+            <CartSheet />
+            <SiteMenu />
+          </div>
         </div>
       </nav>
 

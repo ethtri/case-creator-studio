@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
 import { toast } from "sonner";
 import { ChevronLeft, Lock, CreditCard, Package, Trash2 } from "lucide-react";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { SiteMenu } from "@/components/SiteMenu";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -107,7 +107,7 @@ const Checkout = () => {
             </Link>
           </div>
           <div className="flex items-center gap-3">
-            <ThemeToggle />
+            <SiteMenu showBrowse={false} />
             <Button
               variant="ghost"
               onClick={() => navigate("/catalog")}
