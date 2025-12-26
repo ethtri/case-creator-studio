@@ -17,6 +17,30 @@ function blockBrowserRequests(req: Request): Response | null {
   return null;
 }
 
+function authorizeServiceRole(req: Request): Response | null {
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (!serviceRoleKey) {
+    console.error("[SUBMIT-PRINTFUL] Missing SUPABASE_SERVICE_ROLE_KEY");
+    return new Response(JSON.stringify({ error: "Server not configured" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+  const apiKey = req.headers.get("apikey");
+  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+  if (bearerToken !== serviceRoleKey && apiKey !== serviceRoleKey) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  return null;
+}
+
 // Safe error messages that don't expose internal details
 function getSafeErrorMessage(error: unknown): string {
   const errorMessage = error instanceof Error ? error.message : String(error);
@@ -271,6 +295,9 @@ serve(async (req) => {
   // Block browser requests - this is a server-side only endpoint
   const blockResponse = blockBrowserRequests(req);
   if (blockResponse) return blockResponse;
+
+  const authResponse = authorizeServiceRole(req);
+  if (authResponse) return authResponse;
   
   // No CORS headers for this endpoint since it shouldn't be called from browsers
 

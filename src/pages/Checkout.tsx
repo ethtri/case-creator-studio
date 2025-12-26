@@ -35,11 +35,18 @@ const Checkout = () => {
     }
   }, [user]);
 
+  const hasInvalidItems = items.some((item) => typeof item.edmTemplateId !== "number");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (items.length === 0) {
       toast.error("Your cart is empty");
+      return;
+    }
+
+    if (hasInvalidItems) {
+      toast.error("Finish saving your design before checking out.");
       return;
     }
 
@@ -54,7 +61,7 @@ const Checkout = () => {
         price: item.variant.price,
         quantity: item.quantity,
         designPreview: item.designPreview,
-        edmTemplateId: item.edmTemplateId ?? null,
+        edmTemplateId: item.edmTemplateId as number,
         designId: item.designId ?? null,
         externalProductId: item.externalProductId ?? null,
       }));
@@ -180,7 +187,7 @@ const Checkout = () => {
                   type="submit"
                   size="xl"
                   className="w-full bg-cta hover:bg-cta/90 text-cta-foreground"
-                  disabled={isProcessing || items.length === 0}
+                  disabled={isProcessing || items.length === 0 || hasInvalidItems}
                 >
                   {isProcessing ? (
                     <>

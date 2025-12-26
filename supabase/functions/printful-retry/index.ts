@@ -4,25 +4,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 const MAX_PRINTFUL_ATTEMPTS = 4;
 const BATCH_LIMIT = 25;
 
-function decodeBase64Url(value: string): string {
-  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
-  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-  return atob(padded);
-}
+function authorizeServiceRole(req: Request, serviceRoleKey: string): Response | null {
+  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+  const apiKey = req.headers.get("apikey");
+  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
-function getJwtRole(authHeader: string | null): string | null {
-  if (!authHeader) return null;
-  const match = authHeader.match(/^Bearer\s+(.+)$/i);
-  if (!match) return null;
-  const token = match[1];
-  const parts = token.split(".");
-  if (parts.length < 2) return null;
-  try {
-    const payload = JSON.parse(decodeBase64Url(parts[1]));
-    return typeof payload?.role === "string" ? payload.role : null;
-  } catch {
-    return null;
+  if (bearerToken !== serviceRoleKey && apiKey !== serviceRoleKey) {
+    return new Response("Unauthorized", { status: 401 });
   }
+
+  return null;
 }
 
 function hasRequiredShippingFields(shippingAddress: any): boolean {
@@ -40,11 +31,6 @@ serve(async (req) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
-  const role = getJwtRole(req.headers.get("authorization"));
-  if (role !== "service_role") {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
@@ -52,6 +38,9 @@ serve(async (req) => {
     console.error("[PRINTFUL-RETRY] Missing Supabase configuration");
     return new Response("Not configured", { status: 500 });
   }
+
+  const authResponse = authorizeServiceRole(req, serviceRoleKey);
+  if (authResponse) return authResponse;
 
   const supabaseClient = createClient(supabaseUrl, serviceRoleKey);
   const now = Date.now();

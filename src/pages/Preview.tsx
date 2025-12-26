@@ -113,12 +113,15 @@ const Preview = () => {
   const autoRetryRef = useRef<{ timer: number | null; count: number }>({ timer: null, count: 0 });
   const autoRetryInFlightRef = useRef(false);
   const previewErrorTimerRef = useRef<number | null>(null);
-  const { addToCart } = useCart();
+  const { addToCart, items } = useCart();
   const { user, isEmailVerified } = useAuth();
   const EDM_PREVIEW_CACHE_VERSION = "v4";
   const isDev = import.meta.env.DEV;
   const [externalProductId, setExternalProductId] = useState<string | null>(null);
   const [isSavingDesign, setIsSavingDesign] = useState(false);
+  const currentDesignReady = Boolean(variant && designPreview && typeof edmTemplateId === "number");
+  const hasInvalidCartItems = items.some((item) => typeof item.edmTemplateId !== "number");
+  const canProceedToCheckout = items.length > 0 && !hasInvalidCartItems;
 
   const buildDesignKey = (id: string, suffix: string) => `edmDesign:${id}:${suffix}`;
   const editorPath = variantId
@@ -476,12 +479,27 @@ const Preview = () => {
   }, [designId, edmTemplateId]);
 
   const handleAddToCart = () => {
-    if (variant && designPreview) {
-      addToCart(variant, designPreview, edmTemplateId, designId, externalProductId);
-      setAddedToCart(true);
-      toast.success("Added to cart!");
-      setTimeout(() => setAddedToCart(false), 2000);
+    if (!variant || !designPreview) return;
+    if (typeof edmTemplateId !== "number") {
+      toast.error("Finish saving your design before adding it to the cart.");
+      return;
     }
+    addToCart(variant, designPreview, edmTemplateId, designId, externalProductId);
+    setAddedToCart(true);
+    toast.success("Added to cart!");
+    setTimeout(() => setAddedToCart(false), 2000);
+  };
+
+  const handleProceedToCheckout = () => {
+    if (!canProceedToCheckout) {
+      if (items.length === 0) {
+        toast.info("Add your design to the cart before checking out.");
+      } else {
+        toast.error("Finish saving your design before checking out.");
+      }
+      return;
+    }
+    navigate(`/checkout/${variantId}`);
   };
 
   const handleSaveDesign = async () => {
@@ -875,7 +893,7 @@ const Preview = () => {
                       : 'bg-cta hover:bg-cta/90'
                   } text-cta-foreground shadow-lg shadow-cta/25`}
                   onClick={handleAddToCart}
-                  disabled={addedToCart}
+                  disabled={addedToCart || !currentDesignReady}
                 >
                   {addedToCart ? (
                     <>
@@ -905,7 +923,8 @@ const Preview = () => {
                   size="lg"
                   variant="secondary"
                   className="w-full h-12"
-                  onClick={() => navigate(`/checkout/${variantId}`)}
+                  onClick={handleProceedToCheckout}
+                  disabled={!canProceedToCheckout}
                 >
                   Proceed to Checkout
                 </Button>

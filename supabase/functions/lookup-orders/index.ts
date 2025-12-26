@@ -74,6 +74,31 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  if (req.method !== "POST") {
+    return new Response("Method not allowed", { status: 405, headers: corsHeaders });
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    return new Response(JSON.stringify({ error: "Server not configured" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    });
+  }
+
+  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+  const apiKey = req.headers.get("apikey");
+  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+  if (bearerToken !== serviceRoleKey && apiKey !== serviceRoleKey) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 401,
+    });
+  }
+
   try {
     const rawBody = await req.json();
     
@@ -92,10 +117,7 @@ serve(async (req) => {
     console.log("[LOOKUP-ORDERS] Looking up orders for email:", email);
 
     // Use service role to query orders
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    const supabaseClient = createClient(supabaseUrl, serviceRoleKey);
 
     const { data: orders, error: queryError } = await supabaseClient
       .from("orders")

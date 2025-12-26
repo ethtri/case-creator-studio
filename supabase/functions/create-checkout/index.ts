@@ -83,7 +83,7 @@ const itemSchema = z.object({
   price: z.number().positive().max(10000),
   quantity: z.number().int().positive().max(100),
   designPreview: z.string().max(5000),
-  edmTemplateId: z.number().int().positive().nullable().optional(),
+  edmTemplateId: z.number().int().positive(),
   designId: z.string().max(100).nullable().optional(),
   externalProductId: z.string().max(200).nullable().optional(),
 });
@@ -193,7 +193,8 @@ serve(async (req) => {
       customerId = customers.data[0].id;
     }
 
-    const origin = req.headers.get("origin") || "https://snapcase.ai";
+    const originHeader = req.headers.get("origin") || "";
+    const checkoutOrigin = isAllowedOrigin(originHeader) ? originHeader : ALLOWED_ORIGINS[0];
 
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
@@ -201,8 +202,8 @@ serve(async (req) => {
       customer_email: customerId ? undefined : resolvedEmail,
       line_items: lineItems,
       mode: "payment",
-      success_url: `${origin}/order-success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/checkout`,
+      success_url: `${checkoutOrigin}/order-success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${checkoutOrigin}/checkout`,
       shipping_address_collection: {
         allowed_countries: ["US"],
       },
@@ -214,7 +215,7 @@ serve(async (req) => {
           price: i.price,
           quantity: i.quantity,
           designPreview: i.designPreview,
-          edmTemplateId: i.edmTemplateId ?? null,
+          edmTemplateId: i.edmTemplateId,
           designId: i.designId ?? null,
           externalProductId: i.externalProductId ?? null,
         }))),
