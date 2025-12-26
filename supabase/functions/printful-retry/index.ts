@@ -59,9 +59,9 @@ serve(async (req) => {
   const { data: orders, error } = await supabaseClient
     .from("orders")
     .select("id, printful_attempts, printful_status, printful_next_attempt_at, shipping_address")
-    .is("printful_order_id", null)
-    .eq("status", "paid")
+    .in("status", ["paid", "processing"])
     .lt("printful_attempts", MAX_PRINTFUL_ATTEMPTS)
+    .or("printful_status.is.null,printful_status.eq.pending,printful_status.eq.retry,printful_status.eq.needs_shipping,printful_status.eq.draft")
     .limit(50);
 
   if (error) {
@@ -71,7 +71,7 @@ serve(async (req) => {
 
   const eligibleOrders = (orders ?? []).filter((order) => {
     const status = order.printful_status ?? "pending";
-    const statusAllowed = status === "pending" || status === "retry" || status === "needs_shipping";
+    const statusAllowed = status === "pending" || status === "retry" || status === "needs_shipping" || status === "draft";
     const nextAttemptAt = order.printful_next_attempt_at
       ? Date.parse(order.printful_next_attempt_at)
       : null;
