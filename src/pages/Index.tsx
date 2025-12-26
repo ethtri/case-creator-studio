@@ -5,8 +5,8 @@ import { Smartphone, Palette, Package, ChevronRight, Truck, RotateCcw, BadgeChec
 import heroWide from "@/assets/hero-wide.png";
 import heroNarrow from "@/assets/hero-narrow.png";
 import { phoneVariants } from "@/data/phoneVariants";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { CartSheet } from "@/components/CartSheet";
+import { SiteMenu } from "@/components/SiteMenu";
 
 const steps = [
   {
@@ -60,29 +60,9 @@ const Index = () => {
           <Link to="/" className="flex items-center gap-2">
             <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
           </Link>
-          <div className="hidden md:flex items-center gap-6">
-            <Link to="/catalog" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              Browse Cases
-            </Link>
-            <Link to="/orders" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              My Orders
-            </Link>
-            <ThemeToggle />
+          <div className="flex items-center gap-3">
             <CartSheet />
-            <Link to="/catalog">
-              <Button className="bg-cta hover:bg-cta/90 text-cta-foreground">
-                Start Designing
-              </Button>
-            </Link>
-          </div>
-          <div className="md:hidden flex items-center gap-2">
-            <ThemeToggle />
-            <CartSheet />
-            <Link to="/catalog">
-              <Button size="sm" className="bg-cta hover:bg-cta/90 text-cta-foreground">
-                Design
-              </Button>
-            </Link>
+            <SiteMenu />
           </div>
         </div>
       </nav>
@@ -138,15 +118,6 @@ const Index = () => {
                 <Button size="lg" className="bg-cta hover:bg-cta/90 text-cta-foreground font-semibold px-8 py-6 text-base shadow-glow">
                   Start designing
                   <ChevronRight className="w-5 h-5 ml-1" />
-                </Button>
-              </Link>
-              <Link to="/catalog">
-                <Button 
-                  size="lg" 
-                  variant="outline" 
-                  className="border-accent/50 text-foreground hover:bg-accent/10 hover:border-accent px-8 py-6 text-base"
-                >
-                  Browse models
                 </Button>
               </Link>
             </motion.div>

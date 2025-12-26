@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { phoneVariants, getPhoneModels, getBrands } from "@/data/phoneVariants";
 import { Filter, Search } from "lucide-react";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { CartSheet } from "@/components/CartSheet";
+import { SiteMenu } from "@/components/SiteMenu";
 
 const Catalog = () => {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
@@ -43,15 +43,9 @@ const Catalog = () => {
           <Link to="/" className="flex items-center gap-2">
             <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
           </Link>
-          <div className="flex items-center gap-4">
-            <Link to="/catalog" className="hidden md:block">
-              <Button variant="ghost">Browse Cases</Button>
-            </Link>
-            <Link to="/orders" className="hidden md:block">
-              <Button variant="ghost">My Orders</Button>
-            </Link>
-            <ThemeToggle />
+          <div className="flex items-center gap-3">
             <CartSheet />
+            <SiteMenu showBrowse={false} />
           </div>
         </div>
       </nav>

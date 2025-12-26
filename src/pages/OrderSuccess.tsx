@@ -3,7 +3,8 @@ import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Package, ArrowRight, Loader2 } from "lucide-react";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { CartSheet } from "@/components/CartSheet";
+import { SiteMenu } from "@/components/SiteMenu";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -95,7 +96,10 @@ const OrderSuccess = () => {
           <Link to="/" className="flex items-center gap-2">
             <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
           </Link>
-          <ThemeToggle />
+          <div className="flex items-center gap-3">
+            <CartSheet />
+            <SiteMenu />
+          </div>
         </div>
       </nav>
 
