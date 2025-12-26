@@ -5,7 +5,7 @@ import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CartSheet } from "@/components/CartSheet";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Loader2, AlertCircle, ExternalLink, ArrowLeft } from "lucide-react";
+import { Loader2, AlertCircle, ExternalLink, ArrowLeft, ArrowRight, Maximize2, Minimize2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -27,6 +27,17 @@ const isDev = import.meta.env.DEV;
 const debugLog = (...args: unknown[]) => {
   if (isDev) {
     console.log(...args);
+  }
+};
+
+const trackEdmEvent = (name: string, payload: Record<string, unknown> = {}) => {
+  if (typeof window === "undefined") return;
+  if (typeof window.snapcaseTrack === "function") {
+    window.snapcaseTrack(name, payload);
+    return;
+  }
+  if (isDev) {
+    console.info("[edm]", name, payload);
   }
 };
 
@@ -66,6 +77,8 @@ interface PFDesignMakerConfig {
   preselectedSizes?: string[];
   steps?: string[];
   onTemplateSaved?: (templateId: number) => void;
+  onProductChanged?: (productId: number) => void;
+  onStepStatusUpdate?: (status: { step?: string }) => void;
   onDesignStatusUpdate?: (status: { hasDesign: boolean; designChange?: boolean; designValid?: boolean }) => void;
   onIframeLoaded?: () => void;
   onError?: (error: unknown) => void;
@@ -81,6 +94,7 @@ declare global {
     PFDesignMaker: {
       new (config: PFDesignMakerConfig): PFDesignMakerInstance;
     };
+    snapcaseTrack?: (event: string, payload?: Record<string, unknown>) => void;
   }
 }
 
@@ -96,10 +110,14 @@ const DesignEditorEDM = () => {
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [templateId, setTemplateId] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isImmersive, setIsImmersive] = useState(false);
+  const [showImmersiveHint, setShowImmersiveHint] = useState(false);
   const [designId, setDesignId] = useState<string | null>(null);
   const designMakerRef = useRef<PFDesignMakerInstance | null>(null);
   const continueAfterSaveRef = useRef(false);
   const saveTimeoutRef = useRef<number | null>(null);
+  const immersiveHintTimeoutRef = useRef<number | null>(null);
+  const immersiveEventReadyRef = useRef(false);
   const autoSaveInFlightRef = useRef(false);
   const templateIdRef = useRef<number | null>(null);
   const hasSeenStatusRef = useRef(false);
@@ -309,11 +327,22 @@ const DesignEditorEDM = () => {
             variantIds: [variant.printfulVariantId],
           };
 
+      const lockDesignStep = () => {
+        designMakerRef.current?.sendMessage({ event: 'setSteps', steps: ['design'] });
+      };
+
+      const reassertDesignStep = () => {
+        if (!isMobile) return;
+        lockDesignStep();
+        window.setTimeout(lockDesignStep, 350);
+        window.setTimeout(lockDesignStep, 1200);
+      };
+
       const applySelectedProduct = () => {
         if (initProduct) {
           designMakerRef.current?.sendMessage({ event: 'setProduct', ...initProduct });
         }
-        designMakerRef.current?.sendMessage({ event: 'setSteps', steps: ['design'] });
+        lockDesignStep();
       };
 
       // Create the design maker instance
@@ -382,10 +411,19 @@ const DesignEditorEDM = () => {
             handleSaveDesign();
           }
         },
+        onProductChanged: () => {
+          reassertDesignStep();
+        },
+        onStepStatusUpdate: (status) => {
+          if (status?.step && status.step !== "design") {
+            reassertDesignStep();
+          }
+        },
         onIframeLoaded: () => {
           debugLog('Iframe loaded');
           applySelectedProduct();
           window.setTimeout(applySelectedProduct, 250);
+          reassertDesignStep();
           setIframeLoaded(true);
           setLoading(false);
         },
@@ -412,19 +450,18 @@ const DesignEditorEDM = () => {
     getStoredTemplateId,
     prewarmEdmPreview,
     buildDesignKey,
+    isMobile,
   ]);
 
   const updateDesignerHeight = useCallback(() => {
-    const headerHeight = headerRef.current?.offsetHeight ?? 0;
+    const headerHeight = isMobile && isImmersive ? 0 : (headerRef.current?.offsetHeight ?? 0);
     const infoHeight = infoRef.current?.offsetHeight ?? 0;
     const footerHeight = footerRef.current?.offsetHeight ?? 0;
     const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-    const footerOffset = isMobile ? 0 : footerHeight;
-    const buffer = isMobile ? 8 : 0;
-    const extraMobileHeight = isMobile ? Math.max(120, Math.round(viewportHeight * 0.15)) : 0;
-    const available = viewportHeight - headerHeight - infoHeight - footerOffset - buffer + extraMobileHeight;
+    const buffer = isMobile ? 4 : 0;
+    const available = viewportHeight - headerHeight - infoHeight - footerHeight - buffer;
     setDesignerHeight(Math.max(available, 200));
-  }, [isMobile]);
+  }, [isMobile, isImmersive]);
 
   const forceEmbedSizing = useCallback(() => {
     const container = document.getElementById("printful-designer");
@@ -470,7 +507,68 @@ const DesignEditorEDM = () => {
 
   useEffect(() => {
     updateDesignerHeight();
-  }, [isMobile, updateDesignerHeight]);
+  }, [isMobile, isImmersive, updateDesignerHeight]);
+
+  useEffect(() => {
+    if (!isMobile) {
+      setIsImmersive(false);
+    }
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (!isMobile || !iframeLoaded || error) return;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyTouchAction = document.body.style.touchAction;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.touchAction = previousBodyTouchAction;
+    };
+  }, [isMobile, iframeLoaded, error]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    if (!immersiveEventReadyRef.current) {
+      immersiveEventReadyRef.current = true;
+      return;
+    }
+    trackEdmEvent(isImmersive ? "edm_immersive_enter" : "edm_immersive_exit", {
+      variantId,
+      designId,
+    });
+  }, [isImmersive, isMobile, variantId, designId]);
+
+  useEffect(() => {
+    if (!isMobile || !isImmersive) {
+      setShowImmersiveHint(false);
+      if (immersiveHintTimeoutRef.current) {
+        window.clearTimeout(immersiveHintTimeoutRef.current);
+        immersiveHintTimeoutRef.current = null;
+      }
+      return;
+    }
+
+    const hintKey = "edmImmersiveHintShown";
+    if (sessionStorage.getItem(hintKey)) return;
+
+    setShowImmersiveHint(true);
+    sessionStorage.setItem(hintKey, "1");
+    immersiveHintTimeoutRef.current = window.setTimeout(() => {
+      setShowImmersiveHint(false);
+      immersiveHintTimeoutRef.current = null;
+    }, 2200);
+
+    return () => {
+      if (immersiveHintTimeoutRef.current) {
+        window.clearTimeout(immersiveHintTimeoutRef.current);
+        immersiveHintTimeoutRef.current = null;
+      }
+    };
+  }, [isMobile, isImmersive]);
 
   useEffect(() => {
     forceEmbedSizing();
@@ -584,6 +682,14 @@ const DesignEditorEDM = () => {
   };
 
   const handleContinue = () => {
+    trackEdmEvent("edm_cta_next", {
+      variantId,
+      designId,
+      hasTemplate: Boolean(templateId),
+      isSaving,
+      hasUnsavedChanges: hasUnsavedChangesRef.current,
+      isValid: designValidRef.current,
+    });
     if (isSaving || autoSaveInFlightRef.current) {
       continueAfterSaveRef.current = true;
       toast.info('Saving your latest changes...');
@@ -649,9 +755,10 @@ const DesignEditorEDM = () => {
     <div className="min-h-screen bg-surface-sunken flex flex-col">
       {/* Header */}
       {isMobile ? (
+        isImmersive ? null : (
         <header
           ref={headerRef}
-          className="h-12 bg-card border-b border-border flex items-center justify-between px-4 z-40 shrink-0"
+          className="h-11 bg-card border-b border-border flex items-center justify-between px-3 z-40 shrink-0"
         >
           <Link
             to="/catalog"
@@ -660,11 +767,37 @@ const DesignEditorEDM = () => {
             <ArrowLeft className="h-4 w-4" />
             <span className="text-sm font-medium">Catalog</span>
           </Link>
-          <div className="text-sm font-semibold text-foreground text-center max-w-[50vw] min-w-0 truncate">
-            Editor <span className="text-xs text-muted-foreground">- {variant.model}</span>
+          <div className="flex-1 min-w-0 text-center px-2">
+            <div className="text-xs font-semibold text-foreground truncate">
+              <span className="text-[11px] text-muted-foreground">{variant.model}</span>
+            </div>
           </div>
-          <CartSheet />
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9"
+              onClick={() => setIsImmersive(true)}
+              aria-label="Hide top bar"
+            >
+              <Maximize2 className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              className="bg-cta hover:bg-cta/90 text-cta-foreground h-9 px-3"
+              disabled={isSaving}
+              onClick={handleContinue}
+            >
+              {isSaving ? "Saving..." : (
+                <span className="flex items-center gap-1.5">
+                  Next
+                  <ArrowRight className="h-4 w-4" />
+                </span>
+              )}
+            </Button>
+          </div>
         </header>
+        )
       ) : (
         <header
           ref={headerRef}
@@ -742,6 +875,35 @@ const DesignEditorEDM = () => {
           </div>
         )}
 
+        {isMobile && saveError && (
+          <div className="absolute left-4 right-4 top-[calc(0.75rem+env(safe-area-inset-top))] z-40 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center justify-between">
+            <span>{saveError}</span>
+            <Button variant="outline" size="sm" onClick={handleRetrySave}>
+              Retry
+            </Button>
+          </div>
+        )}
+        {isMobile && isImmersive && (
+          <div className="absolute left-3 top-[calc(0.75rem+env(safe-area-inset-top))] z-50">
+            <div className="relative">
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-9 w-14 shadow-md"
+                onClick={() => setIsImmersive(false)}
+                aria-label="Show top bar"
+              >
+                <Minimize2 className="h-4 w-4" />
+              </Button>
+              {showImmersiveHint && (
+                <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 rounded-full border border-border bg-card/95 px-2 py-1 text-[11px] text-muted-foreground shadow-md whitespace-nowrap pointer-events-none">
+                  Tap to show top bar
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Printful Designer Container */}
         <div className="relative flex-1 w-full">
           <div 
@@ -787,28 +949,7 @@ const DesignEditorEDM = () => {
           </div>
         )}
       </div>
-      {isMobile && (
-        <div
-          ref={footerRef}
-          className="sticky bottom-0 z-40 bg-gradient-to-t from-card via-card/90 to-transparent px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shrink-0"
-        >
-          {saveError && (
-            <div className="mb-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center justify-between">
-              <span>{saveError}</span>
-              <Button variant="outline" size="sm" onClick={handleRetrySave}>
-                Retry
-              </Button>
-            </div>
-          )}
-          <Button 
-            className="w-full bg-cta hover:bg-cta/90 text-cta-foreground h-12 text-base font-medium rounded-xl shadow-lg"
-            disabled={isSaving}
-            onClick={handleContinue}
-          >
-            {isSaving ? "Saving..." : "Continue to Preview"}
-          </Button>
-        </div>
-      )}
+      {isMobile && <div ref={footerRef} className="h-0" />}
     </div>
   );
 };
