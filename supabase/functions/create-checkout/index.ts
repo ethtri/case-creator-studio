@@ -11,6 +11,18 @@ const ALLOWED_ORIGINS = [
 ];
 
 const VERCEL_PROJECT_PREFIXES = ["snapcaseappv2"];
+const STRIPE_MODE = (Deno.env.get("STRIPE_MODE") ?? "").toLowerCase();
+
+function getStripeSecretKey(): string {
+  if (STRIPE_MODE === "test") {
+    return (
+      Deno.env.get("STRIPE_SECRET_KEY_TEST") ??
+      Deno.env.get("STRIPE_SECRET_KEY") ??
+      ""
+    );
+  }
+  return Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+}
 
 function isAllowedOrigin(origin: string): boolean {
   if (!origin) {
@@ -140,7 +152,7 @@ serve(async (req) => {
     console.log("[CREATE-CHECKOUT] Processing checkout for:", resolvedEmail);
     console.log("[CREATE-CHECKOUT] Items count:", requestItems.length);
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+    const stripe = new Stripe(getStripeSecretKey(), {
       apiVersion: "2025-08-27.basil",
     });
 

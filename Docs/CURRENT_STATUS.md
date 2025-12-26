@@ -11,15 +11,13 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - None listed. Update if anything is actively blocked.
 
 ## Top 3 Next Tasks
-1. P0: Clean up test artifacts - refund live Stripe test charges and cancel or archive draft Printful orders created during validation.
-2. P0: Accounts - email/password + OAuth login, saved designs, and authenticated order history.
 
 ## Now / Next / Later
 **Now**
-- P0: Clean up test artifacts - refund live Stripe test charges and cancel or archive draft Printful orders created during validation.
+- None
 
 **Next**
-- P0: Accounts - email/password + OAuth login, saved designs, and authenticated order history.
+- None
 
 **Later**
 - None

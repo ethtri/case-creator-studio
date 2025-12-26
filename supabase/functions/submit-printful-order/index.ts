@@ -86,6 +86,7 @@ const PRINTFUL_API_V1_BASE = "https://api.printful.com";
 const PRINTFUL_DEFAULT_TECHNIQUE = "sublimation";
 const MAX_PRINTFUL_ATTEMPTS = 4;
 const PRINTFUL_RETRY_DELAY_MS = 5 * 60 * 1000;
+const STRIPE_MODE = (Deno.env.get("STRIPE_MODE") ?? "").toLowerCase();
 const variantConfigCache = new Map<number, { placement: string; technique: string }>();
 const productConfigCache = new Map<number, { placements: string[]; techniques: string[] }>();
 
@@ -102,6 +103,17 @@ function getPrintfulV1Headers(apiKey: string): HeadersInit {
     "Authorization": `Bearer ${apiKey}`,
     "Content-Type": "application/json",
   };
+}
+
+function getStripeSecretKey(): string {
+  if (STRIPE_MODE === "test") {
+    return (
+      Deno.env.get("STRIPE_SECRET_KEY_TEST") ??
+      Deno.env.get("STRIPE_SECRET_KEY") ??
+      ""
+    );
+  }
+  return Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 }
 
 function withStoreId(url: string): string {
@@ -573,7 +585,7 @@ serve(async (req) => {
 
         try {
           if (order?.stripe_payment_intent_id && !order?.printful_refund_id) {
-            const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+            const stripe = new Stripe(getStripeSecretKey(), {
               apiVersion: "2025-08-27.basil",
             });
             const refund = await stripe.refunds.create({
