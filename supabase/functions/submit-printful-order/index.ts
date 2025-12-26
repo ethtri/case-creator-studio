@@ -58,6 +58,7 @@ function getSafeErrorMessage(error: unknown): string {
 // Printful Store ID: 17088301 (Snapcase)
 const PRINTFUL_STORE_ID = "17088301";
 const PRINTFUL_API_BASE = "https://api.printful.com/v2";
+const PRINTFUL_API_V1_BASE = "https://api.printful.com";
 const PRINTFUL_DEFAULT_TECHNIQUE = "sublimation";
 const MAX_PRINTFUL_ATTEMPTS = 4;
 const PRINTFUL_RETRY_DELAY_MS = 5 * 60 * 1000;
@@ -70,6 +71,19 @@ function getPrintfulHeaders(apiKey: string): HeadersInit {
     "Content-Type": "application/json",
     "X-PF-Store-ID": PRINTFUL_STORE_ID,
   };
+}
+
+function getPrintfulV1Headers(apiKey: string): HeadersInit {
+  return {
+    "Authorization": `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+  };
+}
+
+function withStoreId(url: string): string {
+  if (!PRINTFUL_STORE_ID) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}store_id=${PRINTFUL_STORE_ID}`;
 }
 
 function extractStringList(value: unknown): string[] {
@@ -152,6 +166,23 @@ function hasRequiredShippingFields(shippingAddress: any): boolean {
       shippingAddress?.country &&
       shippingAddress?.state
   );
+}
+
+async function confirmPrintfulOrder(orderId: string, apiKey: string): Promise<{ status: string | null }> {
+  const response = await fetch(withStoreId(`${PRINTFUL_API_V1_BASE}/orders/${orderId}/confirm`), {
+    method: "POST",
+    headers: getPrintfulV1Headers(apiKey),
+  });
+
+  const payload = await response.json();
+  if (!response.ok) {
+    const errorDetail = payload?.error?.message ?? payload?.error ?? payload?.message ?? "Printful confirm error";
+    throw new Error(`Printful confirm error: ${errorDetail}`);
+  }
+
+  const result = payload?.result ?? payload?.data ?? payload;
+  const status = result?.status ?? null;
+  return { status };
 }
 
 async function getVariantConfig(catalogVariantId: number, apiKey: string): Promise<{ placement: string; technique: string }> {
@@ -280,11 +311,16 @@ serve(async (req) => {
 
     order = orderData;
 
-    if (order.status !== "paid") {
+    const existingPrintfulOrderId = order.printful_order_id ? String(order.printful_order_id) : null;
+    const needsConfirm =
+      existingPrintfulOrderId &&
+      (!order.printful_status || order.printful_status === "draft" || order.printful_status === "retry");
+
+    if (!needsConfirm && order.status !== "paid") {
       throw new Error("Order must be paid before submitting to Printful");
     }
 
-    if (order.printful_order_id) {
+    if (existingPrintfulOrderId && !needsConfirm) {
       console.log("[SUBMIT-PRINTFUL] Order already submitted to Printful");
       return new Response(JSON.stringify({ 
         success: true, 
@@ -318,14 +354,19 @@ serve(async (req) => {
     let claimQuery = supabaseClient
       .from("orders")
       .update({
-        printful_status: "submitting",
+        printful_status: needsConfirm ? "confirming" : "submitting",
         printful_attempts: attemptNumber,
         printful_last_attempt_at: attemptTimestamp,
         printful_next_attempt_at: null,
         printful_last_error: null,
       })
-      .eq("id", orderId)
-      .is("printful_order_id", null);
+      .eq("id", orderId);
+
+    if (needsConfirm) {
+      claimQuery = claimQuery.eq("printful_order_id", existingPrintfulOrderId);
+    } else {
+      claimQuery = claimQuery.is("printful_order_id", null);
+    }
 
     if (order.printful_status) {
       claimQuery = claimQuery.eq("printful_status", order.printful_status);
@@ -347,6 +388,29 @@ serve(async (req) => {
       throw new Error("Printful integration error");
     }
 
+    if (needsConfirm && existingPrintfulOrderId) {
+      const confirmResult = await confirmPrintfulOrder(existingPrintfulOrderId, printfulApiKey);
+      const resolvedStatus = confirmResult.status ?? "pending";
+      if (resolvedStatus === "draft") {
+        throw new Error("Printful order still in draft after confirm");
+      }
+
+      await supabaseClient
+        .from("orders")
+        .update({
+          printful_status: resolvedStatus,
+          status: "processing",
+          printful_next_attempt_at: null,
+          printful_last_error: null,
+        })
+        .eq("id", orderId);
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
     // Build Printful order
     const recipient: PrintfulRecipient = {
       name: order.customer_name || "Customer",
@@ -358,28 +422,42 @@ serve(async (req) => {
       email: order.customer_email,
     };
 
-    // Map cart items to Printful order_items (v2)
+    // Map cart items to Printful order items (v1)
     const orderItems = await Promise.all((order.items as any[]).map(async (item) => {
       const catalogVariantId = PRINTFUL_VARIANT_MAP[item.variantId];
       if (!catalogVariantId) {
         console.error("[SUBMIT-PRINTFUL] Unknown variant:", item.variantId);
         throw new Error("Unknown variant ID");
       }
+
+      if (item.edmTemplateId) {
+        return {
+          variant_id: catalogVariantId,
+          product_template_id: item.edmTemplateId,
+          quantity: item.quantity,
+        };
+      }
+
+      if (item.externalProductId) {
+        return {
+          variant_id: catalogVariantId,
+          external_product_id: item.externalProductId,
+          quantity: item.quantity,
+        };
+      }
+
       const variantConfig = await getVariantConfig(catalogVariantId, printfulApiKey);
+      const fileType = ["front", "back", "default"].includes(variantConfig.placement)
+        ? variantConfig.placement
+        : "default";
+
       return {
-        source: "catalog",
-        catalog_variant_id: catalogVariantId,
+        variant_id: catalogVariantId,
         quantity: item.quantity,
-        placements: [
+        files: [
           {
-            placement: variantConfig.placement,
-            technique: variantConfig.technique,
-            layers: [
-              {
-                type: "file",
-                url: item.designPreview,
-              },
-            ],
+            type: fileType,
+            url: item.designPreview,
           },
         ],
       };
@@ -388,14 +466,14 @@ serve(async (req) => {
     console.log("[SUBMIT-PRINTFUL] Submitting to Printful store:", PRINTFUL_STORE_ID);
     console.log("[SUBMIT-PRINTFUL] Items count:", orderItems.length);
 
-    // Submit to Printful API (v2) with store header
-    const printfulResponse = await fetch(`${PRINTFUL_API_BASE}/orders`, {
+    // Submit to Printful API (v1) for order creation (supports product templates)
+    const printfulResponse = await fetch(withStoreId(`${PRINTFUL_API_V1_BASE}/orders`), {
       method: "POST",
-      headers: getPrintfulHeaders(printfulApiKey),
+      headers: getPrintfulV1Headers(printfulApiKey),
       body: JSON.stringify({
         confirm: true,
         recipient,
-        order_items: orderItems,
+        items: orderItems,
         retail_costs: {
           subtotal: order.subtotal.toString(),
           shipping: order.shipping_cost.toString(),
@@ -414,18 +492,27 @@ serve(async (req) => {
 
     const printfulResult = printfulData?.result ?? printfulData?.data ?? printfulData;
     const printfulOrderId = printfulResult?.id ?? printfulResult?.order?.id ?? null;
-    const printfulStatus = printfulResult?.status ?? printfulResult?.order?.status ?? null;
+    let printfulStatus = printfulResult?.status ?? printfulResult?.order?.status ?? null;
+
+    if (printfulOrderId && (printfulStatus === "draft" || !printfulStatus)) {
+      const confirmResult = await confirmPrintfulOrder(String(printfulOrderId), printfulApiKey);
+      printfulStatus = confirmResult.status ?? printfulStatus;
+      if (printfulStatus === "draft") {
+        throw new Error("Printful order still in draft after confirm");
+      }
+    }
 
     console.log("[SUBMIT-PRINTFUL] Printful order created:", printfulOrderId);
 
     // Update order with Printful info
     if (printfulOrderId) {
+      const shouldProcess = printfulStatus && printfulStatus !== "draft";
       await supabaseClient
         .from("orders")
         .update({
           printful_order_id: String(printfulOrderId),
           printful_status: printfulStatus ?? "submitted",
-          status: "processing",
+          status: shouldProcess ? "processing" : order.status,
           printful_next_attempt_at: null,
           printful_last_error: null,
         })

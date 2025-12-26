@@ -54,3 +54,11 @@ Done means: code change + docs updated (if P0) + verification run + PR opened.
 - If another PR that touches shared foundations merges, update your branch from `main` before final verification.
 - Re-run verification after syncing.
 - Call out conflicts or risky overlaps in the PR description or status update.
+
+### Multi-agent worktree safety (recommended)
+- Each agent must work in its own Git worktree directory (not the same repo folder).
+- One worktree = one checked-out branch. Do not run two agents in the same worktree.
+- Worktree naming convention:
+  - Directory: `../wt-<short-task-slug>`
+  - Branch: `agent/<short-task-slug>`
+- If you must run without worktrees, run only one agent at a time to avoid branch switching.

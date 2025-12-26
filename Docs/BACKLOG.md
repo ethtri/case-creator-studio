@@ -9,8 +9,8 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 - [x] Pre-MVP pricing rationalization - include shipping costs; target ~20% margin for MVP.
 - [x] Designer mobile UX optimization - maximize EDM editor space by removing redundant text, make "Continue to preview" easier to access (floating footer/button), add a clear back-to-catalog button if the user picked the wrong case type.
 - [x] Orders missing shipping address in Supabase after Stripe checkout - update Stripe session parsing (shipping_details + collected_information + customer_details).
-- [ ] Fix automatic Printful submission after Stripe webhook (no manual trigger) - ensure checkout.session.completed invokes submit-printful-order, writes printful_order_id/printful_status, and transitions status to processing.
-- [ ] Confirm Printful orders auto-confirm (not draft) after adding confirm=true - run live checkout and verify status in Printful + Supabase.
+- [x] Fix automatic Printful submission after Stripe webhook (no manual trigger) - ensure checkout.session.completed invokes submit-printful-order, writes printful_order_id/printful_status, and transitions status to processing.
+- [x] Confirm Printful orders auto-confirm (not draft) after adding confirm=true - run live checkout and verify status in Printful + Supabase.
 - [x] Add Printful failure guardrails - retry submission (initial + 3 retries over ~15 minutes) and auto-refund in Stripe if all retries fail; mark order status failed + store last_error.
 - [x] Schedule `printful-retry` cron (*/5) in Supabase.
 - [ ] Clean up test artifacts - refund live Stripe test charges and cancel or archive draft Printful orders created during validation.
@@ -19,6 +19,7 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 ## P1 (Post-Launch Soon)
 - [x] EDM preview debug badge/log - surface when EDM templateId is missing on preview.
 - [x] Cache Printful mockup style IDs per product/variant to reduce API chatter.
+- [ ] Automated customer emails after order (tracking + status updates).
 - [ ] Add EDM mobile analytics events (immersive enter/exit + CTA click).
 - [ ] Address npm audit vulnerabilities (3 moderate, 1 high).
 - [ ] Narrow Stripe webhook events (currently wildcard) after verification - restrict to checkout.session.completed + async_payment_succeeded.
