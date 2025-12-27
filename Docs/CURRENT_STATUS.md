@@ -11,15 +11,13 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - None listed. Update if anything is actively blocked.
 
 ## Top 3 Next Tasks
-1. P0: Clean up test artifacts - refund live Stripe test charges and cancel or archive draft Printful orders created during validation.
-2. P0: Accounts - email/password + OAuth login, saved designs, and authenticated order history.
 
 ## Now / Next / Later
 **Now**
-- P0: Clean up test artifacts - refund live Stripe test charges and cancel or archive draft Printful orders created during validation.
+- None
 
 **Next**
-- P0: Accounts - email/password + OAuth login, saved designs, and authenticated order history.
+- None
 
 **Later**
 - None
@@ -27,3 +25,4 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 ## Notes
 - Use `Docs/BACKLOG.md` for priorities.
 - Run `Docs/QA_SMOKE_TEST_CHECKLIST.md` before go-live.
+- QA smoke test: PASS (live-mode order; test-mode run skipped per owner).

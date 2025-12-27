@@ -30,6 +30,30 @@ type OrderShippingAddress = {
   state?: string | null;
 };
 
+const STRIPE_MODE = (Deno.env.get("STRIPE_MODE") ?? "").toLowerCase();
+
+function getStripeSecretKey(): string {
+  if (STRIPE_MODE === "test") {
+    return (
+      Deno.env.get("STRIPE_SECRET_KEY_TEST") ??
+      Deno.env.get("STRIPE_SECRET_KEY") ??
+      ""
+    );
+  }
+  return Deno.env.get("STRIPE_SECRET_KEY") ?? "";
+}
+
+function getStripeWebhookSecret(): string | null {
+  if (STRIPE_MODE === "test") {
+    return (
+      Deno.env.get("STRIPE_WEBHOOK_SECRET_TEST") ??
+      Deno.env.get("STRIPE_WEBHOOK_SECRET") ??
+      null
+    );
+  }
+  return Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? null;
+}
+
 const extractShippingDetails = (session: Stripe.Checkout.Session): ShippingDetails | null => {
   const direct = session.shipping_details;
   if (direct?.address) {
@@ -69,14 +93,14 @@ serve(async (req) => {
     return new Response("Missing Stripe signature", { status: 400 });
   }
 
-  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+  const webhookSecret = getStripeWebhookSecret();
   if (!webhookSecret) {
     console.error("[STRIPE-WEBHOOK] Missing STRIPE_WEBHOOK_SECRET");
     return new Response("Webhook not configured", { status: 500 });
   }
 
   const payload = await req.text();
-  const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+  const stripe = new Stripe(getStripeSecretKey(), {
     apiVersion: "2025-08-27.basil",
   });
 

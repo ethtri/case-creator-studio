@@ -9,10 +9,20 @@ import {
 } from "@/components/ui/sheet";
 import { useCart } from "@/contexts/CartContext";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 export function CartSheet() {
   const { items, removeFromCart, updateQuantity, totalItems, totalPrice } = useCart();
   const navigate = useNavigate();
+  const hasInvalidItems = items.some((item) => typeof item.edmTemplateId !== "number");
+
+  const handleCheckout = () => {
+    if (hasInvalidItems) {
+      toast.error("Finish saving your design before checking out.");
+      return;
+    }
+    navigate("/checkout");
+  };
 
   return (
     <Sheet>
@@ -124,7 +134,8 @@ export function CartSheet() {
               <Button
                 className="w-full bg-cta hover:bg-cta/90 text-cta-foreground"
                 size="lg"
-                onClick={() => navigate("/checkout")}
+                onClick={handleCheckout}
+                disabled={hasInvalidItems}
               >
                 Checkout
               </Button>

@@ -13,8 +13,10 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 - [x] Confirm Printful orders auto-confirm (not draft) after adding confirm=true - run live checkout and verify status in Printful + Supabase.
 - [x] Add Printful failure guardrails - retry submission (initial + 3 retries over ~15 minutes) and auto-refund in Stripe if all retries fail; mark order status failed + store last_error.
 - [x] Schedule `printful-retry` cron (*/5) in Supabase.
-- [ ] Clean up test artifacts - refund live Stripe test charges and cancel or archive draft Printful orders created during validation.
-- [ ] Accounts - email/password + OAuth login, saved designs, and authenticated order history.
+- [x] Clean up test artifacts - refund live Stripe test charges and cancel or archive draft Printful orders created during validation.
+- [x] Accounts - email/password + OAuth login, saved designs, and authenticated order history.
+- [x] Block checkout/add-to-cart until EDM template is saved; ensure cart items carry `edmTemplateId` for fulfillment.
+- [x] Lock down Printful submission endpoints (`submit-printful-order`, `printful-retry`) with verified service-role auth.
 
 ## P1 (Post-Launch Soon)
 - [x] EDM preview debug badge/log - surface when EDM templateId is missing on preview.
@@ -23,6 +25,8 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 - [ ] Add EDM mobile analytics events (immersive enter/exit + CTA click).
 - [ ] Address npm audit vulnerabilities (3 moderate, 1 high).
 - [ ] Narrow Stripe webhook events (currently wildcard) after verification - restrict to checkout.session.completed + async_payment_succeeded.
+- [x] Enforce allowlisted origins for Stripe checkout success/cancel URLs in `create-checkout`.
+- [x] Secure or retire unused `lookup-orders` endpoint (require auth or remove if not used).
 
 ## P2 (Later)
 - [x] EDM performance tuning - speed up save/preview transitions (mockup latency).

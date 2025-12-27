@@ -17,6 +17,30 @@ function blockBrowserRequests(req: Request): Response | null {
   return null;
 }
 
+function authorizeServiceRole(req: Request): Response | null {
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (!serviceRoleKey) {
+    console.error("[SUBMIT-PRINTFUL] Missing SUPABASE_SERVICE_ROLE_KEY");
+    return new Response(JSON.stringify({ error: "Server not configured" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+  const apiKey = req.headers.get("apikey");
+  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+  if (bearerToken !== serviceRoleKey && apiKey !== serviceRoleKey) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  return null;
+}
+
 // Safe error messages that don't expose internal details
 function getSafeErrorMessage(error: unknown): string {
   const errorMessage = error instanceof Error ? error.message : String(error);
@@ -62,6 +86,7 @@ const PRINTFUL_API_V1_BASE = "https://api.printful.com";
 const PRINTFUL_DEFAULT_TECHNIQUE = "sublimation";
 const MAX_PRINTFUL_ATTEMPTS = 4;
 const PRINTFUL_RETRY_DELAY_MS = 5 * 60 * 1000;
+const STRIPE_MODE = (Deno.env.get("STRIPE_MODE") ?? "").toLowerCase();
 const variantConfigCache = new Map<number, { placement: string; technique: string }>();
 const productConfigCache = new Map<number, { placements: string[]; techniques: string[] }>();
 
@@ -78,6 +103,17 @@ function getPrintfulV1Headers(apiKey: string): HeadersInit {
     "Authorization": `Bearer ${apiKey}`,
     "Content-Type": "application/json",
   };
+}
+
+function getStripeSecretKey(): string {
+  if (STRIPE_MODE === "test") {
+    return (
+      Deno.env.get("STRIPE_SECRET_KEY_TEST") ??
+      Deno.env.get("STRIPE_SECRET_KEY") ??
+      ""
+    );
+  }
+  return Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 }
 
 function withStoreId(url: string): string {
@@ -271,6 +307,9 @@ serve(async (req) => {
   // Block browser requests - this is a server-side only endpoint
   const blockResponse = blockBrowserRequests(req);
   if (blockResponse) return blockResponse;
+
+  const authResponse = authorizeServiceRole(req);
+  if (authResponse) return authResponse;
   
   // No CORS headers for this endpoint since it shouldn't be called from browsers
 
@@ -546,7 +585,7 @@ serve(async (req) => {
 
         try {
           if (order?.stripe_payment_intent_id && !order?.printful_refund_id) {
-            const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+            const stripe = new Stripe(getStripeSecretKey(), {
               apiVersion: "2025-08-27.basil",
             });
             const refund = await stripe.refunds.create({
