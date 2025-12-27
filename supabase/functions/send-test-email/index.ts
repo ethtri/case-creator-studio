@@ -99,8 +99,26 @@ serve(async (req) => {
     trackingCarrier: payload.trackingCarrier ?? null,
   });
 
-  return new Response(JSON.stringify(result), {
-    headers: { "Content-Type": "application/json" },
-    status: 200,
-  });
+  const { data: notification } = await supabaseClient
+    .from("order_notifications")
+    .select("status, error_message, provider_message_id, sent_at")
+    .eq("order_id", payload.orderId)
+    .eq("event_type", payload.eventType)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return new Response(
+    JSON.stringify({
+      ...result,
+      status: notification?.status ?? null,
+      error: notification?.error_message ?? null,
+      providerMessageId: notification?.provider_message_id ?? null,
+      sentAt: notification?.sent_at ?? null,
+    }),
+    {
+      headers: { "Content-Type": "application/json" },
+      status: 200,
+    },
+  );
 });
