@@ -32,6 +32,10 @@ type OrderShippingAddress = {
 };
 
 const STRIPE_MODE = (Deno.env.get("STRIPE_MODE") ?? "").toLowerCase();
+const ALLOWED_STRIPE_EVENTS = new Set([
+  "checkout.session.completed",
+  "checkout.session.async_payment_succeeded",
+]);
 
 function getStripeSecretKey(): string {
   if (STRIPE_MODE === "test") {
@@ -113,7 +117,8 @@ serve(async (req) => {
     return new Response("Invalid signature", { status: 400 });
   }
 
-  if (event.type !== "checkout.session.completed" && event.type !== "checkout.session.async_payment_succeeded") {
+  if (!ALLOWED_STRIPE_EVENTS.has(event.type)) {
+    console.log(`[STRIPE-WEBHOOK] Ignoring event type: ${event.type}`);
     return new Response("Ignored", { status: 200 });
   }
 
