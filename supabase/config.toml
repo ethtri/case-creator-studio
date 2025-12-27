@@ -12,6 +12,9 @@ verify_jwt = false
 [functions.submit-printful-order]
 verify_jwt = false
 
+[functions.printful-webhook]
+verify_jwt = false
+
 [functions.printful-retry]
 verify_jwt = true
 
@@ -19,6 +22,9 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.stripe-webhook]
+verify_jwt = false
+
+[functions.resend-webhook]
 verify_jwt = false
 
 [functions.my-orders]
