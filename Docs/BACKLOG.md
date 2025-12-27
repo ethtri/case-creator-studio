@@ -21,7 +21,7 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 ## P1 (Post-Launch Soon)
 - [x] EDM preview debug badge/log - surface when EDM templateId is missing on preview.
 - [x] Cache Printful mockup style IDs per product/variant to reduce API chatter.
-- [ ] Automated customer emails after order (tracking + status updates).
+- [x] Automated customer emails after order (tracking + status updates).
 - [ ] Add EDM mobile analytics events (immersive enter/exit + CTA click).
 - [ ] Address npm audit vulnerabilities (3 moderate, 1 high).
 - [ ] Narrow Stripe webhook events (currently wildcard) after verification - restrict to checkout.session.completed + async_payment_succeeded.
