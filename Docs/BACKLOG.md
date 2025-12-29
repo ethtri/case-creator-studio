@@ -23,6 +23,8 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 - [x] Add promotion code support for discounts at checkout.
 - [x] EDM preview debug badge/log - surface when EDM templateId is missing on preview.
 - [x] Cache Printful mockup style IDs per product/variant to reduce API chatter.
+- [ ] Bug: Cart clears when returning from Stripe without completing checkout.
+- [ ] Bug: My Orders list shows blank preview images for orders.
 - [ ] Automated customer emails after order (tracking + status updates).
 - [ ] Add EDM mobile analytics events (immersive enter/exit + CTA click).
 - [ ] Address npm audit vulnerabilities (3 moderate, 1 high).
