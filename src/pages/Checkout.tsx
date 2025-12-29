@@ -82,7 +82,19 @@ const Checkout = () => {
       });
 
       if (error) {
-        throw new Error(error.message);
+        let message = error.message;
+        const context = (error as { context?: Response }).context;
+        if (context) {
+          try {
+            const errorBody = await context.json();
+            if (errorBody?.error) {
+              message = errorBody.error as string;
+            }
+          } catch (parseError) {
+            console.warn("Unable to parse promo error response:", parseError);
+          }
+        }
+        throw new Error(message);
       }
 
       if (!data?.promo) {
@@ -145,7 +157,19 @@ const Checkout = () => {
       });
 
       if (error) {
-        throw new Error(error.message);
+        let message = error.message;
+        const context = (error as { context?: Response }).context;
+        if (context) {
+          try {
+            const errorBody = await context.json();
+            if (errorBody?.error) {
+              message = errorBody.error as string;
+            }
+          } catch (parseError) {
+            console.warn("Unable to parse checkout error response:", parseError);
+          }
+        }
+        throw new Error(message);
       }
 
       if (data?.url) {

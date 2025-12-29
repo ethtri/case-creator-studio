@@ -14,13 +14,17 @@ const STRIPE_MODE = (Deno.env.get("STRIPE_MODE") ?? "").toLowerCase();
 
 const PRODUCT_PRICE = 29.99;
 
-function getStripeSecretKey(): string {
+function isLocalOrigin(origin: string): boolean {
+  return origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1");
+}
+
+function getStripeSecretKey(origin?: string): string {
+  const testKey = Deno.env.get("STRIPE_SECRET_KEY_TEST") ?? "";
+  if (origin && isLocalOrigin(origin) && testKey) {
+    return testKey;
+  }
   if (STRIPE_MODE === "test") {
-    return (
-      Deno.env.get("STRIPE_SECRET_KEY_TEST") ??
-      Deno.env.get("STRIPE_SECRET_KEY") ??
-      ""
-    );
+    return testKey || Deno.env.get("STRIPE_SECRET_KEY") || "";
   }
   return Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 }
@@ -237,7 +241,8 @@ serve(async (req) => {
     const subtotal = items.reduce((sum, item) => sum + PRODUCT_PRICE * item.quantity, 0);
     const orderTotal = subtotal;
 
-    const stripe = new Stripe(getStripeSecretKey(), {
+    const originHeader = req.headers.get("origin") || "";
+    const stripe = new Stripe(getStripeSecretKey(originHeader), {
       apiVersion: "2025-08-27.basil",
     });
 
