@@ -60,6 +60,7 @@ function getCorsHeaders(req: Request): Record<string, string> {
 // Safe error messages that don't expose internal details
 function getSafeErrorMessage(error: unknown): string {
   const errorMessage = error instanceof Error ? error.message : String(error);
+  const lowered = errorMessage.toLowerCase();
   
   // Log full error details server-side for debugging
   console.error("[CREATE-CHECKOUT] Full error details:", {
@@ -74,6 +75,18 @@ function getSafeErrorMessage(error: unknown): string {
   }
   if (errorMessage.includes("No items") || errorMessage.includes("items")) {
     return "Cart cannot be empty";
+  }
+  if (lowered.includes("promo")) {
+    return errorMessage;
+  }
+  if (lowered.includes("first-time")) {
+    return "Promo code is for first-time customers only.";
+  }
+  if (lowered.includes("minimum")) {
+    return errorMessage;
+  }
+  if (lowered.includes("customer")) {
+    return "Promo code is not valid for this customer.";
   }
   if (errorMessage.includes("validation") || errorMessage.includes("Invalid")) {
     return "Invalid order data. Please check your information and try again.";
@@ -102,14 +115,133 @@ const itemSchema = z.object({
   externalProductId: z.string().max(200).nullable().optional(),
 });
 
+const promoCodeSchema = z.object({
+  code: z.string().min(1).max(50),
+});
+
 const checkoutRequestSchema = z.object({
   items: z.array(itemSchema).min(1).max(50),
   customerEmail: z.string().email().max(255),
+  promoCode: promoCodeSchema.optional(),
 });
 
 // Server-side pricing - single source of truth
 const PRODUCT_PRICE = 29.99;
 const SHIPPING_COST = 4.99;
+
+type PromoResolution = {
+  code: string;
+  promotionCodeId: string;
+  couponId: string;
+  discountAmount: number;
+};
+
+function computeDiscount(orderTotal: number, coupon: Stripe.Coupon): number {
+  if (!coupon.valid) return 0;
+  if (typeof coupon.percent_off === "number") {
+    return orderTotal * (coupon.percent_off / 100);
+  }
+  if (typeof coupon.amount_off === "number") {
+    if ((coupon.currency ?? "").toLowerCase() !== "usd") {
+      return 0;
+    }
+    return coupon.amount_off / 100;
+  }
+  return 0;
+}
+
+async function hasPaidOrder(supabaseClient: ReturnType<typeof createClient>, email: string): Promise<boolean> {
+  const { data, error } = await supabaseClient
+    .from("orders")
+    .select("id")
+    .eq("customer_email", email)
+    .not("stripe_payment_intent_id", "is", null)
+    .limit(1);
+
+  if (error) {
+    console.error("[CREATE-CHECKOUT] Failed to check order history:", error);
+    throw new Error("Unable to validate promo code right now.");
+  }
+
+  return (data?.length ?? 0) > 0;
+}
+
+async function resolvePromotionCode(
+  stripe: Stripe,
+  supabaseClient: ReturnType<typeof createClient>,
+  code: string,
+  orderTotal: number,
+  customerEmail: string,
+): Promise<PromoResolution> {
+  const promotionCodes = await stripe.promotionCodes.list({
+    code,
+    active: true,
+    limit: 1,
+  });
+
+  if (!promotionCodes.data.length) {
+    throw new Error("Promo code is invalid or expired.");
+  }
+
+  const promotionCode = promotionCodes.data[0];
+  const coupon = promotionCode.coupon;
+
+  if (promotionCode.expires_at && promotionCode.expires_at < Math.floor(Date.now() / 1000)) {
+    throw new Error("Promo code is invalid or expired.");
+  }
+
+  if (
+    typeof promotionCode.max_redemptions === "number" &&
+    promotionCode.times_redeemed >= promotionCode.max_redemptions
+  ) {
+    throw new Error("Promo code has reached its redemption limit.");
+  }
+
+  if (promotionCode.restrictions?.minimum_amount) {
+    const minimum = promotionCode.restrictions.minimum_amount / 100;
+    if (orderTotal < minimum) {
+      throw new Error(`Minimum order amount is $${minimum.toFixed(2)} for this promo code.`);
+    }
+    const currency = promotionCode.restrictions.minimum_amount_currency ?? "usd";
+    if (currency.toLowerCase() !== "usd") {
+      throw new Error("Promo code is not valid for this currency.");
+    }
+  }
+
+  if (promotionCode.restrictions?.first_time_transaction) {
+    const hasPaid = await hasPaidOrder(supabaseClient, customerEmail.trim().toLowerCase());
+    if (hasPaid) {
+      throw new Error("Promo code is for first-time customers only.");
+    }
+  }
+
+  if (promotionCode.customer) {
+    const customers = await stripe.customers.list({
+      email: customerEmail.trim(),
+      limit: 1,
+    });
+    const customerId = customers.data[0]?.id;
+    if (!customerId || customerId !== promotionCode.customer) {
+      throw new Error("Promo code is not valid for this customer.");
+    }
+  }
+
+  if (coupon.applies_to?.products?.length) {
+    throw new Error("Promo code is not valid for these items.");
+  }
+
+  const discountAmount = computeDiscount(orderTotal, coupon);
+  if (discountAmount <= 0) {
+    throw new Error("Promo code is invalid or expired.");
+  }
+
+  return {
+    code: promotionCode.code ?? code,
+    promotionCodeId: promotionCode.id,
+    couponId: coupon.id,
+    discountAmount: Number(Math.min(discountAmount, orderTotal).toFixed(2)),
+  };
+}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -128,7 +260,7 @@ serve(async (req) => {
       throw new Error("Invalid order data");
     }
     
-    const { items: requestItems, customerEmail } = validationResult.data;
+    const { items: requestItems, customerEmail, promoCode } = validationResult.data;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
@@ -154,6 +286,11 @@ serve(async (req) => {
     console.log("[CREATE-CHECKOUT] Processing checkout for:", resolvedEmail);
     console.log("[CREATE-CHECKOUT] Items count:", requestItems.length);
 
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const supabaseClient = supabaseUrl && supabaseServiceKey
+      ? createClient(supabaseUrl, supabaseServiceKey)
+      : null;
+
     const stripe = new Stripe(getStripeSecretKey(), {
       apiVersion: "2025-08-27.basil",
     });
@@ -167,7 +304,21 @@ serve(async (req) => {
     // Calculate totals using server-side pricing
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
     const shippingCost = SHIPPING_COST;
-    const total = subtotal + shippingCost;
+    if (promoCode && !supabaseClient) {
+      throw new Error("Unable to validate promo code right now.");
+    }
+
+    const promo = promoCode
+      ? await resolvePromotionCode(
+          stripe,
+          supabaseClient as ReturnType<typeof createClient>,
+          promoCode.code.trim(),
+          subtotal,
+          resolvedEmail,
+        )
+      : null;
+    const discountTotal = promo?.discountAmount ?? 0;
+    const total = Math.max(subtotal + shippingCost - discountTotal, shippingCost);
 
     // Create line items for Stripe using server-side pricing
     const lineItems = items.map((item) => ({
@@ -200,7 +351,8 @@ serve(async (req) => {
       customer: customerId,
       customer_email: customerId ? undefined : resolvedEmail,
       line_items: lineItems,
-      allow_promotion_codes: true,
+      allow_promotion_codes: !promo,
+      discounts: promo ? [{ promotion_code: promo.promotionCodeId }] : undefined,
       mode: "payment",
       success_url: `${checkoutOrigin}/order-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${checkoutOrigin}/checkout`,
@@ -235,14 +387,14 @@ serve(async (req) => {
           designId: i.designId ?? null,
           externalProductId: i.externalProductId ?? null,
         }))),
+        promotionCode: promo?.code ?? "",
       },
     });
 
     // Create order record in database
-    const supabaseClient = createClient(
-      supabaseUrl,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+    if (!supabaseClient) {
+      throw new Error("Unable to process your request. Please try again.");
+    }
 
     const { error: orderError } = await supabaseClient.from("orders").insert({
       stripe_session_id: session.id,
@@ -251,10 +403,10 @@ serve(async (req) => {
       items: items,
       subtotal: subtotal,
       shipping_cost: shippingCost,
-      discount_total: 0,
-      promotion_code: null,
-      promotion_code_id: null,
-      coupon_id: null,
+      discount_total: discountTotal,
+      promotion_code: promo?.code ?? null,
+      promotion_code_id: promo?.promotionCodeId ?? null,
+      coupon_id: promo?.couponId ?? null,
       total: total,
       status: "pending",
     });
