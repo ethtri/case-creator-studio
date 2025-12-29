@@ -19,6 +19,8 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 - [x] Lock down Printful submission endpoints (`submit-printful-order`, `printful-retry`) with verified service-role auth.
 
 ## P1 (Post-Launch Soon)
+- [ ] Investigate Printful shipping options (e.g., express) and how to expose them in checkout (US-only for now; document path to intl shipping).
+- [x] Add promotion code support for discounts at checkout.
 - [x] EDM preview debug badge/log - surface when EDM templateId is missing on preview.
 - [x] Cache Printful mockup style IDs per product/variant to reduce API chatter.
 - [ ] Automated customer emails after order (tracking + status updates).

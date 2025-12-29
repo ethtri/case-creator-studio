@@ -137,6 +137,14 @@ serve(async (req) => {
     stripe_payment_intent_id: paymentIntentId ?? null,
   };
 
+  if (typeof session.amount_total === "number") {
+    updateData.total = session.amount_total / 100;
+  }
+
+  if (typeof session.total_details?.amount_discount === "number") {
+    updateData.discount_total = session.total_details.amount_discount / 100;
+  }
+
   if (shippingDetails?.name) {
     updateData.customer_name = shippingDetails.name;
   } else if (customerDetails?.name) {

@@ -19,6 +19,8 @@ export type Database = {
           created_at: string
           customer_email: string
           customer_name: string | null
+          coupon_id: string | null
+          discount_total: number
           id: string
           items: Json
           printful_attempts: number
@@ -28,8 +30,15 @@ export type Database = {
           printful_order_id: string | null
           printful_refund_id: string | null
           printful_status: string | null
+          promotion_code: string | null
+          promotion_code_id: string | null
           shipping_address: Json | null
           shipping_cost: number
+          shipping_method_currency: string | null
+          shipping_method_id: string | null
+          shipping_method_label: string | null
+          shipping_method_max_days: number | null
+          shipping_method_min_days: number | null
           status: string
           stripe_payment_intent_id: string | null
           stripe_session_id: string | null
@@ -41,6 +50,8 @@ export type Database = {
           created_at?: string
           customer_email: string
           customer_name?: string | null
+          coupon_id?: string | null
+          discount_total?: number
           id?: string
           items: Json
           printful_attempts?: number
@@ -50,8 +61,15 @@ export type Database = {
           printful_order_id?: string | null
           printful_refund_id?: string | null
           printful_status?: string | null
+          promotion_code?: string | null
+          promotion_code_id?: string | null
           shipping_address?: Json | null
           shipping_cost?: number
+          shipping_method_currency?: string | null
+          shipping_method_id?: string | null
+          shipping_method_label?: string | null
+          shipping_method_max_days?: number | null
+          shipping_method_min_days?: number | null
           status?: string
           stripe_payment_intent_id?: string | null
           stripe_session_id?: string | null
@@ -63,6 +81,8 @@ export type Database = {
           created_at?: string
           customer_email?: string
           customer_name?: string | null
+          coupon_id?: string | null
+          discount_total?: number
           id?: string
           items?: Json
           printful_attempts?: number
@@ -72,8 +92,15 @@ export type Database = {
           printful_order_id?: string | null
           printful_refund_id?: string | null
           printful_status?: string | null
+          promotion_code?: string | null
+          promotion_code_id?: string | null
           shipping_address?: Json | null
           shipping_cost?: number
+          shipping_method_currency?: string | null
+          shipping_method_id?: string | null
+          shipping_method_label?: string | null
+          shipping_method_max_days?: number | null
+          shipping_method_min_days?: number | null
           status?: string
           stripe_payment_intent_id?: string | null
           stripe_session_id?: string | null

@@ -6,21 +6,32 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
 import { toast } from "sonner";
-import { ChevronLeft, Lock, CreditCard, Package, Trash2 } from "lucide-react";
+import { ChevronLeft, Lock, CreditCard, Package, Trash2, Tag } from "lucide-react";
 import { SiteMenu } from "@/components/SiteMenu";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 
+type PromoDetails = {
+  code: string;
+  discountAmount: number;
+};
+
+const SHIPPING_COST = 4.99;
+
 const Checkout = () => {
   const { variantId } = useParams();
   const navigate = useNavigate();
-  const { items, removeFromCart, totalPrice, clearCart } = useCart();
+  const { items, removeFromCart, totalPrice } = useCart();
   const { user } = useAuth();
   const [variant, setVariant] = useState<PhoneVariant | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-
   const [email, setEmail] = useState("");
+
+  const [promoCode, setPromoCode] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<PromoDetails | null>(null);
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
 
   useEffect(() => {
     const foundVariant = getVariantById(variantId || "");
@@ -35,7 +46,62 @@ const Checkout = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    setAppliedPromo(null);
+    setPromoError(null);
+  }, [items]);
+
   const hasInvalidItems = items.some((item) => typeof item.edmTemplateId !== "number");
+  const discountTotal = appliedPromo?.discountAmount ?? 0;
+  const total = Math.max(totalPrice + SHIPPING_COST - discountTotal, 0);
+
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) {
+      setPromoError("Enter a promo code.");
+      return;
+    }
+
+    setPromoLoading(true);
+    setPromoError(null);
+
+    try {
+      const cartItems = items.map((item) => ({
+        variantId: item.variant.id,
+        quantity: item.quantity,
+      }));
+
+      const { data, error } = await supabase.functions.invoke("validate-promo", {
+        body: {
+          code: promoCode.trim(),
+          items: cartItems,
+        },
+      });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!data?.promo) {
+        throw new Error("Promo code is invalid or expired.");
+      }
+
+      setAppliedPromo({
+        code: data.promo.code,
+        discountAmount: data.promo.discountAmount,
+      });
+      setPromoCode(data.promo.code);
+    } catch (error) {
+      console.error("Promo code error:", error);
+      setPromoError(error instanceof Error ? error.message : "Unable to apply promo code.");
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setPromoError(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,11 +132,11 @@ const Checkout = () => {
         externalProductId: item.externalProductId ?? null,
       }));
 
-      // Call edge function to create Stripe checkout session
       const { data, error } = await supabase.functions.invoke("create-checkout", {
         body: {
           items: cartItems,
           customerEmail: user?.email ?? email,
+          promoCode: appliedPromo ? { code: appliedPromo.code } : undefined,
         },
       });
 
@@ -90,9 +156,6 @@ const Checkout = () => {
       setIsProcessing(false);
     }
   };
-
-  const shippingCost = 4.99;
-  const total = totalPrice + shippingCost;
 
   if (items.length === 0 && !variant) {
     return (
@@ -261,15 +324,54 @@ const Checkout = () => {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground flex items-center gap-1">
                       <Package className="w-3 h-3" />
-                      Shipping
+                      Standard shipping (2-4 business days)
                     </span>
-                    <span>${shippingCost.toFixed(2)}</span>
+                    <span>${SHIPPING_COST.toFixed(2)}</span>
                   </div>
+                  {appliedPromo && (
+                    <div className="flex justify-between text-sm text-success">
+                      <span className="flex items-center gap-1">
+                        <Tag className="w-3 h-3" />
+                        Promo ({appliedPromo.code})
+                      </span>
+                      <span>- ${discountTotal.toFixed(2)}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex justify-between font-semibold pt-4 border-t border-border">
                   <span>Total</span>
                   <span>${total.toFixed(2)} USD</span>
+                </div>
+
+                <div className="pt-4 border-t border-border mt-4 space-y-2">
+                  <Label htmlFor="promo">Promo code</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="promo"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value)}
+                      placeholder="Enter code"
+                      disabled={promoLoading || isProcessing}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleApplyPromo}
+                      disabled={promoLoading || isProcessing || !promoCode.trim()}
+                    >
+                      {promoLoading ? "Applying..." : "Apply"}
+                    </Button>
+                  </div>
+                  {promoError && <p className="text-xs text-destructive">{promoError}</p>}
+                  {appliedPromo && (
+                    <div className="flex items-center justify-between text-xs text-success">
+                      <span>Applied {appliedPromo.code}</span>
+                      <Button type="button" variant="ghost" size="sm" onClick={handleRemovePromo}>
+                        Remove
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             </div>

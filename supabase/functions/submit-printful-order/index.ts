@@ -291,6 +291,7 @@ const PRINTFUL_VARIANT_MAP: Record<string, number> = {
 interface PrintfulRecipient {
   name: string;
   address1: string;
+  address2?: string;
   city: string;
   state_code: string;
   country_code: string;
@@ -454,6 +455,7 @@ serve(async (req) => {
     const recipient: PrintfulRecipient = {
       name: order.customer_name || "Customer",
       address1: shippingAddress?.address || "",
+      address2: shippingAddress?.address2 || undefined,
       city: shippingAddress?.city || "",
       state_code: shippingAddress?.state || "",
       country_code: normalizeCountryCode(shippingAddress?.country),
@@ -505,6 +507,9 @@ serve(async (req) => {
     console.log("[SUBMIT-PRINTFUL] Submitting to Printful store:", PRINTFUL_STORE_ID);
     console.log("[SUBMIT-PRINTFUL] Items count:", orderItems.length);
 
+    const discountTotal = Number(order.discount_total ?? 0);
+    const retailSubtotal = Math.max(Number(order.subtotal) - discountTotal, 0);
+
     // Submit to Printful API (v1) for order creation (supports product templates)
     const printfulResponse = await fetch(withStoreId(`${PRINTFUL_API_V1_BASE}/orders`), {
       method: "POST",
@@ -512,9 +517,10 @@ serve(async (req) => {
       body: JSON.stringify({
         confirm: true,
         recipient,
+        shipping: order.shipping_method_id || undefined,
         items: orderItems,
         retail_costs: {
-          subtotal: order.subtotal.toString(),
+          subtotal: retailSubtotal.toString(),
           shipping: order.shipping_cost.toString(),
           total: order.total.toString(),
         },
