@@ -17,11 +17,13 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 - [x] Accounts - email/password + OAuth login, saved designs, and authenticated order history.
 - [x] Block checkout/add-to-cart until EDM template is saved; ensure cart items carry `edmTemplateId` for fulfillment.
 - [x] Lock down Printful submission endpoints (`submit-printful-order`, `printful-retry`) with verified service-role auth.
+- [ ] EDM finish selection safety: avoid hardcoding "Glossy"; derive finish (e.g., Glossy/Matte) per variant and validate with Printful catalog.
 
 ## P1 (Post-Launch Soon)
 - [x] EDM preview debug badge/log - surface when EDM templateId is missing on preview.
 - [x] Cache Printful mockup style IDs per product/variant to reduce API chatter.
 - [x] Automated customer emails after order (tracking + status updates).
+- [ ] Add MagSafe upgrade option for eligible phone variants when supported by Printful.
 - [ ] Add EDM mobile analytics events (immersive enter/exit + CTA click).
 - [x] Address npm audit vulnerabilities (3 moderate, 1 high).
 - [x] Narrow Stripe webhook events (currently wildcard) after verification - restrict to checkout.session.completed + async_payment_succeeded.

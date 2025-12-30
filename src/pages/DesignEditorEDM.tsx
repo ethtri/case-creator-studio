@@ -326,6 +326,14 @@ const DesignEditorEDM = () => {
             variantIds: [variant.printfulVariantId],
           };
 
+      const sizeNames = new Set<string>();
+      sizeNames.add(variant.edmSizeName ?? variant.model);
+      if (variant.edmSizeName && variant.edmSizeName !== variant.model) {
+        sizeNames.add(variant.model);
+      }
+      const preselectedSizes = Array.from(sizeNames);
+      const preselectedColors = ["Glossy"];
+
       const lockDesignStep = () => {
         designMakerRef.current?.sendMessage({ event: 'setSteps', steps: ['design'] });
       };
@@ -341,6 +349,12 @@ const DesignEditorEDM = () => {
         if (initProduct) {
           designMakerRef.current?.sendMessage({ event: 'setProduct', ...initProduct });
         }
+        if (preselectedSizes.length) {
+          designMakerRef.current?.sendMessage({ event: 'setPreselectedSizes', preselectedSizes });
+        }
+        if (preselectedColors.length) {
+          designMakerRef.current?.sendMessage({ event: 'setPreselectedColors', preselectedColors });
+        }
         lockDesignStep();
       };
 
@@ -353,7 +367,8 @@ const DesignEditorEDM = () => {
         isVariantSelectionDisabled: true, // Disable variant selection to prevent product changes
         allowOnlyOneColorToBeSelected: true,
         allowOnlyOneSizeToBeSelected: true,
-        preselectedSizes: [String(variant.printfulVariantId), variant.model],
+        preselectedSizes,
+        preselectedColors,
         steps: ['design'], // Limit EDM navigation to the Design step
         onTemplateSaved: (id: number) => {
           debugLog('Template saved:', id);

@@ -43,6 +43,7 @@ export interface PhoneVariant {
   printfulVariantId: number;
   brand: string;
   model: string;
+  edmSizeName?: string;
   price: number;
   currency: string;
   printAreaWidth: number;
@@ -317,6 +318,7 @@ export const phoneVariants: PhoneVariant[] = [
     printfulVariantId: 18739,
     brand: "Samsung",
     model: "Galaxy S24 Ultra",
+    edmSizeName: "Samsung Galaxy S24 Ultra",
     price: DEFAULT_PRICE,
     currency: "USD",
     printAreaWidth: 1680,
@@ -329,6 +331,7 @@ export const phoneVariants: PhoneVariant[] = [
     printfulVariantId: 18738,
     brand: "Samsung",
     model: "Galaxy S24+",
+    edmSizeName: "Samsung Galaxy S24 Plus",
     price: DEFAULT_PRICE,
     currency: "USD",
     printAreaWidth: 1600,
@@ -341,6 +344,7 @@ export const phoneVariants: PhoneVariant[] = [
     printfulVariantId: 18737,
     brand: "Samsung",
     model: "Galaxy S24",
+    edmSizeName: "Samsung Galaxy S24",
     price: DEFAULT_PRICE,
     currency: "USD",
     printAreaWidth: 1520,
