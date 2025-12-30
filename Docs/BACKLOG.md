@@ -17,6 +17,7 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 - [x] Accounts - email/password + OAuth login, saved designs, and authenticated order history.
 - [x] Block checkout/add-to-cart until EDM template is saved; ensure cart items carry `edmTemplateId` for fulfillment.
 - [x] Lock down Printful submission endpoints (`submit-printful-order`, `printful-retry`) with verified service-role auth.
+- [ ] EDM finish selection safety: avoid hardcoding "Glossy"; derive finish (e.g., Glossy/Matte) per variant and validate with Printful catalog.
 
 ## P1 (Post-Launch Soon)
 - [x] EDM preview debug badge/log - surface when EDM templateId is missing on preview.
