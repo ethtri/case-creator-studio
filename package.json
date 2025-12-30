@@ -17,7 +17,8 @@
     "clean": "rm -rf dist node_modules/.vite",
     "audit": "npm audit",
     "audit:fix": "npm audit fix",
-    "sync:status": "node scripts/sync-current-status.mjs"
+    "sync:status": "node scripts/sync-current-status.mjs",
+    "validate:printful": "node scripts/validate-printful-variants.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
