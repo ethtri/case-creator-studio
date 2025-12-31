@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node scripts/prerender.mjs",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -17,7 +17,8 @@
     "clean": "rm -rf dist node_modules/.vite",
     "audit": "npm audit",
     "audit:fix": "npm audit fix",
-    "sync:status": "node scripts/sync-current-status.mjs"
+    "sync:status": "node scripts/sync-current-status.mjs",
+    "prerender": "node scripts/prerender.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
