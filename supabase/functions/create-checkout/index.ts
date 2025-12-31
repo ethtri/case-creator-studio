@@ -355,8 +355,9 @@ serve(async (req) => {
       customer: customerId,
       customer_email: customerId ? undefined : resolvedEmail,
       line_items: lineItems,
-      allow_promotion_codes: !promo,
-      discounts: promo ? [{ promotion_code: promo.promotionCodeId }] : undefined,
+      ...(promo
+        ? { discounts: [{ promotion_code: promo.promotionCodeId }] }
+        : { allow_promotion_codes: true }),
       mode: "payment",
       success_url: `${checkoutOrigin}/order-success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${checkoutOrigin}/checkout`,
