@@ -59,10 +59,6 @@ const Checkout = () => {
       setPromoError("Enter a promo code.");
       return;
     }
-    if (!email.trim()) {
-      setPromoError("Enter your email to validate this promo code.");
-      return;
-    }
 
     setPromoLoading(true);
     setPromoError(null);

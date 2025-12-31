@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const ALLOWED_ORIGINS = [
@@ -56,15 +55,6 @@ function getSafeErrorMessage(error: unknown): string {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const lowered = errorMessage.toLowerCase();
 
-  if (lowered.includes("email")) {
-    return errorMessage;
-  }
-  if (lowered.includes("first-time")) {
-    return "Promo code is for first-time customers only.";
-  }
-  if (lowered.includes("customer")) {
-    return "Promo code is not valid for this customer.";
-  }
   if (lowered.includes("minimum")) {
     return errorMessage;
   }
@@ -88,7 +78,7 @@ const itemSchema = z.object({
 const requestSchema = z.object({
   code: z.string().min(1).max(50),
   items: z.array(itemSchema).min(1).max(50),
-  customerEmail: z.string().email().max(255),
+  customerEmail: z.string().email().max(255).optional(),
 });
 
 type PromoResolution = {
@@ -110,32 +100,10 @@ function computeDiscount(orderTotal: number, coupon: Stripe.Coupon): number {
   return 0;
 }
 
-async function hasPaidOrder(supabaseUrl: string, serviceRoleKey: string, email: string): Promise<boolean> {
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error("Unable to validate promo code right now.");
-  }
-
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
-  const { data, error } = await supabase
-    .from("orders")
-    .select("id")
-    .eq("customer_email", email)
-    .not("stripe_payment_intent_id", "is", null)
-    .limit(1);
-
-  if (error) {
-    console.error("[VALIDATE-PROMO] Failed to check order history:", error);
-    throw new Error("Unable to validate promo code right now.");
-  }
-
-  return (data?.length ?? 0) > 0;
-}
-
 async function resolvePromotionCode(
   stripe: Stripe,
   code: string,
   orderTotal: number,
-  customerEmail: string,
 ): Promise<PromoResolution> {
   const promotionCodes = await stripe.promotionCodes.list({
     code,
@@ -172,32 +140,6 @@ async function resolvePromotionCode(
     }
   }
 
-  if (promotionCode.restrictions?.first_time_transaction) {
-    if (!customerEmail?.trim()) {
-      throw new Error("Enter your email to validate this promo code.");
-    }
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const hasPaid = await hasPaidOrder(supabaseUrl, serviceRoleKey, customerEmail.trim().toLowerCase());
-    if (hasPaid) {
-      throw new Error("Promo code is for first-time customers only.");
-    }
-  }
-
-  if (promotionCode.customer) {
-    if (!customerEmail?.trim()) {
-      throw new Error("Enter your email to validate this promo code.");
-    }
-    const customers = await stripe.customers.list({
-      email: customerEmail.trim(),
-      limit: 1,
-    });
-    const customerId = customers.data[0]?.id;
-    if (!customerId || customerId !== promotionCode.customer) {
-      throw new Error("Promo code is not valid for this customer.");
-    }
-  }
-
   if (coupon.applies_to?.products?.length) {
     throw new Error("Promo code is not valid for these items.");
   }
@@ -228,7 +170,7 @@ serve(async (req) => {
       throw new Error("Invalid promo request");
     }
 
-    const { code, items, customerEmail } = validationResult.data;
+    const { code, items } = validationResult.data;
     const normalizedCode = code.trim();
 
     const subtotal = items.reduce((sum, item) => sum + PRODUCT_PRICE * item.quantity, 0);
@@ -238,7 +180,7 @@ serve(async (req) => {
       apiVersion: "2025-08-27.basil",
     });
 
-    const promo = await resolvePromotionCode(stripe, normalizedCode, orderTotal, customerEmail);
+    const promo = await resolvePromotionCode(stripe, normalizedCode, orderTotal);
 
     return new Response(JSON.stringify({ valid: true, promo }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
