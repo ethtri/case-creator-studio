@@ -13,15 +13,8 @@ const ALLOWED_ORIGINS = [
 const VERCEL_PROJECT_PREFIXES = ["snapcaseappv2"];
 const STRIPE_MODE = (Deno.env.get("STRIPE_MODE") ?? "").toLowerCase();
 
-function isLocalOrigin(origin: string): boolean {
-  return origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1");
-}
-
-function getStripeSecretKey(origin?: string): string {
+function getStripeSecretKey(): string {
   const testKey = Deno.env.get("STRIPE_SECRET_KEY_TEST") ?? "";
-  if (origin && isLocalOrigin(origin) && testKey) {
-    return testKey;
-  }
   if (STRIPE_MODE === "test") {
     return testKey || Deno.env.get("STRIPE_SECRET_KEY") || "";
   }
@@ -296,7 +289,7 @@ serve(async (req) => {
       : null;
 
     const originHeader = req.headers.get("origin") || "";
-    const stripe = new Stripe(getStripeSecretKey(originHeader), {
+    const stripe = new Stripe(getStripeSecretKey(), {
       apiVersion: "2025-08-27.basil",
     });
 
