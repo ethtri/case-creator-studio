@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { sendOrderEmail } from "../_shared/email.ts";
 
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
@@ -219,6 +220,14 @@ serve(async (req) => {
       console.error("[VERIFY-PAYMENT] Error updating order:", updateError);
     } else {
       console.log("[VERIFY-PAYMENT] Order updated to paid:", order?.id);
+    }
+
+    if (order?.id) {
+      try {
+        await sendOrderEmail(supabaseClient, "order_confirmed", order);
+      } catch (emailError) {
+        console.error("[VERIFY-PAYMENT] Failed to send confirmation email:", emailError);
+      }
     }
 
     if (order?.id && !order.printful_order_id) {

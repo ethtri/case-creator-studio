@@ -17,6 +17,7 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 - [x] Accounts - email/password + OAuth login, saved designs, and authenticated order history.
 - [x] Block checkout/add-to-cart until EDM template is saved; ensure cart items carry `edmTemplateId` for fulfillment.
 - [x] Lock down Printful submission endpoints (`submit-printful-order`, `printful-retry`) with verified service-role auth.
+- [ ] EDM finish selection safety: avoid hardcoding "Glossy"; derive finish (e.g., Glossy/Matte) per variant and validate with Printful catalog.
 
 ## P1 (Post-Launch Soon)
 - [ ] Investigate Printful shipping options (e.g., express) and how to expose them in checkout (US-only for now; document path to intl shipping).
@@ -25,10 +26,11 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 - [x] Cache Printful mockup style IDs per product/variant to reduce API chatter.
 - [ ] Bug: Cart clears when returning from Stripe without completing checkout.
 - [ ] Bug: My Orders list shows blank preview images for orders.
-- [ ] Automated customer emails after order (tracking + status updates).
+- [x] Automated customer emails after order (tracking + status updates).
+- [ ] Add MagSafe upgrade option for eligible phone variants when supported by Printful.
 - [ ] Add EDM mobile analytics events (immersive enter/exit + CTA click).
-- [ ] Address npm audit vulnerabilities (3 moderate, 1 high).
-- [ ] Narrow Stripe webhook events (currently wildcard) after verification - restrict to checkout.session.completed + async_payment_succeeded.
+- [x] Address npm audit vulnerabilities (3 moderate, 1 high).
+- [x] Narrow Stripe webhook events (currently wildcard) after verification - restrict to checkout.session.completed + async_payment_succeeded.
 - [x] Enforce allowlisted origins for Stripe checkout success/cancel URLs in `create-checkout`.
 - [x] Secure or retire unused `lookup-orders` endpoint (require auth or remove if not used).
 

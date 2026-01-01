@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { sendOrderEmail } from "../_shared/email.ts";
 
 type ShippingDetails = {
   name?: string | null;
@@ -31,6 +32,10 @@ type OrderShippingAddress = {
 };
 
 const STRIPE_MODE = (Deno.env.get("STRIPE_MODE") ?? "").toLowerCase();
+const ALLOWED_STRIPE_EVENTS = new Set([
+  "checkout.session.completed",
+  "checkout.session.async_payment_succeeded",
+]);
 
 function getStripeSecretKey(): string {
   if (STRIPE_MODE === "test") {
@@ -112,7 +117,8 @@ serve(async (req) => {
     return new Response("Invalid signature", { status: 400 });
   }
 
-  if (event.type !== "checkout.session.completed" && event.type !== "checkout.session.async_payment_succeeded") {
+  if (!ALLOWED_STRIPE_EVENTS.has(event.type)) {
+    console.log(`[STRIPE-WEBHOOK] Ignoring event type: ${event.type}`);
     return new Response("Ignored", { status: 200 });
   }
 
@@ -172,6 +178,12 @@ serve(async (req) => {
   if (updateError) {
     console.error("[STRIPE-WEBHOOK] Failed to update order:", updateError);
     return new Response("Database update failed", { status: 500 });
+  }
+
+  try {
+    await sendOrderEmail(supabaseClient, "order_confirmed", order);
+  } catch (emailError) {
+    console.error("[STRIPE-WEBHOOK] Failed to send confirmation email:", emailError);
   }
 
   if (order?.user_id && Array.isArray(order.items)) {

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { sendOrderEmail } from "../_shared/email.ts";
 
 // This endpoint should NOT be callable from browsers - it's server-side only
 // Block requests with an origin header (browser requests)
@@ -435,7 +436,7 @@ serve(async (req) => {
         throw new Error("Printful order still in draft after confirm");
       }
 
-      await supabaseClient
+      const { data: updatedOrder } = await supabaseClient
         .from("orders")
         .update({
           printful_status: resolvedStatus,
@@ -443,7 +444,17 @@ serve(async (req) => {
           printful_next_attempt_at: null,
           printful_last_error: null,
         })
-        .eq("id", orderId);
+        .eq("id", orderId)
+        .select()
+        .single();
+
+      if (updatedOrder?.id) {
+        try {
+          await sendOrderEmail(supabaseClient, "order_processing", updatedOrder);
+        } catch (emailError) {
+          console.error("[SUBMIT-PRINTFUL] Failed to send processing email:", emailError);
+        }
+      }
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { "Content-Type": "application/json" },
@@ -516,6 +527,7 @@ serve(async (req) => {
       headers: getPrintfulV1Headers(printfulApiKey),
       body: JSON.stringify({
         confirm: true,
+        external_id: orderId,
         recipient,
         shipping: order.shipping_method_id || undefined,
         items: orderItems,
@@ -552,7 +564,7 @@ serve(async (req) => {
     // Update order with Printful info
     if (printfulOrderId) {
       const shouldProcess = printfulStatus && printfulStatus !== "draft";
-      await supabaseClient
+      const { data: updatedOrder } = await supabaseClient
         .from("orders")
         .update({
           printful_order_id: String(printfulOrderId),
@@ -561,7 +573,17 @@ serve(async (req) => {
           printful_next_attempt_at: null,
           printful_last_error: null,
         })
-        .eq("id", orderId);
+        .eq("id", orderId)
+        .select()
+        .single();
+
+      if (shouldProcess && updatedOrder?.id) {
+        try {
+          await sendOrderEmail(supabaseClient, "order_processing", updatedOrder);
+        } catch (emailError) {
+          console.error("[SUBMIT-PRINTFUL] Failed to send processing email:", emailError);
+        }
+      }
     } else {
       console.warn("[SUBMIT-PRINTFUL] Printful response missing order id", printfulData);
     }
@@ -606,7 +628,20 @@ serve(async (req) => {
         }
       }
 
-      await supabaseClient.from("orders").update(updatePayload).eq("id", orderId);
+      const { data: updatedOrder } = await supabaseClient
+        .from("orders")
+        .update(updatePayload)
+        .eq("id", orderId)
+        .select()
+        .single();
+
+      if (maxAttemptsReached && updatedOrder?.id) {
+        try {
+          await sendOrderEmail(supabaseClient, "order_failed", updatedOrder);
+        } catch (emailError) {
+          console.error("[SUBMIT-PRINTFUL] Failed to send failure email:", emailError);
+        }
+      }
     }
 
     const safeMessage = getSafeErrorMessage(error);
