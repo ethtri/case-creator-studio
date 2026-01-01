@@ -50,7 +50,9 @@ const Checkout = () => {
     setPromoError(null);
   }, [items, email]);
 
-  const hasInvalidItems = items.some((item) => typeof item.edmTemplateId !== "number");
+  const hasInvalidItems = items.some(
+    (item) => typeof item.edmTemplateId !== "number" || !item.designPreview
+  );
   const discountTotal = appliedPromo?.discountAmount ?? 0;
   const total = Math.max(totalPrice + SHIPPING_COST - discountTotal, SHIPPING_COST);
 
@@ -124,7 +126,7 @@ const Checkout = () => {
     }
 
     if (hasInvalidItems) {
-      toast.error("Finish saving your design before checking out.");
+      toast.error("Make sure each item has a saved design preview before checking out.");
       return;
     }
 

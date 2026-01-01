@@ -26,6 +26,7 @@ interface Order {
   subtotal: number;
   shippingCost: number;
   items: OrderItem[];
+  previewUrl?: string | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -106,12 +107,12 @@ const OrdersContent = () => {
     return `${firstItem.brand} ${firstItem.model} Case${moreItems}`;
   };
 
-  const getOrderPreview = (items: OrderItem[]) => {
-    if (!items || items.length === 0) return null;
+  const getOrderPreview = (items: OrderItem[], fallback?: string | null) => {
+    if (!items || items.length === 0) return fallback ?? null;
     const previewItem = items.find(
       (item) => typeof item.designPreview === "string" && item.designPreview.trim().length > 0
     );
-    return previewItem?.designPreview ?? null;
+    return previewItem?.designPreview ?? fallback ?? null;
   };
 
   return (
@@ -204,7 +205,7 @@ const OrdersContent = () => {
           ) : (
             <div className="space-y-4">
               {orders.map((order, index) => {
-                const preview = getOrderPreview(order.items);
+                const preview = getOrderPreview(order.items, order.previewUrl);
                 const summary = getProductSummary(order.items);
                 return (
                   <motion.div

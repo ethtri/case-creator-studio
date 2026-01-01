@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { PhoneVariant } from "@/data/phoneVariants";
+import { PhoneVariant, getVariantById } from "@/data/phoneVariants";
 
 export interface CartItem {
   id: string;
@@ -30,6 +30,19 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const CART_STORAGE_KEY = "snapcase_cart_v1";
+const CART_PREVIEW_PREFIX = "snapcase_cart_preview:";
+const MAX_INLINE_PREVIEW_LENGTH = 2000;
+
+type StoredCartItem = {
+  id: string;
+  variantId: string;
+  quantity: number;
+  designPreview?: string | null;
+  designPreviewKey?: string | null;
+  edmTemplateId?: number | null;
+  designId?: string | null;
+  externalProductId?: string | null;
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -45,6 +58,31 @@ const isCartItem = (value: unknown): value is CartItem => {
   return true;
 };
 
+const isStoredCartItem = (value: unknown): value is StoredCartItem => {
+  if (!isRecord(value)) return false;
+  if (typeof value.id !== "string") return false;
+  if (typeof value.variantId !== "string") return false;
+  if (typeof value.quantity !== "number") return false;
+  return true;
+};
+
+const buildPreviewKey = (id: string) => `${CART_PREVIEW_PREFIX}${id}`;
+
+const shouldInlinePreview = (preview: string) =>
+  !preview.startsWith("data:") && preview.length <= MAX_INLINE_PREVIEW_LENGTH;
+
+const getStoredPreview = (item: StoredCartItem): string | null => {
+  if (typeof window === "undefined") return null;
+  if (item.designPreview) return item.designPreview;
+  if (item.designPreviewKey) {
+    return window.sessionStorage.getItem(item.designPreviewKey);
+  }
+  if (item.designId) {
+    return window.sessionStorage.getItem(`edmDesign:${item.designId}:preview`);
+  }
+  return null;
+};
+
 const loadStoredCart = (): CartItem[] => {
   if (typeof window === "undefined") return [];
   try {
@@ -52,7 +90,28 @@ const loadStoredCart = (): CartItem[] => {
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isCartItem);
+    return parsed.flatMap((item) => {
+      if (isCartItem(item)) {
+        return [item];
+      }
+      if (!isStoredCartItem(item)) {
+        return [];
+      }
+      const variant = getVariantById(item.variantId);
+      if (!variant) return [];
+      const preview = getStoredPreview(item) ?? "";
+      return [
+        {
+          id: item.id,
+          variant,
+          designPreview: preview,
+          edmTemplateId: item.edmTemplateId ?? null,
+          designId: item.designId ?? null,
+          externalProductId: item.externalProductId ?? null,
+          quantity: item.quantity,
+        },
+      ];
+    });
   } catch (error) {
     console.warn("[CART] Unable to read stored cart:", error);
     return [];
@@ -67,9 +126,49 @@ export function CartProvider({ children }: { children: ReactNode }) {
     try {
       if (items.length === 0) {
         window.localStorage.removeItem(CART_STORAGE_KEY);
-      } else {
-        window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+        Object.keys(window.sessionStorage)
+          .filter((key) => key.startsWith(CART_PREVIEW_PREFIX))
+          .forEach((key) => window.sessionStorage.removeItem(key));
+        return;
       }
+
+      const storedItems: StoredCartItem[] = items.map((item) => {
+        const previewKey = buildPreviewKey(item.id);
+        const preview = item.designPreview ?? "";
+        const inlinePreview = preview && shouldInlinePreview(preview) ? preview : null;
+        let storedPreviewKey = inlinePreview ? null : previewKey;
+
+        if (preview && !inlinePreview) {
+          try {
+            window.sessionStorage.setItem(previewKey, preview);
+          } catch (error) {
+            console.warn("[CART] Unable to cache preview:", error);
+            storedPreviewKey = null;
+          }
+        } else {
+          window.sessionStorage.removeItem(previewKey);
+        }
+
+        return {
+          id: item.id,
+          variantId: item.variant.id,
+          quantity: item.quantity,
+          designPreview: inlinePreview,
+          designPreviewKey: storedPreviewKey,
+          edmTemplateId: item.edmTemplateId ?? null,
+          designId: item.designId ?? null,
+          externalProductId: item.externalProductId ?? null,
+        };
+      });
+
+      window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(storedItems));
+
+      const previewKeys = new Set(items.map((item) => buildPreviewKey(item.id)));
+      Object.keys(window.sessionStorage).forEach((key) => {
+        if (key.startsWith(CART_PREVIEW_PREFIX) && !previewKeys.has(key)) {
+          window.sessionStorage.removeItem(key);
+        }
+      });
     } catch (error) {
       console.warn("[CART] Unable to persist cart:", error);
     }

@@ -110,6 +110,27 @@ serve(async (req) => {
     });
   }
 
+  const orderIds = (orders || []).map((order) => order.id).filter(Boolean);
+  const previewByOrderId = new Map<string, string>();
+
+  if (orderIds.length > 0) {
+    const { data: designs, error: designsError } = await supabaseAdmin
+      .from("designs")
+      .select("order_id, preview_url")
+      .in("order_id", orderIds)
+      .eq("user_id", authData.user.id);
+
+    if (designsError) {
+      console.error("[MY-ORDERS] Failed to fetch design previews:", designsError);
+    } else {
+      (designs || []).forEach((design) => {
+        if (design?.order_id && design?.preview_url && !previewByOrderId.has(design.order_id)) {
+          previewByOrderId.set(design.order_id, design.preview_url);
+        }
+      });
+    }
+  }
+
   const safeOrders = (orders || []).map((order) => ({
     id: order.id,
     date: order.created_at,
@@ -118,6 +139,7 @@ serve(async (req) => {
     subtotal: order.subtotal,
     shippingCost: order.shipping_cost,
     items: order.items,
+    previewUrl: previewByOrderId.get(order.id) ?? null,
   }));
 
   return new Response(JSON.stringify({ orders: safeOrders }), {
