@@ -2,7 +2,7 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2025-12-30
+**Last updated:** 2026-01-01
 **Last updated by:** ethtr
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
@@ -27,3 +27,4 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - Use `Docs/BACKLOG.md` for priorities.
 - Run `Docs/QA_SMOKE_TEST_CHECKLIST.md` before go-live.
 - QA smoke test: PASS (live-mode order; test-mode run skipped per owner).
+- SEO: pre-rendered `/` and `/catalog` with indexable HTML; app routes use noindex fallback.
