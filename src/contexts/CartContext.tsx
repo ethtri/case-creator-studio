@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { PhoneVariant } from "@/data/phoneVariants";
 
 export interface CartItem {
@@ -29,8 +29,51 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+const CART_STORAGE_KEY = "snapcase_cart_v1";
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const isCartItem = (value: unknown): value is CartItem => {
+  if (!isRecord(value)) return false;
+  if (typeof value.id !== "string") return false;
+  if (!isRecord(value.variant)) return false;
+  if (typeof value.variant.id !== "string") return false;
+  if (typeof value.variant.price !== "number") return false;
+  if (typeof value.designPreview !== "string") return false;
+  if (typeof value.quantity !== "number") return false;
+  return true;
+};
+
+const loadStoredCart = (): CartItem[] => {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(CART_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isCartItem);
+  } catch (error) {
+    console.warn("[CART] Unable to read stored cart:", error);
+    return [];
+  }
+};
+
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [items, setItems] = useState<CartItem[]>(() => loadStoredCart());
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (items.length === 0) {
+        window.localStorage.removeItem(CART_STORAGE_KEY);
+      } else {
+        window.localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+      }
+    } catch (error) {
+      console.warn("[CART] Unable to persist cart:", error);
+    }
+  }, [items]);
 
   const addToCart = (
     variant: PhoneVariant,
