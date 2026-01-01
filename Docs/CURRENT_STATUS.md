@@ -28,3 +28,4 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - Run `Docs/QA_SMOKE_TEST_CHECKLIST.md` before go-live.
 - QA smoke test: PASS (live-mode order; test-mode run skipped per owner).
 - SEO: pre-rendered `/` and `/catalog` with indexable HTML; app routes use noindex fallback.
+- Promo codes: pre-checkout apply with Stripe validation; enforce eligibility at checkout.

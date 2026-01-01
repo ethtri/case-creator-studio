@@ -20,8 +20,12 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 - [ ] EDM finish selection safety: avoid hardcoding "Glossy"; derive finish (e.g., Glossy/Matte) per variant and validate with Printful catalog.
 
 ## P1 (Post-Launch Soon)
+- [ ] Investigate Printful shipping options (e.g., express) and how to expose them in checkout (US-only for now; document path to intl shipping).
+- [x] Add promotion code support for discounts at checkout.
 - [x] EDM preview debug badge/log - surface when EDM templateId is missing on preview.
 - [x] Cache Printful mockup style IDs per product/variant to reduce API chatter.
+- [ ] Bug: Cart clears when returning from Stripe without completing checkout.
+- [ ] Bug: My Orders list shows blank preview images for orders.
 - [x] Automated customer emails after order (tracking + status updates).
 - [ ] Add MagSafe upgrade option for eligible phone variants when supported by Printful.
 - [ ] Add EDM mobile analytics events (immersive enter/exit + CTA click).

@@ -15,12 +15,9 @@ const VERCEL_PROJECT_PREFIXES = ["snapcaseappv2"];
 const STRIPE_MODE = (Deno.env.get("STRIPE_MODE") ?? "").toLowerCase();
 
 function getStripeSecretKey(): string {
+  const testKey = Deno.env.get("STRIPE_SECRET_KEY_TEST") ?? "";
   if (STRIPE_MODE === "test") {
-    return (
-      Deno.env.get("STRIPE_SECRET_KEY_TEST") ??
-      Deno.env.get("STRIPE_SECRET_KEY") ??
-      ""
-    );
+    return testKey || Deno.env.get("STRIPE_SECRET_KEY") || "";
   }
   return Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 }
@@ -182,6 +179,14 @@ serve(async (req) => {
       status: "paid",
       stripe_payment_intent_id: paymentIntent?.id,
     };
+
+    if (typeof session.amount_total === "number") {
+      updateData.total = session.amount_total / 100;
+    }
+
+    if (typeof session.total_details?.amount_discount === "number") {
+      updateData.discount_total = session.total_details.amount_discount / 100;
+    }
 
     const shippingDetails = extractShippingDetails(session);
     const customerDetails = session.customer_details;
