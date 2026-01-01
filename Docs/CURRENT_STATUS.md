@@ -2,7 +2,7 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2025-12-26
+**Last updated:** 2025-12-30
 **Last updated by:** ethtr
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
@@ -11,10 +11,11 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - None listed. Update if anything is actively blocked.
 
 ## Top 3 Next Tasks
+1. P0: EDM finish selection safety: avoid hardcoding "Glossy"; derive finish (e.g., Glossy/Matte) per variant and validate with Printful catalog.
 
 ## Now / Next / Later
 **Now**
-- None
+- P0: EDM finish selection safety: avoid hardcoding "Glossy"; derive finish (e.g., Glossy/Matte) per variant and validate with Printful catalog.
 
 **Next**
 - None

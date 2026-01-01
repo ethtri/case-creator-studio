@@ -28,13 +28,18 @@ export type Database = {
           printful_order_id: string | null
           printful_refund_id: string | null
           printful_status: string | null
+          shipped_at: string | null
           shipping_address: Json | null
+          tracking_carrier: string | null
+          tracking_number: string | null
+          tracking_url: string | null
           shipping_cost: number
           status: string
           stripe_payment_intent_id: string | null
           stripe_session_id: string | null
           subtotal: number
           total: number
+          delivered_at: string | null
           updated_at: string
         }
         Insert: {
@@ -50,13 +55,18 @@ export type Database = {
           printful_order_id?: string | null
           printful_refund_id?: string | null
           printful_status?: string | null
+          shipped_at?: string | null
           shipping_address?: Json | null
+          tracking_carrier?: string | null
+          tracking_number?: string | null
+          tracking_url?: string | null
           shipping_cost?: number
           status?: string
           stripe_payment_intent_id?: string | null
           stripe_session_id?: string | null
           subtotal: number
           total: number
+          delivered_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -72,16 +82,70 @@ export type Database = {
           printful_order_id?: string | null
           printful_refund_id?: string | null
           printful_status?: string | null
+          shipped_at?: string | null
           shipping_address?: Json | null
+          tracking_carrier?: string | null
+          tracking_number?: string | null
+          tracking_url?: string | null
           shipping_cost?: number
           status?: string
           stripe_payment_intent_id?: string | null
           stripe_session_id?: string | null
           subtotal?: number
           total?: number
+          delivered_at?: string | null
           updated_at?: string
         }
         Relationships: []
+      }
+      order_notifications: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          event_type: string
+          id: string
+          order_id: string
+          provider: string
+          provider_message_id: string | null
+          recipient_email: string
+          sent_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          event_type: string
+          id?: string
+          order_id: string
+          provider?: string
+          provider_message_id?: string | null
+          recipient_email: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          order_id?: string
+          provider?: string
+          provider_message_id?: string | null
+          recipient_email?: string
+          sent_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_notifications_order_id_fkey"
+            columns: ["order_id"]
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

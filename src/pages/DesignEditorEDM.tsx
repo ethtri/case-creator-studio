@@ -126,7 +126,6 @@ const DesignEditorEDM = () => {
   const designValidRef = useRef(false);
   const scriptLoadedRef = useRef(false);
   const headerRef = useRef<HTMLDivElement | null>(null);
-  const infoRef = useRef<HTMLDivElement | null>(null);
   const footerRef = useRef<HTMLDivElement | null>(null);
   const [designerHeight, setDesignerHeight] = useState<number | null>(null);
   const resizeIntervalRef = useRef<number | null>(null);
@@ -327,6 +326,14 @@ const DesignEditorEDM = () => {
             variantIds: [variant.printfulVariantId],
           };
 
+      const sizeNames = new Set<string>();
+      sizeNames.add(variant.edmSizeName ?? variant.model);
+      if (variant.edmSizeName && variant.edmSizeName !== variant.model) {
+        sizeNames.add(variant.model);
+      }
+      const preselectedSizes = Array.from(sizeNames);
+      const preselectedColors = ["Glossy"];
+
       const lockDesignStep = () => {
         designMakerRef.current?.sendMessage({ event: 'setSteps', steps: ['design'] });
       };
@@ -342,6 +349,12 @@ const DesignEditorEDM = () => {
         if (initProduct) {
           designMakerRef.current?.sendMessage({ event: 'setProduct', ...initProduct });
         }
+        if (preselectedSizes.length) {
+          designMakerRef.current?.sendMessage({ event: 'setPreselectedSizes', preselectedSizes });
+        }
+        if (preselectedColors.length) {
+          designMakerRef.current?.sendMessage({ event: 'setPreselectedColors', preselectedColors });
+        }
         lockDesignStep();
       };
 
@@ -354,7 +367,8 @@ const DesignEditorEDM = () => {
         isVariantSelectionDisabled: true, // Disable variant selection to prevent product changes
         allowOnlyOneColorToBeSelected: true,
         allowOnlyOneSizeToBeSelected: true,
-        preselectedSizes: [String(variant.printfulVariantId), variant.model],
+        preselectedSizes,
+        preselectedColors,
         steps: ['design'], // Limit EDM navigation to the Design step
         onTemplateSaved: (id: number) => {
           debugLog('Template saved:', id);
@@ -455,11 +469,10 @@ const DesignEditorEDM = () => {
 
   const updateDesignerHeight = useCallback(() => {
     const headerHeight = isMobile && isImmersive ? 0 : (headerRef.current?.offsetHeight ?? 0);
-    const infoHeight = infoRef.current?.offsetHeight ?? 0;
     const footerHeight = footerRef.current?.offsetHeight ?? 0;
     const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
     const buffer = isMobile ? 4 : 0;
-    const available = viewportHeight - headerHeight - infoHeight - footerHeight - buffer;
+    const available = viewportHeight - headerHeight - footerHeight - buffer;
     setDesignerHeight(Math.max(available, 200));
   }, [isMobile, isImmersive]);
 
@@ -801,7 +814,7 @@ const DesignEditorEDM = () => {
       ) : (
         <header
           ref={headerRef}
-          className="h-14 bg-card border-b border-border flex items-center justify-between px-6 z-40 shrink-0"
+          className="h-14 bg-card border-b border-border flex items-center px-6 z-40 shrink-0"
         >
           <div className="flex items-center gap-4">
             <Link to="/" className="flex items-center gap-2">
@@ -811,23 +824,16 @@ const DesignEditorEDM = () => {
               Editor
             </span>
           </div>
+          <div className="flex-1 min-w-0 px-6 text-center">
+            <div className="text-sm text-muted-foreground truncate">
+              Designing: <span className="text-foreground font-medium">{variant.brand} {variant.model}</span>
+            </div>
+          </div>
           <nav className="flex items-center gap-4">
             <ThemeToggle />
             <CartSheet />
           </nav>
         </header>
-      )}
-
-      {/* Product info bar */}
-      {!isMobile && (
-        <div
-          ref={infoRef}
-          className="h-10 bg-card/50 border-b border-border flex items-center justify-center px-4 shrink-0"
-        >
-          <span className="text-sm text-muted-foreground">
-            Designing: <span className="text-foreground font-medium">{variant.brand} {variant.model}</span>
-          </span>
-        </div>
       )}
 
       {/* Main Content */}

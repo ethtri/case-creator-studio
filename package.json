@@ -18,7 +18,8 @@
     "audit": "npm audit",
     "audit:fix": "npm audit fix",
     "sync:status": "node scripts/sync-current-status.mjs",
-    "prerender": "node scripts/prerender.mjs"
+    "prerender": "node scripts/prerender.mjs",
+    "validate:printful": "node scripts/validate-printful-variants.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -91,6 +92,11 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
-    "vite": "^5.4.19"
+    "vite": "^5.4.21"
+  },
+  "overrides": {
+    "esbuild": "0.25.0",
+    "glob": "10.5.0",
+    "js-yaml": "4.1.1"
   }
 }
