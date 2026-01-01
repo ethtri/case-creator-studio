@@ -136,9 +136,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const previewKey = buildPreviewKey(item.id);
         const preview = item.designPreview ?? "";
         const inlinePreview = preview && shouldInlinePreview(preview) ? preview : null;
-        let storedPreviewKey = inlinePreview ? null : previewKey;
+        let storedPreviewKey: string | null = null;
 
         if (preview && !inlinePreview) {
+          storedPreviewKey = previewKey;
           try {
             window.sessionStorage.setItem(previewKey, preview);
           } catch (error) {
