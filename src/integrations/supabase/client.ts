@@ -2,16 +2,28 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? "";
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "";
+
+const hasSupabaseConfig = Boolean(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
+const isBrowser = typeof window !== "undefined";
+const canUseStorage = isBrowser && typeof window.localStorage !== "undefined";
+const storage = canUseStorage ? window.localStorage : undefined;
+
+if (!hasSupabaseConfig && isBrowser) {
+  throw new Error("Missing Supabase configuration.");
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+const supabaseUrl = hasSupabaseConfig ? SUPABASE_URL : "https://placeholder.supabase.co";
+const supabaseKey = hasSupabaseConfig ? SUPABASE_PUBLISHABLE_KEY : "public-anon-key";
+
+export const supabase = createClient<Database>(supabaseUrl, supabaseKey, {
   auth: {
-    storage: localStorage,
-    persistSession: true,
-    autoRefreshToken: true,
+    storage,
+    persistSession: canUseStorage,
+    autoRefreshToken: canUseStorage,
   }
 });

@@ -1,8 +1,20 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/",
       "destination": "/index.html"
+    },
+    {
+      "source": "/catalog",
+      "destination": "/catalog/index.html"
+    },
+    {
+      "source": "/catalog/",
+      "destination": "/catalog/index.html"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/app.html"
     }
   ]
 }
