@@ -14,11 +14,13 @@ import { toast } from "sonner";
 export function CartSheet() {
   const { items, removeFromCart, updateQuantity, totalItems, totalPrice } = useCart();
   const navigate = useNavigate();
-  const hasInvalidItems = items.some((item) => typeof item.edmTemplateId !== "number");
+  const hasInvalidItems = items.some(
+    (item) => typeof item.edmTemplateId !== "number" || !item.designPreview
+  );
 
   const handleCheckout = () => {
     if (hasInvalidItems) {
-      toast.error("Finish saving your design before checking out.");
+      toast.error("Make sure each item has a saved design preview before checking out.");
       return;
     }
     navigate("/checkout");

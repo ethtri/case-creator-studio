@@ -15,6 +15,7 @@ interface OrderItem {
   brand: string;
   model: string;
   quantity: number;
+  designPreview?: string | null;
 }
 
 interface Order {
@@ -25,6 +26,7 @@ interface Order {
   subtotal: number;
   shippingCost: number;
   items: OrderItem[];
+  previewUrl?: string | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -103,6 +105,14 @@ const OrdersContent = () => {
     const firstItem = items[0];
     const moreItems = items.length > 1 ? ` +${items.length - 1} more` : "";
     return `${firstItem.brand} ${firstItem.model} Case${moreItems}`;
+  };
+
+  const getOrderPreview = (items: OrderItem[], fallback?: string | null) => {
+    if (!items || items.length === 0) return fallback ?? null;
+    const previewItem = items.find(
+      (item) => typeof item.designPreview === "string" && item.designPreview.trim().length > 0
+    );
+    return previewItem?.designPreview ?? fallback ?? null;
   };
 
   return (
@@ -194,44 +204,55 @@ const OrdersContent = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {orders.map((order, index) => (
-                <motion.div
-                  key={order.id}
-                  className="bg-card rounded-2xl p-6 shadow-soft hover:shadow-medium transition-shadow"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-16 h-24 rounded-xl bg-muted flex items-center justify-center">
-                        <Package className="w-6 h-6 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-3 mb-1">
-                          <h3 className="font-semibold">Order #{order.id.slice(0, 8)}</h3>
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
-                              statusColors[order.status] || "bg-muted text-muted-foreground"
-                            }`}
-                          >
-                            {order.status}
-                          </span>
+              {orders.map((order, index) => {
+                const preview = getOrderPreview(order.items, order.previewUrl);
+                const summary = getProductSummary(order.items);
+                return (
+                  <motion.div
+                    key={order.id}
+                    className="bg-card rounded-2xl p-6 shadow-soft hover:shadow-medium transition-shadow"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: index * 0.1 }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="w-16 h-24 rounded-xl bg-muted flex items-center justify-center overflow-hidden">
+                          {preview ? (
+                            <img
+                              src={preview}
+                              alt={`${summary} preview`}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <Package className="w-6 h-6 text-muted-foreground" />
+                          )}
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {getProductSummary(order.items)}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Ordered on {new Date(order.date).toLocaleDateString()}
-                        </p>
+                        <div>
+                          <div className="flex items-center gap-3 mb-1">
+                            <h3 className="font-semibold">Order #{order.id.slice(0, 8)}</h3>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
+                                statusColors[order.status] || "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {order.status}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{summary}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Ordered on {new Date(order.date).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <span className="font-semibold">${order.total.toFixed(2)}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <span className="font-semibold">${order.total.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </div>
           )}
         </motion.div>
