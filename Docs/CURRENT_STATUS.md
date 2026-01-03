@@ -2,7 +2,7 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-01-01
+**Last updated:** 2026-01-03
 **Last updated by:** ethtr
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
@@ -29,3 +29,4 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - QA smoke test: PASS (live-mode order; test-mode run skipped per owner).
 - SEO: pre-rendered `/` and `/catalog` with indexable HTML; app routes use noindex fallback.
 - Promo codes: pre-checkout apply with Stripe validation; enforce eligibility at checkout.
+- UAT: cart persists after Stripe cancel; My Orders thumbnails restored.
