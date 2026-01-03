@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { PhoneVariant, getVariantById } from "@/data/phoneVariants";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface CartItem {
   id: string;
@@ -31,14 +32,11 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const CART_STORAGE_KEY = "snapcase_cart_v1";
 const CART_PREVIEW_PREFIX = "snapcase_cart_preview:";
-const MAX_INLINE_PREVIEW_LENGTH = 2000;
 
 type StoredCartItem = {
   id: string;
   variantId: string;
   quantity: number;
-  designPreview?: string | null;
-  designPreviewKey?: string | null;
   edmTemplateId?: number | null;
   designId?: string | null;
   externalProductId?: string | null;
@@ -68,15 +66,10 @@ const isStoredCartItem = (value: unknown): value is StoredCartItem => {
 
 const buildPreviewKey = (id: string) => `${CART_PREVIEW_PREFIX}${id}`;
 
-const shouldInlinePreview = (preview: string) =>
-  !preview.startsWith("data:") && preview.length <= MAX_INLINE_PREVIEW_LENGTH;
-
 const getStoredPreview = (item: StoredCartItem): string | null => {
   if (typeof window === "undefined") return null;
-  if (item.designPreview) return item.designPreview;
-  if (item.designPreviewKey) {
-    return window.sessionStorage.getItem(item.designPreviewKey);
-  }
+  const cartPreview = window.sessionStorage.getItem(buildPreviewKey(item.id));
+  if (cartPreview) return cartPreview;
   if (item.designId) {
     return window.sessionStorage.getItem(`edmDesign:${item.designId}:preview`);
   }
@@ -135,16 +128,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
       const storedItems: StoredCartItem[] = items.map((item) => {
         const previewKey = buildPreviewKey(item.id);
         const preview = item.designPreview ?? "";
-        const inlinePreview = preview && shouldInlinePreview(preview) ? preview : null;
-        let storedPreviewKey: string | null = null;
 
-        if (preview && !inlinePreview) {
-          storedPreviewKey = previewKey;
+        if (preview) {
           try {
             window.sessionStorage.setItem(previewKey, preview);
           } catch (error) {
             console.warn("[CART] Unable to cache preview:", error);
-            storedPreviewKey = null;
           }
         } else {
           window.sessionStorage.removeItem(previewKey);
@@ -154,8 +143,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
           id: item.id,
           variantId: item.variant.id,
           quantity: item.quantity,
-          designPreview: inlinePreview,
-          designPreviewKey: storedPreviewKey,
           edmTemplateId: item.edmTemplateId ?? null,
           designId: item.designId ?? null,
           externalProductId: item.externalProductId ?? null,
@@ -173,6 +160,65 @@ export function CartProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.warn("[CART] Unable to persist cart:", error);
     }
+  }, [items]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPreviews = async () => {
+      const missing = items.filter(
+        (item) => item.designId && !item.designPreview
+      );
+      if (missing.length === 0) return;
+
+      const designIds = Array.from(
+        new Set(missing.map((item) => item.designId).filter(Boolean))
+      ) as string[];
+
+      if (designIds.length === 0) return;
+
+      const { data, error } = await supabase
+        .from("designs")
+        .select("design_id, preview_url")
+        .in("design_id", designIds);
+
+      if (error) {
+        console.warn("[CART] Unable to fetch previews:", error);
+        return;
+      }
+
+      if (cancelled || !data?.length) return;
+
+      const previewByDesignId = new Map(
+        data
+          .filter((row) => row.preview_url)
+          .map((row) => [row.design_id, row.preview_url as string])
+      );
+
+      if (previewByDesignId.size === 0) return;
+
+      setItems((prev) =>
+        prev.map((item) => {
+          if (
+            !item.designPreview &&
+            item.designId &&
+            previewByDesignId.has(item.designId)
+          ) {
+            return {
+              ...item,
+              designPreview: previewByDesignId.get(item.designId) ?? "",
+            };
+          }
+          return item;
+        })
+      );
+    };
+
+    void loadPreviews();
+
+    return () => {
+      cancelled = true;
+    };
   }, [items]);
 
   const addToCart = (
