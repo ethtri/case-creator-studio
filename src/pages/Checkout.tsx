@@ -72,12 +72,13 @@ const Checkout = () => {
         variantId: item.variant.id,
         quantity: item.quantity,
       }));
+      const trimmedEmail = email.trim();
 
       const { data, error } = await supabase.functions.invoke("validate-promo", {
         body: {
           code: promoCode.trim(),
           items: cartItems,
-          customerEmail: email.trim(),
+          ...(trimmedEmail ? { customerEmail: trimmedEmail } : {}),
         },
       });
 
