@@ -376,11 +376,7 @@ serve(async (req) => {
       metadata: {
         itemsJson: JSON.stringify(items.map(i => ({
           variantId: i.variantId,
-          brand: i.brand,
-          model: i.model,
-          price: i.price,
           quantity: i.quantity,
-          designPreview: i.designPreview,
           edmTemplateId: i.edmTemplateId,
           designId: i.designId ?? null,
           externalProductId: i.externalProductId ?? null,
