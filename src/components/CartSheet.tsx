@@ -10,17 +10,19 @@ import {
 import { useCart } from "@/contexts/CartContext";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { isPreviewUrl } from "@/utils/preview";
 
 export function CartSheet() {
   const { items, removeFromCart, updateQuantity, totalItems, totalPrice } = useCart();
   const navigate = useNavigate();
   const hasInvalidItems = items.some(
-    (item) => typeof item.edmTemplateId !== "number" || !item.designPreview
+    (item) =>
+      typeof item.edmTemplateId !== "number" || !isPreviewUrl(item.designPreview)
   );
 
   const handleCheckout = () => {
     if (hasInvalidItems) {
-      toast.error("Make sure each item has a saved design preview before checking out.");
+      toast.error("Wait for the preview to finish before checking out.");
       return;
     }
     navigate("/checkout");

@@ -10,6 +10,7 @@ import { useCart } from "@/contexts/CartContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { isPreviewUrl } from "@/utils/preview";
 
 // Import mockup images
 import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
@@ -119,8 +120,13 @@ const Preview = () => {
   const isDev = import.meta.env.DEV;
   const [externalProductId, setExternalProductId] = useState<string | null>(null);
   const [isSavingDesign, setIsSavingDesign] = useState(false);
-  const currentDesignReady = Boolean(variant && designPreview && typeof edmTemplateId === "number");
-  const hasInvalidCartItems = items.some((item) => typeof item.edmTemplateId !== "number");
+  const currentDesignReady = Boolean(
+    variant && isPreviewUrl(designPreview) && typeof edmTemplateId === "number"
+  );
+  const hasInvalidCartItems = items.some(
+    (item) =>
+      typeof item.edmTemplateId !== "number" || !isPreviewUrl(item.designPreview)
+  );
   const canProceedToCheckout = items.length > 0 && !hasInvalidCartItems;
 
   const buildDesignKey = (id: string, suffix: string) => `edmDesign:${id}:${suffix}`;
@@ -482,6 +488,10 @@ const Preview = () => {
     if (!variant || !designPreview) return;
     if (typeof edmTemplateId !== "number") {
       toast.error("Finish saving your design before adding it to the cart.");
+      return;
+    }
+    if (!isPreviewUrl(designPreview)) {
+      toast.error("Wait for the preview to finish before adding it to the cart.");
       return;
     }
     addToCart(variant, designPreview, edmTemplateId, designId, externalProductId);

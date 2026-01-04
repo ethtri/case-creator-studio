@@ -11,6 +11,7 @@ import { SiteMenu } from "@/components/SiteMenu";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { isPreviewUrl } from "@/utils/preview";
 
 const SHIPPING_COST = 4.99;
 
@@ -51,7 +52,8 @@ const Checkout = () => {
   }, [items, email]);
 
   const hasInvalidItems = items.some(
-    (item) => typeof item.edmTemplateId !== "number" || !item.designPreview
+    (item) =>
+      typeof item.edmTemplateId !== "number" || !isPreviewUrl(item.designPreview)
   );
   const discountTotal = appliedPromo?.discountAmount ?? 0;
   const total = Math.max(totalPrice + SHIPPING_COST - discountTotal, SHIPPING_COST);
@@ -126,7 +128,7 @@ const Checkout = () => {
     }
 
     if (hasInvalidItems) {
-      toast.error("Make sure each item has a saved design preview before checking out.");
+      toast.error("Wait for the preview to finish before checking out.");
       return;
     }
 
