@@ -75,10 +75,21 @@ const itemSchema = z.object({
   quantity: z.number().int().positive().max(100),
 });
 
+const optionalEmailSchema = z.preprocess(
+  (value) => {
+    if (typeof value !== "string") {
+      return value;
+    }
+    const trimmed = value.trim();
+    return trimmed.length ? trimmed : undefined;
+  },
+  z.string().email().max(255).optional(),
+);
+
 const requestSchema = z.object({
   code: z.string().min(1).max(50),
   items: z.array(itemSchema).min(1).max(50),
-  customerEmail: z.string().email().max(255).optional(),
+  customerEmail: optionalEmailSchema,
 });
 
 type PromoResolution = {
