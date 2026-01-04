@@ -2,8 +2,8 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-01-03
-**Last updated by:** ethtr
+**Last updated:** 2026-01-04
+**Last updated by:** codex
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
 
@@ -30,3 +30,4 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - SEO: pre-rendered `/` and `/catalog` with indexable HTML; app routes use noindex fallback.
 - Promo codes: pre-checkout apply with Stripe validation; enforce eligibility at checkout.
 - UAT: cart persists after Stripe cancel; My Orders thumbnails restored.
+- UAT: multi-item checkout metadata limit handled.
