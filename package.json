@@ -17,6 +17,7 @@
     "clean": "rm -rf dist node_modules/.vite",
     "audit": "npm audit",
     "audit:fix": "npm audit fix",
+    "outreach:check": "node scripts/validate-outreach.mjs",
     "sync:status": "node scripts/sync-current-status.mjs",
     "prerender": "node scripts/prerender.mjs",
     "validate:printful": "node scripts/validate-printful-variants.mjs"
