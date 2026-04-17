@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { createServer } from "vite";
 
-const routes = [
+const baseRoutes = [
   {
     path: "/",
     title: "Snapcase | Design Custom Phone Cases",
@@ -160,12 +160,34 @@ const replaceAssetUrls = (html, assetMap) => {
   return updated;
 };
 
+const buildSitemap = (routes) => {
+  const entries = routes
+    .map(
+      (route) => `  <url>
+    <loc>${escapeHtml(route.canonical)}</loc>
+    <changefreq>${escapeHtml(route.changefreq ?? "weekly")}</changefreq>
+    <priority>${escapeHtml(route.priority ?? "0.5")}</priority>
+  </url>`
+    )
+    .join("\n");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${entries}
+</urlset>
+`;
+};
+
 const renderRoutes = async () => {
   const template = await fs.readFile(templatePath, "utf8");
   await fs.writeFile(spaFallbackPath, template, "utf8");
   const assetMap = {
     "/src/assets/hero-wide.png": await resolveAsset("hero-wide"),
     "/src/assets/hero-narrow.png": await resolveAsset("hero-narrow"),
+    "/src/assets/mockups/iphone-case-front.png": await resolveAsset("iphone-case-front"),
+    "/src/assets/mockups/iphone-case-angled.png": await resolveAsset("iphone-case-angled"),
+    "/src/assets/mockups/samsung-case-front.png": await resolveAsset("samsung-case-front"),
+    "/src/assets/mockups/samsung-case-angled.png": await resolveAsset("samsung-case-angled"),
   };
   const vite = await createServer({
     appType: "custom",
@@ -177,6 +199,8 @@ const renderRoutes = async () => {
 
   try {
     const { render } = await vite.ssrLoadModule("/src/entry-server.tsx");
+    const { seoRoutes } = await vite.ssrLoadModule("/src/data/seoRoutes.ts");
+    const routes = [...baseRoutes, ...seoRoutes];
 
     for (const route of routes) {
       const { appHtml } = await render(route.path);
@@ -192,6 +216,8 @@ const renderRoutes = async () => {
       await fs.mkdir(path.dirname(outputPath), { recursive: true });
       await fs.writeFile(outputPath, html, "utf8");
     }
+
+    await fs.writeFile(path.resolve("dist", "sitemap.xml"), buildSitemap(routes), "utf8");
   } finally {
     await vite.close();
   }
