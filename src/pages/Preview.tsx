@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { isPreviewUrl } from "@/utils/preview";
+import { trackMarketingEvent } from "@/lib/marketing";
 
 // Import mockup images
 import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
@@ -381,6 +382,12 @@ const Preview = () => {
               setDesignPreviewAngled(mockupUrlAngled);
             }
             setPreviewKind("mockup");
+            trackMarketingEvent("preview_generated", {
+              variant_id: variant.id,
+              brand: variant.brand,
+              model: variant.model,
+              has_angled_view: Boolean(mockupUrlAngled && mockupUrlAngled !== mockupUrl),
+            });
             autoRetryRef.current.count = 0;
             autoRetryInFlightRef.current = false;
             setEdmPreviewLoading(false);
@@ -495,6 +502,13 @@ const Preview = () => {
       return;
     }
     addToCart(variant, designPreview, edmTemplateId, designId, externalProductId);
+    trackMarketingEvent("add_to_cart", {
+      variant_id: variant.id,
+      brand: variant.brand,
+      model: variant.model,
+      value: variant.price,
+      currency: variant.currency,
+    });
     setAddedToCart(true);
     toast.success("Added to cart!");
     setTimeout(() => setAddedToCart(false), 2000);
@@ -546,6 +560,11 @@ const Preview = () => {
     if (error) {
       toast.error("Unable to save design. Please try again.");
     } else {
+      trackMarketingEvent("save_design", {
+        variant_id: variant.id,
+        brand: variant.brand,
+        model: variant.model,
+      });
       toast.success("Design saved to your account.");
     }
     setIsSavingDesign(false);
@@ -887,7 +906,7 @@ const Preview = () => {
                   <div>
                     <h4 className="font-semibold mb-1">Fast Global Shipping</h4>
                     <p className="text-sm text-muted-foreground">
-                      Printed and shipped within 2-4 business days worldwide
+                      Printed and prepared for U.S. shipment in 2-4 business days
                     </p>
                   </div>
                 </div>

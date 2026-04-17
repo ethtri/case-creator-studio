@@ -8,6 +8,7 @@ import { CartProvider } from "./contexts/CartContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import type { ReactNode } from "react";
 import AppRoutes from "./AppRoutes";
+import { MarketingRuntime } from "./components/MarketingRuntime";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +31,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => (
 const App = () => (
   <AppShell>
     <BrowserRouter>
+      <MarketingRuntime />
       <AppRoutes />
     </BrowserRouter>
   </AppShell>

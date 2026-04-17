@@ -348,7 +348,7 @@ const DesignEditor = () => {
           {/* Desktop Footer Info */}
           {!isMobile && (
             <footer className="absolute bottom-6 left-6 text-xs text-muted-foreground z-10">
-              © 2024 snapcase.ai
+              © {new Date().getFullYear()} snapcase.ai
             </footer>
           )}
         </main>
