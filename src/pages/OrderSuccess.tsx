@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ const OrderSuccess = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { clearCart } = useCart();
+  const verifiedSessionRef = useRef<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(true);
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +35,11 @@ const OrderSuccess = () => {
         setIsVerifying(false);
         return;
       }
+      if (verifiedSessionRef.current === sessionId) {
+        return;
+      }
+
+      verifiedSessionRef.current = sessionId;
 
       try {
         const { data, error: verifyError } = await supabase.functions.invoke("verify-payment", {

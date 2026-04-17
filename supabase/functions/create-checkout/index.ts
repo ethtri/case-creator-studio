@@ -299,9 +299,11 @@ serve(async (req) => {
     console.log("[CREATE-CHECKOUT] Items count:", requestItems.length);
 
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const supabaseClient = supabaseUrl && supabaseServiceKey
-      ? createClient(supabaseUrl, supabaseServiceKey)
-      : null;
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error("Database order creation failed");
+    }
+
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     const originHeader = req.headers.get("origin") || "";
     const stripe = new Stripe(getStripeSecretKey(), {
@@ -400,11 +402,6 @@ serve(async (req) => {
       },
     });
 
-    // Create order record in database
-    if (!supabaseClient) {
-      throw new Error("Unable to process your request. Please try again.");
-    }
-
     const { error: orderError } = await supabaseClient.from("orders").insert({
       stripe_session_id: session.id,
       customer_email: resolvedEmail,
@@ -423,10 +420,15 @@ serve(async (req) => {
 
     if (orderError) {
       console.error("[CREATE-CHECKOUT] Error creating order:", orderError);
-    } else {
-      console.log("[CREATE-CHECKOUT] Order created successfully");
+      try {
+        await stripe.checkout.sessions.expire(session.id);
+      } catch (expireError) {
+        console.error("[CREATE-CHECKOUT] Failed to expire orphaned Checkout session:", expireError);
+      }
+      throw new Error("Database order creation failed");
     }
 
+    console.log("[CREATE-CHECKOUT] Order created successfully");
     console.log("[CREATE-CHECKOUT] Checkout session created:", session.id);
 
     return new Response(JSON.stringify({ url: session.url, sessionId: session.id }), {
