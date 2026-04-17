@@ -7,6 +7,7 @@ This folder contains the canonical project docs. Older or redundant material liv
 - [CURRENT_STATUS.md](./CURRENT_STATUS.md) - Where things stand right now
 - [MVP_SCOPE.md](./MVP_SCOPE.md) - What is in/out for launch
 - [BACKLOG.md](./BACKLOG.md) - P0/P1/P2 backlog
+- [HYGIENE_ROUTINES.md](./HYGIENE_ROUTINES.md) - Repo hygiene routines for PRs, branches, docs, and verification
 - [QA_SMOKE_TEST_CHECKLIST.md](./QA_SMOKE_TEST_CHECKLIST.md) - MVP smoke tests
 - [DECISIONS.md](./DECISIONS.md) - Key project decisions
 - [PRINTFUL_NOTES.md](./PRINTFUL_NOTES.md) - Printful EDM, mockups, and order notes
@@ -28,4 +29,5 @@ Docs/
   DECISIONS.md
   PRINTFUL_NOTES.md
   BACKLOG.md
+  HYGIENE_ROUTINES.md
 ```
