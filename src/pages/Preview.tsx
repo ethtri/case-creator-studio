@@ -904,7 +904,7 @@ const Preview = () => {
                     <Truck className="w-5 h-5 text-cta" />
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-1">Fast Global Shipping</h4>
+                    <h4 className="font-semibold mb-1">U.S. Shipping</h4>
                     <p className="text-sm text-muted-foreground">
                       Printed and prepared for U.S. shipment in 2-4 business days
                     </p>

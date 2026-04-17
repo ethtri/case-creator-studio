@@ -254,7 +254,7 @@ const Index = () => {
               Why Snapcase?
             </h2>
             <p className="text-muted-foreground max-w-lg mx-auto">
-              Quality, speed, and satisfaction guaranteed
+              Clear previews, U.S. shipping, and support for damaged or misprinted cases
             </p>
           </motion.div>
 
