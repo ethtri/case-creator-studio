@@ -273,7 +273,9 @@ const Index = () => {
             <div className="flex items-center gap-2">
               <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
             </div>
-            <div className="flex items-center gap-8 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
+              <Link to="/custom-phone-case" className="hover:text-foreground transition-colors">Custom Cases</Link>
+              <Link to="/gifts/custom-phone-case" className="hover:text-foreground transition-colors">Gift Ideas</Link>
               <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
               <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
               <Link to="/contact" className="hover:text-foreground transition-colors">Contact</Link>

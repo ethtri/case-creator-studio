@@ -14,11 +14,18 @@ import NotFound from "./pages/NotFound";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Contact from "./pages/Contact";
+import SeoLanding from "./pages/SeoLanding";
+import PhoneCaseSeo from "./pages/PhoneCaseSeo";
 
 const AppRoutes = () => (
   <Routes>
     <Route path="/" element={<Index />} />
     <Route path="/catalog" element={<Catalog />} />
+    <Route path="/custom-phone-case" element={<SeoLanding />} />
+    <Route path="/custom-iphone-case" element={<SeoLanding />} />
+    <Route path="/custom-samsung-case" element={<SeoLanding />} />
+    <Route path="/gifts/custom-phone-case" element={<SeoLanding />} />
+    <Route path="/phone-cases/:variantSlug" element={<PhoneCaseSeo />} />
     <Route path="/design/:variantId" element={<DesignEditorEDM />} />
     <Route path="/design-edm/:variantId" element={<DesignEditorEDM />} />
     <Route path="/design-canvas/:variantId" element={<DesignEditor />} />

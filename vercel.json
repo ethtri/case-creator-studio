@@ -13,6 +13,46 @@
       "destination": "/catalog/index.html"
     },
     {
+      "source": "/custom-phone-case",
+      "destination": "/custom-phone-case/index.html"
+    },
+    {
+      "source": "/custom-phone-case/",
+      "destination": "/custom-phone-case/index.html"
+    },
+    {
+      "source": "/custom-iphone-case",
+      "destination": "/custom-iphone-case/index.html"
+    },
+    {
+      "source": "/custom-iphone-case/",
+      "destination": "/custom-iphone-case/index.html"
+    },
+    {
+      "source": "/custom-samsung-case",
+      "destination": "/custom-samsung-case/index.html"
+    },
+    {
+      "source": "/custom-samsung-case/",
+      "destination": "/custom-samsung-case/index.html"
+    },
+    {
+      "source": "/gifts/custom-phone-case",
+      "destination": "/gifts/custom-phone-case/index.html"
+    },
+    {
+      "source": "/gifts/custom-phone-case/",
+      "destination": "/gifts/custom-phone-case/index.html"
+    },
+    {
+      "source": "/phone-cases/:variantSlug",
+      "destination": "/phone-cases/:variantSlug/index.html"
+    },
+    {
+      "source": "/phone-cases/:variantSlug/",
+      "destination": "/phone-cases/:variantSlug/index.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/app.html"
     }
