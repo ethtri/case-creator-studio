@@ -25,7 +25,6 @@ export default tseslint.config(
   },
   {
     files: [
-      "src/components/editor/**/*.{ts,tsx}",
       "src/hooks/**/*.{ts,tsx}",
       "src/pages/OrderSuccess.tsx",
       "supabase/functions/**/*.{ts,tsx}",
@@ -36,7 +35,6 @@ export default tseslint.config(
   },
   {
     files: [
-      "src/components/editor/**/*.{ts,tsx}",
       "src/components/ui/**/*.{ts,tsx}",
       "src/contexts/**/*.{ts,tsx}",
     ],
@@ -45,7 +43,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["src/components/editor/CaseCanvas.tsx", "src/pages/Preview.tsx"],
+    files: ["src/pages/Preview.tsx"],
     rules: {
       "react-hooks/exhaustive-deps": "off",
     },

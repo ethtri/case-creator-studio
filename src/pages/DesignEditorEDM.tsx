@@ -332,7 +332,7 @@ const DesignEditorEDM = () => {
         sizeNames.add(variant.model);
       }
       const preselectedSizes = Array.from(sizeNames);
-      const preselectedColors = ["Glossy"];
+      const preselectedColors = [variant.printfulFinish];
 
       const lockDesignStep = () => {
         designMakerRef.current?.sendMessage({ event: 'setSteps', steps: ['design'] });
