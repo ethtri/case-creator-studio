@@ -12,6 +12,7 @@ import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { isPreviewUrl } from "@/utils/preview";
+import { getMarketingAttribution, trackMarketingEvent } from "@/lib/marketing";
 
 const SHIPPING_COST = 4.99;
 
@@ -106,6 +107,10 @@ const Checkout = () => {
         code: data.promo.code,
         discountAmount: data.promo.discountAmount,
       });
+      trackMarketingEvent("promo_applied", {
+        code: data.promo.code,
+        discount_amount: data.promo.discountAmount,
+      });
       setPromoCode(data.promo.code);
     } catch (error) {
       console.error("Promo code error:", error);
@@ -148,12 +153,21 @@ const Checkout = () => {
         designId: item.designId ?? null,
         externalProductId: item.externalProductId ?? null,
       }));
+      const marketingAttribution = getMarketingAttribution();
+
+      trackMarketingEvent("begin_checkout", {
+        item_count: cartItems.length,
+        value: total,
+        currency: "USD",
+        has_promo: Boolean(appliedPromo),
+      });
 
       const { data, error } = await supabase.functions.invoke("create-checkout", {
         body: {
           items: cartItems,
           customerEmail: user?.email ?? email,
           promoCode: appliedPromo ? { code: appliedPromo.code } : undefined,
+          marketingAttribution,
         },
       });
 

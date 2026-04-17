@@ -116,10 +116,25 @@ const promoCodeSchema = z.object({
   code: z.string().min(1).max(50),
 });
 
+const marketingAttributionSchema = z.object({
+  utm_source: z.string().max(500).optional(),
+  utm_medium: z.string().max(500).optional(),
+  utm_campaign: z.string().max(500).optional(),
+  utm_term: z.string().max(500).optional(),
+  utm_content: z.string().max(500).optional(),
+  gclid: z.string().max(500).optional(),
+  fbclid: z.string().max(500).optional(),
+  ttclid: z.string().max(500).optional(),
+  referrer: z.string().max(500).optional(),
+  landingPath: z.string().max(500),
+  capturedAt: z.string().max(100),
+}).nullable().optional();
+
 const checkoutRequestSchema = z.object({
   items: z.array(itemSchema).min(1).max(50),
   customerEmail: z.string().email().max(255),
   promoCode: promoCodeSchema.optional(),
+  marketingAttribution: marketingAttributionSchema,
 });
 
 // Server-side pricing - single source of truth
@@ -257,7 +272,7 @@ serve(async (req) => {
       throw new Error("Invalid order data");
     }
     
-    const { items: requestItems, customerEmail, promoCode } = validationResult.data;
+    const { items: requestItems, customerEmail, promoCode, marketingAttribution } = validationResult.data;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
@@ -398,6 +413,7 @@ serve(async (req) => {
       promotion_code: promo?.code ?? null,
       promotion_code_id: promo?.promotionCodeId ?? null,
       coupon_id: promo?.couponId ?? null,
+      marketing_attribution: marketingAttribution ?? null,
       total: total,
       status: "pending",
     });

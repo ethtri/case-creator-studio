@@ -8,6 +8,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Loader2, AlertCircle, ExternalLink, ArrowLeft, ArrowRight, Maximize2, Minimize2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { trackMarketingEvent } from "@/lib/marketing";
 
 // Printful product IDs for snap cases
 const PRINTFUL_PRODUCT_IDS = {
@@ -500,6 +501,16 @@ const DesignEditorEDM = () => {
       navigate("/catalog");
     }
   }, [variantId, navigate]);
+
+  useEffect(() => {
+    if (!variant) return;
+
+    trackMarketingEvent("begin_design", {
+      variant_id: variant.id,
+      brand: variant.brand,
+      model: variant.model,
+    });
+  }, [variant]);
 
   useEffect(() => {
     updateDesignerHeight();

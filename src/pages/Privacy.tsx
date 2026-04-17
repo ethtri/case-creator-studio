@@ -76,8 +76,8 @@ const Privacy = () => {
               <h2 className="text-xl font-semibold text-foreground mb-3">Contact</h2>
               <p>
                 If you have questions or requests related to privacy, contact{" "}
-                <a href="mailto:Support@bloomjoysweets.com" className="text-foreground underline">
-                  Support@bloomjoysweets.com
+                <a href="mailto:support@snapcase.ai" className="text-foreground underline">
+                  support@snapcase.ai
                 </a>
                 .
               </p>

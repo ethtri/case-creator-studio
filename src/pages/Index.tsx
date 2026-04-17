@@ -7,6 +7,7 @@ import heroNarrow from "@/assets/hero-narrow.png";
 import { phoneVariants } from "@/data/phoneVariants";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
+import { trackMarketingEvent } from "@/lib/marketing";
 
 const steps = [
   {
@@ -22,7 +23,7 @@ const steps = [
   {
     number: "03",
     title: "Checkout & ship",
-    description: "We print and ship worldwide.",
+    description: "We print your case and ship to U.S. addresses.",
   },
 ];
 
@@ -31,13 +32,13 @@ const popularModels = phoneVariants.slice(0, 4);
 const faqs = [
   {
     icon: Truck,
-    title: "Worldwide Shipping",
-    description: "Free shipping on orders over $50. Standard delivery 5-10 business days.",
+    title: "U.S. Shipping",
+    description: "Standard U.S. shipping is confirmed at checkout.",
   },
   {
     icon: RotateCcw,
-    title: "Easy Returns",
-    description: "30-day hassle-free returns if you're not completely satisfied.",
+    title: "Defect Support",
+    description: "If a case arrives damaged or misprinted, contact us within 30 days.",
   },
   {
     icon: BadgeCheck,
@@ -47,11 +48,13 @@ const faqs = [
   {
     icon: Clock,
     title: "Fast Turnaround",
-    description: "Orders printed and shipped within 2-5 business days.",
+    description: "Orders are printed and prepared for shipment within 2-5 business days.",
   },
 ];
 
 const Index = () => {
+  const currentYear = new Date().getFullYear();
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -105,7 +108,7 @@ const Index = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
             >
-              Design your own phone case in minutes. We print + ship worldwide.
+              Design your own phone case in minutes. We print and ship in the U.S.
             </motion.p>
 
             <motion.div
@@ -197,7 +200,17 @@ const Index = () => {
                 viewport={{ once: true }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
               >
-                <Link to={`/design/${variant.id}`}>
+                <Link
+                  to={`/design/${variant.id}`}
+                  onClick={() =>
+                    trackMarketingEvent("select_model", {
+                      variant_id: variant.id,
+                      brand: variant.brand,
+                      model: variant.model,
+                      surface: "home_popular_models",
+                    })
+                  }
+                >
                   <div className="group bg-card rounded-2xl p-6 border border-border/50 hover:border-cta/30 transition-all duration-300 hover:shadow-medium">
                     <div className="aspect-square rounded-xl bg-muted/50 mb-4 flex items-center justify-center overflow-hidden">
                       <div className="w-20 h-40 rounded-2xl bg-gradient-to-b from-muted-foreground/20 to-muted-foreground/10 border border-muted-foreground/20 group-hover:scale-105 transition-transform duration-300" />
@@ -241,7 +254,7 @@ const Index = () => {
               Why Snapcase?
             </h2>
             <p className="text-muted-foreground max-w-lg mx-auto">
-              Quality, speed, and satisfaction guaranteed
+              Clear previews, U.S. shipping, and support for damaged or misprinted cases
             </p>
           </motion.div>
 
@@ -279,7 +292,7 @@ const Index = () => {
               <Link to="/contact" className="hover:text-foreground transition-colors">Contact</Link>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2024 snapcase.ai. All rights reserved.
+              © {currentYear} snapcase.ai. All rights reserved.
             </p>
           </div>
         </div>

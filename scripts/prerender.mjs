@@ -7,15 +7,15 @@ const routes = [
     path: "/",
     title: "Snapcase | Design Custom Phone Cases",
     description:
-      "Design your own custom phone case in minutes. Premium quality printing and worldwide shipping.",
+      "Design a custom phone case in minutes. Personalized iPhone and Samsung cases printed for U.S. shipping.",
     canonical: "https://snapcase.ai/",
     ogTitle: "Snapcase | Print Your Story",
     ogDescription:
-      "Design your own custom phone case in minutes. Premium quality printing and worldwide shipping.",
+      "Design a personalized phone case in minutes and send a custom gift they will actually use.",
     ogUrl: "https://snapcase.ai/",
     ogImage: "https://snapcase.ai/og-image.png",
     twitterTitle: "Snapcase | Print Your Story",
-    twitterDescription: "Design your own custom phone case in minutes.",
+    twitterDescription: "Design a personalized phone case in minutes.",
     twitterImage: "https://snapcase.ai/og-image.png",
     robots: "index,follow",
   },
