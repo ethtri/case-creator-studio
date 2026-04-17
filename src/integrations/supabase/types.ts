@@ -23,6 +23,7 @@ export type Database = {
           discount_total: number
           id: string
           items: Json
+          marketing_attribution: Json | null
           printful_attempts: number
           printful_last_attempt_at: string | null
           printful_last_error: string | null
@@ -59,6 +60,7 @@ export type Database = {
           discount_total?: number
           id?: string
           items: Json
+          marketing_attribution?: Json | null
           printful_attempts?: number
           printful_last_attempt_at?: string | null
           printful_last_error?: string | null
@@ -95,6 +97,7 @@ export type Database = {
           discount_total?: number
           id?: string
           items?: Json
+          marketing_attribution?: Json | null
           printful_attempts?: number
           printful_last_attempt_at?: string | null
           printful_last_error?: string | null

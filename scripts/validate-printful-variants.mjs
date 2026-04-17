@@ -34,21 +34,23 @@ const env = { ...envFileValues, ...process.env };
 const apiKey = env.PRINTFUL_API_KEY;
 const storeId = env.PRINTFUL_STORE_ID;
 
-if (!apiKey) {
-  console.error("Missing PRINTFUL_API_KEY. Add it to .env or your environment.");
-  process.exit(1);
-}
-
-const headers = {
+const headers = apiKey ? {
   Authorization: `Bearer ${apiKey}`,
+  "Content-Type": "application/json",
+} : {
   "Content-Type": "application/json",
 };
 
-if (storeId) {
+if (apiKey && storeId) {
   headers["X-PF-Store-ID"] = storeId;
 }
 
+if (!apiKey) {
+  console.warn("PRINTFUL_API_KEY not set; using Printful's public legacy catalog endpoint for validation.");
+}
+
 const getResult = (payload) => payload?.result ?? payload?.data ?? payload;
+const legacyProductCache = new Map();
 
 const readPhoneVariants = () => {
   const sourceText = fs.readFileSync(variantsPath, "utf8");
@@ -107,15 +109,53 @@ const fetchJson = async (url) => {
   return getResult(payload);
 };
 
-const fetchProductSizes = async (productId) => {
-  const data = await fetchJson(`https://api.printful.com/v2/catalog-products/${productId}`);
-  const sizes = Array.isArray(data?.sizes) ? data.sizes : [];
-  return sizes;
+const fetchLegacyProduct = async (productId) => {
+  const cached = legacyProductCache.get(productId);
+  if (cached) return cached;
+
+  const data = await fetchJson(`https://api.printful.com/products/${productId}`);
+  const variants = Array.isArray(data?.variants) ? data.variants : [];
+  const product = { variants };
+  legacyProductCache.set(productId, product);
+  return product;
 };
 
-const fetchVariantDetails = async (variantId) => {
-  const data = await fetchJson(`https://api.printful.com/v2/catalog-variants/${variantId}`);
-  return data ?? {};
+const fetchProductSizes = async (productId) => {
+  if (apiKey) {
+    const data = await fetchJson(`https://api.printful.com/v2/catalog-products/${productId}`);
+    const sizes = Array.isArray(data?.sizes) ? data.sizes : [];
+    return sizes;
+  }
+
+  const data = await fetchLegacyProduct(productId);
+  return Array.from(
+    new Set(
+      data.variants
+        .map((variant) => variant?.size)
+        .filter((size) => typeof size === "string" && size.length > 0)
+    )
+  );
+};
+
+const fetchVariantDetails = async (variantId, productId) => {
+  if (apiKey) {
+    const data = await fetchJson(`https://api.printful.com/v2/catalog-variants/${variantId}`);
+    return data ?? {};
+  }
+
+  const data = await fetchLegacyProduct(productId);
+  const variant = data.variants.find((entry) => entry?.id === variantId);
+  if (!variant) {
+    throw new Error(`Variant ${variantId} not found in Printful product ${productId}.`);
+  }
+
+  return {
+    id: variant.id,
+    catalog_product_id: productId,
+    name: variant.name,
+    size: variant.size,
+    color: variant.color,
+  };
 };
 
 const main = async () => {
@@ -153,7 +193,7 @@ const main = async () => {
       );
     }
 
-    const details = await fetchVariantDetails(variant.printfulVariantId);
+    const details = await fetchVariantDetails(variant.printfulVariantId, productId);
     if (details?.catalog_product_id && details.catalog_product_id !== productId) {
       failures.push(
         `Variant ${variant.id} (${variant.printfulVariantId}) belongs to product ${details.catalog_product_id}, expected ${productId}.`
@@ -162,6 +202,19 @@ const main = async () => {
     if (expectedSize && details?.size && details.size !== expectedSize) {
       failures.push(
         `Variant ${variant.id} (${variant.printfulVariantId}) size "${details.size}" does not match "${expectedSize}".`
+      );
+    }
+
+    const expectedFinish = variant.printfulFinish;
+    if (!expectedFinish) {
+      failures.push(`Variant ${variant.id}: missing printfulFinish.`);
+    } else if (!["Glossy", "Matte"].includes(expectedFinish)) {
+      failures.push(`Variant ${variant.id}: unsupported printfulFinish "${expectedFinish}".`);
+    } else if (!details?.color) {
+      failures.push(`Variant ${variant.id} (${variant.printfulVariantId}) is missing a Printful finish/color.`);
+    } else if (details?.color && details.color.toLowerCase() !== expectedFinish.toLowerCase()) {
+      failures.push(
+        `Variant ${variant.id} (${variant.printfulVariantId}) finish "${details.color}" does not match "${expectedFinish}".`
       );
     }
   }

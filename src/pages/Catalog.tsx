@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,12 +7,20 @@ import { phoneVariants, getPhoneModels, getBrands } from "@/data/phoneVariants";
 import { Filter, Search } from "lucide-react";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
+import { trackMarketingEvent } from "@/lib/marketing";
 
 const Catalog = () => {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const brands = getBrands();
   const phoneModels = getPhoneModels();
+  const currentYear = new Date().getFullYear();
+
+  useEffect(() => {
+    trackMarketingEvent("view_catalog", {
+      model_count: phoneVariants.length,
+    });
+  }, []);
 
   const filteredModels = useMemo(() => {
     const entries = Array.from(phoneModels.entries());
@@ -119,7 +127,17 @@ const Catalog = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2, delay: index * 0.02 }}
               >
-                <Link to={`/design/${variant.id}`}>
+                <Link
+                  to={`/design/${variant.id}`}
+                  onClick={() =>
+                    trackMarketingEvent("select_model", {
+                      variant_id: variant.id,
+                      brand: variant.brand,
+                      model: variant.model,
+                      surface: "catalog_grid",
+                    })
+                  }
+                >
                   <div className="group relative bg-card rounded-xl p-4 hover:shadow-medium transition-all duration-200 cursor-pointer border border-border/50 hover:border-accent/50">
                     {/* Phone Icon */}
                     <div className="flex justify-center mb-3">
@@ -153,7 +171,7 @@ const Catalog = () => {
               <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2024 snapcase.ai. All rights reserved.
+              © {currentYear} snapcase.ai. All rights reserved.
             </p>
           </div>
         </div>

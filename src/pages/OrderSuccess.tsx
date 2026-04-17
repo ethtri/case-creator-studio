@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
+import { trackMarketingEvent } from "@/lib/marketing";
 
 interface OrderDetails {
   id: string;
@@ -20,6 +21,7 @@ const OrderSuccess = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { clearCart } = useCart();
+  const verifiedSessionRef = useRef<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(true);
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +35,11 @@ const OrderSuccess = () => {
         setIsVerifying(false);
         return;
       }
+      if (verifiedSessionRef.current === sessionId) {
+        return;
+      }
+
+      verifiedSessionRef.current = sessionId;
 
       try {
         const { data, error: verifyError } = await supabase.functions.invoke("verify-payment", {
@@ -45,6 +52,16 @@ const OrderSuccess = () => {
 
         if (data?.success) {
           setOrderDetails(data.order);
+          const trackingKey = `snapcase_purchase_tracked:${sessionId}`;
+          if (!window.sessionStorage.getItem(trackingKey)) {
+            trackMarketingEvent("purchase", {
+              transaction_id: data.order?.id ?? sessionId,
+              value: Number(data.order?.total ?? 0),
+              currency: "USD",
+              item_count: Array.isArray(data.order?.items) ? data.order.items.length : 0,
+            });
+            window.sessionStorage.setItem(trackingKey, "true");
+          }
           clearCart(); // Clear cart after successful payment
         } else {
           setError(data?.message || "Payment verification failed");

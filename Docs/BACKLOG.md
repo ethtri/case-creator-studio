@@ -17,7 +17,6 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 - [x] Accounts - email/password + OAuth login, saved designs, and authenticated order history.
 - [x] Block checkout/add-to-cart until EDM template is saved; ensure cart items carry `edmTemplateId` for fulfillment.
 - [x] Lock down Printful submission endpoints (`submit-printful-order`, `printful-retry`) with verified service-role auth.
-- [ ] EDM finish selection safety: avoid hardcoding "Glossy"; derive finish (e.g., Glossy/Matte) per variant and validate with Printful catalog.
 
 ## P1 (Post-Launch Soon)
 - [ ] Investigate Printful shipping options (e.g., express) and how to expose them in checkout (US-only for now; document path to intl shipping).
@@ -42,7 +41,7 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 - [ ] Preview mockup throughput - validate Printful rate limits under concurrent load and add queue/backoff if needed.
 - [ ] Explore 3D mockups for variants with only a single front style.
 - [ ] Catalog thumbnails - replace generic images with standardized variant icons.
-- [ ] Unify account menu in editor top bars (DesignEditor + DesignEditorEDM) for consistent access without changing the mobile-optimized EDM header/banner.
+- [ ] Unify account menu in EDM editor top bar for consistent access without changing the mobile-optimized header/banner.
 - [ ] Review remaining navigation CTAs (Popular models "View all", menu labeling) for redundancy and clarity.
 
 
