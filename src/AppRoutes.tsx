@@ -1,7 +1,6 @@
-import { Routes, Route } from "react-router-dom";
+import { Navigate, Routes, Route, useParams } from "react-router-dom";
 import Index from "./pages/Index";
 import Catalog from "./pages/Catalog";
-import DesignEditor from "./pages/DesignEditor";
 import DesignEditorEDM from "./pages/DesignEditorEDM";
 import Preview from "./pages/Preview";
 import Checkout from "./pages/Checkout";
@@ -15,13 +14,18 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Contact from "./pages/Contact";
 
+const LegacyCanvasRedirect = () => {
+  const { variantId } = useParams();
+  return <Navigate to={variantId ? `/design/${variantId}` : "/catalog"} replace />;
+};
+
 const AppRoutes = () => (
   <Routes>
     <Route path="/" element={<Index />} />
     <Route path="/catalog" element={<Catalog />} />
     <Route path="/design/:variantId" element={<DesignEditorEDM />} />
     <Route path="/design-edm/:variantId" element={<DesignEditorEDM />} />
-    <Route path="/design-canvas/:variantId" element={<DesignEditor />} />
+    <Route path="/design-canvas/:variantId" element={<LegacyCanvasRedirect />} />
     <Route path="/preview/:variantId" element={<Preview />} />
     <Route path="/checkout/:variantId" element={<Checkout />} />
     <Route path="/checkout" element={<Checkout />} />

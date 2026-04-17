@@ -41,6 +41,7 @@ export interface MockupConfig {
 export interface PhoneVariant {
   id: string;
   printfulVariantId: number;
+  printfulFinish: "Glossy" | "Matte";
   brand: string;
   model: string;
   edmSizeName?: string;
@@ -132,6 +133,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "iphone-17-pro-max",
     printfulVariantId: 34015,
+    printfulFinish: "Glossy",
     brand: "Apple",
     model: "iPhone 17 Pro Max",
     price: DEFAULT_PRICE,
@@ -144,6 +146,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "iphone-17-pro",
     printfulVariantId: 34013,
+    printfulFinish: "Glossy",
     brand: "Apple",
     model: "iPhone 17 Pro",
     price: DEFAULT_PRICE,
@@ -156,6 +159,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "iphone-17-air",
     printfulVariantId: 34011,
+    printfulFinish: "Glossy",
     brand: "Apple",
     model: "iPhone 17 Air",
     price: DEFAULT_PRICE,
@@ -168,6 +172,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "iphone-17",
     printfulVariantId: 34009,
+    printfulFinish: "Glossy",
     brand: "Apple",
     model: "iPhone 17",
     price: DEFAULT_PRICE,
@@ -181,6 +186,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "iphone-16-pro-max",
     printfulVariantId: 20297,
+    printfulFinish: "Glossy",
     brand: "Apple",
     model: "iPhone 16 Pro Max",
     price: DEFAULT_PRICE,
@@ -193,6 +199,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "iphone-16-pro",
     printfulVariantId: 20296,
+    printfulFinish: "Glossy",
     brand: "Apple",
     model: "iPhone 16 Pro",
     price: DEFAULT_PRICE,
@@ -205,6 +212,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "iphone-16-plus",
     printfulVariantId: 20295,
+    printfulFinish: "Glossy",
     brand: "Apple",
     model: "iPhone 16 Plus",
     price: DEFAULT_PRICE,
@@ -217,6 +225,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "iphone-16",
     printfulVariantId: 20294,
+    printfulFinish: "Glossy",
     brand: "Apple",
     model: "iPhone 16",
     price: DEFAULT_PRICE,
@@ -230,6 +239,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "iphone-15-pro-max",
     printfulVariantId: 17728,
+    printfulFinish: "Glossy",
     brand: "Apple",
     model: "iPhone 15 Pro Max",
     price: DEFAULT_PRICE,
@@ -242,6 +252,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "iphone-15-pro",
     printfulVariantId: 17726,
+    printfulFinish: "Glossy",
     brand: "Apple",
     model: "iPhone 15 Pro",
     price: DEFAULT_PRICE,
@@ -254,6 +265,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "iphone-15-plus",
     printfulVariantId: 17724,
+    printfulFinish: "Glossy",
     brand: "Apple",
     model: "iPhone 15 Plus",
     price: DEFAULT_PRICE,
@@ -266,6 +278,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "iphone-15",
     printfulVariantId: 17722,
+    printfulFinish: "Glossy",
     brand: "Apple",
     model: "iPhone 15",
     price: DEFAULT_PRICE,
@@ -279,6 +292,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "iphone-14-pro-max",
     printfulVariantId: 16916,
+    printfulFinish: "Glossy",
     brand: "Apple",
     model: "iPhone 14 Pro Max",
     price: DEFAULT_PRICE,
@@ -291,6 +305,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "iphone-14-pro",
     printfulVariantId: 16912,
+    printfulFinish: "Glossy",
     brand: "Apple",
     model: "iPhone 14 Pro",
     price: DEFAULT_PRICE,
@@ -303,6 +318,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "iphone-14",
     printfulVariantId: 16910,
+    printfulFinish: "Glossy",
     brand: "Apple",
     model: "iPhone 14",
     price: DEFAULT_PRICE,
@@ -316,6 +332,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "galaxy-s24-ultra",
     printfulVariantId: 18739,
+    printfulFinish: "Glossy",
     brand: "Samsung",
     model: "Galaxy S24 Ultra",
     edmSizeName: "Samsung Galaxy S24 Ultra",
@@ -329,6 +346,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "galaxy-s24-plus",
     printfulVariantId: 18738,
+    printfulFinish: "Glossy",
     brand: "Samsung",
     model: "Galaxy S24+",
     edmSizeName: "Samsung Galaxy S24 Plus",
@@ -342,6 +360,7 @@ export const phoneVariants: PhoneVariant[] = [
   {
     id: "galaxy-s24",
     printfulVariantId: 18737,
+    printfulFinish: "Glossy",
     brand: "Samsung",
     model: "Galaxy S24",
     edmSizeName: "Samsung Galaxy S24",
