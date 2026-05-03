@@ -9,11 +9,19 @@ import { sendOrderEmail } from "../_shared/email.ts";
 function blockBrowserRequests(req: Request): Response | null {
   const origin = req.headers.get("origin");
   if (origin) {
-    console.error("[SUBMIT-PRINTFUL] Blocked browser request from origin:", origin);
-    return new Response(JSON.stringify({ error: "This endpoint is not accessible from browsers" }), {
-      status: 403,
-      headers: { "Content-Type": "application/json" },
-    });
+    console.error(
+      "[SUBMIT-PRINTFUL] Blocked browser request from origin:",
+      origin,
+    );
+    return new Response(
+      JSON.stringify({
+        error: "This endpoint is not accessible from browsers",
+      }),
+      {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }
   return null;
 }
@@ -28,9 +36,12 @@ function authorizeServiceRole(req: Request): Response | null {
     });
   }
 
-  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+  const authHeader = req.headers.get("authorization") ||
+    req.headers.get("Authorization");
   const apiKey = req.headers.get("apikey");
-  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const bearerToken = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : null;
 
   if (bearerToken !== serviceRoleKey && apiKey !== serviceRoleKey) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -45,14 +56,14 @@ function authorizeServiceRole(req: Request): Response | null {
 // Safe error messages that don't expose internal details
 function getSafeErrorMessage(error: unknown): string {
   const errorMessage = error instanceof Error ? error.message : String(error);
-  
+
   // Log full error details server-side for debugging
   console.error("[SUBMIT-PRINTFUL] Full error details:", {
     message: errorMessage,
     stack: error instanceof Error ? error.stack : undefined,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
-  
+
   // Return safe, generic messages
   if (errorMessage.includes("Order ID is required")) {
     return "Order ID is required";
@@ -72,10 +83,13 @@ function getSafeErrorMessage(error: unknown): string {
   if (errorMessage.toLowerCase().includes("printful")) {
     return "Order fulfillment error. Our team has been notified.";
   }
-  if (errorMessage.toLowerCase().includes("supabase") || errorMessage.toLowerCase().includes("database")) {
+  if (
+    errorMessage.toLowerCase().includes("supabase") ||
+    errorMessage.toLowerCase().includes("database")
+  ) {
     return "Unable to process order. Please try again.";
   }
-  
+
   // Default safe message
   return "An unexpected error occurred. Our team has been notified.";
 }
@@ -88,8 +102,14 @@ const PRINTFUL_DEFAULT_TECHNIQUE = "sublimation";
 const MAX_PRINTFUL_ATTEMPTS = 4;
 const PRINTFUL_RETRY_DELAY_MS = 5 * 60 * 1000;
 const STRIPE_MODE = (Deno.env.get("STRIPE_MODE") ?? "").toLowerCase();
-const variantConfigCache = new Map<number, { placement: string; technique: string }>();
-const productConfigCache = new Map<number, { placements: string[]; techniques: string[] }>();
+const variantConfigCache = new Map<
+  number,
+  { placement: string; technique: string }
+>();
+const productConfigCache = new Map<
+  number,
+  { placements: string[]; techniques: string[] }
+>();
 
 function getPrintfulHeaders(apiKey: string): HeadersInit {
   return {
@@ -110,8 +130,8 @@ function getStripeSecretKey(): string {
   if (STRIPE_MODE === "test") {
     return (
       Deno.env.get("STRIPE_SECRET_KEY_TEST") ??
-      Deno.env.get("STRIPE_SECRET_KEY") ??
-      ""
+        Deno.env.get("STRIPE_SECRET_KEY") ??
+        ""
     );
   }
   return Deno.env.get("STRIPE_SECRET_KEY") ?? "";
@@ -130,7 +150,8 @@ function extractStringList(value: unknown): string[] {
       .map((entry) => {
         if (typeof entry === "string") return entry;
         if (entry && typeof entry === "object") {
-          const candidate = (entry as any).placement ?? (entry as any).name ?? (entry as any).key ?? null;
+          const candidate = (entry as any).placement ?? (entry as any).name ??
+            (entry as any).key ?? null;
           return typeof candidate === "string" ? candidate : null;
         }
         return null;
@@ -138,14 +159,18 @@ function extractStringList(value: unknown): string[] {
       .filter((entry): entry is string => Boolean(entry));
   }
   if (value && typeof value === "object") {
-    const candidate = (value as any).placement ?? (value as any).name ?? (value as any).key ?? null;
+    const candidate = (value as any).placement ?? (value as any).name ??
+      (value as any).key ?? null;
     return typeof candidate === "string" ? [candidate] : [];
   }
   if (typeof value === "string") return [value];
   return [];
 }
 
-function pickPreferredValue(values: string[], preferred: string[]): string | null {
+function pickPreferredValue(
+  values: string[],
+  preferred: string[],
+): string | null {
   const normalized = values.map((value) => value.toLowerCase());
   for (const option of preferred) {
     const matchIndex = normalized.indexOf(option.toLowerCase());
@@ -154,14 +179,20 @@ function pickPreferredValue(values: string[], preferred: string[]): string | nul
   return values[0] ?? null;
 }
 
-async function getProductConfig(productId: number, apiKey: string): Promise<{ placements: string[]; techniques: string[] }> {
+async function getProductConfig(
+  productId: number,
+  apiKey: string,
+): Promise<{ placements: string[]; techniques: string[] }> {
   const cached = productConfigCache.get(productId);
   if (cached) return cached;
 
   try {
-    const response = await fetch(`${PRINTFUL_API_BASE}/catalog-products/${productId}`, {
-      headers: getPrintfulHeaders(apiKey),
-    });
+    const response = await fetch(
+      `${PRINTFUL_API_BASE}/catalog-products/${productId}`,
+      {
+        headers: getPrintfulHeaders(apiKey),
+      },
+    );
 
     if (!response.ok) {
       const fallback = { placements: [], techniques: [] };
@@ -171,8 +202,12 @@ async function getProductConfig(productId: number, apiKey: string): Promise<{ pl
 
     const payload = await response.json();
     const data = payload?.result ?? payload?.data ?? payload ?? {};
-    const placements = extractStringList(data?.placements ?? data?.placement_types ?? data?.placement);
-    const techniques = extractStringList(data?.techniques ?? data?.technique_keys ?? data?.technique);
+    const placements = extractStringList(
+      data?.placements ?? data?.placement_types ?? data?.placement,
+    );
+    const techniques = extractStringList(
+      data?.techniques ?? data?.technique_keys ?? data?.technique,
+    );
     const resolved = { placements, techniques };
     productConfigCache.set(productId, resolved);
     return resolved;
@@ -201,19 +236,26 @@ function hasRequiredShippingFields(shippingAddress: any): boolean {
       shippingAddress?.city &&
       shippingAddress?.zip &&
       shippingAddress?.country &&
-      shippingAddress?.state
+      shippingAddress?.state,
   );
 }
 
-async function confirmPrintfulOrder(orderId: string, apiKey: string): Promise<{ status: string | null }> {
-  const response = await fetch(withStoreId(`${PRINTFUL_API_V1_BASE}/orders/${orderId}/confirm`), {
-    method: "POST",
-    headers: getPrintfulV1Headers(apiKey),
-  });
+async function confirmPrintfulOrder(
+  orderId: string,
+  apiKey: string,
+): Promise<{ status: string | null }> {
+  const response = await fetch(
+    withStoreId(`${PRINTFUL_API_V1_BASE}/orders/${orderId}/confirm`),
+    {
+      method: "POST",
+      headers: getPrintfulV1Headers(apiKey),
+    },
+  );
 
   const payload = await response.json();
   if (!response.ok) {
-    const errorDetail = payload?.error?.message ?? payload?.error ?? payload?.message ?? "Printful confirm error";
+    const errorDetail = payload?.error?.message ?? payload?.error ??
+      payload?.message ?? "Printful confirm error";
     throw new Error(`Printful confirm error: ${errorDetail}`);
   }
 
@@ -222,17 +264,26 @@ async function confirmPrintfulOrder(orderId: string, apiKey: string): Promise<{ 
   return { status };
 }
 
-async function getVariantConfig(catalogVariantId: number, apiKey: string): Promise<{ placement: string; technique: string }> {
+async function getVariantConfig(
+  catalogVariantId: number,
+  apiKey: string,
+): Promise<{ placement: string; technique: string }> {
   const cached = variantConfigCache.get(catalogVariantId);
   if (cached) return cached;
 
   try {
-    const response = await fetch(`${PRINTFUL_API_BASE}/catalog-variants/${catalogVariantId}`, {
-      headers: getPrintfulHeaders(apiKey),
-    });
+    const response = await fetch(
+      `${PRINTFUL_API_BASE}/catalog-variants/${catalogVariantId}`,
+      {
+        headers: getPrintfulHeaders(apiKey),
+      },
+    );
 
     if (!response.ok) {
-      const fallback = { placement: "front", technique: PRINTFUL_DEFAULT_TECHNIQUE };
+      const fallback = {
+        placement: "front",
+        technique: PRINTFUL_DEFAULT_TECHNIQUE,
+      };
       variantConfigCache.set(catalogVariantId, fallback);
       return fallback;
     }
@@ -240,23 +291,40 @@ async function getVariantConfig(catalogVariantId: number, apiKey: string): Promi
     const payload = await response.json();
     const data = payload?.result ?? payload?.data ?? payload ?? {};
     let placements = extractStringList(
-      data?.placements ?? data?.placement_types ?? data?.placement ?? data?.placement_dimensions
+      data?.placements ?? data?.placement_types ?? data?.placement ??
+        data?.placement_dimensions,
     );
-    let techniques = extractStringList(data?.techniques ?? data?.technique_keys ?? data?.technique);
+    let techniques = extractStringList(
+      data?.techniques ?? data?.technique_keys ?? data?.technique,
+    );
 
-    if ((placements.length === 0 || techniques.length === 0) && typeof data?.catalog_product_id === "number") {
-      const productConfig = await getProductConfig(data.catalog_product_id, apiKey);
+    if (
+      (placements.length === 0 || techniques.length === 0) &&
+      typeof data?.catalog_product_id === "number"
+    ) {
+      const productConfig = await getProductConfig(
+        data.catalog_product_id,
+        apiKey,
+      );
       if (placements.length === 0) placements = productConfig.placements;
       if (techniques.length === 0) techniques = productConfig.techniques;
     }
 
-    const placement = pickPreferredValue(placements, ["front", "outside", "back", "default"]) ?? "front";
-    const technique = pickPreferredValue(techniques, [PRINTFUL_DEFAULT_TECHNIQUE, "uv_print"]) ?? PRINTFUL_DEFAULT_TECHNIQUE;
+    const placement =
+      pickPreferredValue(placements, ["front", "outside", "back", "default"]) ??
+        "front";
+    const technique = pickPreferredValue(techniques, [
+      PRINTFUL_DEFAULT_TECHNIQUE,
+      "uv_print",
+    ]) ?? PRINTFUL_DEFAULT_TECHNIQUE;
     const resolved = { placement, technique };
     variantConfigCache.set(catalogVariantId, resolved);
     return resolved;
   } catch {
-    const fallback = { placement: "front", technique: PRINTFUL_DEFAULT_TECHNIQUE };
+    const fallback = {
+      placement: "front",
+      technique: PRINTFUL_DEFAULT_TECHNIQUE,
+    };
     variantConfigCache.set(catalogVariantId, fallback);
     return fallback;
   }
@@ -312,31 +380,34 @@ serve(async (req) => {
 
   const authResponse = authorizeServiceRole(req);
   if (authResponse) return authResponse;
-  
+
   // No CORS headers for this endpoint since it shouldn't be called from browsers
 
-  let supabaseClient: ReturnType<typeof createClient> | null = null;
+  let supabaseClient: ReturnType<typeof createClient<any>> | null = null;
   let order: any | null = null;
   let orderId: string | null = null;
   let attemptNumber: number | null = null;
 
   try {
     const rawBody = await req.json();
-    
+
     // Validate request data
     const validationResult = submitOrderSchema.safeParse(rawBody);
     if (!validationResult.success) {
-      console.error("[SUBMIT-PRINTFUL] Validation error:", validationResult.error.errors);
+      console.error(
+        "[SUBMIT-PRINTFUL] Validation error:",
+        validationResult.error.errors,
+      );
       throw new Error("Order ID is required");
     }
-    
+
     orderId = validationResult.data.orderId;
 
     console.log("[SUBMIT-PRINTFUL] Processing order:", orderId);
 
-    supabaseClient = createClient(
+    supabaseClient = createClient<any>(
       Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
     // Get order from database
@@ -352,10 +423,12 @@ serve(async (req) => {
 
     order = orderData;
 
-    const existingPrintfulOrderId = order.printful_order_id ? String(order.printful_order_id) : null;
-    const needsConfirm =
-      existingPrintfulOrderId &&
-      (!order.printful_status || order.printful_status === "draft" || order.printful_status === "retry");
+    const existingPrintfulOrderId = order.printful_order_id
+      ? String(order.printful_order_id)
+      : null;
+    const needsConfirm = existingPrintfulOrderId &&
+      (!order.printful_status || order.printful_status === "draft" ||
+        order.printful_status === "retry");
 
     if (!needsConfirm && order.status !== "paid") {
       throw new Error("Order must be paid before submitting to Printful");
@@ -363,13 +436,16 @@ serve(async (req) => {
 
     if (existingPrintfulOrderId && !needsConfirm) {
       console.log("[SUBMIT-PRINTFUL] Order already submitted to Printful");
-      return new Response(JSON.stringify({ 
-        success: true, 
-        message: "Order already submitted",
-      }), {
-        headers: { "Content-Type": "application/json" },
-        status: 200,
-      });
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Order already submitted",
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+          status: 200,
+        },
+      );
     }
 
     const shippingAddress = order.shipping_address as any;
@@ -380,6 +456,9 @@ serve(async (req) => {
           printful_status: "needs_shipping",
           printful_last_error: "Missing shipping address",
           printful_next_attempt_at: null,
+          fulfillment_provider: "printful",
+          fulfillment_status: "needs_shipping",
+          fulfillment_last_error: "Missing shipping address",
         })
         .eq("id", orderId);
       throw new Error("Missing shipping address");
@@ -415,13 +494,21 @@ serve(async (req) => {
       claimQuery = claimQuery.is("printful_status", null);
     }
 
-    const { data: claimedRows, error: claimError } = await claimQuery.select("id");
+    const { data: claimedRows, error: claimError } = await claimQuery.select(
+      "id",
+    );
     if (claimError || !claimedRows || claimedRows.length === 0) {
-      console.warn("[SUBMIT-PRINTFUL] Order already processing or state changed:", orderId);
-      return new Response(JSON.stringify({ success: true, message: "Order already processing" }), {
-        headers: { "Content-Type": "application/json" },
-        status: 200,
-      });
+      console.warn(
+        "[SUBMIT-PRINTFUL] Order already processing or state changed:",
+        orderId,
+      );
+      return new Response(
+        JSON.stringify({ success: true, message: "Order already processing" }),
+        {
+          headers: { "Content-Type": "application/json" },
+          status: 200,
+        },
+      );
     }
 
     const printfulApiKey = Deno.env.get("PRINTFUL_API_KEY");
@@ -430,7 +517,10 @@ serve(async (req) => {
     }
 
     if (needsConfirm && existingPrintfulOrderId) {
-      const confirmResult = await confirmPrintfulOrder(existingPrintfulOrderId, printfulApiKey);
+      const confirmResult = await confirmPrintfulOrder(
+        existingPrintfulOrderId,
+        printfulApiKey,
+      );
       const resolvedStatus = confirmResult.status ?? "pending";
       if (resolvedStatus === "draft") {
         throw new Error("Printful order still in draft after confirm");
@@ -443,6 +533,11 @@ serve(async (req) => {
           status: "processing",
           printful_next_attempt_at: null,
           printful_last_error: null,
+          fulfillment_provider: "printful",
+          fulfillment_order_id: existingPrintfulOrderId,
+          fulfillment_status: resolvedStatus,
+          fulfillment_last_error: null,
+          fulfillment_routed_at: new Date().toISOString(),
         })
         .eq("id", orderId)
         .select()
@@ -450,9 +545,16 @@ serve(async (req) => {
 
       if (updatedOrder?.id) {
         try {
-          await sendOrderEmail(supabaseClient, "order_processing", updatedOrder);
+          await sendOrderEmail(
+            supabaseClient,
+            "order_processing",
+            updatedOrder,
+          );
         } catch (emailError) {
-          console.error("[SUBMIT-PRINTFUL] Failed to send processing email:", emailError);
+          console.error(
+            "[SUBMIT-PRINTFUL] Failed to send processing email:",
+            emailError,
+          );
         }
       }
 
@@ -475,84 +577,103 @@ serve(async (req) => {
     };
 
     // Map cart items to Printful order items (v1)
-    const orderItems = await Promise.all((order.items as any[]).map(async (item) => {
-      const catalogVariantId = PRINTFUL_VARIANT_MAP[item.variantId];
-      if (!catalogVariantId) {
-        console.error("[SUBMIT-PRINTFUL] Unknown variant:", item.variantId);
-        throw new Error("Unknown variant ID");
-      }
+    const orderItems = await Promise.all(
+      (order.items as any[]).map(async (item) => {
+        const catalogVariantId = PRINTFUL_VARIANT_MAP[item.variantId];
+        if (!catalogVariantId) {
+          console.error("[SUBMIT-PRINTFUL] Unknown variant:", item.variantId);
+          throw new Error("Unknown variant ID");
+        }
 
-      if (item.edmTemplateId) {
+        if (item.edmTemplateId) {
+          return {
+            variant_id: catalogVariantId,
+            product_template_id: item.edmTemplateId,
+            quantity: item.quantity,
+          };
+        }
+
+        if (item.externalProductId) {
+          return {
+            variant_id: catalogVariantId,
+            external_product_id: item.externalProductId,
+            quantity: item.quantity,
+          };
+        }
+
+        const variantConfig = await getVariantConfig(
+          catalogVariantId,
+          printfulApiKey,
+        );
+        const fileType =
+          ["front", "back", "default"].includes(variantConfig.placement)
+            ? variantConfig.placement
+            : "default";
+
         return {
           variant_id: catalogVariantId,
-          product_template_id: item.edmTemplateId,
           quantity: item.quantity,
+          files: [
+            {
+              type: fileType,
+              url: item.designPreview,
+            },
+          ],
         };
-      }
+      }),
+    );
 
-      if (item.externalProductId) {
-        return {
-          variant_id: catalogVariantId,
-          external_product_id: item.externalProductId,
-          quantity: item.quantity,
-        };
-      }
-
-      const variantConfig = await getVariantConfig(catalogVariantId, printfulApiKey);
-      const fileType = ["front", "back", "default"].includes(variantConfig.placement)
-        ? variantConfig.placement
-        : "default";
-
-      return {
-        variant_id: catalogVariantId,
-        quantity: item.quantity,
-        files: [
-          {
-            type: fileType,
-            url: item.designPreview,
-          },
-        ],
-      };
-    }));
-
-    console.log("[SUBMIT-PRINTFUL] Submitting to Printful store:", PRINTFUL_STORE_ID);
+    console.log(
+      "[SUBMIT-PRINTFUL] Submitting to Printful store:",
+      PRINTFUL_STORE_ID,
+    );
     console.log("[SUBMIT-PRINTFUL] Items count:", orderItems.length);
 
     const discountTotal = Number(order.discount_total ?? 0);
     const retailSubtotal = Math.max(Number(order.subtotal) - discountTotal, 0);
 
     // Submit to Printful API (v1) for order creation (supports product templates)
-    const printfulResponse = await fetch(withStoreId(`${PRINTFUL_API_V1_BASE}/orders`), {
-      method: "POST",
-      headers: getPrintfulV1Headers(printfulApiKey),
-      body: JSON.stringify({
-        confirm: true,
-        external_id: orderId,
-        recipient,
-        shipping: order.shipping_method_id || undefined,
-        items: orderItems,
-        retail_costs: {
-          subtotal: retailSubtotal.toString(),
-          shipping: order.shipping_cost.toString(),
-          total: order.total.toString(),
-        },
-      }),
-    });
+    const printfulResponse = await fetch(
+      withStoreId(`${PRINTFUL_API_V1_BASE}/orders`),
+      {
+        method: "POST",
+        headers: getPrintfulV1Headers(printfulApiKey),
+        body: JSON.stringify({
+          confirm: true,
+          external_id: orderId,
+          recipient,
+          shipping: order.shipping_method_id || undefined,
+          items: orderItems,
+          retail_costs: {
+            subtotal: retailSubtotal.toString(),
+            shipping: order.shipping_cost.toString(),
+            total: order.total.toString(),
+          },
+        }),
+      },
+    );
 
     const printfulData = await printfulResponse.json();
 
     if (!printfulResponse.ok) {
-      const errorDetail = printfulData?.error?.message ?? printfulData?.error ?? printfulData?.message ?? "Printful API error";
+      const errorDetail = printfulData?.error?.message ?? printfulData?.error ??
+        printfulData?.message ?? "Printful API error";
       console.error("[SUBMIT-PRINTFUL] Printful API error:", printfulData);
       throw new Error(`Printful API error: ${errorDetail}`);
     }
 
-    const printfulResult = printfulData?.result ?? printfulData?.data ?? printfulData;
-    const printfulOrderId = printfulResult?.id ?? printfulResult?.order?.id ?? null;
-    let printfulStatus = printfulResult?.status ?? printfulResult?.order?.status ?? null;
+    const printfulResult = printfulData?.result ?? printfulData?.data ??
+      printfulData;
+    const printfulOrderId = printfulResult?.id ?? printfulResult?.order?.id ??
+      null;
+    let printfulStatus = printfulResult?.status ??
+      printfulResult?.order?.status ?? null;
 
     if (printfulOrderId && (printfulStatus === "draft" || !printfulStatus)) {
-      const confirmResult = await confirmPrintfulOrder(String(printfulOrderId), printfulApiKey);
+      const confirmResult = await confirmPrintfulOrder(
+        String(printfulOrderId),
+        printfulApiKey,
+      );
       printfulStatus = confirmResult.status ?? printfulStatus;
       if (printfulStatus === "draft") {
         throw new Error("Printful order still in draft after confirm");
@@ -572,6 +693,11 @@ serve(async (req) => {
           status: shouldProcess ? "processing" : order.status,
           printful_next_attempt_at: null,
           printful_last_error: null,
+          fulfillment_provider: "printful",
+          fulfillment_order_id: String(printfulOrderId),
+          fulfillment_status: printfulStatus ?? "submitted",
+          fulfillment_last_error: null,
+          fulfillment_routed_at: new Date().toISOString(),
         })
         .eq("id", orderId)
         .select()
@@ -579,24 +705,39 @@ serve(async (req) => {
 
       if (shouldProcess && updatedOrder?.id) {
         try {
-          await sendOrderEmail(supabaseClient, "order_processing", updatedOrder);
+          await sendOrderEmail(
+            supabaseClient,
+            "order_processing",
+            updatedOrder,
+          );
         } catch (emailError) {
-          console.error("[SUBMIT-PRINTFUL] Failed to send processing email:", emailError);
+          console.error(
+            "[SUBMIT-PRINTFUL] Failed to send processing email:",
+            emailError,
+          );
         }
       }
     } else {
-      console.warn("[SUBMIT-PRINTFUL] Printful response missing order id", printfulData);
+      console.warn(
+        "[SUBMIT-PRINTFUL] Printful response missing order id",
+        printfulData,
+      );
     }
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-    }), {
-      headers: { "Content-Type": "application/json" },
-      status: 200,
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+      }),
+      {
+        headers: { "Content-Type": "application/json" },
+        status: 200,
+      },
+    );
   } catch (error: unknown) {
     if (supabaseClient && orderId && attemptNumber !== null) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error
+        ? error.message
+        : String(error);
       const maxAttemptsReached = attemptNumber >= MAX_PRINTFUL_ATTEMPTS;
       const nextAttemptAt = maxAttemptsReached
         ? null
@@ -606,6 +747,9 @@ serve(async (req) => {
         printful_status: maxAttemptsReached ? "failed" : "retry",
         printful_last_error: errorMessage,
         printful_next_attempt_at: nextAttemptAt,
+        fulfillment_provider: "printful",
+        fulfillment_status: maxAttemptsReached ? "failed" : "retry",
+        fulfillment_last_error: errorMessage,
       };
 
       if (maxAttemptsReached) {
@@ -623,8 +767,11 @@ serve(async (req) => {
             updatePayload.printful_refund_id = refund.id;
           }
         } catch (refundError) {
-          const refundMessage = refundError instanceof Error ? refundError.message : String(refundError);
-          updatePayload.printful_last_error = `${errorMessage}; Refund failed: ${refundMessage}`;
+          const refundMessage = refundError instanceof Error
+            ? refundError.message
+            : String(refundError);
+          updatePayload.printful_last_error =
+            `${errorMessage}; Refund failed: ${refundMessage}`;
         }
       }
 
@@ -639,7 +786,10 @@ serve(async (req) => {
         try {
           await sendOrderEmail(supabaseClient, "order_failed", updatedOrder);
         } catch (emailError) {
-          console.error("[SUBMIT-PRINTFUL] Failed to send failure email:", emailError);
+          console.error(
+            "[SUBMIT-PRINTFUL] Failed to send failure email:",
+            emailError,
+          );
         }
       }
     }

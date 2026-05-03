@@ -41,8 +41,8 @@ function getStripeSecretKey(): string {
   if (STRIPE_MODE === "test") {
     return (
       Deno.env.get("STRIPE_SECRET_KEY_TEST") ??
-      Deno.env.get("STRIPE_SECRET_KEY") ??
-      ""
+        Deno.env.get("STRIPE_SECRET_KEY") ??
+        ""
     );
   }
   return Deno.env.get("STRIPE_SECRET_KEY") ?? "";
@@ -52,20 +52,25 @@ function getStripeWebhookSecret(): string | null {
   if (STRIPE_MODE === "test") {
     return (
       Deno.env.get("STRIPE_WEBHOOK_SECRET_TEST") ??
-      Deno.env.get("STRIPE_WEBHOOK_SECRET") ??
-      null
+        Deno.env.get("STRIPE_WEBHOOK_SECRET") ??
+        null
     );
   }
   return Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? null;
 }
 
-const extractShippingDetails = (session: Stripe.Checkout.Session): ShippingDetails | null => {
+const extractShippingDetails = (
+  session: Stripe.Checkout.Session,
+): ShippingDetails | null => {
   const direct = session.shipping_details;
   if (direct?.address) {
     return direct;
   }
 
-  const collected = session.collected_information?.shipping_details as ShippingDetails | null | undefined;
+  const collected = session.collected_information?.shipping_details as
+    | ShippingDetails
+    | null
+    | undefined;
   if (collected?.address) {
     return collected;
   }
@@ -111,7 +116,11 @@ serve(async (req) => {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(payload, stripeSignature, webhookSecret);
+    event = stripe.webhooks.constructEvent(
+      payload,
+      stripeSignature,
+      webhookSecret,
+    );
   } catch (error) {
     console.error("[STRIPE-WEBHOOK] Signature verification failed:", error);
     return new Response("Invalid signature", { status: 400 });
@@ -130,10 +139,12 @@ serve(async (req) => {
 
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
   );
 
-  const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
+  const paymentIntentId = typeof session.payment_intent === "string"
+    ? session.payment_intent
+    : session.payment_intent?.id;
   const shippingDetails = extractShippingDetails(session);
   const customerDetails = session.customer_details;
   const shippingAddress = shippingDetails?.address ?? null;
@@ -157,8 +168,14 @@ serve(async (req) => {
     updateData.customer_name = customerDetails.name;
   }
 
-  if (shippingAddress && (shippingAddress.line1 || shippingAddress.city || shippingAddress.postal_code)) {
-    const addressLine = [shippingAddress.line1, shippingAddress.line2].filter(Boolean).join(" ");
+  if (
+    shippingAddress &&
+    (shippingAddress.line1 || shippingAddress.city ||
+      shippingAddress.postal_code)
+  ) {
+    const addressLine = [shippingAddress.line1, shippingAddress.line2].filter(
+      Boolean,
+    ).join(" ");
     updateData.shipping_address = {
       address: addressLine,
       city: shippingAddress.city ?? "",
@@ -183,13 +200,18 @@ serve(async (req) => {
   try {
     await sendOrderEmail(supabaseClient, "order_confirmed", order);
   } catch (emailError) {
-    console.error("[STRIPE-WEBHOOK] Failed to send confirmation email:", emailError);
+    console.error(
+      "[STRIPE-WEBHOOK] Failed to send confirmation email:",
+      emailError,
+    );
   }
 
   if (order?.user_id && Array.isArray(order.items)) {
     const items = order.items as OrderItem[];
     const designRows = items
-      .filter((item) => item?.designId && item?.designPreview && item?.variantId)
+      .filter((item) =>
+        item?.designId && item?.designPreview && item?.variantId
+      )
       .map((item) => ({
         user_id: order.user_id,
         design_id: item.designId,
@@ -207,7 +229,10 @@ serve(async (req) => {
         .upsert(designRows, { onConflict: "user_id,design_id" });
 
       if (designError) {
-        console.error("[STRIPE-WEBHOOK] Failed to save purchase designs:", designError);
+        console.error(
+          "[STRIPE-WEBHOOK] Failed to save purchase designs:",
+          designError,
+        );
       }
     }
   }
@@ -222,47 +247,78 @@ serve(async (req) => {
         shipping?.city &&
         shipping?.zip &&
         shipping?.country &&
-        shipping?.state
+        shipping?.state,
     );
 
-    if (!order.printful_order_id) {
-      if (hasShipping && (!order.printful_status || order.printful_status === "needs_shipping")) {
+    if (
+      !order.printful_order_id &&
+      (!order.fulfillment_provider || order.fulfillment_provider === "printful")
+    ) {
+      if (
+        hasShipping &&
+        (!order.printful_status || order.printful_status === "needs_shipping")
+      ) {
         await supabaseClient
           .from("orders")
-          .update({ printful_status: "pending", printful_last_error: null })
+          .update({
+            printful_status: "pending",
+            printful_last_error: null,
+            fulfillment_status: "pending",
+            fulfillment_last_error: null,
+          })
           .eq("id", order.id);
       }
 
       if (!hasShipping && !order.printful_status) {
         await supabaseClient
           .from("orders")
-          .update({ printful_status: "needs_shipping", printful_last_error: "Missing shipping address" })
+          .update({
+            printful_status: "needs_shipping",
+            printful_last_error: "Missing shipping address",
+            fulfillment_status: "needs_shipping",
+            fulfillment_last_error: "Missing shipping address",
+          })
           .eq("id", order.id);
       }
     }
 
     if (!hasShipping) {
-      console.warn("[STRIPE-WEBHOOK] Missing shipping address; skipping Printful submission.");
+      await supabaseClient
+        .from("orders")
+        .update({
+          fulfillment_status: "needs_shipping",
+          fulfillment_last_error: "Missing shipping address",
+          printful_status: "needs_shipping",
+          printful_last_error: "Missing shipping address",
+        })
+        .eq("id", order.id);
+
+      console.warn(
+        "[STRIPE-WEBHOOK] Missing shipping address; skipping fulfillment routing.",
+      );
       return new Response("OK", { status: 200 });
     }
 
     try {
-      const submitResponse = await fetch(`${supabaseUrl}/functions/v1/submit-printful-order`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceRoleKey}`,
-          apikey: serviceRoleKey,
+      const submitResponse = await fetch(
+        `${supabaseUrl}/functions/v1/route-fulfillment-order`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceRoleKey}`,
+            apikey: serviceRoleKey,
+          },
+          body: JSON.stringify({ orderId: order.id }),
         },
-        body: JSON.stringify({ orderId: order.id }),
-      });
+      );
 
       if (!submitResponse.ok) {
         const body = await submitResponse.text();
-        console.error("[STRIPE-WEBHOOK] Printful submission failed:", body);
+        console.error("[STRIPE-WEBHOOK] Fulfillment routing failed:", body);
       }
     } catch (error) {
-      console.error("[STRIPE-WEBHOOK] Printful submission error:", error);
+      console.error("[STRIPE-WEBHOOK] Fulfillment routing error:", error);
     }
   }
 

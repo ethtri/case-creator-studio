@@ -11,6 +11,7 @@ This folder contains the canonical project docs. Older or redundant material liv
 - [QA_SMOKE_TEST_CHECKLIST.md](./QA_SMOKE_TEST_CHECKLIST.md) - MVP smoke tests
 - [DECISIONS.md](./DECISIONS.md) - Key project decisions
 - [PRINTFUL_NOTES.md](./PRINTFUL_NOTES.md) - Printful EDM, mockups, and order notes
+- [ONSHORE_PILOT.md](./ONSHORE_PILOT.md) - onshore operations pilot scope, gates, and retro log
 - After updating `Docs/BACKLOG.md`, run `npm run sync:status` to refresh `Docs/CURRENT_STATUS.md`.
 
 ## Deployment

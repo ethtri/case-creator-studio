@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-import { sendOrderEmail, type OrderEmailEvent } from "../_shared/email.ts";
+import { type OrderEmailEvent, sendOrderEmail } from "../_shared/email.ts";
 
 type PrintfulWebhookPayload = {
   type?: string;
@@ -32,29 +32,43 @@ function getSignatureHeader(req: Request): string | null {
   return null;
 }
 
-async function computeHmacSha256Hex(secret: string, payload: string): Promise<string> {
+async function computeHmacSha256Hex(
+  secret: string,
+  payload: string,
+): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
-    ["sign"]
+    ["sign"],
   );
-  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(payload),
+  );
   return Array.from(new Uint8Array(signature))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
 }
 
-async function computeHmacSha256Base64(secret: string, payload: string): Promise<string> {
+async function computeHmacSha256Base64(
+  secret: string,
+  payload: string,
+): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
-    ["sign"]
+    ["sign"],
   );
-  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(payload),
+  );
   return btoa(String.fromCharCode(...new Uint8Array(signature)));
 }
 
@@ -75,23 +89,22 @@ function normalizeEventType(payload: PrintfulWebhookPayload): string {
 
 function extractStatus(payload: PrintfulWebhookPayload): string | null {
   const data = payload.data ?? payload.order ?? payload.result ?? {};
-  const status =
-    (data as any)?.status ??
+  const status = (data as any)?.status ??
     (data as any)?.order?.status ??
     (payload.order as any)?.status ??
     null;
   return typeof status === "string" ? status.toLowerCase() : null;
 }
 
-function extractOrderIdentifiers(payload: PrintfulWebhookPayload): { externalId: string | null; printfulOrderId: string | null } {
+function extractOrderIdentifiers(
+  payload: PrintfulWebhookPayload,
+): { externalId: string | null; printfulOrderId: string | null } {
   const data = payload.data ?? payload.order ?? payload.result ?? {};
-  const externalId =
-    (data as any)?.external_id ??
+  const externalId = (data as any)?.external_id ??
     (data as any)?.order?.external_id ??
     (payload.order as any)?.external_id ??
     null;
-  const orderId =
-    (data as any)?.order_id ??
+  const orderId = (data as any)?.order_id ??
     (data as any)?.order?.id ??
     (data as any)?.id ??
     (payload.order as any)?.id ??
@@ -103,29 +116,31 @@ function extractOrderIdentifiers(payload: PrintfulWebhookPayload): { externalId:
   };
 }
 
-function extractTrackingDetails(payload: PrintfulWebhookPayload): TrackingDetails {
+function extractTrackingDetails(
+  payload: PrintfulWebhookPayload,
+): TrackingDetails {
   const data = payload.data ?? payload.order ?? payload.result ?? {};
-  const trackingNumber =
-    (data as any)?.tracking_number ??
+  const trackingNumber = (data as any)?.tracking_number ??
     (data as any)?.trackingNumber ??
     (data as any)?.tracking?.number ??
     null;
-  const trackingUrl =
-    (data as any)?.tracking_url ??
+  const trackingUrl = (data as any)?.tracking_url ??
     (data as any)?.trackingUrl ??
     (data as any)?.tracking?.url ??
     null;
-  const trackingCarrier =
-    (data as any)?.carrier ??
+  const trackingCarrier = (data as any)?.carrier ??
     (data as any)?.shipping_carrier ??
     (data as any)?.shipping_service ??
     (data as any)?.service ??
     (data as any)?.tracking?.carrier ??
     null;
-  const shippedAt =
-    normalizeTimestamp((data as any)?.shipped_at ?? (data as any)?.ship_date ?? (data as any)?.created);
-  const deliveredAt =
-    normalizeTimestamp((data as any)?.delivered_at ?? (data as any)?.delivered);
+  const shippedAt = normalizeTimestamp(
+    (data as any)?.shipped_at ?? (data as any)?.ship_date ??
+      (data as any)?.created,
+  );
+  const deliveredAt = normalizeTimestamp(
+    (data as any)?.delivered_at ?? (data as any)?.delivered,
+  );
 
   return {
     trackingNumber: trackingNumber ? String(trackingNumber) : null,
@@ -136,19 +151,29 @@ function extractTrackingDetails(payload: PrintfulWebhookPayload): TrackingDetail
   };
 }
 
-function shouldUpdateStatus(currentStatus: string | null, nextStatus: string | null): boolean {
+function shouldUpdateStatus(
+  currentStatus: string | null,
+  nextStatus: string | null,
+): boolean {
   if (!nextStatus) return false;
   if (!currentStatus) return true;
   if (currentStatus === "delivered") return nextStatus === "delivered";
   if (currentStatus === "canceled") return nextStatus === "canceled";
   if (currentStatus === "failed") return nextStatus === "failed";
-  if (currentStatus === "shipped" && (nextStatus === "processing" || nextStatus === "pending")) {
+  if (
+    currentStatus === "shipped" &&
+    (nextStatus === "processing" || nextStatus === "pending")
+  ) {
     return false;
   }
   return true;
 }
 
-function mapEventToStatus(eventType: string, status: string | null, tracking: TrackingDetails): {
+function mapEventToStatus(
+  eventType: string,
+  status: string | null,
+  tracking: TrackingDetails,
+): {
   nextStatus: string | null;
   emailEvent: OrderEmailEvent | null;
 } {
@@ -167,7 +192,10 @@ function mapEventToStatus(eventType: string, status: string | null, tracking: Tr
     return { nextStatus: "shipped", emailEvent: "order_shipped" };
   }
 
-  if (eventType.includes("canceled") || eventType.includes("cancelled") || status === "canceled") {
+  if (
+    eventType.includes("canceled") || eventType.includes("cancelled") ||
+    status === "canceled"
+  ) {
     return { nextStatus: "canceled", emailEvent: "order_canceled" };
   }
 
@@ -175,7 +203,10 @@ function mapEventToStatus(eventType: string, status: string | null, tracking: Tr
     return { nextStatus: "failed", emailEvent: "order_failed" };
   }
 
-  if (status === "pending" || status === "processing" || status === "onhold" || status === "hold" || status === "inprogress") {
+  if (
+    status === "pending" || status === "processing" || status === "onhold" ||
+    status === "hold" || status === "inprogress"
+  ) {
     return { nextStatus: "processing", emailEvent: "order_processing" };
   }
 
@@ -198,7 +229,10 @@ serve(async (req) => {
     }
 
     const expectedHex = await computeHmacSha256Hex(webhookSecret, rawBody);
-    const expectedBase64 = await computeHmacSha256Base64(webhookSecret, rawBody);
+    const expectedBase64 = await computeHmacSha256Base64(
+      webhookSecret,
+      rawBody,
+    );
     const provided = signatureHeader.trim();
 
     if (provided !== expectedHex && provided !== expectedBase64) {
@@ -254,19 +288,39 @@ serve(async (req) => {
     return new Response("OK", { status: 200 });
   }
 
+  if (order.fulfillment_provider && order.fulfillment_provider !== "printful") {
+    console.warn("[PRINTFUL-WEBHOOK] Ignoring non-Printful order:", order.id);
+    return new Response("OK", { status: 200 });
+  }
+
   const eventType = normalizeEventType(payload);
   const status = extractStatus(payload);
   const tracking = extractTrackingDetails(payload);
-  const { nextStatus, emailEvent } = mapEventToStatus(eventType, status, tracking);
+  const { nextStatus, emailEvent } = mapEventToStatus(
+    eventType,
+    status,
+    tracking,
+  );
 
   const updates: Record<string, unknown> = {};
   if (shouldUpdateStatus(order.printful_status ?? null, nextStatus)) {
     updates.printful_status = nextStatus;
+    updates.fulfillment_provider = "printful";
+    updates.fulfillment_status = nextStatus;
+    updates.fulfillment_last_error = null;
   }
 
-  if (tracking.trackingNumber) updates.tracking_number = tracking.trackingNumber;
+  if (printfulOrderId) {
+    updates.fulfillment_order_id = printfulOrderId;
+  }
+
+  if (tracking.trackingNumber) {
+    updates.tracking_number = tracking.trackingNumber;
+  }
   if (tracking.trackingUrl) updates.tracking_url = tracking.trackingUrl;
-  if (tracking.trackingCarrier) updates.tracking_carrier = tracking.trackingCarrier;
+  if (tracking.trackingCarrier) {
+    updates.tracking_carrier = tracking.trackingCarrier;
+  }
 
   const nowIso = new Date().toISOString();
   if (nextStatus === "shipped" && !order.shipped_at) {

@@ -15,6 +15,15 @@ verify_jwt = false
 [functions.submit-printful-order]
 verify_jwt = false
 
+[functions.route-fulfillment-order]
+verify_jwt = false
+
+[functions.production-jobs]
+verify_jwt = true
+
+[functions.update-production-job]
+verify_jwt = true
+
 [functions.printful-webhook]
 verify_jwt = false
 

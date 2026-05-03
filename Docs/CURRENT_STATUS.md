@@ -2,7 +2,7 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-04-17
+**Last updated:** 2026-05-03
 **Last updated by:** ethtr
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
@@ -11,13 +11,15 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - None listed. Update if anything is actively blocked.
 
 ## Top 3 Next Tasks
+1. P0: Vendor validation for onshore automation - confirm `filePath` creation, prepaid/internal payment handling, machine targeting, artwork requirements, SKU/material mapping, and failure states.
+2. P0: Manual production dry run - complete a Stripe test order through the onshore queue, print/pack/ship manually, and verify status/tracking updates.
 
 ## Now / Next / Later
 **Now**
-- None
+- P0: Vendor validation for onshore automation - confirm `filePath` creation, prepaid/internal payment handling, machine targeting, artwork requirements, SKU/material mapping, and failure states.
 
 **Next**
-- None
+- P0: Manual production dry run - complete a Stripe test order through the onshore queue, print/pack/ship manually, and verify status/tracking updates.
 
 **Later**
 - None

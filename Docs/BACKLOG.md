@@ -3,6 +3,9 @@
 Short, prioritized list only. Use P0/P1/P2. Remove completed items after verification to keep it short.
 
 ## P0 (MVP Launch)
+- [x] Onshore operations pilot foundation - add provider gate, manual production queue, operator allowlist, docs, and rollback path while keeping Printful as default.
+- [ ] Vendor validation for onshore automation - confirm `filePath` creation, prepaid/internal payment handling, machine targeting, artwork requirements, SKU/material mapping, and failure states.
+- [ ] Manual production dry run - complete a Stripe test order through the onshore queue, print/pack/ship manually, and verify status/tracking updates.
 - [x] Remove Printful references from UI copy - replace with Snapcase-first wording.
 - [x] EDM error handling + fallback UX - user-friendly error state and retry, no broken flow.
 - [x] Production allowlist sanity check - confirm launch domains are whitelisted for EDM.
