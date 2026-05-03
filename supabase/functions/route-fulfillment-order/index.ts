@@ -63,6 +63,12 @@ function hasRequiredShippingFields(shippingAddress: any): boolean {
   );
 }
 
+function orderStatusForJobStatus(status: string): string {
+  if (status === "shipped") return "shipped";
+  if (status === "failed") return "failed";
+  return "processing";
+}
+
 async function routeToPrintful(
   supabaseUrl: string,
   serviceRoleKey: string,
@@ -206,11 +212,16 @@ serve(async (req) => {
     await supabaseAdmin
       .from("orders")
       .update({
+        status: orderStatusForJobStatus(existingJob.status),
         fulfillment_provider: provider,
         fulfillment_order_id: existingJob.id,
         fulfillment_status: existingJob.fulfillment_status ??
           existingJob.status,
         fulfillment_last_error: null,
+        fulfillment_routed_at: new Date().toISOString(),
+        printful_status: existingJob.fulfillment_status ?? existingJob.status,
+        printful_last_error: null,
+        printful_next_attempt_at: null,
       })
       .eq("id", order.id);
 
@@ -321,11 +332,17 @@ serve(async (req) => {
     await supabaseAdmin
       .from("orders")
       .update({
+        status: orderStatusForJobStatus(duplicateJob.status),
         fulfillment_provider: provider,
         fulfillment_order_id: duplicateJob.id,
         fulfillment_status: duplicateJob.fulfillment_status ??
           duplicateJob.status,
         fulfillment_last_error: null,
+        fulfillment_routed_at: new Date().toISOString(),
+        printful_status: duplicateJob.fulfillment_status ??
+          duplicateJob.status,
+        printful_last_error: null,
+        printful_next_attempt_at: null,
       })
       .eq("id", order.id);
 

@@ -371,6 +371,7 @@ interface PrintfulRecipient {
 // Validation schema
 const submitOrderSchema = z.object({
   orderId: z.string().uuid(),
+  force: z.boolean().optional(),
 });
 
 serve(async (req) => {
@@ -422,6 +423,22 @@ serve(async (req) => {
     }
 
     order = orderData;
+
+    const forcePrintful = validationResult.data.force === true;
+    const fulfillmentProvider = String(
+      order.fulfillment_provider ?? "printful",
+    );
+    if (!forcePrintful && fulfillmentProvider !== "printful") {
+      return new Response(
+        JSON.stringify({
+          error: "Order is not configured for Printful fulfillment",
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+          status: 409,
+        },
+      );
+    }
 
     const existingPrintfulOrderId = order.printful_order_id
       ? String(order.printful_order_id)

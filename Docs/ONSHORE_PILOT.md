@@ -31,15 +31,16 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Apply the database migration before deploying Edge Functions that write `orders.fulfillment_*` columns or `production_jobs`.
 - Keep production unset or set to `FULFILLMENT_PROVIDER=printful`; use `FULFILLMENT_PROVIDER=onshore_manual` only in staging/preview until cutover gates pass.
 - Configure `OPERATOR_EMAILS` as a comma-separated allowlist in environments where `/operations` should be usable.
+- Rollback by environment change affects newly created checkouts. Orders already persisted with `fulfillment_provider=onshore_manual` stay in the manual queue unless an operator explicitly cancels, completes, or reroutes them.
 
 ## Vendor Questions Before Automation
 
-- How does external artwork become the `filePath` required by `POST /v1/order`?
-- Can prepaid Stripe orders create free/internal Kexiazhan orders without customer machine payment?
-- What endpoint targets a specific machine and submits a print job?
-- What image dimensions, crop, bleed, color profile, SKU/material IDs, and stock semantics are required?
-- What idempotency keys, cancellation paths, retries, and failure states should be used?
-- How are offline, out-of-stock, jammed, low-ink, and print-failure states exposed?
+- File upload: what endpoint creates the `filePath` required by `POST /v1/order`, and can it accept Snapcase-hosted artwork?
+- Prepaid payment: can Stripe-paid orders use an internal/free payment method such as `machineFree` or `couponFree`, and which payment fields are required?
+- Machine targeting: is the target machine selected by token scope, order payload, or a separate print-routing endpoint?
+- SKU/material mapping: what are the authoritative `brandId`, `goodsSkuId`, `materialIds`, shelf, stock, and magnetic/ordinary mappings?
+- Artwork specs: what dimensions, crop, bleed, color profile, file formats, and safe-area templates are required per SKU?
+- Idempotency/failure: what keys, callbacks, retries, cancellation/reprint APIs, and machine failure states are canonical?
 
 ## Rollout Gates
 
@@ -47,7 +48,7 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Duplicate webhook or success-page verification does not duplicate jobs.
 - Operator allowlist blocks non-operators from reading or updating jobs.
 - A test order can be manually printed, packed, shipped, and tracked.
-- Rollback is one environment change from `onshore_manual` back to `printful`.
+- Rollback for new orders is one environment change from `onshore_manual` back to `printful`; already-queued onshore jobs require manual operator disposition.
 - Machine automation waits until vendor questions are answered and tested in a non-production machine flow.
 
 ## Sprint Retro Log
@@ -57,3 +58,9 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Product: Keep Stripe and Snapcase checkout as the source of truth; the machine UI is a local kiosk flow, not a shipped-order checkout.
 - Functionality: Use a manual production queue first because `filePath`, prepaid payment, and machine-targeted print submission remain unverified.
 - Operating model: Sub-agents worked best when split by backend implementation and independent QA/challenge review with explicit no-interruption guidance.
+
+### 2026-05-03 - Staging Validation Attempt
+
+- Product: No cutover. PR #27 remains open and production stays Printful-backed.
+- Functionality: Code checks passed, but full staging QA is blocked until there is an accessible preview/staging target plus a non-production Supabase environment with the migration, Edge Functions, `FULFILLMENT_PROVIDER=onshore_manual`, and `OPERATOR_EMAILS`.
+- Operating model: Parallel staging, QA, challenge, and API research agents surfaced useful blockers quickly; next validation sprint should start by provisioning staging access before checkout smoke tests.
