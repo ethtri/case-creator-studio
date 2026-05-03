@@ -8,7 +8,7 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 **Sprint goal:** Stabilize EDM-first flow through checkout
 
 ## Blockers
-- None listed. Update if anything is actively blocked.
+- Sprint 1 staging checkout QA is blocked on required staging secrets: Stripe test keys/webhook secret and email test/restricted sender settings.
 
 ## Top 3 Next Tasks
 1. P0: Provision isolated onshore staging - accessible PR/staging preview plus non-production Supabase migration/functions/secrets for `onshore_manual` validation.
@@ -18,6 +18,7 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 ## Now / Next / Later
 **Now**
 - P0: Provision isolated onshore staging - accessible PR/staging preview plus non-production Supabase migration/functions/secrets for `onshore_manual` validation.
+- Staging database/functions and branch-scoped Vercel Supabase env are configured; add Stripe/email staging secrets before checkout smoke testing.
 
 **Next**
 - P0: Vendor validation for onshore automation - confirm `filePath` creation, prepaid/internal payment handling, machine targeting, artwork requirements, SKU/material mapping, and failure states.

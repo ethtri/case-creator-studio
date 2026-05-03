@@ -4,6 +4,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const PROVIDERS = ["printful", "onshore_manual"] as const;
 type FulfillmentProvider = (typeof PROVIDERS)[number];
+const TRUE_VALUES = new Set(["1", "true", "yes"]);
 
 const routeSchema = z.object({
   orderId: z.string().uuid(),
@@ -12,7 +13,7 @@ const routeSchema = z.object({
 
 function authorizeServiceRole(
   req: Request,
-  serviceRoleKey: string,
+  allowedKeys: string[],
 ): Response | null {
   const authHeader = req.headers.get("authorization") ||
     req.headers.get("Authorization");
@@ -20,8 +21,11 @@ function authorizeServiceRole(
   const bearerToken = authHeader?.startsWith("Bearer ")
     ? authHeader.slice(7)
     : null;
+  const validKeys = allowedKeys.filter(Boolean);
 
-  if (bearerToken !== serviceRoleKey && apiKey !== serviceRoleKey) {
+  if (
+    !validKeys.includes(bearerToken ?? "") && !validKeys.includes(apiKey ?? "")
+  ) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
@@ -51,6 +55,12 @@ function normalizeProvider(
     return provider;
   }
   throw new Error(`Unsupported fulfillment provider: ${provider}`);
+}
+
+function isOnshoreManualEnabled(): boolean {
+  return TRUE_VALUES.has(
+    (Deno.env.get("ALLOW_ONSHORE_MANUAL") ?? "").trim().toLowerCase(),
+  );
 }
 
 function hasRequiredShippingFields(shippingAddress: any): boolean {
@@ -110,6 +120,7 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const routeAuthKey = Deno.env.get("ROUTE_FULFILLMENT_AUTH_SECRET") ?? "";
 
   if (!supabaseUrl || !serviceRoleKey) {
     console.error("[ROUTE-FULFILLMENT] Missing Supabase configuration");
@@ -119,7 +130,10 @@ serve(async (req) => {
     });
   }
 
-  const authResponse = authorizeServiceRole(req, serviceRoleKey);
+  const authResponse = authorizeServiceRole(req, [
+    serviceRoleKey,
+    routeAuthKey,
+  ]);
   if (authResponse) return authResponse;
 
   let payload: z.infer<typeof routeSchema>;
@@ -161,6 +175,19 @@ serve(async (req) => {
       JSON.stringify({ error: "Unsupported fulfillment provider" }),
       {
         status: 400,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  if (provider === "onshore_manual" && !isOnshoreManualEnabled()) {
+    console.error(
+      "[ROUTE-FULFILLMENT] onshore_manual requested without ALLOW_ONSHORE_MANUAL=true",
+    );
+    return new Response(
+      JSON.stringify({ error: "Onshore manual fulfillment is not enabled" }),
+      {
+        status: 403,
         headers: { "Content-Type": "application/json" },
       },
     );

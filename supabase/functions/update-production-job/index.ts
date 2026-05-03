@@ -17,6 +17,12 @@ const JOB_STATUSES = [
   "shipped",
   "failed",
 ] as const;
+const SAFE_PREVIEW_HOSTS = [
+  "printful.com",
+  "snapcase.ai",
+  "snapcaseappv2.vercel.app",
+  "supabase.co",
+];
 
 const updateSchema = z.object({
   jobId: z.string().uuid(),
@@ -128,6 +134,55 @@ function fulfillmentStatusForJobStatus(status: string): string {
   if (status === "shipped") return "shipped";
   if (status === "failed") return "failed";
   return `onshore_manual_${status}`;
+}
+
+function isSafePreviewUrl(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return false;
+    return SAFE_PREVIEW_HOSTS.some((host) =>
+      url.hostname === host || url.hostname.endsWith(`.${host}`)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeItems(items: unknown): unknown[] {
+  if (!Array.isArray(items)) return [];
+
+  return items.map((item) => {
+    if (!item || typeof item !== "object") return item;
+    const nextItem = { ...(item as Record<string, unknown>) };
+    if (!isSafePreviewUrl(nextItem.designPreview)) {
+      nextItem.designPreview = null;
+    }
+    return nextItem;
+  });
+}
+
+function toSafeJob(job: Record<string, any>) {
+  return {
+    id: job.id,
+    orderId: job.order_id,
+    orderNumber: String(job.order_id).slice(0, 8).toUpperCase(),
+    createdAt: job.created_at,
+    updatedAt: job.updated_at,
+    status: job.status,
+    fulfillmentProvider: job.provider,
+    fulfillmentStatus: job.fulfillment_status,
+    customerEmail: job.customer_email,
+    customerName: job.customer_name,
+    total: job.total,
+    items: sanitizeItems(job.items),
+    shippingAddress: job.shipping_address,
+    trackingNumber: job.tracking_number,
+    trackingCarrier: job.tracking_carrier,
+    trackingUrl: job.tracking_url,
+    operatorNotes: job.operator_notes,
+  };
 }
 
 serve(async (req) => {
@@ -277,8 +332,11 @@ serve(async (req) => {
     );
   }
 
-  return new Response(JSON.stringify({ success: true, job: updatedJob }), {
-    status: 200,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({ success: true, job: toSafeJob(updatedJob) }),
+    {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    },
+  );
 });

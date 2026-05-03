@@ -1,3 +1,0 @@
--- Placeholder migration to align local history with remote.
--- Original 20251227120000 migration is missing from the repo.
--- The subsequent pull will capture the actual schema diff from remote.

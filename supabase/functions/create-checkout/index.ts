@@ -13,6 +13,7 @@ const ALLOWED_ORIGINS = [
 const VERCEL_PROJECT_PREFIXES = ["snapcaseappv2"];
 const STRIPE_MODE = (Deno.env.get("STRIPE_MODE") ?? "").toLowerCase();
 const FULFILLMENT_PROVIDERS = new Set(["printful", "onshore_manual"]);
+const TRUE_VALUES = new Set(["1", "true", "yes"]);
 
 function getStripeSecretKey(): string {
   const testKey = Deno.env.get("STRIPE_SECRET_KEY_TEST") ?? "";
@@ -29,6 +30,13 @@ function getFulfillmentProvider(): string {
       "printful"
   ).trim().toLowerCase();
 
+  if (provider === "onshore_manual" && !isOnshoreManualEnabled()) {
+    console.error(
+      "[CREATE-CHECKOUT] onshore_manual requested without ALLOW_ONSHORE_MANUAL=true; using printful",
+    );
+    return "printful";
+  }
+
   if (FULFILLMENT_PROVIDERS.has(provider)) {
     return provider;
   }
@@ -38,6 +46,12 @@ function getFulfillmentProvider(): string {
     provider,
   );
   return "printful";
+}
+
+function isOnshoreManualEnabled(): boolean {
+  return TRUE_VALUES.has(
+    (Deno.env.get("ALLOW_ONSHORE_MANUAL") ?? "").trim().toLowerCase(),
+  );
 }
 
 // Shipping is flat-rate for now; Stripe collects the address.

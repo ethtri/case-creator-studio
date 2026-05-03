@@ -6,7 +6,7 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 
 - V1 is Snapcase site orders only.
 - Customers continue paying through Stripe.
-- Production default remains Printful unless `FULFILLMENT_PROVIDER=onshore_manual` is set in the target Supabase environment.
+- Production default remains Printful. `onshore_manual` requires both `FULFILLMENT_PROVIDER=onshore_manual` and `ALLOW_ONSHORE_MANUAL=true` in the target Supabase environment.
 - Onshore pilot orders route to an internal manual production queue. They do not call Kexiazhan mutating APIs.
 - Amazon orders, customer-facing machine payment, and automatic machine submission stay out of v1.
 
@@ -29,8 +29,11 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 ## Deployment Notes
 
 - Apply the database migration before deploying Edge Functions that write `orders.fulfillment_*` columns or `production_jobs`.
-- Keep production unset or set to `FULFILLMENT_PROVIDER=printful`; use `FULFILLMENT_PROVIDER=onshore_manual` only in staging/preview until cutover gates pass.
+- Keep production unset or set to `FULFILLMENT_PROVIDER=printful`; keep `ALLOW_ONSHORE_MANUAL` unset in production until cutover gates pass.
+- Use `FULFILLMENT_PROVIDER=onshore_manual` and `ALLOW_ONSHORE_MANUAL=true` only in staging/preview until pilot approval.
 - Configure `OPERATOR_EMAILS` as a comma-separated allowlist in environments where `/operations` should be usable.
+- `route-fulfillment-order` accepts Supabase's runtime service-role key and can also accept `ROUTE_FULFILLMENT_AUTH_SECRET` for staging/QA service-role calls. Never expose that secret to browsers.
+- The isolated Supabase staging project is `snapcase-onshore-staging` (`onztuktjcmjukfhcuphh`). Do not commit keys or service-role credentials.
 - Rollback by environment change affects newly created checkouts. Orders already persisted with `fulfillment_provider=onshore_manual` stay in the manual queue unless an operator explicitly cancels, completes, or reroutes them.
 
 ## Vendor Questions Before Automation
@@ -64,3 +67,9 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Product: No cutover. PR #27 remains open and production stays Printful-backed.
 - Functionality: Code checks passed, but full staging QA is blocked until there is an accessible preview/staging target plus a non-production Supabase environment with the migration, Edge Functions, `FULFILLMENT_PROVIDER=onshore_manual`, and `OPERATOR_EMAILS`.
 - Operating model: Parallel staging, QA, challenge, and API research agents surfaced useful blockers quickly; next validation sprint should start by provisioning staging access before checkout smoke tests.
+
+### 2026-05-03 - Sprint 1 Staging Lane Checkpoint
+
+- Product: Production remains Printful-backed; staging is the only intended lane for `onshore_manual`.
+- Functionality: Created an isolated Supabase staging project, repaired local migration history so a fresh staging database can be built, deployed staging Edge Functions, set branch-scoped Vercel Supabase env, and enabled protected-preview automation bypass. Full checkout QA still needs Stripe test/email secrets.
+- Operating model: Challenge review added one extra production-safety gate, `ALLOW_ONSHORE_MANUAL=true`, so an accidental provider env change alone cannot send live orders to the manual queue.

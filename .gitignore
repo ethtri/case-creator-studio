@@ -69,3 +69,4 @@ Thumbs.db
 .branches
 .temp
 supabase/.temp
+.vercel
