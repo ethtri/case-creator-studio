@@ -54,6 +54,13 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Rollback for new orders is one environment change from `onshore_manual` back to `printful`; already-queued onshore jobs require manual operator disposition.
 - Machine automation waits until vendor questions are answered and tested in a non-production machine flow.
 
+## Open Hardening Items
+
+- Tighten preview origin matching before merge or cutover. Public payment endpoints should allow exact production origins plus a strict preview allowlist, not broad substring matching.
+- Make Stripe test mode fail closed before merge or cutover: when `STRIPE_MODE=test`, require `STRIPE_SECRET_KEY_TEST` and `STRIPE_WEBHOOK_SECRET_TEST` instead of falling back to generic env names.
+- Rotate the pasted Stripe test secret and any staging-only route/preview bypass secrets after staging validation.
+- Remove or reset temporary staging operator credentials after the manual dry run.
+
 ## Sprint Retro Log
 
 ### 2026-05-03 - Pilot Foundation
@@ -79,3 +86,9 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Product: Stripe test checkout can fund a staging onshore order without touching Printful or Kexiazhan.
 - Functionality: Created the staging Stripe webhook, completed a Stripe sandbox Checkout payment, fixed the Edge runtime webhook verifier to use Stripe's async signature path, and confirmed exactly one `onshore_manual` job. Duplicate event replay kept one job, operator allowlist blocked a non-operator, operator status/tracking updates persisted, and a temporary `printful` provider rollback checkout created no onshore job.
 - Operating model: Owner only had to supply the Stripe test secret; PM/agent team handled webhook creation, Supabase secret setup, browser checkout, QA replay, operator auth test users, rollback smoke, and PR hardening.
+
+### 2026-05-03 - Owner Dry Run Ready
+
+- Product: Production remains unchanged and PR #27 remains open/unmerged; this is still a staging-only manual onshore pilot.
+- Functionality: Created a fresh Stripe sandbox payment for order `d89cfec5-d190-4209-aff5-c017c22225c6`, which queued production job `a059d2eb-3ada-4dd5-8f32-a4fa88e1a873`. A second route call returned the existing job with `created=false`, confirming no duplicate job was created.
+- Operating model: QA confirmed staging/production isolation and challenge review approved a staging dry run while calling out origin matching, Stripe test fail-closed behavior, and secret rotation as required hardening before merge/cutover.
