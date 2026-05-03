@@ -73,3 +73,9 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Product: Production remains Printful-backed; staging is the only intended lane for `onshore_manual`.
 - Functionality: Created an isolated Supabase staging project, repaired local migration history so a fresh staging database can be built, deployed staging Edge Functions, set branch-scoped Vercel Supabase env, and enabled protected-preview automation bypass. Full checkout QA still needs Stripe test/email secrets.
 - Operating model: Challenge review added one extra production-safety gate, `ALLOW_ONSHORE_MANUAL=true`, so an accidental provider env change alone cannot send live orders to the manual queue.
+
+### 2026-05-03 - Sprint 2 Stripe Staging Smoke
+
+- Product: Stripe test checkout can fund a staging onshore order without touching Printful or Kexiazhan.
+- Functionality: Created the staging Stripe webhook, completed a Stripe sandbox Checkout payment, fixed the Edge runtime webhook verifier to use Stripe's async signature path, and confirmed exactly one `onshore_manual` job. Duplicate event replay kept one job, operator allowlist blocked a non-operator, operator status/tracking updates persisted, and a temporary `printful` provider rollback checkout created no onshore job.
+- Operating model: Owner only had to supply the Stripe test secret; PM/agent team handled webhook creation, Supabase secret setup, browser checkout, QA replay, operator auth test users, rollback smoke, and PR hardening.

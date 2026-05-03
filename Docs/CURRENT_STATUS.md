@@ -8,21 +8,18 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 **Sprint goal:** Stabilize EDM-first flow through checkout
 
 ## Blockers
-- Sprint 1 staging checkout QA is blocked on required staging secrets: Stripe test keys/webhook secret and email test/restricted sender settings.
+- Physical manual-production dry run remains: print/pack/ship a real test case from the staging queue process before production pilot.
 
 ## Top 3 Next Tasks
-1. P0: Provision isolated onshore staging - accessible PR/staging preview plus non-production Supabase migration/functions/secrets for `onshore_manual` validation.
+1. P0: Manual production dry run - complete a Stripe test order through the onshore queue, print/pack/ship manually, and verify status/tracking updates.
 2. P0: Vendor validation for onshore automation - confirm `filePath` creation, prepaid/internal payment handling, machine targeting, artwork requirements, SKU/material mapping, and failure states.
-3. P0: Manual production dry run - complete a Stripe test order through the onshore queue, print/pack/ship manually, and verify status/tracking updates.
 
 ## Now / Next / Later
 **Now**
-- P0: Provision isolated onshore staging - accessible PR/staging preview plus non-production Supabase migration/functions/secrets for `onshore_manual` validation.
-- Staging database/functions and branch-scoped Vercel Supabase env are configured; add Stripe/email staging secrets before checkout smoke testing.
+- P0: Manual production dry run - complete a Stripe test order through the onshore queue, print/pack/ship manually, and verify status/tracking updates.
 
 **Next**
 - P0: Vendor validation for onshore automation - confirm `filePath` creation, prepaid/internal payment handling, machine targeting, artwork requirements, SKU/material mapping, and failure states.
-- P0: Manual production dry run - complete a Stripe test order through the onshore queue, print/pack/ship manually, and verify status/tracking updates.
 
 **Later**
 - None
@@ -35,3 +32,4 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - Promo codes: pre-checkout apply with Stripe validation; enforce eligibility at checkout.
 - UAT: cart persists after Stripe cancel; My Orders thumbnails restored.
 - UAT: multi-item checkout metadata limit handled.
+- Onshore staging: Stripe sandbox checkout, webhook routing, duplicate replay, operator allowlist/update, tracking, and provider rollback smoke passed.
