@@ -12,6 +12,7 @@ This folder contains the canonical project docs. Older or redundant material liv
 - [DECISIONS.md](./DECISIONS.md) - Key project decisions
 - [PRINTFUL_NOTES.md](./PRINTFUL_NOTES.md) - Printful EDM, mockups, and order notes
 - [ONSHORE_PILOT.md](./ONSHORE_PILOT.md) - onshore operations pilot scope, gates, and retro log
+- [VENDOR_DESIGNER_RESEARCH.md](./VENDOR_DESIGNER_RESEARCH.md) - vendor designer integration research, question pack, and recommendation
 - After updating `Docs/BACKLOG.md`, run `npm run sync:status` to refresh `Docs/CURRENT_STATUS.md`.
 
 ## Deployment
@@ -31,4 +32,5 @@ Docs/
   PRINTFUL_NOTES.md
   BACKLOG.md
   HYGIENE_ROUTINES.md
+  VENDOR_DESIGNER_RESEARCH.md
 ```

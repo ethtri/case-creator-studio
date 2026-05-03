@@ -60,6 +60,7 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Make Stripe test mode fail closed before merge or cutover: when `STRIPE_MODE=test`, require `STRIPE_SECRET_KEY_TEST` and `STRIPE_WEBHOOK_SECRET_TEST` instead of falling back to generic env names.
 - Rotate the pasted Stripe test secret and any staging-only route/preview bypass secrets after staging validation.
 - Remove or reset temporary staging operator credentials after the manual dry run.
+- Keep the current tokenized Kexiaozhan/Xiaojiang URL operator-only. Do not expose it through public Snapcase CTAs, docs, logs, screenshots, or customer-visible redirects.
 
 ## Sprint Retro Log
 
@@ -92,3 +93,9 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Product: Production remains unchanged and PR #27 remains open/unmerged; this is still a staging-only manual onshore pilot.
 - Functionality: Created a fresh Stripe sandbox payment for order `d89cfec5-d190-4209-aff5-c017c22225c6`, which queued production job `a059d2eb-3ada-4dd5-8f32-a4fa88e1a873`. A second route call returned the existing job with `created=false`, confirming no duplicate job was created.
 - Operating model: QA confirmed staging/production isolation and challenge review approved a staging dry run while calling out origin matching, Stripe test fail-closed behavior, and secret rotation as required hardening before merge/cutover.
+
+### 2026-05-03 - Vendor Designer Research Sprint
+
+- Product: Vendor catalog breadth is better than Snapcase's current catalog, but the current vendor URL is token-gated and is not safe as a public CTA.
+- Functionality: The viable target is vendor designer output feeding back into Snapcase-owned cart, Stripe checkout, order record, and onshore queue. The vendor `Print` path remains the unsafe order/payment boundary until API answers confirm an internal/prepaid path.
+- Operating model: API, UX, vendor UI, and security sub-agents independently converged on the same recommendation: pursue a hybrid integration only after lead engineer/vendor questions are answered.
