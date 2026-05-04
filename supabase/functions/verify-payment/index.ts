@@ -3,59 +3,8 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { sendOrderEmail } from "../_shared/email.ts";
-
-// Allowed origins for CORS
-const ALLOWED_ORIGINS = [
-  "https://snapcase.ai",
-  "https://www.snapcase.ai",
-  "https://snapcaseappv2.vercel.app",
-];
-
-const VERCEL_PROJECT_PREFIXES = ["snapcaseappv2"];
-const STRIPE_MODE = (Deno.env.get("STRIPE_MODE") ?? "").toLowerCase();
-
-function getStripeSecretKey(): string {
-  const testKey = Deno.env.get("STRIPE_SECRET_KEY_TEST") ?? "";
-  if (STRIPE_MODE === "test") {
-    return testKey || Deno.env.get("STRIPE_SECRET_KEY") || "";
-  }
-  return Deno.env.get("STRIPE_SECRET_KEY") ?? "";
-}
-
-function isAllowedOrigin(origin: string): boolean {
-  if (!origin) {
-    return false;
-  }
-
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    return true;
-  }
-
-  if (
-    origin.startsWith("http://localhost") ||
-    origin.startsWith("http://127.0.0.1")
-  ) {
-    return true;
-  }
-
-  if (origin.endsWith(".vercel.app")) {
-    return VERCEL_PROJECT_PREFIXES.some((prefix) => origin.includes(prefix));
-  }
-
-  return false;
-}
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("origin") || "";
-  // Allow localhost for development
-  const allowedOrigin = isAllowedOrigin(origin) ? origin : ALLOWED_ORIGINS[0];
-
-  return {
-    "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-  };
-}
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { getStripeSecretKey } from "../_shared/stripe-config.ts";
 
 // Safe error messages that don't expose internal details
 function getSafeErrorMessage(error: unknown): string {
@@ -161,7 +110,7 @@ serve(async (req) => {
 
     console.log("[VERIFY-PAYMENT] Verifying session:", sessionId);
 
-    const stripe = new Stripe(getStripeSecretKey(), {
+    const stripe = new Stripe(getStripeSecretKey("VERIFY-PAYMENT"), {
       apiVersion: "2025-08-27.basil",
     });
 

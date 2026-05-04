@@ -2,26 +2,11 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { getCorsHeaders, requireAllowedOrigin } from "../_shared/cors.ts";
+import { getStripeSecretKey } from "../_shared/stripe-config.ts";
 
-// Allowed origins for CORS
-const ALLOWED_ORIGINS = [
-  "https://snapcase.ai",
-  "https://www.snapcase.ai",
-  "https://snapcaseappv2.vercel.app",
-];
-
-const VERCEL_PROJECT_PREFIXES = ["snapcaseappv2"];
-const STRIPE_MODE = (Deno.env.get("STRIPE_MODE") ?? "").toLowerCase();
 const FULFILLMENT_PROVIDERS = new Set(["printful", "onshore_manual"]);
 const TRUE_VALUES = new Set(["1", "true", "yes"]);
-
-function getStripeSecretKey(): string {
-  const testKey = Deno.env.get("STRIPE_SECRET_KEY_TEST") ?? "";
-  if (STRIPE_MODE === "test") {
-    return testKey || Deno.env.get("STRIPE_SECRET_KEY") || "";
-  }
-  return Deno.env.get("STRIPE_SECRET_KEY") ?? "";
-}
 
 function getFulfillmentProvider(): string {
   const provider = (
@@ -56,41 +41,6 @@ function isOnshoreManualEnabled(): boolean {
 
 // Shipping is flat-rate for now; Stripe collects the address.
 
-function isAllowedOrigin(origin: string): boolean {
-  if (!origin) {
-    return false;
-  }
-
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    return true;
-  }
-
-  if (
-    origin.startsWith("http://localhost") ||
-    origin.startsWith("http://127.0.0.1")
-  ) {
-    return true;
-  }
-
-  if (origin.endsWith(".vercel.app")) {
-    return VERCEL_PROJECT_PREFIXES.some((prefix) => origin.includes(prefix));
-  }
-
-  return false;
-}
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("origin") || "";
-  // Allow localhost for development
-  const allowedOrigin = isAllowedOrigin(origin) ? origin : ALLOWED_ORIGINS[0];
-
-  return {
-    "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-  };
-}
-
 // Safe error messages that don't expose internal details
 function getSafeErrorMessage(error: unknown): string {
   const errorMessage = error instanceof Error ? error.message : String(error);
@@ -124,6 +74,9 @@ function getSafeErrorMessage(error: unknown): string {
   }
   if (lowered.includes("customer")) {
     return "Promo code is not valid for this customer.";
+  }
+  if (lowered.includes("origin")) {
+    return "This checkout origin is not allowed.";
   }
   if (errorMessage.includes("validation") || errorMessage.includes("Invalid")) {
     return "Invalid order data. Please check your information and try again.";
@@ -373,8 +326,7 @@ serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    const originHeader = req.headers.get("origin") || "";
-    const stripe = new Stripe(getStripeSecretKey(), {
+    const stripe = new Stripe(getStripeSecretKey("CREATE-CHECKOUT"), {
       apiVersion: "2025-08-27.basil",
     });
 
@@ -435,9 +387,7 @@ serve(async (req) => {
       customerId = customers.data[0].id;
     }
 
-    const checkoutOrigin = isAllowedOrigin(originHeader)
-      ? originHeader
-      : ALLOWED_ORIGINS[0];
+    const checkoutOrigin = requireAllowedOrigin(req, "CREATE-CHECKOUT");
 
     // Create checkout session
     const session = await stripe.checkout.sessions.create({

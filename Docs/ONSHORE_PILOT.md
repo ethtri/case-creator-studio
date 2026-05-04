@@ -25,6 +25,7 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - `onshore_manual` creates or reuses one `production_jobs` row per order.
 - `/operations` is an authenticated internal queue backed by server-side operator allowlist checks.
 - Operator updates can move jobs through `queued`, `artwork_ready`, `printed`, `packed`, `shipped`, or `failed`.
+- `fake-vendor-design-complete` is a staging-only signed handoff rehearsal. It creates a Snapcase Stripe Checkout Session from mock vendor design metadata, then the existing Stripe webhook routes paid orders to `production_jobs`.
 
 ## Deployment Notes
 
@@ -32,6 +33,8 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Keep production unset or set to `FULFILLMENT_PROVIDER=printful`; keep `ALLOW_ONSHORE_MANUAL` unset in production until cutover gates pass.
 - Use `FULFILLMENT_PROVIDER=onshore_manual` and `ALLOW_ONSHORE_MANUAL=true` only in staging/preview until pilot approval.
 - Configure `OPERATOR_EMAILS` as a comma-separated allowlist in environments where `/operations` should be usable.
+- Configure `VERCEL_PREVIEW_ORIGINS` as exact comma-separated preview origins. Do not rely on broad `*.vercel.app` matching.
+- For fake vendor handoff tests only, configure `FAKE_VENDOR_HANDOFF_SECRET` and `VENDOR_HANDOFF_CHECKOUT_ORIGIN` in staging/preview.
 - `route-fulfillment-order` accepts Supabase's runtime service-role key and can also accept `ROUTE_FULFILLMENT_AUTH_SECRET` for staging/QA service-role calls. Never expose that secret to browsers.
 - The isolated Supabase staging project is `snapcase-onshore-staging` (`onztuktjcmjukfhcuphh`). Do not commit keys or service-role credentials.
 - Rollback by environment change affects newly created checkouts. Orders already persisted with `fulfillment_provider=onshore_manual` stay in the manual queue unless an operator explicitly cancels, completes, or reroutes them.
@@ -54,10 +57,14 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Rollback for new orders is one environment change from `onshore_manual` back to `printful`; already-queued onshore jobs require manual operator disposition.
 - Machine automation waits until vendor questions are answered and tested in a non-production machine flow.
 
+## Completed Hardening
+
+- Public Edge Function CORS now uses shared exact-origin matching. Preview access is allowed only through configured exact origins.
+- Stripe configuration now fails closed. `STRIPE_MODE=test` requires `STRIPE_SECRET_KEY_TEST` and `STRIPE_WEBHOOK_SECRET_TEST`; it does not fall back to live/generic secret names.
+- The public checkout endpoint rejects present but disallowed origins for Stripe success/cancel URLs.
+
 ## Open Hardening Items
 
-- Tighten preview origin matching before merge or cutover. Public payment endpoints should allow exact production origins plus a strict preview allowlist, not broad substring matching.
-- Make Stripe test mode fail closed before merge or cutover: when `STRIPE_MODE=test`, require `STRIPE_SECRET_KEY_TEST` and `STRIPE_WEBHOOK_SECRET_TEST` instead of falling back to generic env names.
 - Rotate the pasted Stripe test secret and any staging-only route/preview bypass secrets after staging validation.
 - Remove or reset temporary staging operator credentials after the manual dry run.
 - Keep the current tokenized Kexiaozhan/Xiaojiang URL operator-only. Do not expose it through public Snapcase CTAs, docs, logs, screenshots, or customer-visible redirects.
@@ -99,3 +106,9 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Product: Vendor catalog breadth is better than Snapcase's current catalog, but the current vendor URL is token-gated and is not safe as a public CTA.
 - Functionality: The viable target is vendor designer output feeding back into Snapcase-owned cart, Stripe checkout, order record, and onshore queue. The vendor `Print` path remains the unsafe order/payment boundary until API answers confirm an internal/prepaid path.
 - Operating model: API, UX, vendor UI, and security sub-agents independently converged on the same recommendation: pursue a hybrid integration only after lead engineer/vendor questions are answered.
+
+### 2026-05-04 - Fake Vendor Handoff Hardening
+
+- Product: The next safe prototype is not a public vendor redirect. It is a signed server-to-server design-complete handoff that returns the customer to Snapcase-owned Stripe checkout.
+- Functionality: Added a staging-only fake vendor handoff endpoint, centralized exact-origin CORS, and made Stripe test mode fail closed. No Kexiazhan mutating calls were added.
+- Operating model: Implementation and challenge agents converged on the same guardrail: vendor metadata can describe production artwork, but it cannot be accepted from public checkout or treated as payment/order truth.

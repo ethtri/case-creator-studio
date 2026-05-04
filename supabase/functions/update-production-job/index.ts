@@ -1,14 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
-const ALLOWED_ORIGINS = [
-  "https://snapcase.ai",
-  "https://www.snapcase.ai",
-  "https://snapcaseappv2.vercel.app",
-];
-
-const VERCEL_PROJECT_PREFIXES = ["snapcaseappv2"];
 const JOB_STATUSES = [
   "queued",
   "artwork_ready",
@@ -38,31 +32,6 @@ const updateSchema = z.object({
   payload.trackingUrl !== undefined ||
   payload.operatorNotes !== undefined
 ), { message: "At least one update field is required" });
-
-function isAllowedOrigin(origin: string): boolean {
-  if (!origin) return false;
-  if (ALLOWED_ORIGINS.includes(origin)) return true;
-  if (
-    origin.startsWith("http://localhost") ||
-    origin.startsWith("http://127.0.0.1")
-  ) return true;
-  if (origin.endsWith(".vercel.app")) {
-    return VERCEL_PROJECT_PREFIXES.some((prefix) => origin.includes(prefix));
-  }
-  return false;
-}
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("origin") || "";
-  const allowedOrigin = isAllowedOrigin(origin) ? origin : ALLOWED_ORIGINS[0];
-
-  return {
-    "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, PATCH, OPTIONS",
-  };
-}
 
 function getOperatorEmails(): Set<string> {
   return new Set(
@@ -95,7 +64,10 @@ async function requireOperator(
   if (!authHeader) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
-      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      headers: {
+        ...getCorsHeaders(req, "POST, PATCH, OPTIONS"),
+        "Content-Type": "application/json",
+      },
     });
   }
 
@@ -108,14 +80,20 @@ async function requireOperator(
   if (authError || !authData?.user || !authData.user.email) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
-      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      headers: {
+        ...getCorsHeaders(req, "POST, PATCH, OPTIONS"),
+        "Content-Type": "application/json",
+      },
     });
   }
 
   if (!isVerifiedEmail(authData.user)) {
     return new Response(JSON.stringify({ error: "Email not verified" }), {
       status: 403,
-      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      headers: {
+        ...getCorsHeaders(req, "POST, PATCH, OPTIONS"),
+        "Content-Type": "application/json",
+      },
     });
   }
 
@@ -123,7 +101,10 @@ async function requireOperator(
   if (!getOperatorEmails().has(email)) {
     return new Response(JSON.stringify({ error: "Forbidden" }), {
       status: 403,
-      headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
+      headers: {
+        ...getCorsHeaders(req, "POST, PATCH, OPTIONS"),
+        "Content-Type": "application/json",
+      },
     });
   }
 
@@ -186,7 +167,7 @@ function toSafeJob(job: Record<string, any>) {
 }
 
 serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
+  const corsHeaders = getCorsHeaders(req, "POST, PATCH, OPTIONS");
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });

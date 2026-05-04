@@ -2,6 +2,10 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { sendOrderEmail } from "../_shared/email.ts";
+import {
+  getStripeSecretKey,
+  getStripeWebhookSecret,
+} from "../_shared/stripe-config.ts";
 
 type ShippingDetails = {
   name?: string | null;
@@ -31,33 +35,10 @@ type OrderShippingAddress = {
   state?: string | null;
 };
 
-const STRIPE_MODE = (Deno.env.get("STRIPE_MODE") ?? "").toLowerCase();
 const ALLOWED_STRIPE_EVENTS = new Set([
   "checkout.session.completed",
   "checkout.session.async_payment_succeeded",
 ]);
-
-function getStripeSecretKey(): string {
-  if (STRIPE_MODE === "test") {
-    return (
-      Deno.env.get("STRIPE_SECRET_KEY_TEST") ??
-        Deno.env.get("STRIPE_SECRET_KEY") ??
-        ""
-    );
-  }
-  return Deno.env.get("STRIPE_SECRET_KEY") ?? "";
-}
-
-function getStripeWebhookSecret(): string | null {
-  if (STRIPE_MODE === "test") {
-    return (
-      Deno.env.get("STRIPE_WEBHOOK_SECRET_TEST") ??
-        Deno.env.get("STRIPE_WEBHOOK_SECRET") ??
-        null
-    );
-  }
-  return Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? null;
-}
 
 const extractShippingDetails = (
   session: Stripe.Checkout.Session,
@@ -103,14 +84,18 @@ serve(async (req) => {
     return new Response("Missing Stripe signature", { status: 400 });
   }
 
-  const webhookSecret = getStripeWebhookSecret();
-  if (!webhookSecret) {
-    console.error("[STRIPE-WEBHOOK] Missing STRIPE_WEBHOOK_SECRET");
+  let stripeSecretKey: string;
+  let webhookSecret: string;
+  try {
+    stripeSecretKey = getStripeSecretKey("STRIPE-WEBHOOK");
+    webhookSecret = getStripeWebhookSecret("STRIPE-WEBHOOK");
+  } catch (error) {
+    console.error("[STRIPE-WEBHOOK] Missing Stripe configuration:", error);
     return new Response("Webhook not configured", { status: 500 });
   }
 
   const payload = await req.text();
-  const stripe = new Stripe(getStripeSecretKey(), {
+  const stripe = new Stripe(stripeSecretKey, {
     apiVersion: "2025-08-27.basil",
   });
 

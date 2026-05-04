@@ -1,43 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-
-const ALLOWED_ORIGINS = [
-  "https://snapcase.ai",
-  "https://www.snapcase.ai",
-  "https://snapcaseappv2.vercel.app",
-];
-
-const VERCEL_PROJECT_PREFIXES = ["snapcaseappv2"];
-
-function isAllowedOrigin(origin: string): boolean {
-  if (!origin) {
-    return false;
-  }
-
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    return true;
-  }
-
-  if (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1")) {
-    return true;
-  }
-
-  if (origin.endsWith(".vercel.app")) {
-    return VERCEL_PROJECT_PREFIXES.some((prefix) => origin.includes(prefix));
-  }
-
-  return false;
-}
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get("origin") || "";
-  const allowedOrigin = isAllowedOrigin(origin) ? origin : ALLOWED_ORIGINS[0];
-
-  return {
-    "Access-Control-Allow-Origin": allowedOrigin,
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  };
-}
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 const requestSchema = z.discriminatedUnion("action", [
   z.object({
@@ -63,7 +26,10 @@ function getStyleCacheKey(productId: number, variantId: number): string {
   return `${productId}:${variantId}`;
 }
 
-function getCachedStyleIds(productId: number, variantId: number): number[] | null {
+function getCachedStyleIds(
+  productId: number,
+  variantId: number,
+): number[] | null {
   const key = getStyleCacheKey(productId, variantId);
   const cached = styleIdCache.get(key);
   if (!cached) return null;
@@ -74,7 +40,11 @@ function getCachedStyleIds(productId: number, variantId: number): number[] | nul
   return cached.ids;
 }
 
-function setCachedStyleIds(productId: number, variantId: number, ids: number[]): void {
+function setCachedStyleIds(
+  productId: number,
+  variantId: number,
+  ids: number[],
+): void {
   const ttl = ids.length > 0 ? STYLE_CACHE_TTL_MS : STYLE_CACHE_EMPTY_TTL_MS;
   styleIdCache.set(getStyleCacheKey(productId, variantId), {
     ids,
@@ -106,8 +76,7 @@ function normalizeTaskPayload(payload: unknown): any {
 function extractErrorMessage(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
   const data = payload as Record<string, unknown>;
-  const directMessage =
-    data.detail ??
+  const directMessage = data.detail ??
     data.title ??
     data.message ??
     (data as any)?.error?.message ??
@@ -120,8 +89,7 @@ function extractErrorMessage(payload: unknown): string | null {
   if (Array.isArray(errors) && errors.length > 0) {
     const firstError = errors[0];
     if (typeof firstError === "string") return firstError;
-    const nestedMessage =
-      firstError?.message ??
+    const nestedMessage = firstError?.message ??
       firstError?.detail ??
       firstError?.title ??
       null;
@@ -144,7 +112,8 @@ type MockupStyle = {
 function extractMockupStyles(payload: unknown): MockupStyle[] {
   if (!payload || typeof payload !== "object") return [];
   const data = payload as Record<string, unknown>;
-  const raw = (data as any).result?.data ?? (data as any).data ?? (data as any).result ?? data;
+  const raw = (data as any).result?.data ?? (data as any).data ??
+    (data as any).result ?? data;
   const entries = Array.isArray(raw) ? raw : (raw as any)?.data ?? [];
   if (!Array.isArray(entries)) return [];
 
@@ -153,20 +122,27 @@ function extractMockupStyles(payload: unknown): MockupStyle[] {
   for (const entry of entries) {
     if (Array.isArray(entry?.mockup_styles)) {
       for (const style of entry.mockup_styles) {
-        const idValue = style?.id ?? style?.style_id ?? entry?.style_id ?? entry?.id;
+        const idValue = style?.id ?? style?.style_id ?? entry?.style_id ??
+          entry?.id;
         const id = Number(idValue);
         if (!Number.isFinite(id)) continue;
         styles.push({
           id,
-          placement: typeof entry?.placement === "string" ? entry.placement : undefined,
+          placement: typeof entry?.placement === "string"
+            ? entry.placement
+            : undefined,
           viewName: typeof style?.view_name === "string"
             ? style.view_name
             : typeof entry?.view_name === "string"
             ? entry.view_name
             : undefined,
-          categoryName: typeof style?.category_name === "string" ? style.category_name : undefined,
+          categoryName: typeof style?.category_name === "string"
+            ? style.category_name
+            : undefined,
           restrictedToVariants: Array.isArray(style?.restricted_to_variants)
-            ? style.restricted_to_variants.map((value: unknown) => Number(value)).filter(Number.isFinite)
+            ? style.restricted_to_variants.map((value: unknown) =>
+              Number(value)
+            ).filter(Number.isFinite)
             : null,
         });
       }
@@ -178,15 +154,20 @@ function extractMockupStyles(payload: unknown): MockupStyle[] {
     if (!Number.isFinite(id)) continue;
     styles.push({
       id,
-      placement: typeof entry?.placement === "string" ? entry.placement : undefined,
+      placement: typeof entry?.placement === "string"
+        ? entry.placement
+        : undefined,
       viewName: typeof entry?.view_name === "string"
         ? entry.view_name
         : typeof entry?.display_name === "string"
         ? entry.display_name
         : undefined,
-      categoryName: typeof entry?.category_name === "string" ? entry.category_name : undefined,
+      categoryName: typeof entry?.category_name === "string"
+        ? entry.category_name
+        : undefined,
       restrictedToVariants: Array.isArray(entry?.restricted_to_variants)
-        ? entry.restricted_to_variants.map((value: unknown) => Number(value)).filter(Number.isFinite)
+        ? entry.restricted_to_variants.map((value: unknown) => Number(value))
+          .filter(Number.isFinite)
         : null,
     });
   }
@@ -195,7 +176,19 @@ function extractMockupStyles(payload: unknown): MockupStyle[] {
 }
 
 const FRONT_KEYWORDS = ["front", "outside"];
-const ANGLED_KEYWORDS = ["3d", "angle", "angled", "lifestyle", "perspective", "scene", "hand", "desk", "side", "left", "right"];
+const ANGLED_KEYWORDS = [
+  "3d",
+  "angle",
+  "angled",
+  "lifestyle",
+  "perspective",
+  "scene",
+  "hand",
+  "desk",
+  "side",
+  "left",
+  "right",
+];
 
 function normalizeStyleText(style: MockupStyle): string {
   return [
@@ -212,32 +205,49 @@ function matchesAnyKeyword(value: string, keywords: string[]): boolean {
   return keywords.some((keyword) => value.includes(keyword));
 }
 
-function filterAllowedStyles(styles: MockupStyle[], variantId: number): MockupStyle[] {
+function filterAllowedStyles(
+  styles: MockupStyle[],
+  variantId: number,
+): MockupStyle[] {
   return styles.filter((style) => {
-    if (!style.restrictedToVariants || style.restrictedToVariants.length === 0) {
+    if (
+      !style.restrictedToVariants || style.restrictedToVariants.length === 0
+    ) {
       return true;
     }
     return style.restrictedToVariants.includes(variantId);
   });
 }
 
-function pickPreferredStyleIds(styles: MockupStyle[], variantId: number): number[] {
+function pickPreferredStyleIds(
+  styles: MockupStyle[],
+  variantId: number,
+): number[] {
   if (!styles.length) return [];
   const allowedStyles = filterAllowedStyles(styles, variantId);
 
   if (allowedStyles.length === 0) return [];
 
-  const frontStyles = allowedStyles.filter((style) => matchesAnyKeyword(normalizeStyleText(style), FRONT_KEYWORDS));
-  const angledStyles = allowedStyles.filter((style) => matchesAnyKeyword(normalizeStyleText(style), ANGLED_KEYWORDS));
+  const frontStyles = allowedStyles.filter((style) =>
+    matchesAnyKeyword(normalizeStyleText(style), FRONT_KEYWORDS)
+  );
+  const angledStyles = allowedStyles.filter((style) =>
+    matchesAnyKeyword(normalizeStyleText(style), ANGLED_KEYWORDS)
+  );
 
   const frontId = frontStyles[0]?.id ?? allowedStyles[0]?.id ?? null;
   const angledId = angledStyles[0]?.id ?? null;
 
-  const ids = [frontId, angledId].filter((value): value is number => typeof value === "number");
+  const ids = [frontId, angledId].filter((value): value is number =>
+    typeof value === "number"
+  );
   return Array.from(new Set(ids));
 }
 
-function pickPreferredStyleId(styles: MockupStyle[], variantId: number): number | null {
+function pickPreferredStyleId(
+  styles: MockupStyle[],
+  variantId: number,
+): number | null {
   if (!styles.length) return null;
   const allowedStyles = filterAllowedStyles(styles, variantId);
 
@@ -279,7 +289,9 @@ function extractMockupUrl(mockup: any): string | null {
   return mockup?.mockup_url ?? mockup?.mockup_url_s ?? null;
 }
 
-function pickMockupUrls(mockups: any[]): { front: string | null; angled: string | null } {
+function pickMockupUrls(
+  mockups: any[],
+): { front: string | null; angled: string | null } {
   if (!Array.isArray(mockups) || mockups.length === 0) {
     return { front: null, angled: null };
   }
@@ -304,7 +316,9 @@ function pickMockupUrls(mockups: any[]): { front: string | null; angled: string 
   }
 
   if (!angled) {
-    const fallback = mockups.find((mockup) => extractMockupUrl(mockup) && extractMockupUrl(mockup) !== front);
+    const fallback = mockups.find((mockup) =>
+      extractMockupUrl(mockup) && extractMockupUrl(mockup) !== front
+    );
     angled = fallback ? extractMockupUrl(fallback) : null;
   }
 
@@ -324,8 +338,7 @@ serve(async (req) => {
   }
 
   try {
-    const rateLimitHeader =
-      req.headers.get("x-ratelimit-remaining") ??
+    const rateLimitHeader = req.headers.get("x-ratelimit-remaining") ??
       req.headers.get("x-rate-limit-remaining") ??
       null;
     if (rateLimitHeader !== null) {
@@ -350,24 +363,33 @@ serve(async (req) => {
 
     const apiKey = Deno.env.get("PRINTFUL_API_KEY");
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "Printful integration error" }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      });
+      return new Response(
+        JSON.stringify({ error: "Printful integration error" }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        },
+      );
     }
 
     if (parsed.data.action === "create") {
       const { templateId, variantId, productId, mockupStyleIds } = parsed.data;
       let resolvedMockupStyles = mockupStyleIds;
 
-      if ((!resolvedMockupStyles || resolvedMockupStyles.length === 0) && productId) {
+      if (
+        (!resolvedMockupStyles || resolvedMockupStyles.length === 0) &&
+        productId
+      ) {
         const cached = getCachedStyleIds(productId, variantId);
         if (cached) {
           resolvedMockupStyles = cached.length > 0 ? cached : undefined;
         } else {
-          const stylesResponse = await fetch(`${PRINTFUL_API_BASE}/catalog-products/${productId}/mockup-styles`, {
-            headers: getPrintfulHeaders(apiKey),
-          });
+          const stylesResponse = await fetch(
+            `${PRINTFUL_API_BASE}/catalog-products/${productId}/mockup-styles`,
+            {
+              headers: getPrintfulHeaders(apiKey),
+            },
+          );
           const stylesPayload = await stylesResponse.json();
 
           if (stylesResponse.ok) {
@@ -376,7 +398,10 @@ serve(async (req) => {
             setCachedStyleIds(productId, variantId, styleIds);
             resolvedMockupStyles = styleIds.length > 0 ? styleIds : undefined;
           } else {
-            console.error("[EDM-MOCKUP] Failed to fetch mockup styles", stylesPayload);
+            console.error(
+              "[EDM-MOCKUP] Failed to fetch mockup styles",
+              stylesPayload,
+            );
           }
         }
       }
@@ -406,40 +431,52 @@ serve(async (req) => {
       if (!response.ok) {
         console.error("[EDM-MOCKUP] Create task failed", payload);
         const detail = extractErrorMessage(payload);
-        return new Response(JSON.stringify({
-          error: "Failed to create mockup task",
-          detail,
-          rateLimitRemaining,
-          rateLimitReset,
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 502,
-        });
+        return new Response(
+          JSON.stringify({
+            error: "Failed to create mockup task",
+            detail,
+            rateLimitRemaining,
+            rateLimitReset,
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 502,
+          },
+        );
       }
 
       const result = normalizeTaskPayload(payload);
       const taskId = result?.id ?? result?.task_id;
 
       if (!taskId) {
-        return new Response(JSON.stringify({ error: "Mockup task id missing" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 502,
-        });
+        return new Response(
+          JSON.stringify({ error: "Mockup task id missing" }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 502,
+          },
+        );
       }
 
-      return new Response(JSON.stringify({
-        taskId: String(taskId),
-        rateLimitRemaining,
-        rateLimitReset,
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+      return new Response(
+        JSON.stringify({
+          taskId: String(taskId),
+          rateLimitRemaining,
+          rateLimitReset,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        },
+      );
     }
 
-    const response = await fetch(`${PRINTFUL_API_BASE}/mockup-tasks?id=${parsed.data.taskId}`, {
-      headers: getPrintfulHeaders(apiKey),
-    });
+    const response = await fetch(
+      `${PRINTFUL_API_BASE}/mockup-tasks?id=${parsed.data.taskId}`,
+      {
+        headers: getPrintfulHeaders(apiKey),
+      },
+    );
     const payload = await response.json();
     const rateLimitRemaining = response.headers.get("x-ratelimit-remaining");
     const rateLimitReset = response.headers.get("x-ratelimit-reset");
@@ -447,15 +484,18 @@ serve(async (req) => {
     if (!response.ok) {
       console.error("[EDM-MOCKUP] Status failed", payload);
       const detail = extractErrorMessage(payload);
-      return new Response(JSON.stringify({
-        error: "Failed to fetch mockup status",
-        detail,
-        rateLimitRemaining,
-        rateLimitReset,
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 502,
-      });
+      return new Response(
+        JSON.stringify({
+          error: "Failed to fetch mockup status",
+          detail,
+          rateLimitRemaining,
+          rateLimitReset,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 502,
+        },
+      );
     }
 
     const result = normalizeTaskPayload(payload);
@@ -467,7 +507,8 @@ serve(async (req) => {
       : [];
 
     let mockupUrl: string | null = null;
-    let mockupUrls: { front: string | null; angled: string | null } | null = null;
+    let mockupUrls: { front: string | null; angled: string | null } | null =
+      null;
     const variantMockups = Array.isArray(result?.catalog_variant_mockups)
       ? result.catalog_variant_mockups[0]
       : result?.catalog_variant_mockups;
@@ -484,21 +525,26 @@ serve(async (req) => {
 
     const failureMessages = Array.isArray(failureReasons)
       ? failureReasons
-          .map((reason: any) => reason?.message ?? reason?.detail ?? reason?.title ?? String(reason))
-          .filter(Boolean)
+        .map((reason: any) =>
+          reason?.message ?? reason?.detail ?? reason?.title ?? String(reason)
+        )
+        .filter(Boolean)
       : [];
 
-    return new Response(JSON.stringify({
-      status,
-      mockupUrl,
-      mockupUrls,
-      failureReasons: failureMessages,
-      rateLimitRemaining,
-      rateLimitReset,
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+    return new Response(
+      JSON.stringify({
+        status,
+        mockupUrl,
+        mockupUrls,
+        failureReasons: failureMessages,
+        rateLimitRemaining,
+        rateLimitReset,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      },
+    );
   } catch (error) {
     console.error("[EDM-MOCKUP] Unexpected error", error);
     return new Response(JSON.stringify({ error: "Unexpected error" }), {

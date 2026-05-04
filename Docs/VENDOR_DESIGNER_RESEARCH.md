@@ -74,7 +74,7 @@ Snapcase should keep ownership of Stripe payment, shipping address, order histor
 
 1. Send the question pack to the lead engineer/vendor.
 2. Ask for sandbox/read-only credentials and a non-production design/upload/order path.
-3. If vendor can return a design token, preview, SKU, and `filePath`, prototype a Snapcase-controlled designer session wrapper in staging.
+3. Use the staging-only fake vendor handoff contract in `Docs/VENDOR_HANDOFF_CONTRACT.md` to rehearse the proposed redirect-payment model without real vendor mutation.
 4. Keep Stripe checkout and `production_jobs` as the Snapcase system of record.
 5. If vendor cannot support design return/prepaid order creation, keep vendor UI operator-only and continue Snapcase-native/manual queue work.
 

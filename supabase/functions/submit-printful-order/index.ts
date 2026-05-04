@@ -3,6 +3,7 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { sendOrderEmail } from "../_shared/email.ts";
+import { getStripeSecretKey } from "../_shared/stripe-config.ts";
 
 // This endpoint should NOT be callable from browsers - it's server-side only
 // Block requests with an origin header (browser requests)
@@ -101,7 +102,6 @@ const PRINTFUL_API_V1_BASE = "https://api.printful.com";
 const PRINTFUL_DEFAULT_TECHNIQUE = "sublimation";
 const MAX_PRINTFUL_ATTEMPTS = 4;
 const PRINTFUL_RETRY_DELAY_MS = 5 * 60 * 1000;
-const STRIPE_MODE = (Deno.env.get("STRIPE_MODE") ?? "").toLowerCase();
 const variantConfigCache = new Map<
   number,
   { placement: string; technique: string }
@@ -124,17 +124,6 @@ function getPrintfulV1Headers(apiKey: string): HeadersInit {
     "Authorization": `Bearer ${apiKey}`,
     "Content-Type": "application/json",
   };
-}
-
-function getStripeSecretKey(): string {
-  if (STRIPE_MODE === "test") {
-    return (
-      Deno.env.get("STRIPE_SECRET_KEY_TEST") ??
-        Deno.env.get("STRIPE_SECRET_KEY") ??
-        ""
-    );
-  }
-  return Deno.env.get("STRIPE_SECRET_KEY") ?? "";
 }
 
 function withStoreId(url: string): string {
@@ -774,7 +763,7 @@ serve(async (req) => {
 
         try {
           if (order?.stripe_payment_intent_id && !order?.printful_refund_id) {
-            const stripe = new Stripe(getStripeSecretKey(), {
+            const stripe = new Stripe(getStripeSecretKey("SUBMIT-PRINTFUL"), {
               apiVersion: "2025-08-27.basil",
             });
             const refund = await stripe.refunds.create({
