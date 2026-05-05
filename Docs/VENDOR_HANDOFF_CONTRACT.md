@@ -3,6 +3,9 @@
 Purpose: rehearse the vendor proposal where design/order information is handed
 to Snapcase for Stripe payment, while Snapcase remains the system of record.
 
+For the real Kexiaozhan Apifox API contracts, endpoint inventory, and signature
+rules, see `Docs/KEXIAOZHAN_APIFOX_REFERENCE.md`.
+
 ## Staging-Only Mock Endpoint
 
 `POST /functions/v1/fake-vendor-design-complete`

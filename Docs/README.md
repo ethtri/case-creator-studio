@@ -14,6 +14,7 @@ This folder contains the canonical project docs. Older or redundant material liv
 - [ONSHORE_PILOT.md](./ONSHORE_PILOT.md) - onshore operations pilot scope, gates, and retro log
 - [VENDOR_DESIGNER_RESEARCH.md](./VENDOR_DESIGNER_RESEARCH.md) - vendor designer integration research, question pack, and recommendation
 - [VENDOR_HANDOFF_CONTRACT.md](./VENDOR_HANDOFF_CONTRACT.md) - staging-only fake vendor handoff contract for Snapcase-owned checkout
+- [KEXIAOZHAN_APIFOX_REFERENCE.md](./KEXIAOZHAN_APIFOX_REFERENCE.md) - Kexiaozhan API contract reference for vendor designer/payment/machine integration
 - After updating `Docs/BACKLOG.md`, run `npm run sync:status` to refresh `Docs/CURRENT_STATUS.md`.
 
 ## Deployment
@@ -35,4 +36,5 @@ Docs/
   HYGIENE_ROUTINES.md
   VENDOR_DESIGNER_RESEARCH.md
   VENDOR_HANDOFF_CONTRACT.md
+  KEXIAOZHAN_APIFOX_REFERENCE.md
 ```
