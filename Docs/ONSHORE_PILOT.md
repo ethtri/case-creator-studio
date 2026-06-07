@@ -26,6 +26,9 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - `/operations` is an authenticated internal queue backed by server-side operator allowlist checks.
 - Operator updates can move jobs through `queued`, `artwork_ready`, `printed`, `packed`, `shipped`, or `failed`.
 - `fake-vendor-design-complete` is a staging-only signed handoff rehearsal. It creates a Snapcase Stripe Checkout Session from mock vendor design metadata, then the existing Stripe webhook routes paid orders to `production_jobs`.
+- Kexiaozhan payment callback rehearsal is dry-run by default and records the
+  signed callback body under `production_jobs.metadata.kexiaozhan` when fake
+  handoff payment context is present.
 
 ## Deployment Notes
 
@@ -35,6 +38,10 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Configure `OPERATOR_EMAILS` as a comma-separated allowlist in environments where `/operations` should be usable.
 - Configure `VERCEL_PREVIEW_ORIGINS` as exact comma-separated preview origins. Do not rely on broad `*.vercel.app` matching.
 - For fake vendor handoff tests only, configure `FAKE_VENDOR_HANDOFF_SECRET` and `VENDOR_HANDOFF_CHECKOUT_ORIGIN` in staging/preview.
+- For Kexiaozhan payment callback rehearsal, configure `KEXIAOZHAN_API_BASE_URL`
+  and optionally `KEXIAOZHAN_MACHINE_KEY`; keep
+  `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false` until live vendor mutation is
+  explicitly approved.
 - `route-fulfillment-order` accepts Supabase's runtime service-role key and can also accept `ROUTE_FULFILLMENT_AUTH_SECRET` for staging/QA service-role calls. Never expose that secret to browsers.
 - The isolated Supabase staging project is `snapcase-onshore-staging` (`onztuktjcmjukfhcuphh`). Do not commit keys or service-role credentials.
 - Rollback by environment change affects newly created checkouts. Orders already persisted with `fulfillment_provider=onshore_manual` stay in the manual queue unless an operator explicitly cancels, completes, or reroutes them.

@@ -123,6 +123,11 @@ Key updates:
 - Signatures use HMAC-SHA256 with backend-only `machineKey`; sort fields by
   ascending ASCII lexicographical order, exclude the signature field, exclude
   empty fields, join `key=value` with `&`, and output lowercase hex.
+- Snapcase now has server-only HMAC helpers and vendor-vector tests in
+  `supabase/functions/_shared/kexiaozhan-payment.ts`.
+- `route-fulfillment-order` records dry-run payment notifications for onshore
+  jobs with Kexiaozhan payment context; live POSTs remain disabled unless
+  `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=true`.
 - Callback `payTime` format is `yyyy-MM-dd HH:mm:ss`; timezone remains open.
 - `out_trade_no` / `outTradeNo` is the vendor payment idempotency and
   reconciliation key.
@@ -482,6 +487,8 @@ PR 27 already adds the right staging rehearsal pattern:
 - `fake-vendor-design-complete` rehearses vendor-design-complete to Snapcase
   Stripe checkout without calling Kexiaozhan.
 - The fake handoff uses HMAC-SHA256 and exact preview-origin checks.
+- The fake handoff can carry optional Kexiaozhan payment context through to
+  onshore job metadata for callback rehearsal.
 
 When moving from fake to real vendor integration, do not replace the fake
 contract in place. Add a new real vendor endpoint or service path so staging can
@@ -490,9 +497,9 @@ continue to test both:
 - fake handoff for deterministic QA
 - real vendor sandbox handoff for integration QA
 
-The real vendor payment notification signer can use the Apifox MD5 algorithm,
-but Snapcase's inbound browser/API surfaces should keep stronger authentication
-where possible.
+The real vendor payment notification signer should use the latest HMAC-SHA256
+`machineKey` guide unless vendor explicitly reconfirms an older MD5 endpoint for
+a specific API.
 
 ## Implementation Plan For Real Sandbox Prototype
 

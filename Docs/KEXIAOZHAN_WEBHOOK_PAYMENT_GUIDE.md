@@ -215,8 +215,21 @@ Unpaid or cannot-confirm response:
 
 ## Implementation Notes
 
-- Add a server-only signer/verifier helper such as
-  `buildKexiaozhanHmacSha256Sign(payload, machineKey)`.
+- Server-only signer/verifier helpers now live in
+  `supabase/functions/_shared/kexiaozhan-payment.ts`.
+- Vendor guide HMAC vectors are covered by
+  `supabase/functions/_shared/kexiaozhan-payment_test.ts`.
+- `fake-vendor-design-complete` accepts optional latest-guide payment fields
+  and stores them under `items[].vendorDesign.kexiaozhanPayment`.
+- `route-fulfillment-order` records a Kexiaozhan payment notification plan under
+  `production_jobs.metadata.kexiaozhan.paymentNotification` for onshore jobs
+  that include `outTradeNo`, `machineSn`, and `amount`.
+- The route defaults to dry-run. It only calls
+  `/client/process-payment-notify` when
+  `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=true`, `KEXIAOZHAN_MACHINE_KEY` is set, and
+  a Stripe `stripe_payment_intent_id` is present.
+- A previously successful live callback recorded on the production job is not
+  resent by route retries.
 - Store `machineKey` only in backend secrets. Never expose it to frontend code,
   URLs, client logs, analytics, or public docs.
 - Store `out_trade_no`/`outTradeNo` in Snapcase order or `production_jobs`
@@ -230,6 +243,9 @@ Unpaid or cannot-confirm response:
   Snapcase-controlled.
 - Configure the API base as an environment variable. The current guide uses
   `https://kxzsg.kexiaozhan.com`.
+- If Kexiaozhan confirms the undocumented JWT/cookie requirement observed on
+  `/client/query-status`, configure `KEXIAOZHAN_CLIENT_BEARER_TOKEN` or
+  `KEXIAOZHAN_CLIENT_COOKIE` only as backend secrets.
 
 ## Still Open
 

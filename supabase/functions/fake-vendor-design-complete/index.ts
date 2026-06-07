@@ -25,6 +25,18 @@ const designSchema = z.object({
   sku: skuSchema,
 }).strict();
 
+const paymentSchema = z.object({
+  orderNo: z.string().min(1).max(200).optional(),
+  outTradeNo: z.string().min(1).max(200),
+  amount: z.string().min(1).max(50),
+  goodsName: z.string().min(1).max(500).optional(),
+  currency: z.string().min(3).max(3),
+  machineSn: z.string().min(1).max(200),
+  timestamp: z.union([z.string(), z.number()]).optional(),
+  nonce: z.string().min(1).max(200).optional(),
+  sign: z.string().min(1).max(200).optional(),
+}).strict();
+
 const handoffSchema = z.object({
   customerEmail: z.string().email().max(255),
   variantId: z.string().min(1).max(100),
@@ -34,6 +46,7 @@ const handoffSchema = z.object({
   quantity: z.number().int().min(1).max(1).default(1),
   handoffId: z.string().min(1).max(200),
   design: designSchema,
+  payment: paymentSchema.optional(),
 }).strict();
 
 type HandoffPayload = z.infer<typeof handoffSchema>;
@@ -150,6 +163,15 @@ async function verifySignature(req: Request, rawBody: string): Promise<void> {
 }
 
 function buildOrderItem(payload: HandoffPayload): Record<string, unknown> {
+  const kexiaozhanPayment = payload.payment
+    ? {
+      ...payload.payment,
+      timestamp: payload.payment.timestamp === undefined
+        ? undefined
+        : String(payload.payment.timestamp),
+    }
+    : null;
+
   return {
     variantId: payload.variantId,
     brand: payload.brand,
@@ -166,6 +188,7 @@ function buildOrderItem(payload: HandoffPayload): Record<string, unknown> {
       handoffId: payload.handoffId,
       filePath: payload.design.filePath,
       sku: payload.design.sku,
+      kexiaozhanPayment,
     },
   };
 }
@@ -281,6 +304,15 @@ serve(async (req) => {
         provider: "vendor_fake",
         handoffId: payload.handoffId,
         goodsSkuId: payload.design.sku.goodsSkuId,
+        kexiaozhanPayment: payload.payment
+          ? {
+            orderNo: payload.payment.orderNo ?? null,
+            outTradeNo: payload.payment.outTradeNo,
+            machineSn: payload.payment.machineSn,
+            amount: payload.payment.amount,
+            currency: payload.payment.currency,
+          }
+          : null,
         receivedAt: new Date().toISOString(),
       },
       total,

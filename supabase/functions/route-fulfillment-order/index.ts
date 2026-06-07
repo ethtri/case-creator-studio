@@ -1,10 +1,52 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import {
+  buildKexiaozhanPaymentNotification,
+  formatKexiaozhanPayTimeUtc,
+} from "../_shared/kexiaozhan-payment.ts";
 
 const PROVIDERS = ["printful", "onshore_manual"] as const;
 type FulfillmentProvider = (typeof PROVIDERS)[number];
 const TRUE_VALUES = new Set(["1", "true", "yes"]);
+const KEXIAOZHAN_DEFAULT_API_BASE = "https://kxzsg.kexiaozhan.com";
+
+type JsonRecord = Record<string, unknown>;
+
+type OrderRecord = JsonRecord & {
+  id: string;
+  items?: unknown;
+};
+
+type ProductionJobRecord = JsonRecord & {
+  id: string;
+  status: string;
+  fulfillment_status?: string | null;
+  metadata?: unknown;
+};
+
+type ProductionJobsClient = {
+  from(table: "production_jobs"): {
+    update(values: JsonRecord): {
+      eq(column: "id", value: unknown): {
+        select(): {
+          single(): Promise<{ data: unknown; error: unknown }>;
+        };
+      };
+    };
+  };
+};
+
+type KexiaozhanPaymentContext = {
+  orderNo: string | null;
+  outTradeNo: string;
+  amount: string;
+  goodsName: string | null;
+  currency: string | null;
+  machineSn: string;
+  timestamp: string | null;
+  nonce: string | null;
+};
 
 const routeSchema = z.object({
   orderId: z.string().uuid(),
@@ -63,13 +105,15 @@ function isOnshoreManualEnabled(): boolean {
   );
 }
 
-function hasRequiredShippingFields(shippingAddress: any): boolean {
+function hasRequiredShippingFields(shippingAddress: unknown): boolean {
+  if (!isRecord(shippingAddress)) return false;
+
   return Boolean(
-    shippingAddress?.address &&
-      shippingAddress?.city &&
-      shippingAddress?.zip &&
-      shippingAddress?.country &&
-      shippingAddress?.state,
+    getStringField(shippingAddress, "address") &&
+      getStringField(shippingAddress, "city") &&
+      getStringField(shippingAddress, "zip") &&
+      getStringField(shippingAddress, "country") &&
+      getStringField(shippingAddress, "state"),
   );
 }
 
@@ -77,6 +121,246 @@ function orderStatusForJobStatus(status: string): string {
   if (status === "shipped") return "shipped";
   if (status === "failed") return "failed";
   return "processing";
+}
+
+function isKexiaozhanPaymentNotifyEnabled(): boolean {
+  return TRUE_VALUES.has(
+    (Deno.env.get("KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED") ?? "").trim()
+      .toLowerCase(),
+  );
+}
+
+function getKexiaozhanApiBaseUrl(): string {
+  const configured = (Deno.env.get("KEXIAOZHAN_API_BASE_URL") ??
+    KEXIAOZHAN_DEFAULT_API_BASE).trim();
+  return configured.replace(/\/+$/, "") || KEXIAOZHAN_DEFAULT_API_BASE;
+}
+
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function getStringField(record: JsonRecord, field: string): string | null {
+  const value = record[field];
+  if (typeof value === "string") {
+    const text = value.trim();
+    return text ? text : null;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return null;
+}
+
+function extractKexiaozhanPaymentContext(
+  items: unknown,
+): KexiaozhanPaymentContext | null {
+  if (!Array.isArray(items)) return null;
+
+  for (const item of items) {
+    if (!isRecord(item)) continue;
+    const vendorDesign = item.vendorDesign;
+    if (!isRecord(vendorDesign)) continue;
+    const payment = vendorDesign.kexiaozhanPayment;
+    if (!isRecord(payment)) continue;
+
+    const outTradeNo = getStringField(payment, "outTradeNo");
+    const amount = getStringField(payment, "amount");
+    const machineSn = getStringField(payment, "machineSn");
+    if (!outTradeNo || !amount || !machineSn) continue;
+
+    return {
+      orderNo: getStringField(payment, "orderNo"),
+      outTradeNo,
+      amount,
+      goodsName: getStringField(payment, "goodsName"),
+      currency: getStringField(payment, "currency"),
+      machineSn,
+      timestamp: getStringField(payment, "timestamp"),
+      nonce: getStringField(payment, "nonce"),
+    };
+  }
+
+  return null;
+}
+
+function buildExtraInfo(orderId: string, jobId: string): string {
+  return JSON.stringify({
+    snapcaseOrderId: orderId,
+    productionJobId: jobId,
+  }).slice(0, 1000);
+}
+
+function getOptionalAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const bearerToken = Deno.env.get("KEXIAOZHAN_CLIENT_BEARER_TOKEN")?.trim();
+  const cookie = Deno.env.get("KEXIAOZHAN_CLIENT_COOKIE")?.trim();
+
+  if (bearerToken) headers.Authorization = `Bearer ${bearerToken}`;
+  if (cookie) headers.Cookie = cookie;
+
+  return headers;
+}
+
+function truncateForMetadata(value: string, maxLength = 1000): string {
+  return value.length <= maxLength ? value : value.slice(0, maxLength);
+}
+
+async function recordKexiaozhanPaymentNotification(
+  supabaseAdmin: unknown,
+  order: OrderRecord,
+  job: ProductionJobRecord,
+): Promise<ProductionJobRecord> {
+  try {
+    const payment = extractKexiaozhanPaymentContext(order.items);
+    if (!payment) return job;
+
+    const existingMetadata = isRecord(job.metadata) ? job.metadata : {};
+    const existingKexiaozhan = isRecord(existingMetadata.kexiaozhan)
+      ? existingMetadata.kexiaozhan
+      : {};
+    const previousNotification = isRecord(
+        existingKexiaozhan.paymentNotification,
+      )
+      ? existingKexiaozhan.paymentNotification
+      : null;
+    const previousResponse = previousNotification &&
+        isRecord(previousNotification.response)
+      ? previousNotification.response
+      : null;
+    if (
+      previousNotification?.mode === "live" && previousResponse?.ok === true
+    ) {
+      return job;
+    }
+
+    const endpoint =
+      `${getKexiaozhanApiBaseUrl()}/client/process-payment-notify`;
+    const machineKey = Deno.env.get("KEXIAOZHAN_MACHINE_KEY")?.trim() ?? "";
+    const transactionId = getStringField(
+      isRecord(order) ? order : {},
+      "stripe_payment_intent_id",
+    );
+    const payTime = formatKexiaozhanPayTimeUtc(new Date());
+    const unsignedBody = {
+      outTradeNo: payment.outTradeNo,
+      transactionId: transactionId ?? "",
+      amount: payment.amount,
+      extraInfo: buildExtraInfo(String(order.id), String(job.id)),
+      orderStatus: transactionId ? 1 as const : 0 as const,
+      payTime,
+    };
+
+    const authConfigured = {
+      bearer: Boolean(Deno.env.get("KEXIAOZHAN_CLIENT_BEARER_TOKEN")?.trim()),
+      cookie: Boolean(Deno.env.get("KEXIAOZHAN_CLIENT_COOKIE")?.trim()),
+    };
+    const paymentMetadata = {
+      orderNo: payment.orderNo,
+      outTradeNo: payment.outTradeNo,
+      machineSn: payment.machineSn,
+      amount: payment.amount,
+      currency: payment.currency,
+      goodsName: payment.goodsName,
+      timestamp: payment.timestamp,
+      nonce: payment.nonce,
+    };
+    const paymentNotification: JsonRecord = {
+      endpoint,
+      generatedAt: new Date().toISOString(),
+      payTimeTimezone: "UTC_UNCONFIRMED",
+      authConfigured,
+    };
+
+    if (!transactionId) {
+      paymentNotification.mode = "blocked";
+      paymentNotification.reason = "missing_stripe_payment_intent_id";
+      paymentNotification.request = {
+        method: "POST",
+        body: unsignedBody,
+      };
+    } else if (!machineKey) {
+      paymentNotification.mode = "dry_run";
+      paymentNotification.reason = "missing_KEXIAOZHAN_MACHINE_KEY";
+      paymentNotification.request = {
+        method: "POST",
+        body: { ...unsignedBody, orderStatus: 1 },
+      };
+    } else {
+      const body = await buildKexiaozhanPaymentNotification({
+        ...unsignedBody,
+        transactionId,
+        orderStatus: 1,
+      }, machineKey);
+      const notifyEnabled = isKexiaozhanPaymentNotifyEnabled();
+
+      paymentNotification.mode = notifyEnabled ? "live" : "dry_run";
+      paymentNotification.request = {
+        method: "POST",
+        body,
+      };
+
+      if (notifyEnabled) {
+        try {
+          const response = await fetch(endpoint, {
+            method: "POST",
+            headers: getOptionalAuthHeaders(),
+            body: JSON.stringify(body),
+          });
+          paymentNotification.response = {
+            ok: response.ok,
+            status: response.status,
+            body: truncateForMetadata(await response.text()),
+          };
+        } catch (error) {
+          const message = error instanceof Error
+            ? error.message
+            : String(error);
+          paymentNotification.response = {
+            ok: false,
+            error: truncateForMetadata(message),
+          };
+        }
+      }
+    }
+
+    const metadata = {
+      ...existingMetadata,
+      kexiaozhan: {
+        ...existingKexiaozhan,
+        payment: paymentMetadata,
+        paymentNotification,
+      },
+    };
+
+    const { data: updatedJob, error: updateError } =
+      await (supabaseAdmin as ProductionJobsClient)
+        .from("production_jobs")
+        .update({ metadata })
+        .eq("id", job.id)
+        .select()
+        .single();
+
+    if (updateError) {
+      console.error(
+        "[ROUTE-FULFILLMENT] Kexiaozhan notification metadata update failed:",
+        updateError,
+      );
+      return job;
+    }
+
+    return updatedJob
+      ? updatedJob as ProductionJobRecord
+      : { ...job, metadata };
+  } catch (error) {
+    console.error(
+      "[ROUTE-FULFILLMENT] Kexiaozhan notification recording failed:",
+      error,
+    );
+    return job;
+  }
 }
 
 async function routeToPrintful(
@@ -236,17 +520,25 @@ serve(async (req) => {
   }
 
   if (existingJob) {
+    const jobWithPaymentNotification =
+      await recordKexiaozhanPaymentNotification(
+        supabaseAdmin,
+        order,
+        existingJob,
+      );
+
     await supabaseAdmin
       .from("orders")
       .update({
-        status: orderStatusForJobStatus(existingJob.status),
+        status: orderStatusForJobStatus(jobWithPaymentNotification.status),
         fulfillment_provider: provider,
-        fulfillment_order_id: existingJob.id,
-        fulfillment_status: existingJob.fulfillment_status ??
-          existingJob.status,
+        fulfillment_order_id: jobWithPaymentNotification.id,
+        fulfillment_status: jobWithPaymentNotification.fulfillment_status ??
+          jobWithPaymentNotification.status,
         fulfillment_last_error: null,
         fulfillment_routed_at: new Date().toISOString(),
-        printful_status: existingJob.fulfillment_status ?? existingJob.status,
+        printful_status: jobWithPaymentNotification.fulfillment_status ??
+          jobWithPaymentNotification.status,
         printful_last_error: null,
         printful_next_attempt_at: null,
       })
@@ -257,7 +549,7 @@ serve(async (req) => {
         success: true,
         provider,
         created: false,
-        job: existingJob,
+        job: jobWithPaymentNotification,
       }),
       {
         status: 200,
@@ -356,18 +648,25 @@ serve(async (req) => {
       );
     }
 
+    const jobWithPaymentNotification =
+      await recordKexiaozhanPaymentNotification(
+        supabaseAdmin,
+        order,
+        duplicateJob,
+      );
+
     await supabaseAdmin
       .from("orders")
       .update({
-        status: orderStatusForJobStatus(duplicateJob.status),
+        status: orderStatusForJobStatus(jobWithPaymentNotification.status),
         fulfillment_provider: provider,
-        fulfillment_order_id: duplicateJob.id,
-        fulfillment_status: duplicateJob.fulfillment_status ??
-          duplicateJob.status,
+        fulfillment_order_id: jobWithPaymentNotification.id,
+        fulfillment_status: jobWithPaymentNotification.fulfillment_status ??
+          jobWithPaymentNotification.status,
         fulfillment_last_error: null,
         fulfillment_routed_at: new Date().toISOString(),
-        printful_status: duplicateJob.fulfillment_status ??
-          duplicateJob.status,
+        printful_status: jobWithPaymentNotification.fulfillment_status ??
+          jobWithPaymentNotification.status,
         printful_last_error: null,
         printful_next_attempt_at: null,
       })
@@ -378,7 +677,7 @@ serve(async (req) => {
         success: true,
         provider,
         created: false,
-        job: duplicateJob,
+        job: jobWithPaymentNotification,
       }),
       {
         status: 200,
@@ -409,12 +708,18 @@ serve(async (req) => {
     );
   }
 
+  const jobWithPaymentNotification = await recordKexiaozhanPaymentNotification(
+    supabaseAdmin,
+    order,
+    insertedJob,
+  );
+
   return new Response(
     JSON.stringify({
       success: true,
       provider,
       created: true,
-      job: insertedJob,
+      job: jobWithPaymentNotification,
     }),
     {
       status: 200,

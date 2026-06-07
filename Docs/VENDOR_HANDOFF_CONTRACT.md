@@ -47,6 +47,17 @@ Example body:
   "productName": "Apple iPhone 15 Custom Case",
   "quantity": 1,
   "handoffId": "fake_vendor_001",
+  "payment": {
+    "orderNo": "ORDER202606030001",
+    "outTradeNo": "PAY202606030001",
+    "amount": "12.30",
+    "goodsName": "Photo Print",
+    "currency": "CNY",
+    "machineSn": "MACHINE_SN_001",
+    "timestamp": "1780497600",
+    "nonce": "n6Y8pK2z",
+    "sign": "example-inbound-vendor-signature"
+  },
   "design": {
     "previewUrl": "https://snapcase.ai/placeholder-vendor-preview.png",
     "filePath": "mock-vendor-filepath/fake_vendor_001.png",
@@ -82,6 +93,9 @@ Successful response:
   tracking, and support.
 - Vendor data is stored as production-asset metadata only; it cannot set order
   totals, mark an order paid, or create a production job before Stripe payment.
+- Optional `payment` fields are stored for Kexiaozhan callback rehearsal. The
+  inbound `sign` is not reused; Snapcase builds its own backend callback
+  signature from `KEXIAOZHAN_MACHINE_KEY`.
 - Duplicate handoff calls use a Stripe idempotency key based on `handoffId`;
   duplicate fulfillment routing still reuses one `production_jobs` row.
 - Secret-like strings such as bearer tokens, Stripe keys, webhook secrets, or
