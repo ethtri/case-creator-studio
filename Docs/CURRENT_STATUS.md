@@ -2,7 +2,7 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-05-04
+**Last updated:** 2026-06-07
 **Last updated by:** ethtr
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
@@ -39,3 +39,5 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - Vendor designer research: do not expose the tokenized vendor URL as a public CTA. Preferred target is vendor designer output returning to Snapcase-owned Stripe checkout and onshore queue; lead engineer/vendor questions are in `Docs/VENDOR_DESIGNER_RESEARCH.md`.
 - Fake vendor handoff: staging-only signed endpoint added for the proposed vendor design-complete -> Snapcase Stripe checkout flow. Contract is in `Docs/VENDOR_HANDOFF_CONTRACT.md`.
 - Kexiaozhan Apifox reference: API contract findings, signature rules, endpoint inventory, and remaining vendor blockers are in `Docs/KEXIAOZHAN_APIFOX_REFERENCE.md`.
+- Latest vendor payment guide: vendor confirmed the target flow of catalog/designer -> unpaid vendor order -> Snapcase Stripe Checkout -> server-side Stripe webhook confirmation -> Snapcase payment callback -> vendor print queue. Latest fixed payment endpoints and HMAC-SHA256 `machineKey` signing are saved in `Docs/KEXIAOZHAN_WEBHOOK_PAYMENT_GUIDE.md`; this supersedes older MD5 payment callback notes unless vendor reconfirms otherwise.
+- Remaining vendor blockers after latest response: final designer handoff payload/signature, order validation endpoint before Stripe Checkout, detailed order/payment/print polling APIs and polling cadence, reprint API, sandbox URL/credentials/VPN, public mobile designer URL/return URL configuration, unpaid order timeout, Stripe `transactionId` mapping, and `payTime` timezone.

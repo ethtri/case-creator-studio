@@ -6,6 +6,12 @@ to Snapcase for Stripe payment, while Snapcase remains the system of record.
 For the real Kexiaozhan Apifox API contracts, endpoint inventory, and signature
 rules, see `Docs/KEXIAOZHAN_APIFOX_REFERENCE.md`.
 
+For the latest payment-specific vendor guide, fixed `/client` payment endpoints,
+and HMAC-SHA256 `machineKey` signing rules, see
+`Docs/KEXIAOZHAN_WEBHOOK_PAYMENT_GUIDE.md`. The fake handoff contract below is
+still staging-only and intentionally uses Snapcase-owned test secrets rather
+than the real vendor `machineKey`.
+
 ## Staging-Only Mock Endpoint
 
 `POST /functions/v1/fake-vendor-design-complete`

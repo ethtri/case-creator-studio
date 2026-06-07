@@ -15,6 +15,7 @@ This folder contains the canonical project docs. Older or redundant material liv
 - [VENDOR_DESIGNER_RESEARCH.md](./VENDOR_DESIGNER_RESEARCH.md) - vendor designer integration research, question pack, and recommendation
 - [VENDOR_HANDOFF_CONTRACT.md](./VENDOR_HANDOFF_CONTRACT.md) - staging-only fake vendor handoff contract for Snapcase-owned checkout
 - [KEXIAOZHAN_APIFOX_REFERENCE.md](./KEXIAOZHAN_APIFOX_REFERENCE.md) - Kexiaozhan API contract reference for vendor designer/payment/machine integration
+- [KEXIAOZHAN_WEBHOOK_PAYMENT_GUIDE.md](./KEXIAOZHAN_WEBHOOK_PAYMENT_GUIDE.md) - latest vendor payment webhook guide, fixed `/client` endpoints, and HMAC-SHA256 signing rules
 - After updating `Docs/BACKLOG.md`, run `npm run sync:status` to refresh `Docs/CURRENT_STATUS.md`.
 
 ## Deployment
@@ -37,4 +38,5 @@ Docs/
   VENDOR_DESIGNER_RESEARCH.md
   VENDOR_HANDOFF_CONTRACT.md
   KEXIAOZHAN_APIFOX_REFERENCE.md
+  KEXIAOZHAN_WEBHOOK_PAYMENT_GUIDE.md
 ```

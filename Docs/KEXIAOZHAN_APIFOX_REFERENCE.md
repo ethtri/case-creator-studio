@@ -1,6 +1,6 @@
 # Kexiaozhan Apifox Reference
 
-Last updated: 2026-05-05
+Last updated: 2026-06-07
 
 Purpose: give Snapcase agents a durable working model of the Kexiaozhan/Xiaojiang
 API contracts without requiring live Apifox access for every task.
@@ -9,12 +9,25 @@ Source handling: the Apifox site is password-protected. Do not commit the
 password, tokenized machine URLs, machine keys, Stripe secrets, webhook secrets,
 or shared callback secrets into this repository.
 
+Latest payment-specific guide: see
+`Docs/KEXIAOZHAN_WEBHOOK_PAYMENT_GUIDE.md`. It captures the 2026-06-07 vendor
+email confirmation and the latest webhook payment guide. That newer guide uses
+fixed `/client/...` payment endpoints and HMAC-SHA256 with `machineKey`, which
+supersedes the older Apifox MD5 callback notes for new payment integration work
+unless the vendor explicitly says otherwise.
+
 ## Executive Summary
 
 The vendor response confirms a viable target architecture: the customer can use
 the vendor catalog/designer, Snapcase can own Stripe payment and shipping, then
 Snapcase can notify the vendor system after payment so the machine flow can
 continue.
+
+Latest vendor response on 2026-06-07 confirms the intended flow remains:
+customer completes vendor catalog/designer, vendor creates an unpaid order,
+customer proceeds to Snapcase Checkout, Snapcase confirms Stripe payment
+server-side, Snapcase calls the vendor payment completion callback, and the
+vendor system pushes the print job into the production queue.
 
 The Apifox docs are most useful for four areas:
 
@@ -74,7 +87,9 @@ production input, not the commerce source of truth.
 
 | Area | Method | Path | Snapcase use |
 | --- | --- | --- | --- |
-| Payment | `POST` | `/process-payment-notify` | Likely Snapcase-to-vendor payment completion notice after Stripe succeeds. Confirm direction, base URL, and auth. |
+| Payment | `POST` | `/client/process-payment-notify` | Latest fixed Snapcase-to-vendor payment completion callback after Stripe succeeds. Uses HMAC-SHA256 `machineKey` signing per `Docs/KEXIAOZHAN_WEBHOOK_PAYMENT_GUIDE.md`. |
+| Payment | `GET` | `/client/query-status` | Latest fixed payment status query by `outTradeNo` and `machineSn`, signed with HMAC-SHA256. |
+| Payment | `POST` | `/process-payment-notify` | Historical Apifox path. Do not implement this unprefixed path unless vendor reconfirms it. |
 | Payment | `POST` | `/v1/apply-coupon-and-process-payment` | Vendor coupon/payment helper. Probably not part of Snapcase-owned Stripe flow unless vendor requires it internally. |
 | Payment | `GET` | `/v1/payment/{out_trade_no}` | Query vendor payment object by external payment number. Useful for reconciliation. |
 | Payment | `POST` | `/v2/payment` | Create Payment V2. Docs say "No free mode"; this may conflict with prepaid/internal Snapcase flow and needs vendor clarification. |
@@ -88,7 +103,37 @@ production input, not the commerce source of truth.
 | Order | `GET` | `/v1/order-receipt/{order_no}` | Retrieve receipt/ticket details. Useful for operator runbook and reconciliation. |
 | Order | `GET` | `/v1/order/{orderNo}` | Validate vendor order data and poll order status. |
 
-## Payment Completion Callback
+## Latest Payment Webhook Guide
+
+The latest vendor-provided payment guide is preserved in
+`Docs/KEXIAOZHAN_WEBHOOK_PAYMENT_GUIDE.md`.
+
+Key updates:
+
+- Fixed callback endpoint:
+  `POST https://kxzsg.kexiaozhan.com/client/process-payment-notify`.
+- Fixed payment status query endpoint:
+  `GET https://kxzsg.kexiaozhan.com/client/query-status`.
+- `webhookUrl` no longer includes `notify_url`; do not derive callback/query
+  endpoints from the third-party payment page URL.
+- `webhookUrl` fields are `order_no`, `out_trade_no`, `amount`, `goods_name`,
+  `currency`, `machine_sn`, `timestamp`, `nonce`, and `sign`.
+- Payment callback body uses lowercase `sign` and `outTradeNo`, not uppercase
+  `Sign` and not `orderNo`.
+- Signatures use HMAC-SHA256 with backend-only `machineKey`; sort fields by
+  ascending ASCII lexicographical order, exclude the signature field, exclude
+  empty fields, join `key=value` with `&`, and output lowercase hex.
+- Callback `payTime` format is `yyyy-MM-dd HH:mm:ss`; timezone remains open.
+- `out_trade_no` / `outTradeNo` is the vendor payment idempotency and
+  reconciliation key.
+- `amount=0` or `0.00` is valid for coupon-full-deduction cases and should not
+  be rejected solely because it is zero.
+
+Implementation implication: use a new server-only HMAC-SHA256 helper for the
+real payment guide. Keep the older MD5 notes below only as historical Apifox
+context until the vendor reconciles all docs.
+
+## Earlier Apifox Payment Completion Callback (Historical)
 
 Endpoint: `POST /process-payment-notify`
 
@@ -118,7 +163,7 @@ calls for the same order should produce a single print job. Snapcase should stil
 store its own idempotency record keyed by vendor `orderNo` plus Stripe payment
 intent/session ID.
 
-## Signature Algorithm
+## Earlier Apifox Signature Algorithm (Historical)
 
 The Apifox signature spec for payment result notifications is MD5-based. It is
 not HMAC-SHA256.
@@ -454,7 +499,7 @@ where possible.
 1. Add server-only `kexiaozhan` integration helpers:
    - base URL config
    - backend-only machine/API key config
-   - MD5 payment notification signer
+   - HMAC-SHA256 payment notification signer from the latest payment guide
    - typed request/response validators
 2. Add a real vendor handoff intake endpoint only after vendor confirms the
    signed return payload, sandbox URL, and auth scheme.
@@ -469,9 +514,11 @@ where possible.
    - amount/currency
    - no tokenized URLs or secrets in the payload
 5. Create Stripe Checkout from Snapcase-controlled pricing.
-6. On Stripe webhook success, call `/process-payment-notify` with idempotency.
-7. Poll `/v1/order/{orderNo}`, `/v1/payment/{out_trade_no}`, and printer queue
-   endpoints to update `production_jobs`.
+6. On Stripe webhook success, call `/client/process-payment-notify` with
+   idempotency.
+7. Poll `/client/query-status`, `/v1/order/{orderNo}`,
+   `/v1/payment/{out_trade_no}`, and printer queue endpoints as applicable to
+   update `production_jobs`.
 8. Keep operator queue as fallback for failed callback, timeout, reprint, or
    unclear machine state.
 
@@ -483,10 +530,11 @@ These remain blocking for machine automation:
 2. What auth header/parameter is required for each API? The inspected OpenAPI
    pages show no explicit security scheme, but the lead engineer said the
    machine key must stay backend-only.
-3. Is `/process-payment-notify` called by Snapcase after Stripe payment, and is
-   the MD5 `access_token` signature the required auth for that call?
-4. Does the MD5 signature also apply to vendor-to-Snapcase handoff/redirect
-   payloads?
+3. Does any production payment endpoint still use the older MD5 `access_token`
+   signature, or does the latest HMAC-SHA256 `machineKey` guide supersede it for
+   all payment-related endpoints?
+4. Does the latest HMAC-SHA256 `machineKey` signature also apply to
+   vendor-to-Snapcase handoff/redirect payloads?
 5. What exact payload will vendor send to Snapcase when the customer clicks
    "Continue to Snapcase Checkout"?
 6. Can Snapcase validate the handoff by calling `GET /v1/order/{orderNo}`, or is
@@ -504,7 +552,8 @@ These remain blocking for machine automation:
     `printStatus=0/1/2` and `contact=0-100`?
 14. How long before unpaid vendor orders automatically cancel, and can Snapcase
     cancel explicitly when Stripe checkout expires?
-15. What timestamp timezone/format should be used in `payTime`?
+15. What timezone should be used for `payTime`? The latest guide specifies the
+    format `yyyy-MM-dd HH:mm:ss`.
 16. Can `extraInfo` safely carry Snapcase order IDs, and what is the max useful
     shape under the 1000-character limit?
 
