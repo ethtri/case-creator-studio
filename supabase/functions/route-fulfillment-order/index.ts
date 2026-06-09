@@ -191,19 +191,6 @@ function buildExtraInfo(orderId: string, jobId: string): string {
   }).slice(0, 1000);
 }
 
-function getOptionalAuthHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  const bearerToken = Deno.env.get("KEXIAOZHAN_CLIENT_BEARER_TOKEN")?.trim();
-  const cookie = Deno.env.get("KEXIAOZHAN_CLIENT_COOKIE")?.trim();
-
-  if (bearerToken) headers.Authorization = `Bearer ${bearerToken}`;
-  if (cookie) headers.Cookie = cookie;
-
-  return headers;
-}
-
 function truncateForMetadata(value: string, maxLength = 1000): string {
   return value.length <= maxLength ? value : value.slice(0, maxLength);
 }
@@ -253,10 +240,6 @@ async function recordKexiaozhanPaymentNotification(
       payTime,
     };
 
-    const authConfigured = {
-      bearer: Boolean(Deno.env.get("KEXIAOZHAN_CLIENT_BEARER_TOKEN")?.trim()),
-      cookie: Boolean(Deno.env.get("KEXIAOZHAN_CLIENT_COOKIE")?.trim()),
-    };
     const paymentMetadata = {
       orderNo: payment.orderNo,
       outTradeNo: payment.outTradeNo,
@@ -271,7 +254,7 @@ async function recordKexiaozhanPaymentNotification(
       endpoint,
       generatedAt: new Date().toISOString(),
       payTimeTimezone: "UTC_UNCONFIRMED",
-      authConfigured,
+      authentication: "signature_only",
     };
 
     if (!transactionId) {
@@ -306,7 +289,7 @@ async function recordKexiaozhanPaymentNotification(
         try {
           const response = await fetch(endpoint, {
             method: "POST",
-            headers: getOptionalAuthHeaders(),
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
           });
           paymentNotification.response = {

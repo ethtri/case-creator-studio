@@ -2,7 +2,7 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-06-07
+**Last updated:** 2026-06-08
 **Last updated by:** ethtr
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
@@ -40,5 +40,6 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - Fake vendor handoff: staging-only signed endpoint added for the proposed vendor design-complete -> Snapcase Stripe checkout flow. Contract is in `Docs/VENDOR_HANDOFF_CONTRACT.md`.
 - Kexiaozhan Apifox reference: API contract findings, signature rules, endpoint inventory, and remaining vendor blockers are in `Docs/KEXIAOZHAN_APIFOX_REFERENCE.md`.
 - Latest vendor payment guide: vendor confirmed the target flow of catalog/designer -> unpaid vendor order -> Snapcase Stripe Checkout -> server-side Stripe webhook confirmation -> Snapcase payment callback -> vendor print queue. Latest fixed payment endpoints and HMAC-SHA256 `machineKey` signing are saved in `Docs/KEXIAOZHAN_WEBHOOK_PAYMENT_GUIDE.md`; this supersedes older MD5 payment callback notes unless vendor reconfirms otherwise.
-- Kexiaozhan payment scaffold: server-only HMAC helpers, vendor-vector tests, optional fake handoff payment context, and dry-run `route-fulfillment-order` notification metadata are implemented. Live vendor POSTs require explicit `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=true` plus backend secrets.
-- Remaining vendor blockers after latest response: final designer handoff payload/signature, order validation endpoint before Stripe Checkout, detailed order/payment/print polling APIs and polling cadence, reprint API, sandbox URL/credentials/VPN, public mobile designer URL/return URL configuration, unpaid order timeout, Stripe `transactionId` mapping, and `payTime` timezone.
+- Kexiaozhan 2026-06-08 clarification: chief engineer confirmed `webhookUrl` query payload, HMAC-SHA256 signing, timestamp/nonce fields, and signature-only auth for `/client/process-payment-notify` and `/client/query-status`; no JWT/Cookie/Bearer token should be required.
+- Kexiaozhan payment scaffold: server-only HMAC helpers, vendor-vector tests, optional fake handoff payment context, and dry-run `route-fulfillment-order` notification metadata are implemented. Live vendor POSTs require explicit `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=true` plus backend `KEXIAOZHAN_MACHINE_KEY`.
+- Remaining vendor blockers after latest response: order validation endpoint before Stripe Checkout, detailed order/payment/print polling APIs and polling cadence, reprint API, sandbox URL/credentials/VPN, public mobile designer URL/return URL configuration, unpaid order timeout, Stripe `transactionId` mapping, and `payTime` timezone.

@@ -1,6 +1,6 @@
 # Kexiaozhan Apifox Reference
 
-Last updated: 2026-06-07
+Last updated: 2026-06-08
 
 Purpose: give Snapcase agents a durable working model of the Kexiaozhan/Xiaojiang
 API contracts without requiring live Apifox access for every task.
@@ -28,6 +28,11 @@ customer completes vendor catalog/designer, vendor creates an unpaid order,
 customer proceeds to Snapcase Checkout, Snapcase confirms Stripe payment
 server-side, Snapcase calls the vendor payment completion callback, and the
 vendor system pushes the print job into the production queue.
+
+Chief engineer clarification on 2026-06-08 confirms the vendor-to-Snapcase
+`webhookUrl` query parameters, HMAC-SHA256 signing string, timestamp/nonce
+fields, and that `/client/process-payment-notify` and `/client/query-status` do
+not require JWT, Cookie, or Bearer token authentication.
 
 The Apifox docs are most useful for four areas:
 
@@ -120,6 +125,8 @@ Key updates:
   `currency`, `machine_sn`, `timestamp`, `nonce`, and `sign`.
 - Payment callback body uses lowercase `sign` and `outTradeNo`, not uppercase
   `Sign` and not `orderNo`.
+- Fixed `/client` payment APIs are signature-only; do not add JWT, Cookie, or
+  Bearer token headers unless vendor later changes this requirement.
 - Signatures use HMAC-SHA256 with backend-only `machineKey`; sort fields by
   ascending ASCII lexicographical order, exclude the signature field, exclude
   empty fields, join `key=value` with `&`, and output lowercase hex.
