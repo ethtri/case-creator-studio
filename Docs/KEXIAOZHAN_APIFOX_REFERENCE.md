@@ -37,9 +37,16 @@ not require JWT, Cookie, or Bearer token authentication.
 Latest chief engineer clarification also confirms Snapcase should send the
 Stripe PaymentIntent ID as `transactionId`, and `payTime` should be UTC RFC3339.
 
+Further vendor clarification confirms there is no order validation API right
+now; `/client/query-status` is the current payment-status API, returns
+`status: 0` unpaid or `status: 1` paid, and should be polled less frequently
+than every 2 seconds. Print/order detail APIs and reprint APIs are still
+forthcoming. Unpaid vendor orders time out after 15 minutes and then become
+canceled.
+
 The Apifox docs are most useful for four areas:
 
-- Creating or validating a vendor order before Snapcase checkout.
+- Handling the signed vendor handoff before Snapcase checkout.
 - Notifying the vendor after Snapcase Stripe payment.
 - Querying order, payment, receipt, SKU, material, and printer queue state.
 - Understanding the signature format expected for payment notifications.
@@ -96,7 +103,7 @@ production input, not the commerce source of truth.
 | Area | Method | Path | Snapcase use |
 | --- | --- | --- | --- |
 | Payment | `POST` | `/client/process-payment-notify` | Latest fixed Snapcase-to-vendor payment completion callback after Stripe succeeds. Uses HMAC-SHA256 `machineKey` signing per `Docs/KEXIAOZHAN_WEBHOOK_PAYMENT_GUIDE.md`. |
-| Payment | `GET` | `/client/query-status` | Latest fixed payment status query by `outTradeNo` and `machineSn`, signed with HMAC-SHA256. |
+| Payment | `GET` | `/client/query-status` | Latest fixed payment status query by `outTradeNo` and `machineSn`, signed with HMAC-SHA256. Returns `status: 0` unpaid or `status: 1` paid; poll slower than every 2 seconds. |
 | Payment | `POST` | `/process-payment-notify` | Historical Apifox path. Do not implement this unprefixed path unless vendor reconfirms it. |
 | Payment | `POST` | `/v1/apply-coupon-and-process-payment` | Vendor coupon/payment helper. Probably not part of Snapcase-owned Stripe flow unless vendor requires it internally. |
 | Payment | `GET` | `/v1/payment/{out_trade_no}` | Query vendor payment object by external payment number. Useful for reconciliation. |
@@ -141,6 +148,12 @@ Key updates:
 - Callback `transactionId` should be the Stripe PaymentIntent ID.
 - Callback `payTime` should be UTC RFC3339, for example
   `2026-06-03T20:10:30Z`.
+- There is no order validation API right now; vendor can add one later if
+  needed.
+- `/client/query-status` is payment-status only and should be polled less
+  frequently than every 2 seconds.
+- Print/order detail status APIs and reprint APIs are still forthcoming.
+- Unpaid vendor orders cancel after 15 minutes.
 - `out_trade_no` / `outTradeNo` is the vendor payment idempotency and
   reconciliation key.
 - `amount=0` or `0.00` is valid for coupon-full-deduction cases and should not
@@ -522,9 +535,8 @@ a specific API.
    - typed request/response validators
 2. Add a real vendor handoff intake endpoint only after vendor confirms the
    signed return payload, sandbox URL, and auth scheme.
-3. Decide, with vendor confirmation, whether the unpaid vendor order is created
-   by the vendor designer before redirecting to Snapcase or by Snapcase calling
-   `POST /v1/order`.
+3. Treat the vendor designer as the creator of the unpaid vendor order before
+   redirecting to Snapcase; no separate order-validation API exists today.
 4. On handoff, validate:
    - signature
    - `orderNo`
@@ -535,9 +547,8 @@ a specific API.
 5. Create Stripe Checkout from Snapcase-controlled pricing.
 6. On Stripe webhook success, call `/client/process-payment-notify` with
    idempotency.
-7. Poll `/client/query-status`, `/v1/order/{orderNo}`,
-   `/v1/payment/{out_trade_no}`, and printer queue endpoints as applicable to
-   update `production_jobs`.
+7. Poll `/client/query-status` for payment state no more frequently than every
+   2 seconds. Add print/order detail polling when vendor provides those APIs.
 8. Keep operator queue as fallback for failed callback, timeout, reprint, or
    unclear machine state.
 
@@ -552,22 +563,20 @@ These remain blocking for machine automation:
 3. Does any non-`/client` payment endpoint still use the older MD5
    `access_token` signature, or does the latest HMAC-SHA256 `machineKey` guide
    supersede it for all payment-related endpoints?
-4. Can Snapcase validate the handoff by calling `GET /v1/order/{orderNo}`, or is
-   there a separate validation API?
-5. How does the customer designer return or expose `filePath`?
-6. Can Snapcase upload artwork directly to get `filePath`, or must `filePath`
+4. How does the customer designer return or expose `filePath`?
+5. Can Snapcase upload artwork directly to get `filePath`, or must `filePath`
    be produced by the vendor H5 designer?
-7. How are `brandId`, `goodsSkuId`, `meateralIds`, magnetic/ordinary,
+6. How are `brandId`, `goodsSkuId`, `meateralIds`, magnetic/ordinary,
    material/process attrs, shelf/bin, and machine inventory mapped?
-8. How does Snapcase target a specific machine for printing?
-9. Where is the reprint API in Apifox? The lead engineer mentioned it, but the
+7. How does Snapcase target a specific machine for printing?
+8. Where is the reprint API in Apifox? The lead engineer mentioned it, but the
     inspected docs did not show a reprint endpoint.
-10. What are the reprint API's idempotency and failure rules?
-11. What are the exact printer queue fields and status values beyond
+9. What are the reprint API's idempotency and failure rules?
+10. What are the exact printer queue fields and status values beyond
     `printStatus=0/1/2` and `contact=0-100`?
-12. How long before unpaid vendor orders automatically cancel, and can Snapcase
-    cancel explicitly when Stripe checkout expires?
-13. Can `extraInfo` safely carry Snapcase order IDs, and what is the max useful
+11. Can Snapcase explicitly cancel a vendor order when Stripe checkout expires,
+    or should Snapcase rely on the vendor's 15-minute timeout?
+12. Can `extraInfo` safely carry Snapcase order IDs, and what is the max useful
     shape under the 1000-character limit?
 
 ## Agent Notes

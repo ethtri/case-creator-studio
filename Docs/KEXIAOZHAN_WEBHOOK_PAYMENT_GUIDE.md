@@ -32,6 +32,17 @@ signature rules, and that the fixed `/client/process-payment-notify` and
 confirmed `transactionId` should be the Stripe PaymentIntent ID, and `payTime`
 should be UTC RFC3339.
 
+Latest vendor clarification:
+
+- There is no order validation API right now. Vendor can add one later if
+  Snapcase needs it.
+- `/client/query-status` is currently the payment-status query API and returns
+  `status: 0` for unpaid or `status: 1` for paid.
+- Print status and detailed order-status query APIs are still forthcoming.
+- Polling frequency should be slower than every 2 seconds.
+- Reprint API details are still forthcoming.
+- Unpaid vendor orders time out after 15 minutes and then become canceled.
+
 ## Relationship To Existing API Notes
 
 This guide is newer than the earlier Apifox payment callback notes in
@@ -206,6 +217,10 @@ Query parameters:
 | `machineSn` | Yes | Machine serial number. The new flow first resolves machine context from the payment/order, but this remains required for compatibility and signature protection. |
 | `sign` | Yes | Lowercase HMAC-SHA256 signature over `outTradeNo` and `machineSn`. |
 
+Vendor guidance: poll no more frequently than once every 2 seconds. This API is
+payment-status only; print status and detailed order-status APIs are still
+forthcoming.
+
 Query signature rules:
 
 1. Collect `outTradeNo` and `machineSn`.
@@ -282,11 +297,9 @@ Unpaid or cannot-confirm response:
 
 These items remain unresolved after the latest WeChat clarification:
 
-1. Order validation endpoint Snapcase should call before creating Stripe
-   Checkout.
-2. Detailed order, payment, and print status query APIs beyond
-   `/client/query-status`, plus recommended polling frequency.
-3. Reprint API details and idempotency/failure rules.
-4. Sandbox/test URL, credentials, and VPN requirements.
-5. Public mobile designer URL and return URL configuration.
-6. Unpaid order timeout and whether Snapcase can cancel expired vendor orders.
+1. Detailed print status and order-status query APIs beyond
+   `/client/query-status`.
+2. Reprint API details and idempotency/failure rules.
+3. Sandbox/test URL, credentials, VPN requirements, and test
+   machine/SKU/material data.
+4. Public mobile designer URL and return URL configuration.

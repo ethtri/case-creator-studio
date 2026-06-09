@@ -46,6 +46,9 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
   not configure JWT, Cookie, or Bearer token headers unless this changes.
 - Kexiaozhan confirmed payment callbacks should use Stripe PaymentIntent ID as
   `transactionId` and UTC RFC3339 for `payTime`.
+- Kexiaozhan confirmed there is no order validation API today; use
+  `/client/query-status` for payment status only, poll slower than every 2
+  seconds, and expect unpaid vendor orders to cancel after 15 minutes.
 - `route-fulfillment-order` accepts Supabase's runtime service-role key and can also accept `ROUTE_FULFILLMENT_AUTH_SECRET` for staging/QA service-role calls. Never expose that secret to browsers.
 - The isolated Supabase staging project is `snapcase-onshore-staging` (`onztuktjcmjukfhcuphh`). Do not commit keys or service-role credentials.
 - Rollback by environment change affects newly created checkouts. Orders already persisted with `fulfillment_provider=onshore_manual` stay in the manual queue unless an operator explicitly cancels, completes, or reroutes them.
