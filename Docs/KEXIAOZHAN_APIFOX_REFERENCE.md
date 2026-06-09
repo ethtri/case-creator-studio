@@ -1,6 +1,6 @@
 # Kexiaozhan Apifox Reference
 
-Last updated: 2026-06-08
+Last updated: 2026-06-09
 
 Purpose: give Snapcase agents a durable working model of the Kexiaozhan/Xiaojiang
 API contracts without requiring live Apifox access for every task.
@@ -33,6 +33,9 @@ Chief engineer clarification on 2026-06-08 confirms the vendor-to-Snapcase
 `webhookUrl` query parameters, HMAC-SHA256 signing string, timestamp/nonce
 fields, and that `/client/process-payment-notify` and `/client/query-status` do
 not require JWT, Cookie, or Bearer token authentication.
+
+Latest chief engineer clarification also confirms Snapcase should send the
+Stripe PaymentIntent ID as `transactionId`, and `payTime` should be UTC RFC3339.
 
 The Apifox docs are most useful for four areas:
 
@@ -135,7 +138,9 @@ Key updates:
 - `route-fulfillment-order` records dry-run payment notifications for onshore
   jobs with Kexiaozhan payment context; live POSTs remain disabled unless
   `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=true`.
-- Callback `payTime` format is `yyyy-MM-dd HH:mm:ss`; timezone remains open.
+- Callback `transactionId` should be the Stripe PaymentIntent ID.
+- Callback `payTime` should be UTC RFC3339, for example
+  `2026-06-03T20:10:30Z`.
 - `out_trade_no` / `outTradeNo` is the vendor payment idempotency and
   reconciliation key.
 - `amount=0` or `0.00` is valid for coupon-full-deduction cases and should not
@@ -159,7 +164,7 @@ Expected body:
 | `amount` | Yes | Amount as a string; decimals supported. |
 | `extraInfo` | No | Optional string. Empty strings are excluded from the signature. |
 | `orderStatus` | Yes | `0=Unpaid`, `1=Paid`, `2=Payment failed`. Numeric value is converted to string for signing. |
-| `payTime` | Yes | Payment time string. Confirm timezone/format before implementation. |
+| `payTime` | Yes | Historical payment time string. For the current fixed `/client` callback, use UTC RFC3339. |
 | `couponCode` | No | Optional string. Empty strings are excluded from the signature. |
 
 Success response:
@@ -541,34 +546,28 @@ a specific API.
 These remain blocking for machine automation:
 
 1. What is the exact sandbox base URL, and does it require VPN from the US?
-2. What auth header/parameter is required for each API? The inspected OpenAPI
-   pages show no explicit security scheme, but the lead engineer said the
-   machine key must stay backend-only.
-3. Does any production payment endpoint still use the older MD5 `access_token`
-   signature, or does the latest HMAC-SHA256 `machineKey` guide supersede it for
-   all payment-related endpoints?
-4. Does the latest HMAC-SHA256 `machineKey` signature also apply to
-   vendor-to-Snapcase handoff/redirect payloads?
-5. What exact payload will vendor send to Snapcase when the customer clicks
-   "Continue to Snapcase Checkout"?
-6. Can Snapcase validate the handoff by calling `GET /v1/order/{orderNo}`, or is
+2. What auth header/parameter is required for non-`/client` APIs? The inspected
+   OpenAPI pages show no explicit security scheme, but the lead engineer said
+   the machine key must stay backend-only.
+3. Does any non-`/client` payment endpoint still use the older MD5
+   `access_token` signature, or does the latest HMAC-SHA256 `machineKey` guide
+   supersede it for all payment-related endpoints?
+4. Can Snapcase validate the handoff by calling `GET /v1/order/{orderNo}`, or is
    there a separate validation API?
-7. How does the customer designer return or expose `filePath`?
-8. Can Snapcase upload artwork directly to get `filePath`, or must `filePath`
+5. How does the customer designer return or expose `filePath`?
+6. Can Snapcase upload artwork directly to get `filePath`, or must `filePath`
    be produced by the vendor H5 designer?
-9. How are `brandId`, `goodsSkuId`, `meateralIds`, magnetic/ordinary,
+7. How are `brandId`, `goodsSkuId`, `meateralIds`, magnetic/ordinary,
    material/process attrs, shelf/bin, and machine inventory mapped?
-10. How does Snapcase target a specific machine for printing?
-11. Where is the reprint API in Apifox? The lead engineer mentioned it, but the
+8. How does Snapcase target a specific machine for printing?
+9. Where is the reprint API in Apifox? The lead engineer mentioned it, but the
     inspected docs did not show a reprint endpoint.
-12. What are the reprint API's idempotency and failure rules?
-13. What are the exact printer queue fields and status values beyond
+10. What are the reprint API's idempotency and failure rules?
+11. What are the exact printer queue fields and status values beyond
     `printStatus=0/1/2` and `contact=0-100`?
-14. How long before unpaid vendor orders automatically cancel, and can Snapcase
+12. How long before unpaid vendor orders automatically cancel, and can Snapcase
     cancel explicitly when Stripe checkout expires?
-15. What timezone should be used for `payTime`? The latest guide specifies the
-    format `yyyy-MM-dd HH:mm:ss`.
-16. Can `extraInfo` safely carry Snapcase order IDs, and what is the max useful
+13. Can `extraInfo` safely carry Snapcase order IDs, and what is the max useful
     shape under the 1000-character limit?
 
 ## Agent Notes

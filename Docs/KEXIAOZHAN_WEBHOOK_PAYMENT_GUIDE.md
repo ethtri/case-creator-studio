@@ -1,14 +1,14 @@
 # Kexiaozhan Webhook Payment Integration Guide
 
-Last updated: 2026-06-08
+Last updated: 2026-06-09
 
 Purpose: preserve the latest vendor-provided payment webhook guide and email
 confirmation so future agents do not have to recover this from chat history,
 Downloads, or Gmail.
 
 Source: user-provided `Webhook_Payment_Integration_Guide.md`, the vendor email
-response shared on 2026-06-07, and the chief engineer WeChat clarification
-shared on 2026-06-08. The chat attachment and local download are not the durable
+response shared on 2026-06-07, and the latest chief engineer WeChat
+clarifications. The chat attachment and local download are not the durable
 source; this document is.
 
 Source handling: do not commit real `machineKey` values, sandbox credentials,
@@ -28,7 +28,9 @@ The vendor confirmed the intended high-level flow:
 
 The vendor has now confirmed the `webhookUrl` payload shape, HMAC-SHA256
 signature rules, and that the fixed `/client/process-payment-notify` and
-`/client/query-status` APIs rely only on signature verification.
+`/client/query-status` APIs rely only on signature verification. The vendor also
+confirmed `transactionId` should be the Stripe PaymentIntent ID, and `payTime`
+should be UTC RFC3339.
 
 ## Relationship To Existing API Notes
 
@@ -123,11 +125,11 @@ Request body fields:
 | --- | --- | --- |
 | `sign` | Yes | Lowercase HMAC-SHA256 request signature. Field name is lowercase in the latest guide. |
 | `outTradeNo` | Yes | Must match `out_trade_no` from `webhookUrl`. This is the core reconciliation/idempotency key. |
-| `transactionId` | Yes | Third-party payment transaction ID. For Snapcase, map this to a stable Stripe payment identifier after confirming with vendor. |
+| `transactionId` | Yes | Stripe PaymentIntent ID, such as `pi_...`. Vendor also allows a Snapcase-generated unique transaction serial if needed. |
 | `amount` | Yes | Actual paid amount string. Must match `webhookUrl` amount; `0` or `0.00` is valid when the vendor payment amount is zero. |
 | `extraInfo` | No | Optional. Prefer opaque Snapcase order references, not customer PII. |
 | `orderStatus` | Yes | `0=unpaid/processing`, `1=payment succeeded`, `2=payment failed`. |
-| `payTime` | Yes | Format `yyyy-MM-dd HH:mm:ss`; timezone still needs vendor confirmation. |
+| `payTime` | Yes | UTC RFC3339, for example `2026-06-03T20:10:30Z`. Vendor's Go layout reference is `2006-01-02T15:04:05Z07:00`. |
 
 Callback signature rules:
 
@@ -140,11 +142,29 @@ Callback signature rules:
 7. Sign the string with HMAC-SHA256 using `machineKey`.
 8. Output lowercase hexadecimal.
 
-Example signing string from the vendor guide:
+Example body shape:
+
+```json
+{
+  "sign": "<lowercase-hmac-sha256>",
+  "outTradeNo": "PAY202606030001",
+  "transactionId": "pi_3Abc123Stripe456",
+  "amount": "12.30",
+  "extraInfo": "payment success",
+  "orderStatus": 1,
+  "payTime": "2026-06-03T20:10:30Z"
+}
+```
+
+Example signing string for the current Stripe/RFC3339 shape:
 
 ```text
-amount=12.30&extraInfo=payment success&orderStatus=1&outTradeNo=PAY202606030001&payTime=2026-06-03 20:10:30&transactionId=TP2026060300008888
+amount=12.30&extraInfo=payment success&orderStatus=1&outTradeNo=PAY202606030001&payTime=2026-06-03T20:10:30Z&transactionId=pi_3Abc123Stripe456
 ```
+
+Note: a later WeChat sample reused the earlier `b947...` signature while also
+changing `transactionId` and `payTime`. Do not hard-code that sample signature;
+calculate `sign` from the actual request body fields.
 
 Success response:
 
@@ -240,6 +260,8 @@ Unpaid or cannot-confirm response:
   `/client/process-payment-notify` when
   `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=true`, `KEXIAOZHAN_MACHINE_KEY` is set, and
   a Stripe `stripe_payment_intent_id` is present.
+- The route formats `payTime` as UTC RFC3339 and uses
+  `orders.stripe_payment_intent_id` as `transactionId`.
 - A previously successful live callback recorded on the production job is not
   resent by route retries.
 - Store `machineKey` only in backend secrets. Never expose it to frontend code,
@@ -268,5 +290,3 @@ These items remain unresolved after the latest WeChat clarification:
 4. Sandbox/test URL, credentials, and VPN requirements.
 5. Public mobile designer URL and return URL configuration.
 6. Unpaid order timeout and whether Snapcase can cancel expired vendor orders.
-7. Exact Stripe identifier to send as `transactionId`.
-8. Timezone for `payTime`.

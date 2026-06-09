@@ -253,7 +253,8 @@ async function recordKexiaozhanPaymentNotification(
     const paymentNotification: JsonRecord = {
       endpoint,
       generatedAt: new Date().toISOString(),
-      payTimeTimezone: "UTC_UNCONFIRMED",
+      payTimeFormat: "RFC3339",
+      payTimeTimezone: "UTC",
       authentication: "signature_only",
     };
 

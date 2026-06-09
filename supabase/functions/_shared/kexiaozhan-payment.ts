@@ -129,5 +129,5 @@ export async function buildKexiaozhanPaymentStatusQuery(
 }
 
 export function formatKexiaozhanPayTimeUtc(date: Date): string {
-  return date.toISOString().replace("T", " ").slice(0, 19);
+  return date.toISOString().replace(/\.\d{3}Z$/, "Z");
 }

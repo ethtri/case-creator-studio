@@ -36,7 +36,7 @@ Deno.test("Kexiaozhan webhookUrl signature matches vendor vector", async () => {
   );
 });
 
-Deno.test("Kexiaozhan callback signature matches vendor vector", async () => {
+Deno.test("Kexiaozhan callback signature matches legacy vendor vector", async () => {
   const notification = await buildKexiaozhanPaymentNotification({
     outTradeNo: "PAY202606030001",
     transactionId: "TP2026060300008888",
@@ -49,6 +49,26 @@ Deno.test("Kexiaozhan callback signature matches vendor vector", async () => {
   assertEquals(
     notification.sign,
     "b9479b040c806e8852b6c7b4f9ae76c81eda5cae57d6707bf7fa8e13e133f332",
+  );
+});
+
+Deno.test("Kexiaozhan callback signature supports Stripe PaymentIntent and RFC3339 payTime", async () => {
+  const notification = await buildKexiaozhanPaymentNotification({
+    outTradeNo: "PAY202606030001",
+    transactionId: "pi_3Abc123Stripe456",
+    amount: "12.30",
+    extraInfo: "payment success",
+    orderStatus: 1,
+    payTime: "2006-01-02T15:04:05Z07:00",
+  }, MACHINE_KEY);
+
+  assertEquals(
+    buildKexiaozhanSigningString(notification),
+    "amount=12.30&extraInfo=payment success&orderStatus=1&outTradeNo=PAY202606030001&payTime=2006-01-02T15:04:05Z07:00&transactionId=pi_3Abc123Stripe456",
+  );
+  assertEquals(
+    notification.sign,
+    "514fd150a7ffc11bfaf826ea21cbb009fc877a425d8a13cddd2aed6e09617126",
   );
 });
 
@@ -107,9 +127,9 @@ Deno.test("Kexiaozhan signing fails closed without machineKey", async () => {
   );
 });
 
-Deno.test("Kexiaozhan payTime formatter emits guide-compatible UTC text", () => {
+Deno.test("Kexiaozhan payTime formatter emits UTC RFC3339 text", () => {
   assertEquals(
     formatKexiaozhanPayTimeUtc(new Date("2026-06-03T20:10:30.999Z")),
-    "2026-06-03 20:10:30",
+    "2026-06-03T20:10:30Z",
   );
 });
