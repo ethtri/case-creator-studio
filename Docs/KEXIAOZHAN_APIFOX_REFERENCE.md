@@ -44,6 +44,21 @@ than every 2 seconds. Print/order detail APIs and reprint APIs are still
 forthcoming. Unpaid vendor orders time out after 15 minutes and then become
 canceled.
 
+The 2026-06-09 Gmail attachments are local debugging tools, not a final sandbox
+credential package. They include:
+
+- English and Chinese single-file HTML webhook/payment trigger pages.
+- `local_webhook_proxy_threaded.py`, a local CORS proxy for
+  `/client/process-payment-notify` and `/client/query-status`.
+- `Webhook_Local_Trigger_Usage_EN.md`, which lists test domain
+  `https://kxzcnt.kexiaozhan.com` and production domain
+  `https://kxzus.kexiaozhan.com`.
+
+The attached Python proxy still defaults to `https://kxzsg.kexiaozhan.com`, and
+earlier payment examples also used that domain. Treat the base URL as
+environment-specific until the vendor sends the promised sandbox package and
+confirms the final production base URL.
+
 The Apifox docs are most useful for four areas:
 
 - Handling the signed vendor handoff before Snapcase checkout.
@@ -154,6 +169,8 @@ Key updates:
   frequently than every 2 seconds.
 - Print/order detail status APIs and reprint APIs are still forthcoming.
 - Unpaid vendor orders cancel after 15 minutes.
+- Local trigger tooling exists for manual signature/proxy testing. The tool
+  defaults can lag the latest contract; prefer this doc for current field rules.
 - `out_trade_no` / `outTradeNo` is the vendor payment idempotency and
   reconciliation key.
 - `amount=0` or `0.00` is valid for coupon-full-deduction cases and should not

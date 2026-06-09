@@ -7,9 +7,10 @@ confirmation so future agents do not have to recover this from chat history,
 Downloads, or Gmail.
 
 Source: user-provided `Webhook_Payment_Integration_Guide.md`, the vendor email
-response shared on 2026-06-07, and the latest chief engineer WeChat
-clarifications. The chat attachment and local download are not the durable
-source; this document is.
+response shared on 2026-06-07, the latest chief engineer WeChat
+clarifications, and the 2026-06-09 Gmail attachments containing local
+verification tools. The chat attachment, Gmail attachment, and local download
+are not the durable source; this document is.
 
 Source handling: do not commit real `machineKey` values, sandbox credentials,
 tokenized designer URLs, customer artwork, Stripe secrets, webhook secrets, or
@@ -67,6 +68,17 @@ vendor explicitly says a specific endpoint still uses MD5.
 | --- | --- | --- | --- |
 | Payment result callback | `POST` | `https://kxzsg.kexiaozhan.com/client/process-payment-notify` | Snapcase calls this after server-confirmed payment result. Do not derive this from `webhookUrl`. |
 | Payment status query | `GET` | `https://kxzsg.kexiaozhan.com/client/query-status` | Query by `outTradeNo`, `machineSn`, and `sign`. Use the fixed Kexiaozhan domain, not the third-party payment page domain. |
+
+Domain note from the 2026-06-09 local trigger guide:
+
+- Test domain: `https://kxzcnt.kexiaozhan.com`
+- Production domain: `https://kxzus.kexiaozhan.com`
+- Earlier payment guide examples and the Python proxy default also mention
+  `https://kxzsg.kexiaozhan.com`.
+
+Keep `KEXIAOZHAN_API_BASE_URL` environment-configured. Use the test domain for
+sandbox once vendor confirms the sandbox package, and ask vendor to confirm the
+final production base URL before any live callback mutation.
 
 The latest guide says `webhookUrl` no longer includes `notify_url`.
 
@@ -290,8 +302,20 @@ Unpaid or cannot-confirm response:
 - Treat `amount=0` as valid only when the vendor-originated payment amount is
   genuinely zero. Snapcase pricing and Stripe checkout totals remain
   Snapcase-controlled.
-- Configure the API base as an environment variable. The current guide uses
-  `https://kxzsg.kexiaozhan.com`.
+- Configure the API base as an environment variable. Earlier payment-guide
+  examples used `https://kxzsg.kexiaozhan.com`; the local trigger guide lists
+  separate test/prod domains.
+- The local trigger guide provides a browser HTML verifier plus
+  `local_webhook_proxy_threaded.py`. The proxy listens on
+  `http://127.0.0.1:8787`, forwards only `/client/process-payment-notify` and
+  `/client/query-status`, and uses `TARGET_BASE` for the upstream domain.
+- The HTML trigger is a debug aid, not the production contract. It includes
+  older default callback values such as `transactionId=TP...` and
+  `payTime=yyyy-MM-dd HH:mm:ss`; override those with the later-confirmed
+  Stripe PaymentIntent ID and UTC RFC3339 `payTime`.
+- The HTML query tool includes a camelCase/snake_case selector for debugging.
+  Current confirmed `/client/query-status` fields are camelCase
+  `outTradeNo` and `machineSn`.
 
 ## Still Open
 

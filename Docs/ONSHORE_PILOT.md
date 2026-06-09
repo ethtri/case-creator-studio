@@ -49,6 +49,11 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Kexiaozhan confirmed there is no order validation API today; use
   `/client/query-status` for payment status only, poll slower than every 2
   seconds, and expect unpaid vendor orders to cancel after 15 minutes.
+- Kexiaozhan's local debug tool guide uses a browser HTML trigger plus local
+  proxy on `127.0.0.1:8787`; it lists test domain
+  `https://kxzcnt.kexiaozhan.com` and production domain
+  `https://kxzus.kexiaozhan.com`. Keep base URL environment-configured until
+  sandbox/prod domains are confirmed in the promised sandbox package.
 - `route-fulfillment-order` accepts Supabase's runtime service-role key and can also accept `ROUTE_FULFILLMENT_AUTH_SECRET` for staging/QA service-role calls. Never expose that secret to browsers.
 - The isolated Supabase staging project is `snapcase-onshore-staging` (`onztuktjcmjukfhcuphh`). Do not commit keys or service-role credentials.
 - Rollback by environment change affects newly created checkouts. Orders already persisted with `fulfillment_provider=onshore_manual` stay in the manual queue unless an operator explicitly cancels, completes, or reroutes them.
