@@ -69,16 +69,23 @@ vendor explicitly says a specific endpoint still uses MD5.
 | Payment result callback | `POST` | `https://kxzsg.kexiaozhan.com/client/process-payment-notify` | Snapcase calls this after server-confirmed payment result. Do not derive this from `webhookUrl`. |
 | Payment status query | `GET` | `https://kxzsg.kexiaozhan.com/client/query-status` | Query by `outTradeNo`, `machineSn`, and `sign`. Use the fixed Kexiaozhan domain, not the third-party payment page domain. |
 
-Domain note from the 2026-06-09 local trigger guide:
+Domain note from the 2026-06-09 local trigger guide and 2026-06-10 vendor
+confirmation:
 
 - Test domain: `https://kxzcnt.kexiaozhan.com`
 - Production domain: `https://kxzus.kexiaozhan.com`
 - Earlier payment guide examples and the Python proxy default also mention
   `https://kxzsg.kexiaozhan.com`.
 
-Keep `KEXIAOZHAN_API_BASE_URL` environment-configured. Use the test domain for
-sandbox once vendor confirms the sandbox package, and ask vendor to confirm the
-final production base URL before any live callback mutation.
+Keep `KEXIAOZHAN_API_BASE_URL` environment-configured. Use
+`https://kxzcnt.kexiaozhan.com` for sandbox/test and
+`https://kxzus.kexiaozhan.com` for production. Treat
+`https://kxzsg.kexiaozhan.com` as historical unless the vendor explicitly
+reintroduces it.
+
+The vendor also confirmed no current IP restriction or VPN requirement for the
+test environment. Test machine credentials were provided out of band; do not
+commit `machineKey` values.
 
 The latest guide says `webhookUrl` no longer includes `notify_url`.
 
@@ -302,9 +309,9 @@ Unpaid or cannot-confirm response:
 - Treat `amount=0` as valid only when the vendor-originated payment amount is
   genuinely zero. Snapcase pricing and Stripe checkout totals remain
   Snapcase-controlled.
-- Configure the API base as an environment variable. Earlier payment-guide
-  examples used `https://kxzsg.kexiaozhan.com`; the local trigger guide lists
-  separate test/prod domains.
+- Configure the API base as an environment variable. Use the confirmed test and
+  production domains above; do not hard-code the historical `kxzsg` default into
+  new code paths.
 - The local trigger guide provides a browser HTML verifier plus
   `local_webhook_proxy_threaded.py`. The proxy listens on
   `http://127.0.0.1:8787`, forwards only `/client/process-payment-notify` and
@@ -321,9 +328,9 @@ Unpaid or cannot-confirm response:
 
 These items remain unresolved after the latest WeChat clarification:
 
-1. Detailed print status and order-status query APIs beyond
+1. Snapcase test redirect intake URL for Kexiaozhan's `webhookUrl` query
+   parameters.
+2. Detailed print status and order-status query APIs beyond
    `/client/query-status`.
-2. Reprint API details and idempotency/failure rules.
-3. Sandbox/test URL, credentials, VPN requirements, and test
-   machine/SKU/material data.
+3. Reprint API details and idempotency/failure rules.
 4. Public mobile designer URL and return URL configuration.

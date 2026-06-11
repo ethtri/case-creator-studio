@@ -54,10 +54,15 @@ credential package. They include:
   `https://kxzcnt.kexiaozhan.com` and production domain
   `https://kxzus.kexiaozhan.com`.
 
+The vendor confirmed on 2026-06-10 that the test API base is
+`https://kxzcnt.kexiaozhan.com`, the production API base is
+`https://kxzus.kexiaozhan.com`, and the current test environment has no IP
+restriction or VPN requirement. Test machine credentials were provided out of
+band; never commit the `machineKey`.
+
 The attached Python proxy still defaults to `https://kxzsg.kexiaozhan.com`, and
-earlier payment examples also used that domain. Treat the base URL as
-environment-specific until the vendor sends the promised sandbox package and
-confirms the final production base URL.
+earlier payment examples also used that domain. Treat that older domain as
+historical unless the vendor explicitly reintroduces it.
 
 The Apifox docs are most useful for four areas:
 
@@ -171,6 +176,9 @@ Key updates:
 - Unpaid vendor orders cancel after 15 minutes.
 - Local trigger tooling exists for manual signature/proxy testing. The tool
   defaults can lag the latest contract; prefer this doc for current field rules.
+- Test/prod API base URLs are now confirmed; Snapcase still needs to provide a
+  real test redirect intake URL before Kexiaozhan can redirect with
+  `webhookUrl` query parameters.
 - `out_trade_no` / `outTradeNo` is the vendor payment idempotency and
   reconciliation key.
 - `amount=0` or `0.00` is valid for coupon-full-deduction cases and should not
