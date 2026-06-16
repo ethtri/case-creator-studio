@@ -311,6 +311,11 @@ Unpaid or cannot-confirm response:
 - `route-fulfillment-order` records a Kexiaozhan payment notification plan under
   `production_jobs.metadata.kexiaozhan.paymentNotification` for onshore jobs
   that include `outTradeNo`, `machineSn`, and `amount`.
+- `stripe-webhook`, `verify-payment`, and `route-fulfillment-order` now block
+  automatic fulfillment when an existing `kexiaozhan_handoffs` row is past
+  `expires_at`. The order is marked for `payment_review` with
+  `kexiaozhan_handoff_expired`, and the handoff is marked `expired` instead of
+  notifying the vendor or routing production.
 - The route defaults to dry-run. It only calls
   `/client/process-payment-notify` when
   `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=true`, `KEXIAOZHAN_MACHINE_KEY` is set, and
@@ -351,7 +356,10 @@ Unpaid or cannot-confirm response:
   not directly set the Stripe total.
 - Stripe Checkout Sessions cannot be configured to expire sooner than 30
   minutes. Kexiaozhan says unpaid vendor orders cancel after 15 minutes, so
-  production launch must resolve that mismatch first; see GitHub issue #30.
+  production launch should still resolve that mismatch with the vendor if
+  possible; see GitHub issue #30. Snapcase now has a fail-closed late-payment
+  guard, but the preferred production behavior is to prevent customers from
+  paying after the vendor order is no longer valid.
 - The local trigger guide provides a browser HTML verifier plus
   `local_webhook_proxy_threaded.py`. The proxy listens on
   `http://127.0.0.1:8787`, forwards only `/client/process-payment-notify` and
@@ -369,10 +377,14 @@ Unpaid or cannot-confirm response:
 These items remain unresolved after the latest WeChat clarification:
 
 1. Public/unprotected Snapcase test URL, or approved preview-protection bypass,
-   for Kexiaozhan to run a real browser redirect from their sandbox.
+   for Kexiaozhan to run a real browser redirect from their sandbox. A private
+   Vercel automation-bypass URL has been verified for PR #27; the remaining
+   step is for Kexiaozhan to use it from their sandbox order system.
 2. Detailed print status and order-status query APIs beyond
    `/client/query-status`.
 3. Reprint API details and idempotency/failure rules.
 4. Public mobile designer URL and return URL configuration.
 5. Production-safe resolution for the 15-minute vendor unpaid-order timeout vs
-   Stripe's 30-minute minimum Checkout Session expiration.
+   Stripe's 30-minute minimum Checkout Session expiration. Snapcase now blocks
+   automatic fulfillment for late Stripe payments, but vendor TTL extension,
+   cancel, refresh, or recreate behavior remains the cleaner production path.

@@ -5,6 +5,11 @@ import {
   buildKexiaozhanPaymentNotification,
   formatKexiaozhanPayTimeUtc,
 } from "../_shared/kexiaozhan-payment.ts";
+import {
+  buildExpiredKexiaozhanOrderUpdate,
+  isKexiaozhanHandoffExpired,
+  KEXIAOZHAN_EXPIRED_HANDOFF_ERROR,
+} from "../_shared/kexiaozhan-payment-guard.ts";
 
 const PROVIDERS = ["printful", "onshore_manual"] as const;
 type FulfillmentProvider = (typeof PROVIDERS)[number];
@@ -39,6 +44,14 @@ type ProductionJobsClient = {
 
 type KexiaozhanHandoffsClient = {
   from(table: "kexiaozhan_handoffs"): {
+    select(columns?: string): {
+      eq(
+        column: "out_trade_no",
+        value: unknown,
+      ): {
+        maybeSingle(): Promise<{ data: unknown; error: unknown }>;
+      };
+    };
     update(values: JsonRecord): {
       eq(
         column: "out_trade_no",
@@ -204,6 +217,95 @@ function buildExtraInfo(orderId: string, jobId: string): string {
 
 function truncateForMetadata(value: string, maxLength = 1000): string {
   return value.length <= maxLength ? value : value.slice(0, maxLength);
+}
+
+async function blockExpiredKexiaozhanHandoffBeforeFulfillment(
+  supabaseAdmin: unknown,
+  order: OrderRecord,
+): Promise<Response | null> {
+  const payment = extractKexiaozhanPaymentContext(order.items);
+  if (!payment) return null;
+
+  const { data: handoff, error: handoffLookupError } =
+    await (supabaseAdmin as KexiaozhanHandoffsClient)
+      .from("kexiaozhan_handoffs")
+      .select("expires_at")
+      .eq("out_trade_no", payment.outTradeNo)
+      .maybeSingle();
+
+  if (handoffLookupError) {
+    console.error(
+      "[ROUTE-FULFILLMENT] Kexiaozhan handoff lookup failed:",
+      handoffLookupError,
+    );
+    return new Response(
+      JSON.stringify({ error: "Unable to verify Kexiaozhan handoff state" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  if (!handoff || !isKexiaozhanHandoffExpired(handoff)) {
+    return null;
+  }
+
+  const { error: handoffUpdateError } =
+    await (supabaseAdmin as KexiaozhanHandoffsClient)
+      .from("kexiaozhan_handoffs")
+      .update({
+        status: "expired",
+        stripe_payment_intent_id: getStringField(
+          isRecord(order) ? order : {},
+          "stripe_payment_intent_id",
+        ),
+        last_error: KEXIAOZHAN_EXPIRED_HANDOFF_ERROR,
+      })
+      .eq("out_trade_no", payment.outTradeNo);
+
+  if (handoffUpdateError) {
+    console.error(
+      "[ROUTE-FULFILLMENT] Kexiaozhan expired handoff update failed:",
+      handoffUpdateError,
+    );
+  }
+
+  const { error: orderUpdateError } = await (supabaseAdmin as {
+    from(table: "orders"): {
+      update(values: JsonRecord): {
+        eq(column: "id", value: unknown): Promise<{ error: unknown }>;
+      };
+    };
+  })
+    .from("orders")
+    .update(buildExpiredKexiaozhanOrderUpdate({}))
+    .eq("id", order.id);
+
+  if (orderUpdateError) {
+    console.error(
+      "[ROUTE-FULFILLMENT] Expired Kexiaozhan order update failed:",
+      orderUpdateError,
+    );
+    return new Response(
+      JSON.stringify({ error: "Unable to block expired Kexiaozhan order" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  return new Response(
+    JSON.stringify({
+      error: "Kexiaozhan handoff expired before fulfillment routing",
+      outTradeNo: payment.outTradeNo,
+    }),
+    {
+      status: 409,
+      headers: { "Content-Type": "application/json" },
+    },
+  );
 }
 
 async function recordKexiaozhanHandoffNotification(
@@ -623,6 +725,13 @@ serve(async (req) => {
       },
     );
   }
+
+  const expiredKexiaozhanResponse =
+    await blockExpiredKexiaozhanHandoffBeforeFulfillment(
+      supabaseAdmin,
+      order,
+    );
+  if (expiredKexiaozhanResponse) return expiredKexiaozhanResponse;
 
   if (!hasRequiredShippingFields(order.shipping_address)) {
     await supabaseAdmin

@@ -5,6 +5,12 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { sendOrderEmail } from "../_shared/email.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getStripeSecretKey } from "../_shared/stripe-config.ts";
+import {
+  buildExpiredKexiaozhanOrderUpdate,
+  extractKexiaozhanOutTradeNo,
+  isKexiaozhanHandoffExpired,
+  KEXIAOZHAN_EXPIRED_HANDOFF_ERROR,
+} from "../_shared/kexiaozhan-payment-guard.ts";
 
 // Safe error messages that don't expose internal details
 function getSafeErrorMessage(error: unknown): string {
@@ -50,6 +56,10 @@ type ShippingDetails = {
     postal_code?: string | null;
     country?: string | null;
   } | null;
+};
+
+type KexiaozhanHandoffRecord = {
+  expires_at?: unknown;
 };
 
 const extractShippingDetails = (
@@ -179,6 +189,95 @@ serve(async (req) => {
         zip: shippingAddress.postal_code ?? "",
         country: shippingAddress.country ?? "",
       };
+    }
+
+    const { data: existingOrder, error: orderLookupError } =
+      await supabaseClient
+        .from("orders")
+        .select("*")
+        .eq("stripe_session_id", sessionId)
+        .single();
+
+    if (orderLookupError || !existingOrder) {
+      console.error("[VERIFY-PAYMENT] Error loading order:", orderLookupError);
+      throw new Error("Database order lookup failed");
+    }
+
+    const kexiaozhanOutTradeNo = extractKexiaozhanOutTradeNo(
+      existingOrder?.items,
+    );
+
+    if (kexiaozhanOutTradeNo) {
+      const { data: handoff, error: handoffLookupError } = await supabaseClient
+        .from("kexiaozhan_handoffs")
+        .select("expires_at")
+        .eq("out_trade_no", kexiaozhanOutTradeNo)
+        .maybeSingle();
+
+      if (handoffLookupError) {
+        console.error(
+          "[VERIFY-PAYMENT] Error loading Kexiaozhan handoff:",
+          handoffLookupError,
+        );
+        throw new Error("Kexiaozhan handoff lookup failed");
+      }
+
+      if (
+        handoff &&
+        isKexiaozhanHandoffExpired(handoff as KexiaozhanHandoffRecord)
+      ) {
+        const expiredOrderUpdate = buildExpiredKexiaozhanOrderUpdate(
+          updateData,
+        );
+        const { data: blockedOrder, error: blockedOrderError } =
+          await supabaseClient
+            .from("orders")
+            .update(expiredOrderUpdate)
+            .eq("stripe_session_id", sessionId)
+            .select()
+            .single();
+
+        if (blockedOrderError) {
+          console.error(
+            "[VERIFY-PAYMENT] Error blocking expired Kexiaozhan order:",
+            blockedOrderError,
+          );
+          throw new Error("Database update failed");
+        }
+
+        const { error: handoffUpdateError } = await supabaseClient
+          .from("kexiaozhan_handoffs")
+          .update({
+            status: "expired",
+            snapcase_order_id: existingOrder.id,
+            stripe_session_id: sessionId,
+            stripe_payment_intent_id: paymentIntent?.id ?? null,
+            customer_email: existingOrder.customer_email ??
+              customerDetails?.email ?? null,
+            last_error: KEXIAOZHAN_EXPIRED_HANDOFF_ERROR,
+          })
+          .eq("out_trade_no", kexiaozhanOutTradeNo);
+
+        if (handoffUpdateError) {
+          console.error(
+            "[VERIFY-PAYMENT] Error marking expired Kexiaozhan handoff:",
+            handoffUpdateError,
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            success: false,
+            message:
+              "Payment received, but the vendor checkout link expired before payment completed. Please contact support so we can review or refund the order.",
+            order: blockedOrder,
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          },
+        );
+      }
     }
 
     const { data: order, error: updateError } = await supabaseClient

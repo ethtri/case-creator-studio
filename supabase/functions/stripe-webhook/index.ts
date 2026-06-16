@@ -6,6 +6,12 @@ import {
   getStripeSecretKey,
   getStripeWebhookSecret,
 } from "../_shared/stripe-config.ts";
+import {
+  buildExpiredKexiaozhanOrderUpdate,
+  extractKexiaozhanOutTradeNo,
+  isKexiaozhanHandoffExpired,
+  KEXIAOZHAN_EXPIRED_HANDOFF_ERROR,
+} from "../_shared/kexiaozhan-payment-guard.ts";
 
 type ShippingDetails = {
   name?: string | null;
@@ -30,6 +36,10 @@ type OrderItem = {
       outTradeNo?: string | null;
     } | null;
   } | null;
+};
+
+type KexiaozhanHandoffRecord = {
+  expires_at?: unknown;
 };
 
 type OrderShippingAddress = {
@@ -74,21 +84,6 @@ const extractShippingDetails = (
         country: customerAddress.country ?? null,
       },
     };
-  }
-
-  return null;
-};
-
-const extractKexiaozhanOutTradeNo = (
-  items: unknown,
-): string | null => {
-  if (!Array.isArray(items)) return null;
-
-  for (const item of items as OrderItem[]) {
-    const outTradeNo = item?.vendorDesign?.kexiaozhanPayment?.outTradeNo;
-    if (typeof outTradeNo === "string" && outTradeNo.trim()) {
-      return outTradeNo.trim();
-    }
   }
 
   return null;
@@ -190,6 +185,84 @@ serve(async (req) => {
     };
   }
 
+  const { data: existingOrder, error: orderLookupError } = await supabaseClient
+    .from("orders")
+    .select("*")
+    .eq("stripe_session_id", session.id)
+    .single();
+
+  if (orderLookupError || !existingOrder) {
+    console.error("[STRIPE-WEBHOOK] Failed to load order:", orderLookupError);
+    return new Response("Database lookup failed", { status: 500 });
+  }
+
+  const kexiaozhanOutTradeNo = extractKexiaozhanOutTradeNo(
+    existingOrder?.items,
+  );
+
+  if (kexiaozhanOutTradeNo) {
+    const { data: handoff, error: handoffLookupError } = await supabaseClient
+      .from("kexiaozhan_handoffs")
+      .select("expires_at")
+      .eq("out_trade_no", kexiaozhanOutTradeNo)
+      .maybeSingle();
+
+    if (handoffLookupError) {
+      console.error(
+        "[STRIPE-WEBHOOK] Failed to load Kexiaozhan handoff:",
+        handoffLookupError,
+      );
+      return new Response("Kexiaozhan handoff lookup failed", {
+        status: 500,
+      });
+    }
+
+    if (
+      handoff &&
+      isKexiaozhanHandoffExpired(handoff as KexiaozhanHandoffRecord)
+    ) {
+      const expiredOrderUpdate = buildExpiredKexiaozhanOrderUpdate(updateData);
+      const { error: expiredOrderError } = await supabaseClient
+        .from("orders")
+        .update(expiredOrderUpdate)
+        .eq("stripe_session_id", session.id);
+
+      if (expiredOrderError) {
+        console.error(
+          "[STRIPE-WEBHOOK] Failed to block expired Kexiaozhan order:",
+          expiredOrderError,
+        );
+        return new Response("Database update failed", { status: 500 });
+      }
+
+      const { error: expiredHandoffError } = await supabaseClient
+        .from("kexiaozhan_handoffs")
+        .update({
+          status: "expired",
+          snapcase_order_id: existingOrder.id,
+          stripe_session_id: session.id,
+          stripe_payment_intent_id: paymentIntentId ?? null,
+          customer_email: existingOrder.customer_email ??
+            customerDetails?.email ?? null,
+          last_error: KEXIAOZHAN_EXPIRED_HANDOFF_ERROR,
+        })
+        .eq("out_trade_no", kexiaozhanOutTradeNo);
+
+      if (expiredHandoffError) {
+        console.error(
+          "[STRIPE-WEBHOOK] Failed to mark expired Kexiaozhan handoff:",
+          expiredHandoffError,
+        );
+      }
+
+      console.warn(
+        "[STRIPE-WEBHOOK] Kexiaozhan payment completed after handoff expiration; fulfillment blocked:",
+        kexiaozhanOutTradeNo,
+      );
+      return new Response("OK", { status: 200 });
+    }
+  }
+
   const { data: order, error: updateError } = await supabaseClient
     .from("orders")
     .update(updateData)
@@ -211,7 +284,6 @@ serve(async (req) => {
     );
   }
 
-  const kexiaozhanOutTradeNo = extractKexiaozhanOutTradeNo(order?.items);
   if (kexiaozhanOutTradeNo) {
     const { error: handoffUpdateError } = await supabaseClient
       .from("kexiaozhan_handoffs")
