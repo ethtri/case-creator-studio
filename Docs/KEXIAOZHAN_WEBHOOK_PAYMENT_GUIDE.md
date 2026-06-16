@@ -1,6 +1,6 @@
 # Kexiaozhan Webhook Payment Integration Guide
 
-Last updated: 2026-06-09
+Last updated: 2026-06-16
 
 Purpose: preserve the latest vendor-provided payment webhook guide and email
 confirmation so future agents do not have to recover this from chat history,
@@ -319,6 +319,14 @@ Unpaid or cannot-confirm response:
   `orders.stripe_payment_intent_id` as `transactionId`.
 - A previously successful live callback recorded on the production job is not
   resent by route retries.
+- Staging validation on 2026-06-16 deployed the handoff migration and changed
+  Edge Functions to Supabase staging, configured sandbox secrets, and verified:
+  signed checkout creation from Kexiaozhan-shaped query params, duplicate retry
+  reuse, changed replay rejection, bad signature rejection, wrong-machine
+  rejection, real Stripe test payment, Stripe webhook order update,
+  single-job onshore routing, and dry-run signed Kexiaozhan callback metadata.
+  Live vendor callback remains disabled until the handoff originates from a real
+  Kexiaozhan sandbox unpaid order.
 - Store `machineKey` only in backend secrets. Never expose it to frontend code,
   URLs, client logs, analytics, or public docs.
 - Store `out_trade_no`/`outTradeNo` in Snapcase order or `production_jobs`
@@ -360,9 +368,11 @@ Unpaid or cannot-confirm response:
 
 These items remain unresolved after the latest WeChat clarification:
 
-1. Detailed print status and order-status query APIs beyond
+1. Public/unprotected Snapcase test URL, or approved preview-protection bypass,
+   for Kexiaozhan to run a real browser redirect from their sandbox.
+2. Detailed print status and order-status query APIs beyond
    `/client/query-status`.
-2. Reprint API details and idempotency/failure rules.
-3. Public mobile designer URL and return URL configuration.
-4. Production-safe resolution for the 15-minute vendor unpaid-order timeout vs
+3. Reprint API details and idempotency/failure rules.
+4. Public mobile designer URL and return URL configuration.
+5. Production-safe resolution for the 15-minute vendor unpaid-order timeout vs
    Stripe's 30-minute minimum Checkout Session expiration.

@@ -2,22 +2,23 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-06-09
+**Last updated:** 2026-06-16
 **Last updated by:** ethtr
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
 
 ## Blockers
 - Physical manual-production dry run remains: print/pack/ship a real test case from the staging queue process before production pilot.
+- Kexiaozhan real vendor redirect smoke still needs a public/unprotected Snapcase test URL, or an approved preview-protection bypass. The current PR preview returns 401 without bypass.
 
 ## Top 3 Next Tasks
-1. P0: Fake vendor handoff staging smoke - post a signed mock design-complete payload, pay through Stripe test checkout, and confirm one onshore job.
+1. P0: Kexiaozhan vendor-originated redirect smoke - have Kexiaozhan redirect a real sandbox unpaid order to Snapcase, pay through Stripe test checkout, and confirm the vendor payment callback behavior.
 2. P0: Manual production dry run - use the queued staging onshore job to print/pack/ship manually, then verify status/tracking updates.
 3. P0: Vendor validation for onshore automation - confirm `filePath` creation, prepaid/internal payment handling, machine targeting, artwork requirements, SKU/material mapping, and failure states.
 
 ## Now / Next / Later
 **Now**
-- P0: Fake vendor handoff staging smoke - post a signed mock design-complete payload, pay through Stripe test checkout, and confirm one onshore job.
+- P0: Kexiaozhan vendor-originated redirect smoke - have Kexiaozhan redirect a real sandbox unpaid order to Snapcase, pay through Stripe test checkout, and confirm the vendor payment callback behavior.
 
 **Next**
 - P0: Manual production dry run - use the queued staging onshore job to print/pack/ship manually, then verify status/tracking updates.
@@ -46,4 +47,5 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - Kexiaozhan 2026-06-10 clarification: chief engineer confirmed test API base `https://kxzcnt.kexiaozhan.com`, production API base `https://kxzus.kexiaozhan.com`, no current IP restriction/VPN requirement, and provided test machine credentials out of band. Do not commit the test `machineKey`.
 - Kexiaozhan redirect checkout intake: `/kexiaozhan/checkout`, `kexiaozhan-create-checkout`, and `kexiaozhan_handoffs` now accept signed vendor query parameters, verify HMAC server-side, create Snapcase-owned Stripe Checkout, and persist handoff state keyed by `out_trade_no`.
 - Kexiaozhan payment scaffold: server-only HMAC helpers, vendor-vector tests, fake handoff payment context, real redirect handoff context, and `route-fulfillment-order` notification metadata are implemented. Live vendor POSTs require explicit `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=true` plus backend `KEXIAOZHAN_MACHINE_KEY`.
+- Kexiaozhan staging smoke on 2026-06-16: deployed `20260616034837_add_kexiaozhan_handoffs`, `kexiaozhan-create-checkout`, `stripe-webhook`, and `route-fulfillment-order` to Supabase staging `onztuktjcmjukfhcuphh`; configured sandbox Kexiaozhan secrets without committing them; verified signed checkout creation, duplicate retry reuse, changed replay rejection, bad signature rejection, wrong-machine rejection, real Stripe test payment, webhook order update, one onshore production job, and dry-run signed Kexiaozhan callback metadata.
 - Remaining blockers after latest response: Kexiaozhan still owes detailed print/order status APIs, reprint API, public mobile designer URL/return URL configuration, and whether Snapcase can explicitly cancel or extend vendor orders instead of relying on the 15-minute vendor timeout. Issue #30 tracks the 15-minute vendor timeout vs Stripe's 30-minute minimum Checkout Session expiration.
