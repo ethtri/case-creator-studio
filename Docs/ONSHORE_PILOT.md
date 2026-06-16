@@ -58,6 +58,9 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Kexiaozhan's browser redirect intake is `/kexiaozhan/checkout?<signed query>`.
   It calls `kexiaozhan-create-checkout`, stores `kexiaozhan_handoffs`, creates
   Stripe Checkout, and keeps the existing fake handoff separate.
+- For protected PR previews, `kexiaozhan-checkout-redirect` provides a clean
+  vendor-facing staging URL and server-side redirects into the protected preview
+  with the temporary Vercel bypass. Do not post or commit the bypass secret.
 - Kexiaozhan late-payment protection is fail-closed: if Stripe confirms payment
   after the stored Kexiaozhan handoff `expires_at`, `stripe-webhook`,
   `verify-payment`, and `route-fulfillment-order` mark the order for

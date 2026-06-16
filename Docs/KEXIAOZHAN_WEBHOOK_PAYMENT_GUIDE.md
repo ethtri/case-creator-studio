@@ -106,6 +106,18 @@ Snapcase test redirect URL shape:
 https://<snapcase-test-domain>/kexiaozhan/checkout?order_no=...&out_trade_no=...&amount=...&goods_name=...&currency=CNY&machine_sn=...&timestamp=...&nonce=...&sign=...
 ```
 
+For protected PR preview smoke tests, Snapcase may instead provide a clean
+staging bridge URL:
+
+```text
+https://<supabase-staging-domain>/functions/v1/kexiaozhan-checkout-redirect?order_no=...&out_trade_no=...&amount=...&goods_name=...&currency=CNY&machine_sn=...&timestamp=...&nonce=...&sign=...
+```
+
+The bridge only hides preview-access mechanics from the vendor. It preserves the
+Kexiaozhan query parameters and redirects the browser to the real
+`/kexiaozhan/checkout` page. Authoritative HMAC verification still happens in
+`kexiaozhan-create-checkout`.
+
 The browser page only collects customer email and starts the server-side
 checkout function. The authoritative signature verification and Stripe Session
 creation happen in `kexiaozhan-create-checkout`.
@@ -300,6 +312,11 @@ Unpaid or cannot-confirm response:
   `supabase/functions/_shared/kexiaozhan-handoff_test.ts`.
 - The real browser redirect page is `src/pages/KexiaozhanCheckout.tsx` at
   `/kexiaozhan/checkout`.
+- Protected-preview staging can use
+  `supabase/functions/kexiaozhan-checkout-redirect` as a clean vendor-facing
+  bridge. Configure `KEXIAOZHAN_CHECKOUT_REDIRECT_TARGET_URL` to the real
+  preview `/kexiaozhan/checkout` URL and, when Vercel preview protection is on,
+  store the temporary bypass secret in `KEXIAOZHAN_VERCEL_BYPASS_SECRET`.
 - `supabase/functions/kexiaozhan-create-checkout` verifies the signed query
   parameters with backend `KEXIAOZHAN_MACHINE_KEY`, rejects stale or changed
   replays, persists `kexiaozhan_handoffs`, and creates Stripe Checkout with
@@ -378,8 +395,9 @@ These items remain unresolved after the latest WeChat clarification:
 
 1. Public/unprotected Snapcase test URL, or approved preview-protection bypass,
    for Kexiaozhan to run a real browser redirect from their sandbox. A private
-   Vercel automation-bypass URL has been verified for PR #27; the remaining
-   step is for Kexiaozhan to use it from their sandbox order system.
+   Vercel automation-bypass URL and clean Supabase staging bridge have been
+   verified for PR #27; the remaining step is for Kexiaozhan to use the clean
+   bridge from their sandbox order system.
 2. Detailed print status and order-status query APIs beyond
    `/client/query-status`.
 3. Reprint API details and idempotency/failure rules.
