@@ -66,8 +66,8 @@ vendor explicitly says a specific endpoint still uses MD5.
 
 | Purpose | Method | Endpoint | Notes |
 | --- | --- | --- | --- |
-| Payment result callback | `POST` | `https://kxzsg.kexiaozhan.com/client/process-payment-notify` | Snapcase calls this after server-confirmed payment result. Do not derive this from `webhookUrl`. |
-| Payment status query | `GET` | `https://kxzsg.kexiaozhan.com/client/query-status` | Query by `outTradeNo`, `machineSn`, and `sign`. Use the fixed Kexiaozhan domain, not the third-party payment page domain. |
+| Payment result callback | `POST` | `${KEXIAOZHAN_API_BASE_URL}/client/process-payment-notify` | Snapcase calls this after server-confirmed payment result. Do not derive this from `webhookUrl`. |
+| Payment status query | `GET` | `${KEXIAOZHAN_API_BASE_URL}/client/query-status` | Query by `outTradeNo`, `machineSn`, and `sign`. Use the fixed Kexiaozhan domain, not the third-party payment page domain. |
 
 Domain note from the 2026-06-09 local trigger guide and 2026-06-10 vendor
 confirmation:
@@ -99,6 +99,16 @@ rely on the HMAC-SHA256 `sign` field.
 the customer back to Snapcase checkout. Snapcase should parse it, verify its
 signature, save the payment number, and continue with Snapcase-controlled
 checkout/payment.
+
+Snapcase test redirect URL shape:
+
+```text
+https://<snapcase-test-domain>/kexiaozhan/checkout?order_no=...&out_trade_no=...&amount=...&goods_name=...&currency=CNY&machine_sn=...&timestamp=...&nonce=...&sign=...
+```
+
+The browser page only collects customer email and starts the server-side
+checkout function. The authoritative signature verification and Stripe Session
+creation happen in `kexiaozhan-create-checkout`.
 
 Expected query fields:
 
@@ -138,7 +148,7 @@ amount=12.30&currency=CNY&goods_name=Photo Print&machine_sn=MACHINE_SN_001&nonce
 Endpoint:
 
 ```http
-POST https://kxzsg.kexiaozhan.com/client/process-payment-notify
+POST ${KEXIAOZHAN_API_BASE_URL}/client/process-payment-notify
 Content-Type: application/json
 ```
 
@@ -222,7 +232,7 @@ Known failure reasons include `invalid sign`, `payment not found`,
 Endpoint:
 
 ```http
-GET https://kxzsg.kexiaozhan.com/client/query-status
+GET ${KEXIAOZHAN_API_BASE_URL}/client/query-status
 ```
 
 Authentication: signature-only. Do not add JWT, Cookie, or Bearer token headers
@@ -283,8 +293,19 @@ Unpaid or cannot-confirm response:
 
 - Server-only signer/verifier helpers now live in
   `supabase/functions/_shared/kexiaozhan-payment.ts`.
+- Redirect handoff parsing, freshness checks, and signed payload comparison live
+  in `supabase/functions/_shared/kexiaozhan-handoff.ts`.
 - Vendor guide HMAC vectors are covered by
-  `supabase/functions/_shared/kexiaozhan-payment_test.ts`.
+  `supabase/functions/_shared/kexiaozhan-payment_test.ts` and
+  `supabase/functions/_shared/kexiaozhan-handoff_test.ts`.
+- The real browser redirect page is `src/pages/KexiaozhanCheckout.tsx` at
+  `/kexiaozhan/checkout`.
+- `supabase/functions/kexiaozhan-create-checkout` verifies the signed query
+  parameters with backend `KEXIAOZHAN_MACHINE_KEY`, rejects stale or changed
+  replays, persists `kexiaozhan_handoffs`, and creates Stripe Checkout with
+  Snapcase-controlled pricing.
+- The `kexiaozhan_handoffs` table is unique on `out_trade_no` and on
+  `(machine_sn, nonce)`. RLS is enabled and no public policies are defined.
 - `fake-vendor-design-complete` accepts optional latest-guide payment fields
   and stores them under `items[].vendorDesign.kexiaozhanPayment`.
 - `route-fulfillment-order` records a Kexiaozhan payment notification plan under
@@ -312,6 +333,17 @@ Unpaid or cannot-confirm response:
 - Configure the API base as an environment variable. Use the confirmed test and
   production domains above; do not hard-code the historical `kxzsg` default into
   new code paths.
+- Configure `KEXIAOZHAN_ALLOWED_MACHINE_SN` in staging/production to reject
+  redirects for unexpected machines. Use the received test `machine_sn` value in
+  sandbox, but never commit `machineKey`.
+- Configure `KEXIAOZHAN_CHECKOUT_UNIT_AMOUNT_CENTS`,
+  `KEXIAOZHAN_CHECKOUT_SHIPPING_CENTS`, and
+  `KEXIAOZHAN_CHECKOUT_CURRENCY` for Snapcase-owned Stripe pricing. The vendor
+  `amount` is stored and sent back in Kexiaozhan's payment callback, but it does
+  not directly set the Stripe total.
+- Stripe Checkout Sessions cannot be configured to expire sooner than 30
+  minutes. Kexiaozhan says unpaid vendor orders cancel after 15 minutes, so
+  production launch must resolve that mismatch first; see GitHub issue #30.
 - The local trigger guide provides a browser HTML verifier plus
   `local_webhook_proxy_threaded.py`. The proxy listens on
   `http://127.0.0.1:8787`, forwards only `/client/process-payment-notify` and
@@ -328,9 +360,9 @@ Unpaid or cannot-confirm response:
 
 These items remain unresolved after the latest WeChat clarification:
 
-1. Snapcase test redirect intake URL for Kexiaozhan's `webhookUrl` query
-   parameters.
-2. Detailed print status and order-status query APIs beyond
+1. Detailed print status and order-status query APIs beyond
    `/client/query-status`.
-3. Reprint API details and idempotency/failure rules.
-4. Public mobile designer URL and return URL configuration.
+2. Reprint API details and idempotency/failure rules.
+3. Public mobile designer URL and return URL configuration.
+4. Production-safe resolution for the 15-minute vendor unpaid-order timeout vs
+   Stripe's 30-minute minimum Checkout Session expiration.

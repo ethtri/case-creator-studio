@@ -9,7 +9,7 @@ import {
 const PROVIDERS = ["printful", "onshore_manual"] as const;
 type FulfillmentProvider = (typeof PROVIDERS)[number];
 const TRUE_VALUES = new Set(["1", "true", "yes"]);
-const KEXIAOZHAN_DEFAULT_API_BASE = "https://kxzsg.kexiaozhan.com";
+const KEXIAOZHAN_DEFAULT_API_BASE = "https://kxzcnt.kexiaozhan.com";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -33,6 +33,17 @@ type ProductionJobsClient = {
           single(): Promise<{ data: unknown; error: unknown }>;
         };
       };
+    };
+  };
+};
+
+type KexiaozhanHandoffsClient = {
+  from(table: "kexiaozhan_handoffs"): {
+    update(values: JsonRecord): {
+      eq(
+        column: "out_trade_no",
+        value: unknown,
+      ): Promise<{ error: unknown }>;
     };
   };
 };
@@ -195,6 +206,60 @@ function truncateForMetadata(value: string, maxLength = 1000): string {
   return value.length <= maxLength ? value : value.slice(0, maxLength);
 }
 
+async function recordKexiaozhanHandoffNotification(
+  supabaseAdmin: unknown,
+  payment: KexiaozhanPaymentContext,
+  paymentNotification: JsonRecord,
+  transactionId: string | null,
+): Promise<void> {
+  try {
+    const response = isRecord(paymentNotification.response)
+      ? paymentNotification.response
+      : null;
+    const responseOk = response?.ok === true;
+    const notifyMode = getStringField(paymentNotification, "mode");
+    const reason = getStringField(paymentNotification, "reason");
+    const status = notifyMode === "live"
+      ? responseOk ? "vendor_notified" : "vendor_notify_failed"
+      : transactionId
+      ? "paid"
+      : "checkout_created";
+    const lastError = responseOk
+      ? null
+      : reason ?? getStringField(response ?? {}, "error") ??
+        (notifyMode === "live" ? "Kexiaozhan notify failed" : null);
+
+    const update: JsonRecord = {
+      status,
+      stripe_payment_intent_id: transactionId,
+      notify_request: paymentNotification.request ?? null,
+      notify_response: response,
+      last_error: lastError,
+    };
+
+    if (responseOk) {
+      update.payment_notified_at = new Date().toISOString();
+    }
+
+    const { error } = await (supabaseAdmin as KexiaozhanHandoffsClient)
+      .from("kexiaozhan_handoffs")
+      .update(update)
+      .eq("out_trade_no", payment.outTradeNo);
+
+    if (error) {
+      console.error(
+        "[ROUTE-FULFILLMENT] Kexiaozhan handoff update failed:",
+        error,
+      );
+    }
+  } catch (error) {
+    console.error(
+      "[ROUTE-FULFILLMENT] Kexiaozhan handoff recording failed:",
+      error,
+    );
+  }
+}
+
 async function recordKexiaozhanPaymentNotification(
   supabaseAdmin: unknown,
   order: OrderRecord,
@@ -309,6 +374,13 @@ async function recordKexiaozhanPaymentNotification(
         }
       }
     }
+
+    await recordKexiaozhanHandoffNotification(
+      supabaseAdmin,
+      payment,
+      paymentNotification,
+      transactionId,
+    );
 
     const metadata = {
       ...existingMetadata,

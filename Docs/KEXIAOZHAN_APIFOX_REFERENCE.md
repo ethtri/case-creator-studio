@@ -146,9 +146,9 @@ The latest vendor-provided payment guide is preserved in
 Key updates:
 
 - Fixed callback endpoint:
-  `POST https://kxzsg.kexiaozhan.com/client/process-payment-notify`.
+  `POST ${KEXIAOZHAN_API_BASE_URL}/client/process-payment-notify`.
 - Fixed payment status query endpoint:
-  `GET https://kxzsg.kexiaozhan.com/client/query-status`.
+  `GET ${KEXIAOZHAN_API_BASE_URL}/client/query-status`.
 - `webhookUrl` no longer includes `notify_url`; do not derive callback/query
   endpoints from the third-party payment page URL.
 - `webhookUrl` fields are `order_no`, `out_trade_no`, `amount`, `goods_name`,
@@ -176,9 +176,8 @@ Key updates:
 - Unpaid vendor orders cancel after 15 minutes.
 - Local trigger tooling exists for manual signature/proxy testing. The tool
   defaults can lag the latest contract; prefer this doc for current field rules.
-- Test/prod API base URLs are now confirmed; Snapcase still needs to provide a
-  real test redirect intake URL before Kexiaozhan can redirect with
-  `webhookUrl` query parameters.
+- Test/prod API base URLs are now confirmed; Snapcase's real test redirect
+  intake shape is `/kexiaozhan/checkout?<signed Kexiaozhan query params>`.
 - `out_trade_no` / `outTradeNo` is the vendor payment idempotency and
   reconciliation key.
 - `amount=0` or `0.00` is valid for coupon-full-deduction cases and should not
@@ -558,8 +557,10 @@ a specific API.
    - backend-only machine/API key config
    - HMAC-SHA256 payment notification signer from the latest payment guide
    - typed request/response validators
+   - status: implemented for payment/redirect checkout.
 2. Add a real vendor handoff intake endpoint only after vendor confirms the
-   signed return payload, sandbox URL, and auth scheme.
+   signed return payload, sandbox URL, and auth scheme. Status: implemented as
+   `/kexiaozhan/checkout` plus `kexiaozhan-create-checkout`.
 3. Treat the vendor designer as the creator of the unpaid vendor order before
    redirecting to Snapcase; no separate order-validation API exists today.
 4. On handoff, validate:
@@ -576,6 +577,12 @@ a specific API.
    2 seconds. Add print/order detail polling when vendor provides those APIs.
 8. Keep operator queue as fallback for failed callback, timeout, reprint, or
    unclear machine state.
+
+Production caveat: Stripe Checkout Sessions can be configured to expire no
+sooner than 30 minutes, while Kexiaozhan currently cancels unpaid orders after
+15 minutes. Treat issue #30 as a launch blocker unless Kexiaozhan extends the
+TTL, provides cancel/refresh/recreate APIs, or Snapcase adds a tested early
+session-expiration mechanism.
 
 ## Open Vendor Questions
 

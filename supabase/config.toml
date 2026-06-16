@@ -21,6 +21,9 @@ verify_jwt = false
 [functions.fake-vendor-design-complete]
 verify_jwt = false
 
+[functions.kexiaozhan-create-checkout]
+verify_jwt = false
+
 [functions.production-jobs]
 verify_jwt = true
 

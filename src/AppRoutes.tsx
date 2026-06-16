@@ -16,6 +16,7 @@ import Contact from "./pages/Contact";
 import SeoLanding from "./pages/SeoLanding";
 import PhoneCaseSeo from "./pages/PhoneCaseSeo";
 import Operations from "./pages/Operations";
+import KexiaozhanCheckout from "./pages/KexiaozhanCheckout";
 
 const LegacyCanvasRedirect = () => {
   const { variantId } = useParams();
@@ -42,6 +43,7 @@ const AppRoutes = () => (
     <Route path="/preview/:variantId" element={<Preview />} />
     <Route path="/checkout/:variantId" element={<Checkout />} />
     <Route path="/checkout" element={<Checkout />} />
+    <Route path="/kexiaozhan/checkout" element={<KexiaozhanCheckout />} />
     <Route path="/order-success" element={<OrderSuccess />} />
     <Route path="/orders" element={<Orders />} />
     <Route path="/operations" element={<Operations />} />

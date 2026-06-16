@@ -25,6 +25,11 @@ type OrderItem = {
   variantId?: string | null;
   externalProductId?: string | null;
   edmTemplateId?: number | null;
+  vendorDesign?: {
+    kexiaozhanPayment?: {
+      outTradeNo?: string | null;
+    } | null;
+  } | null;
 };
 
 type OrderShippingAddress = {
@@ -69,6 +74,21 @@ const extractShippingDetails = (
         country: customerAddress.country ?? null,
       },
     };
+  }
+
+  return null;
+};
+
+const extractKexiaozhanOutTradeNo = (
+  items: unknown,
+): string | null => {
+  if (!Array.isArray(items)) return null;
+
+  for (const item of items as OrderItem[]) {
+    const outTradeNo = item?.vendorDesign?.kexiaozhanPayment?.outTradeNo;
+    if (typeof outTradeNo === "string" && outTradeNo.trim()) {
+      return outTradeNo.trim();
+    }
   }
 
   return null;
@@ -189,6 +209,28 @@ serve(async (req) => {
       "[STRIPE-WEBHOOK] Failed to send confirmation email:",
       emailError,
     );
+  }
+
+  const kexiaozhanOutTradeNo = extractKexiaozhanOutTradeNo(order?.items);
+  if (kexiaozhanOutTradeNo) {
+    const { error: handoffUpdateError } = await supabaseClient
+      .from("kexiaozhan_handoffs")
+      .update({
+        status: "paid",
+        snapcase_order_id: order.id,
+        stripe_session_id: session.id,
+        stripe_payment_intent_id: paymentIntentId ?? null,
+        customer_email: order.customer_email ?? customerDetails?.email ?? null,
+        last_error: null,
+      })
+      .eq("out_trade_no", kexiaozhanOutTradeNo);
+
+    if (handoffUpdateError) {
+      console.error(
+        "[STRIPE-WEBHOOK] Failed to update Kexiaozhan handoff:",
+        handoffUpdateError,
+      );
+    }
   }
 
   if (order?.user_id && Array.isArray(order.items)) {

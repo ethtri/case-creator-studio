@@ -38,10 +38,12 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Configure `OPERATOR_EMAILS` as a comma-separated allowlist in environments where `/operations` should be usable.
 - Configure `VERCEL_PREVIEW_ORIGINS` as exact comma-separated preview origins. Do not rely on broad `*.vercel.app` matching.
 - For fake vendor handoff tests only, configure `FAKE_VENDOR_HANDOFF_SECRET` and `VENDOR_HANDOFF_CHECKOUT_ORIGIN` in staging/preview.
-- For Kexiaozhan payment callback rehearsal, configure `KEXIAOZHAN_API_BASE_URL`
-  and optionally `KEXIAOZHAN_MACHINE_KEY`; keep
-  `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false` until live vendor mutation is
-  explicitly approved.
+- For Kexiaozhan redirect checkout tests, configure `KEXIAOZHAN_API_BASE_URL`,
+  `KEXIAOZHAN_MACHINE_KEY`, `KEXIAOZHAN_ALLOWED_MACHINE_SN`,
+  `KEXIAOZHAN_CHECKOUT_UNIT_AMOUNT_CENTS`,
+  `KEXIAOZHAN_CHECKOUT_SHIPPING_CENTS`, and
+  `KEXIAOZHAN_CHECKOUT_CURRENCY`; keep `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false`
+  until live vendor mutation is explicitly approved.
 - Kexiaozhan confirmed the fixed `/client` payment APIs are signature-only; do
   not configure JWT, Cookie, or Bearer token headers unless this changes.
 - Kexiaozhan confirmed payment callbacks should use Stripe PaymentIntent ID as
@@ -53,9 +55,12 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
   production API base `https://kxzus.kexiaozhan.com`, no current IP/VPN
   requirement, and test machine credentials out of band. Do not commit the test
   `machineKey`.
-- Kexiaozhan now needs Snapcase's test redirect intake base URL for their
-  `webhookUrl` query parameters. The current fake handoff is server-to-server
-  only and is not the browser redirect URL.
+- Kexiaozhan's browser redirect intake is `/kexiaozhan/checkout?<signed query>`.
+  It calls `kexiaozhan-create-checkout`, stores `kexiaozhan_handoffs`, creates
+  Stripe Checkout, and keeps the existing fake handoff separate.
+- Do not enable production traffic until issue #30 is resolved: Kexiaozhan's
+  15-minute unpaid-order timeout is shorter than Stripe Checkout's 30-minute
+  minimum configurable expiration.
 - `route-fulfillment-order` accepts Supabase's runtime service-role key and can also accept `ROUTE_FULFILLMENT_AUTH_SECRET` for staging/QA service-role calls. Never expose that secret to browsers.
 - The isolated Supabase staging project is `snapcase-onshore-staging` (`onztuktjcmjukfhcuphh`). Do not commit keys or service-role credentials.
 - Rollback by environment change affects newly created checkouts. Orders already persisted with `fulfillment_provider=onshore_manual` stay in the manual queue unless an operator explicitly cancels, completes, or reroutes them.
