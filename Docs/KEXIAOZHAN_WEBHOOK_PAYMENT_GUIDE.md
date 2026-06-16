@@ -337,6 +337,12 @@ Unpaid or cannot-confirm response:
   `/client/process-payment-notify` when
   `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=true`, `KEXIAOZHAN_MACHINE_KEY` is set, and
   a Stripe `stripe_payment_intent_id` is present.
+- For staging vendor-originated smoke tests, prefer enabling live callback with
+  `KEXIAOZHAN_PAYMENT_NOTIFY_REQUIRE_ALLOWLIST=true` plus either
+  `KEXIAOZHAN_PAYMENT_NOTIFY_ALLOWED_OUT_TRADE_NOS=<exact outTradeNo>` or
+  `KEXIAOZHAN_PAYMENT_NOTIFY_ALLOWED_PREFIXES=<agreed prefix>`. This keeps
+  unrelated synthetic handoffs in dry-run mode while allowing the one real
+  Kexiaozhan sandbox order to receive `/client/process-payment-notify`.
 - The route formats `payTime` as UTC RFC3339 and uses
   `orders.stripe_payment_intent_id` as `transactionId`.
 - A previously successful live callback recorded on the production job is not

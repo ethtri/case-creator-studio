@@ -44,6 +44,11 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
   `KEXIAOZHAN_CHECKOUT_SHIPPING_CENTS`, and
   `KEXIAOZHAN_CHECKOUT_CURRENCY`; keep `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false`
   until live vendor mutation is explicitly approved.
+- When live Kexiaozhan sandbox callback is approved for a vendor-originated
+  smoke test, set `KEXIAOZHAN_PAYMENT_NOTIFY_REQUIRE_ALLOWLIST=true` and scope
+  the mutation to the exact vendor `outTradeNo` with
+  `KEXIAOZHAN_PAYMENT_NOTIFY_ALLOWED_OUT_TRADE_NOS` or to a coordinated test
+  prefix with `KEXIAOZHAN_PAYMENT_NOTIFY_ALLOWED_PREFIXES`.
 - Kexiaozhan confirmed the fixed `/client` payment APIs are signature-only; do
   not configure JWT, Cookie, or Bearer token headers unless this changes.
 - Kexiaozhan confirmed payment callbacks should use Stripe PaymentIntent ID as
@@ -162,4 +167,4 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 
 - Product: Snapcase can now receive Kexiaozhan-shaped signed browser handoffs and keep Stripe as the payment source of truth in staging. A real vendor-originated redirect still needs an accessible public test URL because the current PR preview is Vercel-protected without bypass.
 - Functionality: Deployed `kexiaozhan_handoffs`, `kexiaozhan-create-checkout`, `stripe-webhook`, and `route-fulfillment-order` to Supabase staging. Verified signed checkout creation, duplicate retry reuse, changed replay rejection, bad signature rejection, wrong-machine rejection, real Stripe test payment, webhook order/handoff update, exactly one onshore job, and dry-run signed Kexiaozhan callback metadata.
-- Operating model: Keep `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false` until the handoff comes from Kexiaozhan's sandbox order system, then test the live sandbox callback before any production traffic.
+- Operating model: Keep `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false` until the handoff comes from Kexiaozhan's sandbox order system, then test the live sandbox callback with an exact/prefix allowlist before any production traffic.

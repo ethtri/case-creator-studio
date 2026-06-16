@@ -5,6 +5,7 @@ import {
   buildKexiaozhanPaymentNotification,
   formatKexiaozhanPayTimeUtc,
 } from "../_shared/kexiaozhan-payment.ts";
+import { resolveKexiaozhanLiveNotifyGate } from "../_shared/kexiaozhan-notify-gate.ts";
 import {
   buildExpiredKexiaozhanOrderUpdate,
   isKexiaozhanHandoffExpired,
@@ -147,11 +148,19 @@ function orderStatusForJobStatus(status: string): string {
   return "processing";
 }
 
-function isKexiaozhanPaymentNotifyEnabled(): boolean {
-  return TRUE_VALUES.has(
-    (Deno.env.get("KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED") ?? "").trim()
-      .toLowerCase(),
-  );
+function resolveKexiaozhanNotifyGate(outTradeNo: string) {
+  return resolveKexiaozhanLiveNotifyGate(outTradeNo, {
+    enabled: Deno.env.get("KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED"),
+    requireAllowlist: Deno.env.get(
+      "KEXIAOZHAN_PAYMENT_NOTIFY_REQUIRE_ALLOWLIST",
+    ),
+    allowedOutTradeNos:
+      Deno.env.get("KEXIAOZHAN_PAYMENT_NOTIFY_ALLOWED_OUT_TRADE_NOS") ??
+        Deno.env.get("KEXIAOZHAN_PAYMENT_NOTIFY_ALLOWED_OUT_TRADE_NO"),
+    allowedPrefixes: Deno.env.get(
+      "KEXIAOZHAN_PAYMENT_NOTIFY_ALLOWED_PREFIXES",
+    ),
+  });
 }
 
 function getKexiaozhanApiBaseUrl(): string {
@@ -445,9 +454,13 @@ async function recordKexiaozhanPaymentNotification(
         transactionId,
         orderStatus: 1,
       }, machineKey);
-      const notifyEnabled = isKexiaozhanPaymentNotifyEnabled();
+      const notifyGate = resolveKexiaozhanNotifyGate(payment.outTradeNo);
+      const notifyEnabled = notifyGate.allowed;
 
       paymentNotification.mode = notifyEnabled ? "live" : "dry_run";
+      if (!notifyEnabled && notifyGate.reason) {
+        paymentNotification.reason = notifyGate.reason;
+      }
       paymentNotification.request = {
         method: "POST",
         body,
