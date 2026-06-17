@@ -2,26 +2,26 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-06-16
+**Last updated:** 2026-06-17
 **Last updated by:** ethtr
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
 
 ## Blockers
 - Physical manual-production dry run remains: print/pack/ship a real test case from the staging queue process before production pilot.
-- Kexiaozhan real vendor redirect smoke still needs Kexiaozhan to run a real sandbox unpaid-order redirect into the clean Snapcase staging bridge URL, then Snapcase must complete Stripe test payment and verify the live sandbox callback.
+- Production Kexiaozhan launch still needs issue #30 resolved: vendor unpaid-order TTL is 15 minutes, while Stripe Checkout's minimum expiration is 30 minutes.
 
 ## Top 3 Next Tasks
-1. P0: Kexiaozhan vendor-originated redirect smoke - have Kexiaozhan redirect a real sandbox unpaid order to Snapcase, pay through Stripe test checkout, and confirm the vendor payment callback behavior.
-2. P0: Manual production dry run - use the queued staging onshore job to print/pack/ship manually, then verify status/tracking updates.
+1. P0: Manual production dry run - use the queued staging onshore job to print/pack/ship manually, then verify status/tracking updates.
+2. P0: Resolve Kexiaozhan TTL production decision - avoid customer payment after vendor unpaid order cancellation; issue #30 tracks the decision.
 3. P0: Vendor validation for onshore automation - confirm `filePath` creation, prepaid/internal payment handling, machine targeting, artwork requirements, SKU/material mapping, and failure states.
 
 ## Now / Next / Later
 **Now**
-- P0: Kexiaozhan vendor-originated redirect smoke - have Kexiaozhan redirect a real sandbox unpaid order to Snapcase, pay through Stripe test checkout, and confirm the vendor payment callback behavior.
+- P0: Manual production dry run - use the queued staging onshore job to print/pack/ship manually, then verify status/tracking updates.
 
 **Next**
-- P0: Manual production dry run - use the queued staging onshore job to print/pack/ship manually, then verify status/tracking updates.
+- P0: Resolve Kexiaozhan TTL production decision - avoid customer payment after vendor unpaid order cancellation; issue #30 tracks the decision.
 - P0: Vendor validation for onshore automation - confirm `filePath` creation, prepaid/internal payment handling, machine targeting, artwork requirements, SKU/material mapping, and failure states.
 
 **Later**
@@ -52,4 +52,5 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - Kexiaozhan preview-bypass smoke on 2026-06-16: a private Vercel automation-bypass URL was verified for the PR preview, preserving vendor query params and reaching Stripe Checkout with signed test payload `PAYBYPASS20260616045447`; do not post the bypass token publicly. Prefer the clean Supabase staging bridge URL for Kexiaozhan so they can append params with `?` normally.
 - Kexiaozhan timeout guard: Stripe webhook, success-page `verify-payment`, and fulfillment routing now fail closed when a Kexiaozhan handoff row is past `expires_at`, marking the order for `payment_review` with `kexiaozhan_handoff_expired` instead of routing production automatically.
 - Kexiaozhan live callback gate: staging can now enable `/client/process-payment-notify` for only one vendor-originated sandbox `outTradeNo` or agreed prefix, while unrelated synthetic handoffs remain dry-run.
+- Kexiaozhan vendor-originated live callback smoke on 2026-06-17 UTC: Kexiaozhan generated four real sandbox handoffs through the clean bridge; Snapcase Stripe test payment succeeded for all four; each handoff reached `vendor_notified`; each order is `processing` with one `onshore_manual` queued job; each live `/client/process-payment-notify` response was HTTP 200 with `{"code":0,"msg":"success","data":{}}`. Staging live callback was disabled afterward.
 - Remaining blockers after latest response: Kexiaozhan still owes detailed print/order status APIs, reprint API, public mobile designer URL/return URL configuration, and whether Snapcase can explicitly cancel or extend vendor orders instead of relying on the 15-minute vendor timeout. Issue #30 tracks the remaining business/vendor decision for the 15-minute vendor timeout vs Stripe's 30-minute minimum Checkout Session expiration; Snapcase now has a fail-closed late-payment guard, but production should still avoid a customer-pay-then-review/refund path if possible.

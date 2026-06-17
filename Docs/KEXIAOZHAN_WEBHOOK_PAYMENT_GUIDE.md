@@ -353,8 +353,12 @@ Unpaid or cannot-confirm response:
   reuse, changed replay rejection, bad signature rejection, wrong-machine
   rejection, real Stripe test payment, Stripe webhook order update,
   single-job onshore routing, and dry-run signed Kexiaozhan callback metadata.
-  Live vendor callback remains disabled until the handoff originates from a real
-  Kexiaozhan sandbox unpaid order.
+- Vendor-originated live callback validation on 2026-06-17 UTC verified four
+  real Kexiaozhan sandbox handoffs through the clean bridge. All four completed
+  Stripe test payment within the vendor TTL, reached `vendor_notified`, created
+  exactly one `onshore_manual` queued job, and recorded live
+  `/client/process-payment-notify` responses with HTTP 200 and
+  `{"code":0,"msg":"success","data":{}}`. Live callback was disabled afterward.
 - Store `machineKey` only in backend secrets. Never expose it to frontend code,
   URLs, client logs, analytics, or public docs.
 - Store `out_trade_no`/`outTradeNo` in Snapcase order or `production_jobs`
@@ -399,16 +403,11 @@ Unpaid or cannot-confirm response:
 
 These items remain unresolved after the latest WeChat clarification:
 
-1. Public/unprotected Snapcase test URL, or approved preview-protection bypass,
-   for Kexiaozhan to run a real browser redirect from their sandbox. A private
-   Vercel automation-bypass URL and clean Supabase staging bridge have been
-   verified for PR #27; the remaining step is for Kexiaozhan to use the clean
-   bridge from their sandbox order system.
-2. Detailed print status and order-status query APIs beyond
+1. Detailed print status and order-status query APIs beyond
    `/client/query-status`.
-3. Reprint API details and idempotency/failure rules.
-4. Public mobile designer URL and return URL configuration.
-5. Production-safe resolution for the 15-minute vendor unpaid-order timeout vs
+2. Reprint API details and idempotency/failure rules.
+3. Public mobile designer URL and return URL configuration.
+4. Production-safe resolution for the 15-minute vendor unpaid-order timeout vs
    Stripe's 30-minute minimum Checkout Session expiration. Snapcase now blocks
    automatic fulfillment for late Stripe payments, but vendor TTL extension,
    cancel, refresh, or recreate behavior remains the cleaner production path.
