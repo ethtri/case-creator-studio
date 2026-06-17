@@ -103,6 +103,16 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Rollback for new orders is one environment change from `onshore_manual` back to `printful`; already-queued onshore jobs require manual operator disposition.
 - Machine automation waits until vendor questions are answered and tested in a non-production machine flow.
 
+## Controlled Production Pilot Checklist
+
+- Alejandro completes one on-site staging dry run: print, pack, ship, and update `/operations`.
+- Issue #30 is resolved with a production-safe TTL answer from Kexiaozhan: extend unpaid-order validity to 30+ minutes, or provide tested cancel/refresh/recreate behavior.
+- Production secrets are configured without exposing keys; keep `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false` until go/no-go.
+- Production env cutover is approved: `FULFILLMENT_PROVIDER=onshore_manual`, `ALLOW_ONSHORE_MANUAL=true`, exact `OPERATOR_EMAILS`, Stripe live webhook, production Kexiaozhan base URL, production machine key, allowed production machine SN, and checkout pricing.
+- Rollback is reviewed: switch new orders back to `printful`; manually disposition already queued onshore jobs.
+- First production order is supervised; verify Stripe live payment, Kexiaozhan callback, exactly one production job, and Alejandro workflow.
+- Disable or narrow live Kexiaozhan callback after the pilot if monitoring shows any issue.
+
 ## Completed Hardening
 
 - Public Edge Function CORS now uses shared exact-origin matching. Preview access is allowed only through configured exact origins.

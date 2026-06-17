@@ -14,7 +14,7 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 ## Top 3 Next Tasks
 1. P0: Manual production dry run - use the queued staging onshore job to print/pack/ship manually, then verify status/tracking updates.
 2. P0: Resolve Kexiaozhan TTL production decision - avoid customer payment after vendor unpaid order cancellation; issue #30 tracks the decision.
-3. P0: Vendor validation for onshore automation - confirm `filePath` creation, prepaid/internal payment handling, machine targeting, artwork requirements, SKU/material mapping, and failure states.
+3. P0: Production cutover readiness - production secrets, rollback runbook, and first supervised pilot order.
 
 ## Now / Next / Later
 **Now**
@@ -22,13 +22,14 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 
 **Next**
 - P0: Resolve Kexiaozhan TTL production decision - avoid customer payment after vendor unpaid order cancellation; issue #30 tracks the decision.
-- P0: Vendor validation for onshore automation - confirm `filePath` creation, prepaid/internal payment handling, machine targeting, artwork requirements, SKU/material mapping, and failure states.
+- P0: Production cutover readiness - production secrets, rollback runbook, and first supervised pilot order.
 
 **Later**
 - None
 
 ## Notes
 - Use `Docs/BACKLOG.md` for priorities.
+- Use `Docs/PRODUCTION_ROADMAP.md` for the controlled Kexiaozhan/onshore production pilot plan and coordination messages.
 - Run `Docs/QA_SMOKE_TEST_CHECKLIST.md` before go-live.
 - QA smoke test: PASS (live-mode order; test-mode run skipped per owner).
 - SEO: pre-rendered `/` and `/catalog` with indexable HTML; app routes use noindex fallback.

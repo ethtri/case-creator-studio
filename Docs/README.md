@@ -12,6 +12,7 @@ This folder contains the canonical project docs. Older or redundant material liv
 - [DECISIONS.md](./DECISIONS.md) - Key project decisions
 - [PRINTFUL_NOTES.md](./PRINTFUL_NOTES.md) - Printful EDM, mockups, and order notes
 - [ONSHORE_PILOT.md](./ONSHORE_PILOT.md) - onshore operations pilot scope, gates, and retro log
+- [PRODUCTION_ROADMAP.md](./PRODUCTION_ROADMAP.md) - controlled production pilot gates, board, and coordination messages
 - [VENDOR_DESIGNER_RESEARCH.md](./VENDOR_DESIGNER_RESEARCH.md) - vendor designer integration research, question pack, and recommendation
 - [VENDOR_HANDOFF_CONTRACT.md](./VENDOR_HANDOFF_CONTRACT.md) - staging-only fake vendor handoff contract for Snapcase-owned checkout
 - [KEXIAOZHAN_APIFOX_REFERENCE.md](./KEXIAOZHAN_APIFOX_REFERENCE.md) - Kexiaozhan API contract reference for vendor designer/payment/machine integration
@@ -33,6 +34,7 @@ Docs/
   DEPLOYMENT_STATUS.md
   DECISIONS.md
   PRINTFUL_NOTES.md
+  PRODUCTION_ROADMAP.md
   BACKLOG.md
   HYGIENE_ROUTINES.md
   VENDOR_DESIGNER_RESEARCH.md
