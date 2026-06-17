@@ -333,10 +333,20 @@ Unpaid or cannot-confirm response:
   `expires_at`. The order is marked for `payment_review` with
   `kexiaozhan_handoff_expired`, and the handoff is marked `expired` instead of
   notifying the vendor or routing production.
+- `kexiaozhan-checkout-expirer` is the proactive fallback for the 15-minute
+  vendor TTL. It is scheduled every minute, finds active handoffs near
+  `expires_at`, expires still-open Stripe Checkout Sessions through Stripe, and
+  marks the handoff `expired` so the same signed payload cannot create a new
+  checkout after the safe window.
 - The route defaults to dry-run. It only calls
   `/client/process-payment-notify` when
   `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=true`, `KEXIAOZHAN_MACHINE_KEY` is set, and
   a Stripe `stripe_payment_intent_id` is present.
+- When Kexiaozhan confirms the admin/batch print-mode field from issue #36,
+  configure it as `KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON`. The JSON object
+  is merged into the `/client/process-payment-notify` body and signed with the
+  same HMAC-SHA256 method as the core callback fields. Do not expose print-mode
+  choice to customers.
 - For staging vendor-originated smoke tests, prefer enabling live callback with
   `KEXIAOZHAN_PAYMENT_NOTIFY_REQUIRE_ALLOWLIST=true` plus either
   `KEXIAOZHAN_PAYMENT_NOTIFY_ALLOWED_OUT_TRADE_NOS=<exact outTradeNo>` or
@@ -381,12 +391,21 @@ Unpaid or cannot-confirm response:
   `KEXIAOZHAN_CHECKOUT_CURRENCY` for Snapcase-owned Stripe pricing. The vendor
   `amount` is stored and sent back in Kexiaozhan's payment callback, but it does
   not directly set the Stripe total.
+- Configure `KEXIAOZHAN_CHECKOUT_EXPIRY_LEEWAY_SECONDS` for the scheduled
+  expirer buffer. Default is 60 seconds.
+- Configure `KEXIAOZHAN_CHECKOUT_EXPIRER_AUTH_SECRET` in Edge Function secrets
+  and the matching `kexiaozhan_checkout_expirer_auth_secret` in Supabase Vault;
+  the scheduled cron uses this dedicated secret instead of the service-role key.
+- Configure `KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON` only after
+  Kexiaozhan confirms the print-mode field name and values. Example shape after
+  confirmation: `{"printImmediately":false,"printMode":"admin_batch"}`.
 - Stripe Checkout Sessions cannot be configured to expire sooner than 30
   minutes. Kexiaozhan says unpaid vendor orders cancel after 15 minutes, so
   production launch should still resolve that mismatch with the vendor if
   possible; see GitHub issue #30. Snapcase now has a fail-closed late-payment
-  guard, but the preferred production behavior is to prevent customers from
-  paying after the vendor order is no longer valid.
+  guard and a proactive Stripe Checkout expirer fallback, but the preferred
+  production behavior is still to prevent customers from paying after the vendor
+  order is no longer valid.
 - The local trigger guide provides a browser HTML verifier plus
   `local_webhook_proxy_threaded.py`. The proxy listens on
   `http://127.0.0.1:8787`, forwards only `/client/process-payment-notify` and
@@ -407,7 +426,6 @@ These items remain unresolved after the latest WeChat clarification:
    `/client/query-status`.
 2. Reprint API details and idempotency/failure rules.
 3. Public mobile designer URL and return URL configuration.
-4. Production-safe resolution for the 15-minute vendor unpaid-order timeout vs
-   Stripe's 30-minute minimum Checkout Session expiration. Snapcase now blocks
-   automatic fulfillment for late Stripe payments, but vendor TTL extension,
-   cancel, refresh, or recreate behavior remains the cleaner production path.
+4. Production validation of either Kexiaozhan's TTL extension/cancel behavior or
+   Snapcase's scheduled `kexiaozhan-checkout-expirer` fallback.
+5. Exact admin/batch print-mode callback field contract from issue #36.

@@ -14,7 +14,7 @@ export type KexiaozhanPaymentNotificationInput = {
   extraInfo?: string;
   orderStatus: 0 | 1 | 2;
   payTime: string;
-};
+} & KexiaozhanSignableRecord;
 
 export type KexiaozhanPaymentNotification =
   & { sign: string }
@@ -26,6 +26,15 @@ export type KexiaozhanPaymentStatusQueryInput = {
 };
 
 const DEFAULT_EXCLUDED_FIELDS = new Set(["sign"]);
+const RESERVED_PAYMENT_NOTIFICATION_FIELDS = new Set([
+  "sign",
+  "outTradeNo",
+  "transactionId",
+  "amount",
+  "extraInfo",
+  "orderStatus",
+  "payTime",
+]);
 
 function compareAscii(left: string, right: string): number {
   if (left === right) return 0;
@@ -126,6 +135,55 @@ export async function buildKexiaozhanPaymentStatusQuery(
 ): Promise<URLSearchParams> {
   const sign = await signKexiaozhanPayload(input, machineKey);
   return new URLSearchParams({ ...input, sign });
+}
+
+export function parseKexiaozhanPaymentNotificationExtraFields(
+  rawValue: string | null | undefined,
+): KexiaozhanSignableRecord {
+  const text = rawValue?.trim();
+  if (!text) return {};
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch (_error) {
+    throw new Error(
+      "KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON must be valid JSON",
+    );
+  }
+
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new Error(
+      "KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON must be a JSON object",
+    );
+  }
+
+  const fields: KexiaozhanSignableRecord = {};
+  for (const [key, value] of Object.entries(parsed)) {
+    const field = key.trim();
+    if (!field) {
+      throw new Error(
+        "KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON cannot contain an empty field name",
+      );
+    }
+    if (RESERVED_PAYMENT_NOTIFICATION_FIELDS.has(field)) {
+      throw new Error(
+        `KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON cannot override ${field}`,
+      );
+    }
+    if (
+      typeof value !== "string" &&
+      typeof value !== "number" &&
+      typeof value !== "boolean"
+    ) {
+      throw new Error(
+        `KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON field ${field} must be a string, number, or boolean`,
+      );
+    }
+    fields[field] = value;
+  }
+
+  return fields;
 }
 
 export function formatKexiaozhanPayTimeUtc(date: Date): string {

@@ -7,7 +7,7 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 - Kexiaozhan signed redirect, Stripe Checkout, Stripe webhook, Snapcase onshore job routing, and signed `/client/process-payment-notify` callback are proven in staging.
 - Four real Kexiaozhan sandbox orders completed successfully on 2026-06-17 UTC.
 - Production remains Printful-backed until an explicit cutover is approved.
-- Issue #30 remains the production blocker for the Kexiaozhan 15-minute unpaid-order timeout versus Stripe Checkout's 30-minute minimum expiration.
+- Issue #30 remains a production gate for the Kexiaozhan 15-minute unpaid-order timeout versus Stripe Checkout's 30-minute minimum expiration. Snapcase now has fail-closed handling and a scheduled `kexiaozhan-checkout-expirer` fallback, but production still needs the accepted operating answer verified.
 - Issue #36 tracks new Kexiaozhan/Alejandro guidance that paid online orders should use admin-controlled batch printing, not uncontrolled immediate continuous printing.
 
 ## Production Gates
@@ -19,7 +19,7 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 
 2. Kexiaozhan resolves the production TTL risk.
    - Preferred: extend unpaid-order validity to at least 30 minutes.
-   - Acceptable alternative: provide tested cancel, refresh, or recreate behavior.
+   - Acceptable alternatives: provide tested cancel, refresh, or recreate behavior, or deploy and verify `kexiaozhan-checkout-expirer` so open Stripe Checkout Sessions are expired before the vendor TTL cutoff.
    - Do not enable public production Kexiaozhan traffic until issue #30 is resolved.
 
 3. Kexiaozhan print mode is server-controlled.
@@ -33,7 +33,7 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
    - Keep `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false` until go/no-go.
 
 5. Cutover and rollback runbook is approved.
-   - Include env switch, function deploy list, smoke order, callback enablement, rollback to Printful, and sign-off owners.
+   - Use `Docs/PRODUCTION_CUTOVER_RUNBOOK.md` for env switch, function deploy list, smoke order, callback enablement, rollback to Printful, and sign-off owners.
    - Rollback for new orders is one env change back to `printful`; already queued onshore jobs need operator disposition.
 
 6. First production pilot order is supervised.

@@ -4,6 +4,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import {
   buildKexiaozhanPaymentNotification,
   formatKexiaozhanPayTimeUtc,
+  parseKexiaozhanPaymentNotificationExtraFields,
 } from "../_shared/kexiaozhan-payment.ts";
 import { resolveKexiaozhanLiveNotifyGate } from "../_shared/kexiaozhan-notify-gate.ts";
 import {
@@ -407,6 +408,9 @@ async function recordKexiaozhanPaymentNotification(
       "stripe_payment_intent_id",
     );
     const payTime = formatKexiaozhanPayTimeUtc(new Date());
+    const extraNotifyFields = parseKexiaozhanPaymentNotificationExtraFields(
+      Deno.env.get("KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON"),
+    );
     const unsignedBody = {
       outTradeNo: payment.outTradeNo,
       transactionId: transactionId ?? "",
@@ -414,6 +418,7 @@ async function recordKexiaozhanPaymentNotification(
       extraInfo: buildExtraInfo(String(order.id), String(job.id)),
       orderStatus: transactionId ? 1 as const : 0 as const,
       payTime,
+      ...extraNotifyFields,
     };
 
     const paymentMetadata = {

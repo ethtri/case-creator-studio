@@ -1,6 +1,7 @@
 import {
   assertEquals,
   assertRejects,
+  assertThrows,
 } from "https://deno.land/std@0.190.0/testing/asserts.ts";
 import {
   buildKexiaozhanPaymentNotification,
@@ -8,6 +9,7 @@ import {
   buildKexiaozhanSigningString,
   formatKexiaozhanPayTimeUtc,
   hmacSha256Hex,
+  parseKexiaozhanPaymentNotificationExtraFields,
   timingSafeEqual,
   verifyKexiaozhanSignature,
 } from "./kexiaozhan-payment.ts";
@@ -72,6 +74,32 @@ Deno.test("Kexiaozhan callback signature supports Stripe PaymentIntent and RFC33
   );
 });
 
+Deno.test("Kexiaozhan callback signature includes configured print mode fields", async () => {
+  const extraFields = parseKexiaozhanPaymentNotificationExtraFields(
+    '{"printImmediately":false,"printMode":"admin_batch"}',
+  );
+  const notification = await buildKexiaozhanPaymentNotification({
+    outTradeNo: "PAY202606030001",
+    transactionId: "pi_3Abc123Stripe456",
+    amount: "12.30",
+    extraInfo: "payment success",
+    orderStatus: 1,
+    payTime: "2006-01-02T15:04:05Z07:00",
+    ...extraFields,
+  }, MACHINE_KEY);
+
+  assertEquals(notification.printImmediately, false);
+  assertEquals(notification.printMode, "admin_batch");
+  assertEquals(
+    buildKexiaozhanSigningString(notification),
+    "amount=12.30&extraInfo=payment success&orderStatus=1&outTradeNo=PAY202606030001&payTime=2006-01-02T15:04:05Z07:00&printImmediately=false&printMode=admin_batch&transactionId=pi_3Abc123Stripe456",
+  );
+  assertEquals(
+    notification.sign,
+    "f54ec1ecb99cb824a3ca2a4841e2a5f79cf8794cade880d1aeb6d6acafb09a22",
+  );
+});
+
 Deno.test("Kexiaozhan query signature matches vendor vector", async () => {
   const params = await buildKexiaozhanPaymentStatusQuery({
     outTradeNo: "PAY202606030001",
@@ -84,6 +112,32 @@ Deno.test("Kexiaozhan query signature matches vendor vector", async () => {
   );
   assertEquals(params.get("outTradeNo"), "PAY202606030001");
   assertEquals(params.get("machineSn"), "MACHINE_SN_001");
+});
+
+Deno.test("Kexiaozhan callback extra field config rejects unsafe values", () => {
+  assertEquals(parseKexiaozhanPaymentNotificationExtraFields(undefined), {});
+
+  assertThrows(
+    () => parseKexiaozhanPaymentNotificationExtraFields("{"),
+    Error,
+    "valid JSON",
+  );
+  assertThrows(
+    () =>
+      parseKexiaozhanPaymentNotificationExtraFields(
+        '{"outTradeNo":"override"}',
+      ),
+    Error,
+    "cannot override outTradeNo",
+  );
+  assertThrows(
+    () =>
+      parseKexiaozhanPaymentNotificationExtraFields(
+        '{"printMode":{"nested":true}}',
+      ),
+    Error,
+    "string, number, or boolean",
+  );
 });
 
 Deno.test("Kexiaozhan signing excludes sign, empty, null, and undefined values", () => {

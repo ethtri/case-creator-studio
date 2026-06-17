@@ -71,6 +71,10 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
   `verify-payment`, and `route-fulfillment-order` mark the order for
   `payment_review`/`kexiaozhan_handoff_expired` instead of routing production or
   notifying the vendor.
+- `kexiaozhan-checkout-expirer` is the scheduled fallback for issue #30. It
+  expires open Stripe Checkout Sessions close to the Kexiaozhan unpaid-order TTL
+  and marks the handoff `expired`; schedule it every minute through the Supabase
+  cron migration before production pilot traffic.
 - Staging smoke on 2026-06-17 UTC proved real Kexiaozhan-originated signed
   redirect payloads, Stripe test payment, webhook update, single onshore job per
   order, and live signed Kexiaozhan callback responses from the vendor sandbox.
@@ -107,7 +111,8 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 
 - Alejandro completes one on-site staging dry run: print, pack, ship, and update `/operations`.
 - Issue #30 is resolved with a production-safe TTL answer from Kexiaozhan: extend unpaid-order validity to 30+ minutes, or provide tested cancel/refresh/recreate behavior.
-- Issue #36 is resolved with Kexiaozhan's callback field for admin-controlled print mode; customers do not choose whether orders print immediately.
+- Issue #30 fallback is verified if Kexiaozhan does not change TTL: `kexiaozhan-checkout-expirer` expires open Stripe Checkout Sessions before the vendor TTL cutoff.
+- Issue #36 is resolved with Kexiaozhan's callback field for admin-controlled print mode; configure it with `KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON`. Customers do not choose whether orders print immediately.
 - Production secrets are configured without exposing keys; keep `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false` until go/no-go.
 - Production env cutover is approved: `FULFILLMENT_PROVIDER=onshore_manual`, `ALLOW_ONSHORE_MANUAL=true`, exact `OPERATOR_EMAILS`, Stripe live webhook, production Kexiaozhan base URL, production machine key, allowed production machine SN, and checkout pricing.
 - Rollback is reviewed: switch new orders back to `printful`; manually disposition already queued onshore jobs.
@@ -183,3 +188,9 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Product: Kexiaozhan's sandbox can now hand off unpaid orders to Snapcase Checkout, let Snapcase collect Stripe test payment, and accept Snapcase's signed payment-complete callback.
 - Functionality: Verified four Kexiaozhan-generated sandbox orders through the clean Supabase bridge. Each handoff reached `vendor_notified`, each Snapcase order is `processing`, each has exactly one `onshore_manual` queued production job, and each live `/client/process-payment-notify` response was HTTP 200 with `{"code":0,"msg":"success","data":{}}`.
 - Operating model: Disable staging live callback after the smoke. Production remains blocked on the 15-minute Kexiaozhan unpaid-order TTL versus Stripe Checkout's 30-minute minimum expiration; issue #30 tracks the required production decision.
+
+### 2026-06-17 UTC - Kexiaozhan Checkout Expirer Staging Smoke
+
+- Product: Snapcase now has an executable fallback for the Kexiaozhan 15-minute TTL mismatch if the vendor cannot extend TTL before pilot.
+- Functionality: Added `kexiaozhan-checkout-expirer`, scheduled it every minute in staging with a dedicated Vault-backed auth secret, and verified HTTP 200 responses. The scheduled run cleaned up already-expired historical staging handoffs; manual dry-run returned 200 with no current candidates.
+- Operating model: Production still needs the accepted issue #30 decision. If the expirer fallback is chosen, production must configure matching Edge Function and Vault secrets before enabling Kexiaozhan traffic.

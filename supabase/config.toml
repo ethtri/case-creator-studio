@@ -27,6 +27,9 @@ verify_jwt = false
 [functions.kexiaozhan-checkout-redirect]
 verify_jwt = false
 
+[functions.kexiaozhan-checkout-expirer]
+verify_jwt = false
+
 [functions.production-jobs]
 verify_jwt = true
 

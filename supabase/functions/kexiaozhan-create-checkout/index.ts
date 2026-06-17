@@ -145,6 +145,10 @@ function checkoutSessionIsOpen(session: Stripe.Checkout.Session): boolean {
     session.url.length > 0;
 }
 
+function handoffStatusAllowsCheckout(status: string): boolean {
+  return status === "received" || status === "checkout_created";
+}
+
 function getPostgrestErrorCode(error: unknown): string | null {
   if (typeof error !== "object" || error === null) return null;
   const code = (error as { code?: unknown }).code;
@@ -260,6 +264,14 @@ serve(async (req) => {
 
     let existingHandoff = existing as HandoffRow | null;
     if (existingHandoff) {
+      if (!handoffStatusAllowsCheckout(existingHandoff.status)) {
+        throw new HttpError(
+          409,
+          "handoff_not_open",
+          "This Kexiaozhan handoff is no longer open",
+        );
+      }
+
       if (
         !sameKexiaozhanSignedPayload(existingHandoff.signed_payload, params)
       ) {
@@ -346,6 +358,14 @@ serve(async (req) => {
             );
           }
 
+          if (!handoffStatusAllowsCheckout(existingHandoff.status)) {
+            throw new HttpError(
+              409,
+              "handoff_not_open",
+              "This Kexiaozhan handoff is no longer open",
+            );
+          }
+
           if (
             !sameKexiaozhanSignedPayload(existingHandoff.signed_payload, params)
           ) {
@@ -366,6 +386,14 @@ serve(async (req) => {
     }
 
     if (existingHandoff) {
+      if (!handoffStatusAllowsCheckout(existingHandoff.status)) {
+        throw new HttpError(
+          409,
+          "handoff_not_open",
+          "This Kexiaozhan handoff is no longer open",
+        );
+      }
+
       if (
         existingHandoff.customer_email &&
         normalizeEmail(existingHandoff.customer_email) !== customerEmail
