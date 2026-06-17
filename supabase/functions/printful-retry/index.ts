@@ -4,10 +4,16 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 const MAX_PRINTFUL_ATTEMPTS = 4;
 const BATCH_LIMIT = 25;
 
-function authorizeServiceRole(req: Request, serviceRoleKey: string): Response | null {
-  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
+function authorizeServiceRole(
+  req: Request,
+  serviceRoleKey: string,
+): Response | null {
+  const authHeader = req.headers.get("authorization") ||
+    req.headers.get("Authorization");
   const apiKey = req.headers.get("apikey");
-  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const bearerToken = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : null;
 
   if (bearerToken !== serviceRoleKey && apiKey !== serviceRoleKey) {
     return new Response("Unauthorized", { status: 401 });
@@ -22,7 +28,7 @@ function hasRequiredShippingFields(shippingAddress: any): boolean {
       shippingAddress?.city &&
       shippingAddress?.zip &&
       shippingAddress?.country &&
-      shippingAddress?.state
+      shippingAddress?.state,
   );
 }
 
@@ -47,10 +53,15 @@ serve(async (req) => {
 
   const { data: orders, error } = await supabaseClient
     .from("orders")
-    .select("id, printful_attempts, printful_status, printful_next_attempt_at, shipping_address")
+    .select(
+      "id, fulfillment_provider, printful_attempts, printful_status, printful_next_attempt_at, shipping_address",
+    )
     .in("status", ["paid", "processing"])
+    .eq("fulfillment_provider", "printful")
     .lt("printful_attempts", MAX_PRINTFUL_ATTEMPTS)
-    .or("printful_status.is.null,printful_status.eq.pending,printful_status.eq.retry,printful_status.eq.needs_shipping,printful_status.eq.draft")
+    .or(
+      "printful_status.is.null,printful_status.eq.pending,printful_status.eq.retry,printful_status.eq.needs_shipping,printful_status.eq.draft",
+    )
     .limit(50);
 
   if (error) {
@@ -60,7 +71,8 @@ serve(async (req) => {
 
   const eligibleOrders = (orders ?? []).filter((order) => {
     const status = order.printful_status ?? "pending";
-    const statusAllowed = status === "pending" || status === "retry" || status === "needs_shipping" || status === "draft";
+    const statusAllowed = status === "pending" || status === "retry" ||
+      status === "needs_shipping" || status === "draft";
     const nextAttemptAt = order.printful_next_attempt_at
       ? Date.parse(order.printful_next_attempt_at)
       : null;
@@ -78,22 +90,30 @@ serve(async (req) => {
       if (!order.printful_status || order.printful_status === "pending") {
         await supabaseClient
           .from("orders")
-          .update({ printful_status: "needs_shipping", printful_last_error: "Missing shipping address" })
+          .update({
+            printful_status: "needs_shipping",
+            printful_last_error: "Missing shipping address",
+            fulfillment_status: "needs_shipping",
+            fulfillment_last_error: "Missing shipping address",
+          })
           .eq("id", order.id);
       }
       continue;
     }
 
     try {
-      const submitResponse = await fetch(`${supabaseUrl}/functions/v1/submit-printful-order`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceRoleKey}`,
-          apikey: serviceRoleKey,
+      const submitResponse = await fetch(
+        `${supabaseUrl}/functions/v1/submit-printful-order`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceRoleKey}`,
+            apikey: serviceRoleKey,
+          },
+          body: JSON.stringify({ orderId: order.id }),
         },
-        body: JSON.stringify({ orderId: order.id }),
-      });
+      );
 
       if (!submitResponse.ok) {
         const body = await submitResponse.text();
@@ -102,7 +122,9 @@ serve(async (req) => {
         submitted += 1;
       }
     } catch (submitError) {
-      const message = submitError instanceof Error ? submitError.message : String(submitError);
+      const message = submitError instanceof Error
+        ? submitError.message
+        : String(submitError);
       errors.push(message);
     }
   }
@@ -117,6 +139,6 @@ serve(async (req) => {
     {
       headers: { "Content-Type": "application/json" },
       status: 200,
-    }
+    },
   );
 });

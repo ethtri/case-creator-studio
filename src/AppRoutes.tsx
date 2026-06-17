@@ -15,10 +15,14 @@ import Privacy from "./pages/Privacy";
 import Contact from "./pages/Contact";
 import SeoLanding from "./pages/SeoLanding";
 import PhoneCaseSeo from "./pages/PhoneCaseSeo";
+import Operations from "./pages/Operations";
+import KexiaozhanCheckout from "./pages/KexiaozhanCheckout";
 
 const LegacyCanvasRedirect = () => {
   const { variantId } = useParams();
-  return <Navigate to={variantId ? `/design/${variantId}` : "/catalog"} replace />;
+  return (
+    <Navigate to={variantId ? `/design/${variantId}` : "/catalog"} replace />
+  );
 };
 
 const AppRoutes = () => (
@@ -32,12 +36,17 @@ const AppRoutes = () => (
     <Route path="/phone-cases/:variantSlug" element={<PhoneCaseSeo />} />
     <Route path="/design/:variantId" element={<DesignEditorEDM />} />
     <Route path="/design-edm/:variantId" element={<DesignEditorEDM />} />
-    <Route path="/design-canvas/:variantId" element={<LegacyCanvasRedirect />} />
+    <Route
+      path="/design-canvas/:variantId"
+      element={<LegacyCanvasRedirect />}
+    />
     <Route path="/preview/:variantId" element={<Preview />} />
     <Route path="/checkout/:variantId" element={<Checkout />} />
     <Route path="/checkout" element={<Checkout />} />
+    <Route path="/kexiaozhan/checkout" element={<KexiaozhanCheckout />} />
     <Route path="/order-success" element={<OrderSuccess />} />
     <Route path="/orders" element={<Orders />} />
+    <Route path="/operations" element={<Operations />} />
     <Route path="/designs" element={<Designs />} />
     <Route path="/auth" element={<Auth />} />
     <Route path="/auth/callback" element={<AuthCallback />} />

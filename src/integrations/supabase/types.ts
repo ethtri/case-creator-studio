@@ -21,6 +21,11 @@ export type Database = {
           customer_name: string | null
           coupon_id: string | null
           discount_total: number
+          fulfillment_last_error: string | null
+          fulfillment_order_id: string | null
+          fulfillment_provider: string
+          fulfillment_routed_at: string | null
+          fulfillment_status: string | null
           id: string
           items: Json
           marketing_attribution: Json | null
@@ -58,6 +63,11 @@ export type Database = {
           customer_name?: string | null
           coupon_id?: string | null
           discount_total?: number
+          fulfillment_last_error?: string | null
+          fulfillment_order_id?: string | null
+          fulfillment_provider?: string
+          fulfillment_routed_at?: string | null
+          fulfillment_status?: string | null
           id?: string
           items: Json
           marketing_attribution?: Json | null
@@ -95,6 +105,11 @@ export type Database = {
           customer_name?: string | null
           coupon_id?: string | null
           discount_total?: number
+          fulfillment_last_error?: string | null
+          fulfillment_order_id?: string | null
+          fulfillment_provider?: string
+          fulfillment_routed_at?: string | null
+          fulfillment_status?: string | null
           id?: string
           items?: Json
           marketing_attribution?: Json | null
@@ -127,6 +142,88 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      production_jobs: {
+        Row: {
+          created_at: string
+          customer_email: string
+          customer_name: string | null
+          failed_at: string | null
+          fulfillment_status: string | null
+          id: string
+          items: Json
+          metadata: Json
+          operator_email: string | null
+          operator_notes: string | null
+          order_id: string
+          order_status: string
+          provider: string
+          shipped_at: string | null
+          shipping_address: Json | null
+          started_at: string | null
+          status: string
+          total: number
+          tracking_carrier: string | null
+          tracking_number: string | null
+          tracking_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_email: string
+          customer_name?: string | null
+          failed_at?: string | null
+          fulfillment_status?: string | null
+          id?: string
+          items: Json
+          metadata?: Json
+          operator_email?: string | null
+          operator_notes?: string | null
+          order_id: string
+          order_status: string
+          provider?: string
+          shipped_at?: string | null
+          shipping_address?: Json | null
+          started_at?: string | null
+          status?: string
+          total: number
+          tracking_carrier?: string | null
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_email?: string
+          customer_name?: string | null
+          failed_at?: string | null
+          fulfillment_status?: string | null
+          id?: string
+          items?: Json
+          metadata?: Json
+          operator_email?: string | null
+          operator_notes?: string | null
+          order_id?: string
+          order_status?: string
+          provider?: string
+          shipped_at?: string | null
+          shipping_address?: Json | null
+          started_at?: string | null
+          status?: string
+          total?: number
+          tracking_carrier?: string | null
+          tracking_number?: string | null
+          tracking_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_jobs_order_id_fkey"
+            columns: ["order_id"]
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_notifications: {
         Row: {

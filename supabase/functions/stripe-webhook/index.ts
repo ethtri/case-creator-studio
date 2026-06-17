@@ -2,6 +2,16 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { sendOrderEmail } from "../_shared/email.ts";
+import {
+  getStripeSecretKey,
+  getStripeWebhookSecret,
+} from "../_shared/stripe-config.ts";
+import {
+  buildExpiredKexiaozhanOrderUpdate,
+  extractKexiaozhanOutTradeNo,
+  isKexiaozhanHandoffExpired,
+  KEXIAOZHAN_EXPIRED_HANDOFF_ERROR,
+} from "../_shared/kexiaozhan-payment-guard.ts";
 
 type ShippingDetails = {
   name?: string | null;
@@ -21,6 +31,15 @@ type OrderItem = {
   variantId?: string | null;
   externalProductId?: string | null;
   edmTemplateId?: number | null;
+  vendorDesign?: {
+    kexiaozhanPayment?: {
+      outTradeNo?: string | null;
+    } | null;
+  } | null;
+};
+
+type KexiaozhanHandoffRecord = {
+  expires_at?: unknown;
 };
 
 type OrderShippingAddress = {
@@ -31,41 +50,23 @@ type OrderShippingAddress = {
   state?: string | null;
 };
 
-const STRIPE_MODE = (Deno.env.get("STRIPE_MODE") ?? "").toLowerCase();
 const ALLOWED_STRIPE_EVENTS = new Set([
   "checkout.session.completed",
   "checkout.session.async_payment_succeeded",
 ]);
 
-function getStripeSecretKey(): string {
-  if (STRIPE_MODE === "test") {
-    return (
-      Deno.env.get("STRIPE_SECRET_KEY_TEST") ??
-      Deno.env.get("STRIPE_SECRET_KEY") ??
-      ""
-    );
-  }
-  return Deno.env.get("STRIPE_SECRET_KEY") ?? "";
-}
-
-function getStripeWebhookSecret(): string | null {
-  if (STRIPE_MODE === "test") {
-    return (
-      Deno.env.get("STRIPE_WEBHOOK_SECRET_TEST") ??
-      Deno.env.get("STRIPE_WEBHOOK_SECRET") ??
-      null
-    );
-  }
-  return Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? null;
-}
-
-const extractShippingDetails = (session: Stripe.Checkout.Session): ShippingDetails | null => {
+const extractShippingDetails = (
+  session: Stripe.Checkout.Session,
+): ShippingDetails | null => {
   const direct = session.shipping_details;
   if (direct?.address) {
     return direct;
   }
 
-  const collected = session.collected_information?.shipping_details as ShippingDetails | null | undefined;
+  const collected = session.collected_information?.shipping_details as
+    | ShippingDetails
+    | null
+    | undefined;
   if (collected?.address) {
     return collected;
   }
@@ -98,20 +99,28 @@ serve(async (req) => {
     return new Response("Missing Stripe signature", { status: 400 });
   }
 
-  const webhookSecret = getStripeWebhookSecret();
-  if (!webhookSecret) {
-    console.error("[STRIPE-WEBHOOK] Missing STRIPE_WEBHOOK_SECRET");
+  let stripeSecretKey: string;
+  let webhookSecret: string;
+  try {
+    stripeSecretKey = getStripeSecretKey("STRIPE-WEBHOOK");
+    webhookSecret = getStripeWebhookSecret("STRIPE-WEBHOOK");
+  } catch (error) {
+    console.error("[STRIPE-WEBHOOK] Missing Stripe configuration:", error);
     return new Response("Webhook not configured", { status: 500 });
   }
 
   const payload = await req.text();
-  const stripe = new Stripe(getStripeSecretKey(), {
+  const stripe = new Stripe(stripeSecretKey, {
     apiVersion: "2025-08-27.basil",
   });
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(payload, stripeSignature, webhookSecret);
+    event = await stripe.webhooks.constructEventAsync(
+      payload,
+      stripeSignature,
+      webhookSecret,
+    );
   } catch (error) {
     console.error("[STRIPE-WEBHOOK] Signature verification failed:", error);
     return new Response("Invalid signature", { status: 400 });
@@ -130,10 +139,12 @@ serve(async (req) => {
 
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
   );
 
-  const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
+  const paymentIntentId = typeof session.payment_intent === "string"
+    ? session.payment_intent
+    : session.payment_intent?.id;
   const shippingDetails = extractShippingDetails(session);
   const customerDetails = session.customer_details;
   const shippingAddress = shippingDetails?.address ?? null;
@@ -157,8 +168,14 @@ serve(async (req) => {
     updateData.customer_name = customerDetails.name;
   }
 
-  if (shippingAddress && (shippingAddress.line1 || shippingAddress.city || shippingAddress.postal_code)) {
-    const addressLine = [shippingAddress.line1, shippingAddress.line2].filter(Boolean).join(" ");
+  if (
+    shippingAddress &&
+    (shippingAddress.line1 || shippingAddress.city ||
+      shippingAddress.postal_code)
+  ) {
+    const addressLine = [shippingAddress.line1, shippingAddress.line2].filter(
+      Boolean,
+    ).join(" ");
     updateData.shipping_address = {
       address: addressLine,
       city: shippingAddress.city ?? "",
@@ -166,6 +183,84 @@ serve(async (req) => {
       zip: shippingAddress.postal_code ?? "",
       country: shippingAddress.country ?? "",
     };
+  }
+
+  const { data: existingOrder, error: orderLookupError } = await supabaseClient
+    .from("orders")
+    .select("*")
+    .eq("stripe_session_id", session.id)
+    .single();
+
+  if (orderLookupError || !existingOrder) {
+    console.error("[STRIPE-WEBHOOK] Failed to load order:", orderLookupError);
+    return new Response("Database lookup failed", { status: 500 });
+  }
+
+  const kexiaozhanOutTradeNo = extractKexiaozhanOutTradeNo(
+    existingOrder?.items,
+  );
+
+  if (kexiaozhanOutTradeNo) {
+    const { data: handoff, error: handoffLookupError } = await supabaseClient
+      .from("kexiaozhan_handoffs")
+      .select("expires_at")
+      .eq("out_trade_no", kexiaozhanOutTradeNo)
+      .maybeSingle();
+
+    if (handoffLookupError) {
+      console.error(
+        "[STRIPE-WEBHOOK] Failed to load Kexiaozhan handoff:",
+        handoffLookupError,
+      );
+      return new Response("Kexiaozhan handoff lookup failed", {
+        status: 500,
+      });
+    }
+
+    if (
+      handoff &&
+      isKexiaozhanHandoffExpired(handoff as KexiaozhanHandoffRecord)
+    ) {
+      const expiredOrderUpdate = buildExpiredKexiaozhanOrderUpdate(updateData);
+      const { error: expiredOrderError } = await supabaseClient
+        .from("orders")
+        .update(expiredOrderUpdate)
+        .eq("stripe_session_id", session.id);
+
+      if (expiredOrderError) {
+        console.error(
+          "[STRIPE-WEBHOOK] Failed to block expired Kexiaozhan order:",
+          expiredOrderError,
+        );
+        return new Response("Database update failed", { status: 500 });
+      }
+
+      const { error: expiredHandoffError } = await supabaseClient
+        .from("kexiaozhan_handoffs")
+        .update({
+          status: "expired",
+          snapcase_order_id: existingOrder.id,
+          stripe_session_id: session.id,
+          stripe_payment_intent_id: paymentIntentId ?? null,
+          customer_email: existingOrder.customer_email ??
+            customerDetails?.email ?? null,
+          last_error: KEXIAOZHAN_EXPIRED_HANDOFF_ERROR,
+        })
+        .eq("out_trade_no", kexiaozhanOutTradeNo);
+
+      if (expiredHandoffError) {
+        console.error(
+          "[STRIPE-WEBHOOK] Failed to mark expired Kexiaozhan handoff:",
+          expiredHandoffError,
+        );
+      }
+
+      console.warn(
+        "[STRIPE-WEBHOOK] Kexiaozhan payment completed after handoff expiration; fulfillment blocked:",
+        kexiaozhanOutTradeNo,
+      );
+      return new Response("OK", { status: 200 });
+    }
   }
 
   const { data: order, error: updateError } = await supabaseClient
@@ -183,13 +278,39 @@ serve(async (req) => {
   try {
     await sendOrderEmail(supabaseClient, "order_confirmed", order);
   } catch (emailError) {
-    console.error("[STRIPE-WEBHOOK] Failed to send confirmation email:", emailError);
+    console.error(
+      "[STRIPE-WEBHOOK] Failed to send confirmation email:",
+      emailError,
+    );
+  }
+
+  if (kexiaozhanOutTradeNo) {
+    const { error: handoffUpdateError } = await supabaseClient
+      .from("kexiaozhan_handoffs")
+      .update({
+        status: "paid",
+        snapcase_order_id: order.id,
+        stripe_session_id: session.id,
+        stripe_payment_intent_id: paymentIntentId ?? null,
+        customer_email: order.customer_email ?? customerDetails?.email ?? null,
+        last_error: null,
+      })
+      .eq("out_trade_no", kexiaozhanOutTradeNo);
+
+    if (handoffUpdateError) {
+      console.error(
+        "[STRIPE-WEBHOOK] Failed to update Kexiaozhan handoff:",
+        handoffUpdateError,
+      );
+    }
   }
 
   if (order?.user_id && Array.isArray(order.items)) {
     const items = order.items as OrderItem[];
     const designRows = items
-      .filter((item) => item?.designId && item?.designPreview && item?.variantId)
+      .filter((item) =>
+        item?.designId && item?.designPreview && item?.variantId
+      )
       .map((item) => ({
         user_id: order.user_id,
         design_id: item.designId,
@@ -207,7 +328,10 @@ serve(async (req) => {
         .upsert(designRows, { onConflict: "user_id,design_id" });
 
       if (designError) {
-        console.error("[STRIPE-WEBHOOK] Failed to save purchase designs:", designError);
+        console.error(
+          "[STRIPE-WEBHOOK] Failed to save purchase designs:",
+          designError,
+        );
       }
     }
   }
@@ -222,47 +346,78 @@ serve(async (req) => {
         shipping?.city &&
         shipping?.zip &&
         shipping?.country &&
-        shipping?.state
+        shipping?.state,
     );
 
-    if (!order.printful_order_id) {
-      if (hasShipping && (!order.printful_status || order.printful_status === "needs_shipping")) {
+    if (
+      !order.printful_order_id &&
+      (!order.fulfillment_provider || order.fulfillment_provider === "printful")
+    ) {
+      if (
+        hasShipping &&
+        (!order.printful_status || order.printful_status === "needs_shipping")
+      ) {
         await supabaseClient
           .from("orders")
-          .update({ printful_status: "pending", printful_last_error: null })
+          .update({
+            printful_status: "pending",
+            printful_last_error: null,
+            fulfillment_status: "pending",
+            fulfillment_last_error: null,
+          })
           .eq("id", order.id);
       }
 
       if (!hasShipping && !order.printful_status) {
         await supabaseClient
           .from("orders")
-          .update({ printful_status: "needs_shipping", printful_last_error: "Missing shipping address" })
+          .update({
+            printful_status: "needs_shipping",
+            printful_last_error: "Missing shipping address",
+            fulfillment_status: "needs_shipping",
+            fulfillment_last_error: "Missing shipping address",
+          })
           .eq("id", order.id);
       }
     }
 
     if (!hasShipping) {
-      console.warn("[STRIPE-WEBHOOK] Missing shipping address; skipping Printful submission.");
+      await supabaseClient
+        .from("orders")
+        .update({
+          fulfillment_status: "needs_shipping",
+          fulfillment_last_error: "Missing shipping address",
+          printful_status: "needs_shipping",
+          printful_last_error: "Missing shipping address",
+        })
+        .eq("id", order.id);
+
+      console.warn(
+        "[STRIPE-WEBHOOK] Missing shipping address; skipping fulfillment routing.",
+      );
       return new Response("OK", { status: 200 });
     }
 
     try {
-      const submitResponse = await fetch(`${supabaseUrl}/functions/v1/submit-printful-order`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${serviceRoleKey}`,
-          apikey: serviceRoleKey,
+      const submitResponse = await fetch(
+        `${supabaseUrl}/functions/v1/route-fulfillment-order`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceRoleKey}`,
+            apikey: serviceRoleKey,
+          },
+          body: JSON.stringify({ orderId: order.id }),
         },
-        body: JSON.stringify({ orderId: order.id }),
-      });
+      );
 
       if (!submitResponse.ok) {
         const body = await submitResponse.text();
-        console.error("[STRIPE-WEBHOOK] Printful submission failed:", body);
+        console.error("[STRIPE-WEBHOOK] Fulfillment routing failed:", body);
       }
     } catch (error) {
-      console.error("[STRIPE-WEBHOOK] Printful submission error:", error);
+      console.error("[STRIPE-WEBHOOK] Fulfillment routing error:", error);
     }
   }
 
