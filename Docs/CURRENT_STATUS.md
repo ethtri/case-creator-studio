@@ -10,10 +10,11 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 ## Blockers
 - Physical manual-production dry run remains: print/pack/ship a real test case from the staging queue process before production pilot.
 - Production Kexiaozhan launch still needs issue #30 resolved: vendor unpaid-order TTL is 15 minutes, while Stripe Checkout's minimum expiration is 30 minutes.
+- Production Kexiaozhan launch also needs issue #36 resolved: Snapcase must server-control admin/batch print mode so paid online orders do not trigger uncontrolled immediate continuous printing.
 
 ## Top 3 Next Tasks
 1. P0: Manual production dry run - use the queued staging onshore job to print/pack/ship manually, then verify status/tracking updates.
-2. P0: Resolve Kexiaozhan TTL production decision - avoid customer payment after vendor unpaid order cancellation; issue #30 tracks the decision.
+2. P0: Resolve Kexiaozhan production controls - TTL decision in issue #30 and admin/batch print-mode callback field in issue #36.
 3. P0: Production cutover readiness - production secrets, rollback runbook, and first supervised pilot order.
 
 ## Now / Next / Later
@@ -21,7 +22,7 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - P0: Manual production dry run - use the queued staging onshore job to print/pack/ship manually, then verify status/tracking updates.
 
 **Next**
-- P0: Resolve Kexiaozhan TTL production decision - avoid customer payment after vendor unpaid order cancellation; issue #30 tracks the decision.
+- P0: Resolve Kexiaozhan production controls - TTL decision in issue #30 and admin/batch print-mode callback field in issue #36.
 - P0: Production cutover readiness - production secrets, rollback runbook, and first supervised pilot order.
 
 **Later**
@@ -55,3 +56,4 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - Kexiaozhan live callback gate: staging can now enable `/client/process-payment-notify` for only one vendor-originated sandbox `outTradeNo` or agreed prefix, while unrelated synthetic handoffs remain dry-run.
 - Kexiaozhan vendor-originated live callback smoke on 2026-06-17 UTC: Kexiaozhan generated four real sandbox handoffs through the clean bridge; Snapcase Stripe test payment succeeded for all four; each handoff reached `vendor_notified`; each order is `processing` with one `onshore_manual` queued job; each live `/client/process-payment-notify` response was HTTP 200 with `{"code":0,"msg":"success","data":{}}`. Staging live callback was disabled afterward.
 - Remaining blockers after latest response: Kexiaozhan still owes detailed print/order status APIs, reprint API, public mobile designer URL/return URL configuration, and whether Snapcase can explicitly cancel or extend vendor orders instead of relying on the 15-minute vendor timeout. Issue #30 tracks the remaining business/vendor decision for the 15-minute vendor timeout vs Stripe's 30-minute minimum Checkout Session expiration; Snapcase now has a fail-closed late-payment guard, but production should still avoid a customer-pay-then-review/refund path if possible.
+- Kexiaozhan/Alejandro print-mode clarification: Alejandro warned immediate paid-order printing can block the machine output slot during continuous orders. Kexiaozhan indicated they can add a payment-callback field so Snapcase controls immediate print versus admin/batch handling. Issue #36 tracks the exact field contract, signing behavior, sandbox/production support, and verification that customers cannot choose print behavior.

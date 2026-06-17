@@ -107,6 +107,7 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 
 - Alejandro completes one on-site staging dry run: print, pack, ship, and update `/operations`.
 - Issue #30 is resolved with a production-safe TTL answer from Kexiaozhan: extend unpaid-order validity to 30+ minutes, or provide tested cancel/refresh/recreate behavior.
+- Issue #36 is resolved with Kexiaozhan's callback field for admin-controlled print mode; customers do not choose whether orders print immediately.
 - Production secrets are configured without exposing keys; keep `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false` until go/no-go.
 - Production env cutover is approved: `FULFILLMENT_PROVIDER=onshore_manual`, `ALLOW_ONSHORE_MANUAL=true`, exact `OPERATOR_EMAILS`, Stripe live webhook, production Kexiaozhan base URL, production machine key, allowed production machine SN, and checkout pricing.
 - Rollback is reviewed: switch new orders back to `printful`; manually disposition already queued onshore jobs.

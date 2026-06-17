@@ -8,6 +8,7 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 - Four real Kexiaozhan sandbox orders completed successfully on 2026-06-17 UTC.
 - Production remains Printful-backed until an explicit cutover is approved.
 - Issue #30 remains the production blocker for the Kexiaozhan 15-minute unpaid-order timeout versus Stripe Checkout's 30-minute minimum expiration.
+- Issue #36 tracks new Kexiaozhan/Alejandro guidance that paid online orders should use admin-controlled batch printing, not uncontrolled immediate continuous printing.
 
 ## Production Gates
 
@@ -21,16 +22,21 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
    - Acceptable alternative: provide tested cancel, refresh, or recreate behavior.
    - Do not enable public production Kexiaozhan traffic until issue #30 is resolved.
 
-3. Production environment is ready.
+3. Kexiaozhan print mode is server-controlled.
+   - Confirm the exact payment-callback field that controls immediate print versus admin/batch handling.
+   - Snapcase controls this field server-side; customers do not choose the print behavior.
+   - First production pilot should use admin/batch mode unless operations explicitly approves otherwise.
+
+4. Production environment is ready.
    - Configure production Supabase/Vercel secrets only after gates pass.
    - Required: `FULFILLMENT_PROVIDER=onshore_manual`, `ALLOW_ONSHORE_MANUAL=true`, `OPERATOR_EMAILS`, Stripe live keys/webhook, production Kexiaozhan base URL, production `machineKey`, allowed production `machine_sn`, checkout pricing, and callback gate settings.
    - Keep `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false` until go/no-go.
 
-4. Cutover and rollback runbook is approved.
+5. Cutover and rollback runbook is approved.
    - Include env switch, function deploy list, smoke order, callback enablement, rollback to Printful, and sign-off owners.
    - Rollback for new orders is one env change back to `printful`; already queued onshore jobs need operator disposition.
 
-5. First production pilot order is supervised.
+6. First production pilot order is supervised.
    - Use exact `outTradeNo` callback allowlist if practical.
    - Verify Stripe live payment, Kexiaozhan callback success, one production job, and Alejandro workflow.
    - Disable or narrow callback if anything unexpected appears.
@@ -38,6 +44,7 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 ## Production Board
 
 - #30 - Resolve Kexiaozhan 15-minute timeout vs Stripe Checkout expiration.
+- #36 - Confirm Kexiaozhan paid-order print mode control.
 - #35 - Alejandro on-site manual production dry run.
 - #33 - Production environment and secret readiness.
 - #34 - Production cutover and rollback runbook.
@@ -61,7 +68,7 @@ Kexiaozhan engineers:
 ```text
 谢谢你们配合测试！我们这边确认四笔 sandbox 订单数据都正确，Stripe 测试支付和 /client/process-payment-notify 回调都成功了。
 
-上线前我们这边只剩两个需要确认的生产事项：
+上线前我们这边只剩三个需要确认的生产事项：
 
 1. 未支付订单有效期现在是 15 分钟，但 Stripe Checkout 最短是 30 分钟。生产环境最好需要把有效期延长到 30 分钟以上，或者提供取消/刷新/重新创建订单的方法，避免客户在订单过期后还能付款。
 
@@ -71,7 +78,9 @@ https://kxzus.kexiaozhan.com
 Snapcase 生产跳转地址预计是：
 https://www.snapcase.ai/kexiaozhan/checkout
 
-目前不需要新的接口文档；主要是确认以上两个生产上线事项。谢谢！
+3. 关于“是否立即打印”的字段，请确认字段名、取值、默认值、是否参与同样的 HMAC 签名，以及 sandbox/production 是否都支持。我们希望由 Snapcase 服务端控制，默认使用管理员集中打印，顾客不参与选择。
+
+目前不需要新的接口文档；主要是确认以上三个生产上线事项。谢谢！
 ```
 
 ## Verification Before Cutover
@@ -84,4 +93,5 @@ https://www.snapcase.ai/kexiaozhan/checkout
 - Deno tests for Kexiaozhan signing, handoff, callback gate, timeout guard, Stripe config, and CORS.
 - Staging dry run with Alejandro.
 - Delayed-payment or expired-handoff scenario proves fail-closed behavior.
+- Kexiaozhan callback print-mode field proves admin/batch handling and no uncontrolled immediate printing.
 - Production pilot order proves live Stripe payment, Kexiaozhan callback, exactly one production job, and operator workflow.
