@@ -66,6 +66,11 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - For protected PR previews, `kexiaozhan-checkout-redirect` provides a clean
   vendor-facing staging URL and server-side redirects into the protected preview
   with the temporary Vercel bypass. Do not post or commit the bypass secret.
+- For Alejandro's async `/operations` dry run, prefer a real staging custom
+  domain over sharing a preview bypass token. Current planned URL is
+  `https://staging.snapcase.ai/operations`; GoDaddy DNS must add
+  `A staging.snapcase.ai 76.76.21.21` before Vercel can finish the
+  alias/certificate.
 - Kexiaozhan late-payment protection is fail-closed: if Stripe confirms payment
   after the stored Kexiaozhan handoff `expires_at`, `stripe-webhook`,
   `verify-payment`, and `route-fulfillment-order` mark the order for
@@ -109,7 +114,7 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 
 ## Controlled Production Pilot Checklist
 
-- Alejandro completes one on-site staging dry run: print, pack, ship, and update `/operations`.
+- Alejandro completes one async on-site staging dry run: use a verified staging `/operations` URL, print, pack, ship, and update the fresh staging test job when available.
 - Issue #30 is resolved with a production-safe TTL answer from Kexiaozhan: extend unpaid-order validity to 30+ minutes, or provide tested cancel/refresh/recreate behavior.
 - Issue #30 fallback is verified if Kexiaozhan does not change TTL: `kexiaozhan-checkout-expirer` expires open Stripe Checkout Sessions before the vendor TTL cutoff.
 - Issue #36 is resolved with Kexiaozhan's callback field for admin-controlled print mode; configure it with `KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON`. Customers do not choose whether orders print immediately.
