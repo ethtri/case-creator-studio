@@ -12,9 +12,11 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 
 ## Production Gates
 
-1. Alejandro completes one on-site staging dry run.
-   - Use one fresh staging paid order routed to `onshore_manual`.
-   - Alejandro prints, packs, and marks the job shipped from `/operations`.
+1. Alejandro completes one async on-site staging dry run.
+   - First verify a staging `/operations` URL that Alejandro can access and that points to staging Supabase data.
+   - Current planned URL is `https://staging.snapcase.ai/operations`; GoDaddy DNS must add `A staging.snapcase.ai 76.76.21.21` before Vercel can finish the alias/certificate.
+   - Use one fresh staging paid order routed to `onshore_manual` after Alejandro's operator email and rough timing are known.
+   - Alejandro prints, packs, and marks the job shipped from `/operations` when he is available; a live call is not required.
    - Verify tracking/status update and exactly one `production_jobs` row.
 
 2. Kexiaozhan resolves the production TTL risk.
@@ -46,6 +48,10 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 - #30 - Resolve Kexiaozhan 15-minute timeout vs Stripe Checkout expiration.
 - #36 - Confirm Kexiaozhan paid-order print mode control.
 - #35 - Alejandro on-site manual production dry run.
+- #38 - Prepare Alejandro async dry-run access packet.
+- #39 - Create fresh staging dry-run order for Alejandro.
+- #40 - Verify Alejandro async dry-run evidence.
+- #41 - Provide Alejandro-accessible staging operations URL.
 - #33 - Production environment and secret readiness.
 - #34 - Production cutover and rollback runbook.
 - #32 - Production pilot order and monitoring.
@@ -56,11 +62,13 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 Alejandro:
 
 ```text
-Hi Alejandro! We’re getting ready for a controlled Snapcase production pilot.
+Hi Alejandro! We’re ready to do the Snapcase pre-production dry run.
 
-Before we launch, we need one on-site dry run with you. The goal is to take one test order from the internal operations queue, print it, pack it, and mark it shipped so we can confirm the full physical workflow.
+This will not be live customer traffic. We’ll create one test order in staging and send you the operations link and the specific test order/job.
 
-We’ll send you the operations link and the specific test order when it’s ready. For now, can you please confirm when you’ll be available for a 30-45 minute dry run?
+You do not need to do it live with us. When you have time, please open the operations queue, find the test job, print it, pack it, and mark it shipped with test tracking. The main goal is to confirm the physical workflow is workable and that the operations screen has everything you need.
+
+Could you please send the email address you want to use for the operations login, and let me know roughly when you think you can try it?
 ```
 
 Kexiaozhan engineers:
@@ -91,7 +99,7 @@ https://www.snapcase.ai/kexiaozhan/checkout
 - `npm run lint --if-present`
 - `npm run type-check --if-present`
 - Deno tests for Kexiaozhan signing, handoff, callback gate, timeout guard, Stripe config, and CORS.
-- Staging dry run with Alejandro.
+- Async staging dry run with Alejandro through a verified staging `/operations` URL.
 - Delayed-payment or expired-handoff scenario proves fail-closed behavior.
 - Kexiaozhan callback print-mode field proves admin/batch handling and no uncontrolled immediate printing.
 - Production pilot order proves live Stripe payment, Kexiaozhan callback, exactly one production job, and operator workflow.

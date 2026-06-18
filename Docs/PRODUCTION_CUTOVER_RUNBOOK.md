@@ -5,7 +5,7 @@ Controlled Kexiaozhan/onshore production pilot runbook. This is not a full publi
 ## Preconditions
 
 - PR #27 is merged and production deploy is healthy.
-- Alejandro completes the staging manual dry run in issue #35.
+- Alejandro completes the async staging manual dry run in issue #35, using a verified staging `/operations` URL and a fresh staging test job.
 - Issue #30 has an accepted TTL operating answer:
   - preferred: Kexiaozhan extends unpaid-order TTL to 30+ minutes, or
   - accepted fallback: `kexiaozhan-checkout-expirer` is deployed, scheduled every minute, and verified to expire open Stripe Checkout Sessions before the Kexiaozhan TTL cutoff.
