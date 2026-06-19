@@ -76,6 +76,9 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
   `verify-payment`, and `route-fulfillment-order` mark the order for
   `payment_review`/`kexiaozhan_handoff_expired` instead of routing production or
   notifying the vendor.
+- `stripe-webhook` ignores completed Stripe Checkout Sessions that do not carry
+  Snapcase ownership metadata and have no matching order row. Missing rows for
+  Snapcase-owned sessions still fail loudly for investigation.
 - `kexiaozhan-checkout-expirer` is the scheduled fallback for issue #30. It
   expires open Stripe Checkout Sessions close to the Kexiaozhan unpaid-order TTL
   and marks the handoff `expired`; schedule it every minute through the Supabase
@@ -132,6 +135,9 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 
 ## Open Hardening Items
 
+- Disable/delete the staging Stripe webhook endpoint when not actively testing,
+  or keep it narrowed to test-mode `checkout.session.completed` and
+  `checkout.session.async_payment_succeeded` only.
 - Rotate the pasted Stripe test secret and any staging-only route/preview bypass secrets after staging validation.
 - Revoke or rotate the temporary Vercel preview bypass after Kexiaozhan completes
   the real sandbox redirect smoke.

@@ -12,6 +12,10 @@ import {
   isKexiaozhanHandoffExpired,
   KEXIAOZHAN_EXPIRED_HANDOFF_ERROR,
 } from "../_shared/kexiaozhan-payment-guard.ts";
+import {
+  isMissingSupabaseRowError,
+  isSnapcaseCheckoutSession,
+} from "../_shared/stripe-webhook-ownership.ts";
 
 type ShippingDetails = {
   name?: string | null;
@@ -192,6 +196,17 @@ serve(async (req) => {
     .single();
 
   if (orderLookupError || !existingOrder) {
+    if (
+      (!orderLookupError || isMissingSupabaseRowError(orderLookupError)) &&
+      !isSnapcaseCheckoutSession(session)
+    ) {
+      console.warn(
+        "[STRIPE-WEBHOOK] Ignoring unrelated Checkout Session:",
+        session.id,
+      );
+      return new Response("Ignored", { status: 200 });
+    }
+
     console.error("[STRIPE-WEBHOOK] Failed to load order:", orderLookupError);
     return new Response("Database lookup failed", { status: 500 });
   }
