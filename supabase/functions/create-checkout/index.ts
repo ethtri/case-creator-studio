@@ -421,6 +421,7 @@ serve(async (req) => {
         },
       ],
       metadata: {
+        source: "snapcase_site",
         itemsJson: JSON.stringify(items.map((i) => ({
           variantId: i.variantId,
           quantity: i.quantity,
