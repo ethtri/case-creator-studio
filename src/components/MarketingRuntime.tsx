@@ -16,10 +16,11 @@ export const MarketingRuntime = () => {
   useEffect(() => {
     captureMarketingAttribution();
     trackMarketingEvent("page_view", {
-      page_path: location.pathname,
+      page_path: `${location.pathname}${location.search}`,
+      page_location: window.location.href,
       page_title: document.title,
     });
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   return null;
 };

@@ -33,7 +33,11 @@ declare global {
   }
 }
 
-const GA_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined;
+const SNAPCASE_GA_MEASUREMENT_ID = "G-MV7NDH4KTK";
+const CONFIGURED_GA_MEASUREMENT_ID = (
+  import.meta.env.VITE_GA_MEASUREMENT_ID as string | undefined
+)?.trim();
+const SNAPCASE_PRODUCTION_HOSTS = new Set(["snapcase.ai", "www.snapcase.ai"]);
 const ATTRIBUTION_STORAGE_KEY = "snapcase_marketing_attribution";
 const TRACKING_PARAMS = [
   "utm_source",
@@ -50,7 +54,16 @@ let analyticsLoaded = false;
 
 const isBrowser = () => typeof window !== "undefined";
 
-const hasAnalytics = () => Boolean(GA_MEASUREMENT_ID && GA_MEASUREMENT_ID.trim());
+const getGaMeasurementId = () => {
+  if (CONFIGURED_GA_MEASUREMENT_ID) return CONFIGURED_GA_MEASUREMENT_ID;
+  if (!isBrowser()) return undefined;
+
+  return SNAPCASE_PRODUCTION_HOSTS.has(window.location.hostname.toLowerCase())
+    ? SNAPCASE_GA_MEASUREMENT_ID
+    : undefined;
+};
+
+const hasAnalytics = () => Boolean(getGaMeasurementId());
 
 const cleanString = (value: string | null) => {
   if (!value) return undefined;
@@ -91,7 +104,8 @@ const sanitizePayload = (payload: MarketingEventPayload = {}) =>
   );
 
 export const loadGoogleAnalytics = () => {
-  if (!isBrowser() || !hasAnalytics() || analyticsLoaded) return;
+  const measurementId = getGaMeasurementId();
+  if (!isBrowser() || !measurementId || analyticsLoaded) return;
 
   analyticsLoaded = true;
   window.dataLayer = window.dataLayer ?? [];
@@ -103,13 +117,11 @@ export const loadGoogleAnalytics = () => {
 
   const script = document.createElement("script");
   script.async = true;
-  script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(
-    GA_MEASUREMENT_ID!
-  )}`;
+  script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
   document.head.appendChild(script);
 
   window.gtag("js", new Date());
-  window.gtag("config", GA_MEASUREMENT_ID, { send_page_view: false });
+  window.gtag("config", measurementId, { send_page_view: false });
 };
 
 export const trackMarketingEvent = (
