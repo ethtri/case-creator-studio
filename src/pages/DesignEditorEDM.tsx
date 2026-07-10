@@ -128,10 +128,16 @@ const DesignEditorEDM = () => {
   const scriptLoadedRef = useRef(false);
   const headerRef = useRef<HTMLDivElement | null>(null);
   const footerRef = useRef<HTMLDivElement | null>(null);
+  const designerContainerRef = useRef<HTMLDivElement | null>(null);
   const [designerHeight, setDesignerHeight] = useState<number | null>(null);
   const resizeIntervalRef = useRef<number | null>(null);
 
   const buildDesignKey = useCallback((id: string, suffix: string) => `edmDesign:${id}:${suffix}`, []);
+
+  const isDesignerReady = useCallback(() => {
+    const container = designerContainerRef.current;
+    return Boolean(container && container.isConnected);
+  }, []);
 
   const prewarmEdmPreview = useCallback(async (templateId: number) => {
     if (!variant) return;
@@ -278,6 +284,10 @@ const DesignEditorEDM = () => {
   const initializeDesignMaker = useCallback(async () => {
     if (!variant || !window.PFDesignMaker || !variantId || !designId) {
       debugLog('Waiting for variant or PFDesignMaker...', { variant: !!variant, PFDesignMaker: !!window.PFDesignMaker });
+      return;
+    }
+    if (!isDesignerReady()) {
+      debugLog('Designer container not ready yet.');
       return;
     }
 
@@ -466,6 +476,7 @@ const DesignEditorEDM = () => {
     prewarmEdmPreview,
     buildDesignKey,
     isMobile,
+    isDesignerReady,
   ]);
 
   const updateDesignerHeight = useCallback(() => {
@@ -478,7 +489,7 @@ const DesignEditorEDM = () => {
   }, [isMobile, isImmersive]);
 
   const forceEmbedSizing = useCallback(() => {
-    const container = document.getElementById("printful-designer");
+    const container = designerContainerRef.current;
     if (!container) return;
 
     container.style.setProperty("height", designerHeight ? `${designerHeight}px` : "100%", "important");
@@ -601,11 +612,13 @@ const DesignEditorEDM = () => {
   // Initialize EDM when variant and script are ready
   useEffect(() => {
     if (variant && scriptLoadedRef.current && window.PFDesignMaker) {
-      initializeDesignMaker();
+      if (isDesignerReady()) {
+        initializeDesignMaker();
+      }
     } else if (variant) {
       // Poll for script load
       const interval = setInterval(() => {
-        if (window.PFDesignMaker) {
+        if (window.PFDesignMaker && isDesignerReady()) {
           clearInterval(interval);
           initializeDesignMaker();
         }
@@ -625,14 +638,14 @@ const DesignEditorEDM = () => {
         clearTimeout(timeout);
       };
     }
-  }, [variant, initializeDesignMaker]);
+  }, [variant, initializeDesignMaker, isDesignerReady]);
 
   useEffect(() => {
     if (!iframeLoaded) return;
     forceEmbedSizing();
 
     let resizeObserver: ResizeObserver | null = null;
-    const container = document.getElementById("printful-designer");
+    const container = designerContainerRef.current;
     if (container && "ResizeObserver" in window) {
       resizeObserver = new ResizeObserver(() => {
         forceEmbedSizing();
@@ -926,6 +939,7 @@ const DesignEditorEDM = () => {
           <div 
             id="printful-designer" 
             className="flex-1 w-full"
+            ref={designerContainerRef}
             style={{ 
               height: designerHeight ? `${designerHeight}px` : undefined,
               opacity: iframeLoaded ? 1 : 0,
