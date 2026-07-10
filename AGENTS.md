@@ -28,7 +28,10 @@
 - Expand scope beyond `Docs/MVP_SCOPE.md`.
 
 ## Definition of Done (task)
-Done means: code/docs change complete + docs updated (if P0) + verification run + PR opened.
+Done means: code/docs change complete + docs updated (if P0) + verification
+run + PR opened, QA passed, and PR merged. If a PR cannot be merged, document
+the specific external blocker and leave it open only while that blocker is
+active.
 
 ## Version control protocol (must follow)
 
@@ -57,6 +60,21 @@ Done means: code/docs change complete + docs updated (if P0) + verification run 
   - How to test (localhost steps or a clear note when no runtime flow changed)
   - Docs/status updates
   - Risk/overlap notes, including open PRs touching the same files
+
+### Proactive PR QA And Merge (always)
+- After opening a PR, proactively inspect its diff, review comments, merge
+  state, and CI status. Do not wait for a separate user request to begin QA.
+- Merge the PR with squash once all required checks pass, focused validation is
+  appropriate for the changed surface, there are no unresolved review comments,
+  and the PR is clean against `main`.
+- For frontend-visible changes, perform a rendered browser check when a usable
+  environment is available. If the environment prevents that check, record the
+  limitation and complete all available static/build validation.
+- Before merging a PR that touches shared foundations, fetch current `main`,
+  update the branch if needed, and rerun the affected verification.
+- Never merge failing, conflicted, stale, or insufficiently verified PRs. Fix
+  them first; if a PR is a proven duplicate or already superseded, leave an
+  evidence-backed comment and close it instead of force-merging it.
 
 ### Multi-agent branch safety
 - If another PR that touches shared foundations merges, update your branch from `main` before final verification.
