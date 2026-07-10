@@ -1,6 +1,6 @@
 # Kexiaozhan Webhook Payment Integration Guide
 
-Last updated: 2026-06-16
+Last updated: 2026-07-10
 
 Purpose: preserve the latest vendor-provided payment webhook guide and email
 confirmation so future agents do not have to recover this from chat history,
@@ -8,9 +8,10 @@ Downloads, or Gmail.
 
 Source: user-provided `Webhook_Payment_Integration_Guide.md`, the vendor email
 response shared on 2026-06-07, the latest chief engineer WeChat
-clarifications, and the 2026-06-09 Gmail attachments containing local
-verification tools. The chat attachment, Gmail attachment, and local download
-are not the durable source; this document is.
+clarifications, the 2026-06-09 Gmail attachments containing local verification
+tools, and the 2026-07-10 fulfillment-mode update guide. The chat attachment,
+Gmail attachment, and local download are not the durable source; this document
+is.
 
 Source handling: do not commit real `machineKey` values, sandbox credentials,
 tokenized designer URLs, customer artwork, Stripe secrets, webhook secrets, or
@@ -32,6 +33,31 @@ signature rules, and that the fixed `/client/process-payment-notify` and
 `/client/query-status` APIs rely only on signature verification. The vendor also
 confirmed `transactionId` should be the Stripe PaymentIntent ID, and `payTime`
 should be UTC RFC3339.
+
+### Fulfillment Mode Update (2026-07-10)
+
+For every successful (`orderStatus=1`) payment callback, Snapcase must send a
+non-empty, exactly spelled `fulfillmentMethod` field and include it in the same
+HMAC-SHA256 signature as the other non-empty callback fields.
+
+| Value | Vendor behavior | Snapcase policy |
+| --- | --- | --- |
+| `immediatePrint` | Dispatches one print task immediately. | Supported by the contract, but not used for the staging or first pilot physical test. |
+| `deferredPrint` | Moves the paid order to pending print without dispatching a task. | Required default. Snapcase operations, not customers, controls when the order is released for printing. |
+
+The first valid success callback fixes the vendor fulfillment mode. Retries must
+reuse the same value. A missing, whitespace-padded, or invalid value causes the
+vendor to reject the callback, so Snapcase blocks the callback before sending it
+when its server-side configuration is invalid.
+
+The exact staging and first-pilot configuration is:
+
+```json
+{"fulfillmentMethod":"deferredPrint"}
+```
+
+Store it only in `KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON`. Do not expose a
+print-timing choice in customer UI.
 
 Latest vendor clarification:
 
@@ -338,15 +364,14 @@ Unpaid or cannot-confirm response:
   `expires_at`, expires still-open Stripe Checkout Sessions through Stripe, and
   marks the handoff `expired` so the same signed payload cannot create a new
   checkout after the safe window.
-- The route defaults to dry-run. It only calls
-  `/client/process-payment-notify` when
+- The route calls `/client/process-payment-notify` only when
   `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=true`, `KEXIAOZHAN_MACHINE_KEY` is set, and
-  a Stripe `stripe_payment_intent_id` is present.
-- When Kexiaozhan confirms the admin/batch print-mode field from issue #36,
-  configure it as `KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON`. The JSON object
-  is merged into the `/client/process-payment-notify` body and signed with the
-  same HMAC-SHA256 method as the core callback fields. Do not expose print-mode
-  choice to customers.
+  a verified payment reference and valid `fulfillmentMethod` are present.
+- `KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON` is merged into the
+  `/client/process-payment-notify` body and signed with the same HMAC-SHA256
+  method as the core callback fields. Successful callbacks require the exact
+  `{"fulfillmentMethod":"deferredPrint"}` configuration for staging and the
+  first pilot. Do not expose print-mode choice to customers.
 - For staging vendor-originated smoke tests, prefer enabling live callback with
   `KEXIAOZHAN_PAYMENT_NOTIFY_REQUIRE_ALLOWLIST=true` plus either
   `KEXIAOZHAN_PAYMENT_NOTIFY_ALLOWED_OUT_TRADE_NOS=<exact outTradeNo>` or
@@ -354,7 +379,10 @@ Unpaid or cannot-confirm response:
   unrelated synthetic handoffs in dry-run mode while allowing the one real
   Kexiaozhan sandbox order to receive `/client/process-payment-notify`.
 - The route formats `payTime` as UTC RFC3339 and uses
-  `orders.stripe_payment_intent_id` as `transactionId`.
+  `orders.stripe_payment_intent_id` as `transactionId` when Stripe creates a
+  PaymentIntent. A verified zero-total Checkout Session has no payment method;
+  Snapcase uses a deterministic `SC` plus order UUID reference instead, without
+  writing that synthetic value into Stripe-specific database columns.
 - A previously successful live callback recorded on the production job is not
   resent by route retries.
 - Staging validation on 2026-06-16 deployed the handoff migration and changed
@@ -396,9 +424,10 @@ Unpaid or cannot-confirm response:
 - Configure `KEXIAOZHAN_CHECKOUT_EXPIRER_AUTH_SECRET` in Edge Function secrets
   and the matching `kexiaozhan_checkout_expirer_auth_secret` in Supabase Vault;
   the scheduled cron uses this dedicated secret instead of the service-role key.
-- Configure `KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON` only after
-  Kexiaozhan confirms the print-mode field name and values. Example shape after
-  confirmation: `{"printImmediately":false,"printMode":"admin_batch"}`.
+- Configure `KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON` as
+  `{"fulfillmentMethod":"deferredPrint"}` in staging and the first pilot.
+  Successful vendor callbacks are blocked locally if the field is absent or not
+  one of the two exact vendor values.
 - Stripe Checkout Sessions cannot be configured to expire sooner than 30
   minutes. Kexiaozhan says unpaid vendor orders cancel after 15 minutes, so
   production launch should still resolve that mismatch with the vendor if
@@ -406,10 +435,10 @@ Unpaid or cannot-confirm response:
   guard and a proactive Stripe Checkout expirer fallback, but the preferred
   production behavior is still to prevent customers from paying after the vendor
   order is no longer valid.
-- The local trigger guide provides a browser HTML verifier plus
-  `local_webhook_proxy_threaded.py`. The proxy listens on
-  `http://127.0.0.1:8787`, forwards only `/client/process-payment-notify` and
-  `/client/query-status`, and uses `TARGET_BASE` for the upstream domain.
+- The local trigger guide provides a browser HTML verifier plus a local proxy.
+  These are debugging aids only and must not be committed or used as production
+  integration code. Their historical default domain is outdated, and their
+  browser/local logs can expose signed callback bodies or `machineKey` values.
 - The HTML trigger is a debug aid, not the production contract. It includes
   older default callback values such as `transactionId=TP...` and
   `payTime=yyyy-MM-dd HH:mm:ss`; override those with the later-confirmed
@@ -428,4 +457,5 @@ These items remain unresolved after the latest WeChat clarification:
 3. Public mobile designer URL and return URL configuration.
 4. Production validation of either Kexiaozhan's TTL extension/cancel behavior or
    Snapcase's scheduled `kexiaozhan-checkout-expirer` fallback.
-5. Exact admin/batch print-mode callback field contract from issue #36.
+5. Kexiaozhan's administrator release/batch-print procedure for a
+   `deferredPrint` order, followed by a supervised deferred physical test.

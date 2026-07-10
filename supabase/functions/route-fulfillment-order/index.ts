@@ -4,9 +4,13 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import {
   buildKexiaozhanPaymentNotification,
   formatKexiaozhanPayTimeUtc,
+  getKexiaozhanFulfillmentMethod,
   parseKexiaozhanPaymentNotificationExtraFields,
 } from "../_shared/kexiaozhan-payment.ts";
 import { resolveKexiaozhanLiveNotifyGate } from "../_shared/kexiaozhan-notify-gate.ts";
+import {
+  resolveKexiaozhanPaymentTransaction,
+} from "../_shared/kexiaozhan-payment-transaction.ts";
 import {
   buildExpiredKexiaozhanOrderUpdate,
   isKexiaozhanHandoffExpired,
@@ -322,7 +326,7 @@ async function recordKexiaozhanHandoffNotification(
   supabaseAdmin: unknown,
   payment: KexiaozhanPaymentContext,
   paymentNotification: JsonRecord,
-  transactionId: string | null,
+  stripePaymentIntentId: string | null,
 ): Promise<void> {
   try {
     const response = isRecord(paymentNotification.response)
@@ -331,9 +335,17 @@ async function recordKexiaozhanHandoffNotification(
     const responseOk = response?.ok === true;
     const notifyMode = getStringField(paymentNotification, "mode");
     const reason = getStringField(paymentNotification, "reason");
+    const request = isRecord(paymentNotification.request)
+      ? paymentNotification.request
+      : null;
+    const requestBody = request && isRecord(request.body) ? request.body : null;
+    const hasSuccessfulPayment = getStringField(
+      requestBody ?? {},
+      "orderStatus",
+    ) === "1";
     const status = notifyMode === "live"
       ? responseOk ? "vendor_notified" : "vendor_notify_failed"
-      : transactionId
+      : hasSuccessfulPayment
       ? "paid"
       : "checkout_created";
     const lastError = responseOk
@@ -343,7 +355,7 @@ async function recordKexiaozhanHandoffNotification(
 
     const update: JsonRecord = {
       status,
-      stripe_payment_intent_id: transactionId,
+      stripe_payment_intent_id: stripePaymentIntentId,
       notify_request: paymentNotification.request ?? null,
       notify_response: response,
       last_error: lastError,
@@ -403,13 +415,34 @@ async function recordKexiaozhanPaymentNotification(
     const endpoint =
       `${getKexiaozhanApiBaseUrl()}/client/process-payment-notify`;
     const machineKey = Deno.env.get("KEXIAOZHAN_MACHINE_KEY")?.trim() ?? "";
-    const transactionId = getStringField(
+    const stripePaymentIntentId = getStringField(
       isRecord(order) ? order : {},
       "stripe_payment_intent_id",
     );
+    const transaction = resolveKexiaozhanPaymentTransaction({
+      orderId: String(order.id),
+      orderStatus: order.status,
+      orderTotal: order.total,
+      stripeSessionId: order.stripe_session_id,
+      stripePaymentIntentId,
+    });
+    const transactionId = transaction?.transactionId ?? null;
     const payTime = formatKexiaozhanPayTimeUtc(new Date());
-    const extraNotifyFields = parseKexiaozhanPaymentNotificationExtraFields(
-      Deno.env.get("KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON"),
+    let extraNotifyFields = parseKexiaozhanPaymentNotificationExtraFields(
+      undefined,
+    );
+    let extraNotifyFieldsError: string | null = null;
+    try {
+      extraNotifyFields = parseKexiaozhanPaymentNotificationExtraFields(
+        Deno.env.get("KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON"),
+      );
+    } catch (error) {
+      extraNotifyFieldsError = error instanceof Error
+        ? error.message
+        : "invalid Kexiaozhan callback extra fields";
+    }
+    const fulfillmentMethod = getKexiaozhanFulfillmentMethod(
+      extraNotifyFields,
     );
     const unsignedBody = {
       outTradeNo: payment.outTradeNo,
@@ -437,11 +470,29 @@ async function recordKexiaozhanPaymentNotification(
       payTimeFormat: "RFC3339",
       payTimeTimezone: "UTC",
       authentication: "signature_only",
+      transactionIdSource: transaction?.source ?? null,
     };
 
     if (!transactionId) {
       paymentNotification.mode = "blocked";
-      paymentNotification.reason = "missing_stripe_payment_intent_id";
+      paymentNotification.reason = "missing_verified_payment_reference";
+      paymentNotification.request = {
+        method: "POST",
+        body: unsignedBody,
+      };
+    } else if (extraNotifyFieldsError) {
+      paymentNotification.mode = "blocked";
+      paymentNotification.reason = "invalid_payment_notify_extra_fields";
+      paymentNotification.configError = truncateForMetadata(
+        extraNotifyFieldsError,
+      );
+      paymentNotification.request = {
+        method: "POST",
+        body: unsignedBody,
+      };
+    } else if (!fulfillmentMethod) {
+      paymentNotification.mode = "blocked";
+      paymentNotification.reason = "missing_or_invalid_fulfillmentMethod";
       paymentNotification.request = {
         method: "POST",
         body: unsignedBody,
@@ -499,7 +550,7 @@ async function recordKexiaozhanPaymentNotification(
       supabaseAdmin,
       payment,
       paymentNotification,
-      transactionId,
+      stripePaymentIntentId,
     );
 
     const metadata = {

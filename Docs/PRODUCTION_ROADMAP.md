@@ -14,7 +14,8 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 
 1. Alejandro completes one async on-site staging dry run.
    - First verify a staging `/operations` URL that Alejandro can access and that points to staging Supabase data.
-   - Current planned URL is `https://staging.snapcase.ai/operations`; GoDaddy DNS must add `A staging.snapcase.ai 76.76.21.21` before Vercel can finish the alias/certificate.
+   - Verified URL: `https://staging.snapcase.ai/operations`; it is public without
+     Vercel SSO and points to staging Supabase.
    - Use one fresh staging paid order routed to `onshore_manual` after Alejandro's operator email and rough timing are known.
    - Alejandro prints, packs, and marks the job shipped from `/operations` when he is available; a live call is not required.
    - Verify tracking/status update and exactly one `production_jobs` row.
@@ -51,7 +52,7 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 - #38 - Prepare Alejandro async dry-run access packet.
 - #39 - Create fresh staging dry-run order for Alejandro.
 - #40 - Verify Alejandro async dry-run evidence.
-- #41 - Provide Alejandro-accessible staging operations URL.
+- #41 - Alejandro-accessible staging operations URL (complete).
 - #33 - Production environment and secret readiness.
 - #34 - Production cutover and rollback runbook.
 - #32 - Production pilot order and monitoring.

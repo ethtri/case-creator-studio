@@ -16,6 +16,9 @@ import {
   isMissingSupabaseRowError,
   isSnapcaseCheckoutSession,
 } from "../_shared/stripe-webhook-ownership.ts";
+import {
+  isStripeCheckoutPaymentFulfilled,
+} from "../_shared/stripe-checkout-payment.ts";
 
 type ShippingDetails = {
   name?: string | null;
@@ -139,6 +142,19 @@ serve(async (req) => {
   if (!session?.id) {
     console.error("[STRIPE-WEBHOOK] Missing session ID in event");
     return new Response("Missing session", { status: 400 });
+  }
+
+  if (
+    !isStripeCheckoutPaymentFulfilled({
+      checkoutStatus: session.status,
+      paymentStatus: session.payment_status,
+      amountTotal: session.amount_total,
+    })
+  ) {
+    console.log(
+      `[STRIPE-WEBHOOK] Payment is not yet fulfilled for session: ${session.id}`,
+    );
+    return new Response("Payment pending", { status: 200 });
   }
 
   const supabaseClient = createClient(

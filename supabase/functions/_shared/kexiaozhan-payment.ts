@@ -25,6 +25,14 @@ export type KexiaozhanPaymentStatusQueryInput = {
   machineSn: string;
 };
 
+export const KEXIAOZHAN_FULFILLMENT_METHODS = [
+  "immediatePrint",
+  "deferredPrint",
+] as const;
+
+export type KexiaozhanFulfillmentMethod =
+  (typeof KEXIAOZHAN_FULFILLMENT_METHODS)[number];
+
 const DEFAULT_EXCLUDED_FIELDS = new Set(["sign"]);
 const RESERVED_PAYMENT_NOTIFICATION_FIELDS = new Set([
   "sign",
@@ -184,6 +192,16 @@ export function parseKexiaozhanPaymentNotificationExtraFields(
   }
 
   return fields;
+}
+
+export function getKexiaozhanFulfillmentMethod(
+  fields: KexiaozhanSignableRecord,
+): KexiaozhanFulfillmentMethod | null {
+  const value = fields.fulfillmentMethod;
+  if (value === "immediatePrint" || value === "deferredPrint") {
+    return value;
+  }
+  return null;
 }
 
 export function formatKexiaozhanPayTimeUtc(date: Date): string {
