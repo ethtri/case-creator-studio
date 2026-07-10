@@ -9,7 +9,9 @@ Controlled Kexiaozhan/onshore production pilot runbook. This is not a full publi
 - Issue #30 has an accepted TTL operating answer:
   - preferred: Kexiaozhan extends unpaid-order TTL to 30+ minutes, or
   - accepted fallback: `kexiaozhan-checkout-expirer` is deployed, scheduled every minute, and verified to expire open Stripe Checkout Sessions before the Kexiaozhan TTL cutoff.
-- Issue #36 has the exact Kexiaozhan print-mode callback field contract, or production pilot remains in dry-run callback mode until confirmed.
+- Issue #36 staging validation is complete: the signed success callback uses
+  `fulfillmentMethod=deferredPrint`, and the vendor administrator release/batch
+  procedure is documented and tested.
 - Production remains Printful-backed until explicit go/no-go approval.
 
 ## Required Production Environment
@@ -28,14 +30,15 @@ Configure these only after dry-run and TTL/print-mode gates are accepted. Do not
 | Handoff TTL | `KEXIAOZHAN_HANDOFF_MAX_AGE_SECONDS=900` unless issue #30 changes the accepted TTL |
 | Checkout expirer | `KEXIAOZHAN_CHECKOUT_EXPIRY_LEEWAY_SECONDS=60` unless operations chooses a larger buffer |
 | Checkout expirer auth | `KEXIAOZHAN_CHECKOUT_EXPIRER_AUTH_SECRET` |
-| Print-mode field | `KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON=<confirmed JSON object>` |
+| Print-mode field | `KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON={"fulfillmentMethod":"deferredPrint"}` |
 | Callback gate | `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false` until supervised go/no-go |
 | Pilot allowlist | `KEXIAOZHAN_PAYMENT_NOTIFY_REQUIRE_ALLOWLIST=true` and exact `KEXIAOZHAN_PAYMENT_NOTIFY_ALLOWED_OUT_TRADE_NOS` for first order if practical |
 
-`KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON` is the server-controlled print-mode field from issue #36. Example shape only after vendor confirmation:
+`KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON` is a server-controlled, signed
+field. The first pilot must use deferred admin printing:
 
 ```json
-{"printImmediately":false,"printMode":"admin_batch"}
+{"fulfillmentMethod":"deferredPrint"}
 ```
 
 ## Deploy/Confirm Functions
@@ -66,8 +69,9 @@ The Vault `kexiaozhan_checkout_expirer_auth_secret` value must match the Edge Fu
 
 - Production Stripe webhook target:
   - `https://<production-supabase-ref>.supabase.co/functions/v1/stripe-webhook`
-- Required event:
+- Required events:
   - `checkout.session.completed`
+  - `checkout.session.async_payment_succeeded`
 - Confirm the live webhook signing secret is in production as `STRIPE_WEBHOOK_SECRET`.
 
 ## Cutover Sequence
@@ -91,7 +95,8 @@ The Vault `kexiaozhan_checkout_expirer_auth_secret` value must match the Edge Fu
 For the first order, record evidence in issue #32:
 
 - Kexiaozhan redirect reached Snapcase Checkout.
-- Stripe live PaymentIntent succeeded.
+- Stripe live PaymentIntent succeeded, or a verified zero-total Checkout Session
+  used its Snapcase transaction reference.
 - `kexiaozhan_handoffs` row has expected `out_trade_no`, `machine_sn`, `stripe_session_id`, and final status.
 - `/client/process-payment-notify` response is successful.
 - The signed callback body contains the confirmed admin/batch print-mode field from issue #36.

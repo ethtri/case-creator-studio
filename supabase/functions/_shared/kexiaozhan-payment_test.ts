@@ -8,6 +8,7 @@ import {
   buildKexiaozhanPaymentStatusQuery,
   buildKexiaozhanSigningString,
   formatKexiaozhanPayTimeUtc,
+  getKexiaozhanFulfillmentMethod,
   hmacSha256Hex,
   parseKexiaozhanPaymentNotificationExtraFields,
   timingSafeEqual,
@@ -74,29 +75,49 @@ Deno.test("Kexiaozhan callback signature supports Stripe PaymentIntent and RFC33
   );
 });
 
-Deno.test("Kexiaozhan callback signature includes configured print mode fields", async () => {
+Deno.test("Kexiaozhan callback signature matches the immediate-print vendor vector", async () => {
   const extraFields = parseKexiaozhanPaymentNotificationExtraFields(
-    '{"printImmediately":false,"printMode":"admin_batch"}',
+    '{"fulfillmentMethod":"immediatePrint"}',
   );
   const notification = await buildKexiaozhanPaymentNotification({
     outTradeNo: "PAY202606030001",
-    transactionId: "pi_3Abc123Stripe456",
+    transactionId: "TP2026060300008888",
     amount: "12.30",
     extraInfo: "payment success",
     orderStatus: 1,
-    payTime: "2006-01-02T15:04:05Z07:00",
+    payTime: "2026-06-03 20:10:30",
     ...extraFields,
   }, MACHINE_KEY);
 
-  assertEquals(notification.printImmediately, false);
-  assertEquals(notification.printMode, "admin_batch");
+  assertEquals(notification.fulfillmentMethod, "immediatePrint");
   assertEquals(
     buildKexiaozhanSigningString(notification),
-    "amount=12.30&extraInfo=payment success&orderStatus=1&outTradeNo=PAY202606030001&payTime=2006-01-02T15:04:05Z07:00&printImmediately=false&printMode=admin_batch&transactionId=pi_3Abc123Stripe456",
+    "amount=12.30&extraInfo=payment success&fulfillmentMethod=immediatePrint&orderStatus=1&outTradeNo=PAY202606030001&payTime=2026-06-03 20:10:30&transactionId=TP2026060300008888",
   );
   assertEquals(
     notification.sign,
-    "f54ec1ecb99cb824a3ca2a4841e2a5f79cf8794cade880d1aeb6d6acafb09a22",
+    "fd18e133b5b86aa731d9b09b585ce395adbab6cf1712e2913274b5265affc972",
+  );
+});
+
+Deno.test("Kexiaozhan callback signature matches the deferred-print vendor vector", async () => {
+  const notification = await buildKexiaozhanPaymentNotification({
+    outTradeNo: "PAY202606030001",
+    transactionId: "TP2026060300008888",
+    amount: "12.30",
+    extraInfo: "payment success",
+    orderStatus: 1,
+    payTime: "2026-06-03 20:10:30",
+    fulfillmentMethod: "deferredPrint",
+  }, MACHINE_KEY);
+
+  assertEquals(
+    buildKexiaozhanSigningString(notification),
+    "amount=12.30&extraInfo=payment success&fulfillmentMethod=deferredPrint&orderStatus=1&outTradeNo=PAY202606030001&payTime=2026-06-03 20:10:30&transactionId=TP2026060300008888",
+  );
+  assertEquals(
+    notification.sign,
+    "90444590593c62c5426ad2c5dee673cffd88dcab6fdd5d3248f899ab152dccec",
   );
 });
 
@@ -138,6 +159,22 @@ Deno.test("Kexiaozhan callback extra field config rejects unsafe values", () => 
     Error,
     "string, number, or boolean",
   );
+});
+
+Deno.test("Kexiaozhan fulfillment mode accepts only exact vendor values", () => {
+  assertEquals(
+    getKexiaozhanFulfillmentMethod({ fulfillmentMethod: "deferredPrint" }),
+    "deferredPrint",
+  );
+  assertEquals(
+    getKexiaozhanFulfillmentMethod({ fulfillmentMethod: " immediatePrint" }),
+    null,
+  );
+  assertEquals(
+    getKexiaozhanFulfillmentMethod({ fulfillmentMethod: "admin_batch" }),
+    null,
+  );
+  assertEquals(getKexiaozhanFulfillmentMethod({}), null);
 });
 
 Deno.test("Kexiaozhan signing excludes sign, empty, null, and undefined values", () => {

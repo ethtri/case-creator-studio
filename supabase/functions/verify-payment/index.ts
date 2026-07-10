@@ -11,6 +11,9 @@ import {
   isKexiaozhanHandoffExpired,
   KEXIAOZHAN_EXPIRED_HANDOFF_ERROR,
 } from "../_shared/kexiaozhan-payment-guard.ts";
+import {
+  isStripeCheckoutPaymentFulfilled,
+} from "../_shared/stripe-checkout-payment.ts";
 
 // Safe error messages that don't expose internal details
 function getSafeErrorMessage(error: unknown): string {
@@ -131,7 +134,13 @@ serve(async (req) => {
 
     console.log("[VERIFY-PAYMENT] Session status:", session.payment_status);
 
-    if (session.payment_status !== "paid") {
+    if (
+      !isStripeCheckoutPaymentFulfilled({
+        checkoutStatus: session.status,
+        paymentStatus: session.payment_status,
+        amountTotal: session.amount_total,
+      })
+    ) {
       return new Response(
         JSON.stringify({
           success: false,
