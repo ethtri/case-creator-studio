@@ -13,8 +13,8 @@ import {
 } from "../_shared/kexiaozhan-payment-transaction.ts";
 import {
   buildExpiredKexiaozhanOrderUpdate,
-  isKexiaozhanHandoffExpired,
   KEXIAOZHAN_EXPIRED_HANDOFF_ERROR,
+  shouldBlockExpiredKexiaozhanHandoff,
 } from "../_shared/kexiaozhan-payment-guard.ts";
 
 const PROVIDERS = ["printful", "onshore_manual"] as const;
@@ -261,7 +261,13 @@ async function blockExpiredKexiaozhanHandoffBeforeFulfillment(
     );
   }
 
-  if (!handoff || !isKexiaozhanHandoffExpired(handoff)) {
+  if (
+    !handoff ||
+    !shouldBlockExpiredKexiaozhanHandoff(
+      handoff,
+      Deno.env.get("KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON"),
+    )
+  ) {
     return null;
   }
 

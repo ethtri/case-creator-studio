@@ -2,14 +2,17 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-07-10
-**Last updated by:** ethtr
+**Last updated:** 2026-07-11
+**Last updated by:** Codex
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
 
 ## Blockers
 - Async physical manual-production dry run remains: verify Alejandro's staging `/operations` access, create a fresh staging queue item, then have Alejandro print/pack/ship and report evidence before production pilot.
-- Production Kexiaozhan launch still needs issue #30 resolved: vendor unpaid-order TTL is 15 minutes, while Stripe Checkout's minimum expiration is 30 minutes. Snapcase now has fail-closed handling and a scheduled checkout-expirer fallback, but production still needs the accepted path deployed and smoke-tested.
+- Kexiaozhan deferred-payment staging test remains: the vendor now accepts valid
+  signed `deferredPrint` callbacks after cancellation (with no enforced 30-minute
+  cutoff), but Snapcase must deploy the revised local guard and record a delayed
+  sandbox callback before issue #30 closes.
 - Production Kexiaozhan launch also needs issue #36 staging evidence: the vendor
   now requires a signed `fulfillmentMethod` callback field; Snapcase will use
   `deferredPrint` until the vendor admin-release procedure and positive/
@@ -17,8 +20,8 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 
 ## Top 3 Next Tasks
 1. P0: Async manual production dry run - finish #38/#41 access prep, create a fresh staging job in #39, then verify Alejandro evidence in #40.
-2. P0: Resolve Kexiaozhan production controls - TTL decision in issue #30 and
-   deferred-print staging/admin-release evidence in issue #36.
+2. P0: Validate Kexiaozhan production controls - delayed deferred-print callback
+   evidence in issue #30 and deferred-print/admin-release evidence in issue #36.
 3. P0: Production cutover readiness - production secrets, rollback runbook, and first supervised pilot order.
 
 ## Now / Next / Later
@@ -26,8 +29,8 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - P0: Async manual production dry run - finish #38/#41 access prep, create a fresh staging job in #39, then verify Alejandro evidence in #40.
 
 **Next**
-- P0: Resolve Kexiaozhan production controls - TTL decision in issue #30 and
-  deferred-print staging/admin-release evidence in issue #36.
+- P0: Validate Kexiaozhan production controls - delayed deferred-print callback
+  evidence in issue #30 and deferred-print/admin-release evidence in issue #36.
 - P0: Production cutover readiness - production secrets, rollback runbook, and first supervised pilot order.
 
 **Later**
@@ -57,7 +60,13 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - Kexiaozhan payment scaffold: server-only HMAC helpers, vendor-vector tests, fake handoff payment context, real redirect handoff context, and `route-fulfillment-order` notification metadata are implemented. Live vendor POSTs require explicit `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=true` plus backend `KEXIAOZHAN_MACHINE_KEY`. For staging vendor smoke tests, require an exact/prefix allowlist with `KEXIAOZHAN_PAYMENT_NOTIFY_REQUIRE_ALLOWLIST=true`, `KEXIAOZHAN_PAYMENT_NOTIFY_ALLOWED_OUT_TRADE_NOS`, or `KEXIAOZHAN_PAYMENT_NOTIFY_ALLOWED_PREFIXES` so only the real Kexiaozhan sandbox order is mutated.
 - Kexiaozhan staging smoke on 2026-06-16: deployed `20260616034837_add_kexiaozhan_handoffs`, `kexiaozhan-create-checkout`, `stripe-webhook`, and `route-fulfillment-order` to Supabase staging `onztuktjcmjukfhcuphh`; configured sandbox Kexiaozhan secrets without committing them; verified signed checkout creation, duplicate retry reuse, changed replay rejection, bad signature rejection, wrong-machine rejection, real Stripe test payment, webhook order update, one onshore production job, and dry-run signed Kexiaozhan callback metadata.
 - Kexiaozhan preview-bypass smoke on 2026-06-16: a private Vercel automation-bypass URL was verified for the PR preview, preserving vendor query params and reaching Stripe Checkout with signed test payload `PAYBYPASS20260616045447`; do not post the bypass token publicly. Prefer the clean Supabase staging bridge URL for Kexiaozhan so they can append params with `?` normally.
-- Kexiaozhan timeout guard: Stripe webhook, success-page `verify-payment`, and fulfillment routing now fail closed when a Kexiaozhan handoff row is past `expires_at`, marking the order for `payment_review` with `kexiaozhan_handoff_expired` instead of routing production automatically. `kexiaozhan-checkout-expirer` adds the proactive fallback: a scheduled service-role function expires still-open Stripe Checkout Sessions near vendor TTL and marks handoffs `expired`.
+- Kexiaozhan timeout policy: vendor cancellation still occurs after 15 minutes, but
+  a valid signed `deferredPrint` success callback is accepted after cancellation
+  and restores the order to Pending Print, with no vendor-enforced 30-minute
+  callback cutoff. Snapcase accepts expired handoffs only when its server-side
+  callback configuration is exactly `deferredPrint`; `immediatePrint`, missing,
+  or invalid configuration remains fail-closed. `kexiaozhan-checkout-expirer`
+  continues to cap local open Checkout Sessions and replay lifetime.
 - Kexiaozhan expirer staging smoke on 2026-06-17 UTC: deployed `kexiaozhan-checkout-expirer`, updated `kexiaozhan-create-checkout` and `route-fulfillment-order`, applied migrations `20260617182057` and `20260617183024` to staging, configured dedicated staging expirer auth via Supabase Vault, confirmed cron `kexiaozhan-checkout-expirer-1m` is active, and verified HTTP 200 dry-run response.
 - Kexiaozhan live callback gate: staging can now enable `/client/process-payment-notify` for only one vendor-originated sandbox `outTradeNo` or agreed prefix, while unrelated synthetic handoffs remain dry-run.
 - Kexiaozhan vendor-originated live callback smoke on 2026-06-17 UTC: Kexiaozhan generated four real sandbox handoffs through the clean bridge; Snapcase Stripe test payment succeeded for all four; each handoff reached `vendor_notified`; each order is `processing` with one `onshore_manual` queued job; each live `/client/process-payment-notify` response was HTTP 200 with `{"code":0,"msg":"success","data":{}}`. Staging live callback was disabled afterward.
@@ -65,7 +74,12 @@ Owner-updated snapshot for AI agents. Keep this short and current.
   URL is `https://staging.snapcase.ai/operations`, which returns HTTP 200 without
   Vercel SSO and points to staging Supabase. #38 still needs Alejandro's operator
   email and rough timing before #39 creates a fresh job and #40 records evidence.
-- Remaining blockers after latest response: Kexiaozhan still owes detailed print/order status APIs, reprint API, public mobile designer URL/return URL configuration, and whether Snapcase can explicitly cancel or extend vendor orders instead of relying on the 15-minute vendor timeout. Issue #30 tracks the remaining business/vendor decision for the 15-minute vendor timeout vs Stripe's 30-minute minimum Checkout Session expiration; Snapcase now has a fail-closed late-payment guard, but production should still avoid a customer-pay-then-review/refund path if possible.
+- Kexiaozhan 2026-07-11 timeout clarification: for `deferredPrint`, a valid
+  signed success callback is processed even after the vendor order has been
+  canceled and restores it to Pending Print; `/process-payment-notify` has no
+  enforced 30-minute callback cutoff. Other fulfillment modes retain the
+  15-minute timeout. No additional vendor API is needed; #30 now needs Snapcase
+  deployment and delayed-payment staging evidence.
 - Kexiaozhan fulfillment-mode update on 2026-07-10: successful callbacks now
   require a signed `fulfillmentMethod` with exact values `immediatePrint` or
   `deferredPrint`. Snapcase will use server-controlled `deferredPrint` through

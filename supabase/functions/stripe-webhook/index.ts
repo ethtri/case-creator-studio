@@ -9,8 +9,8 @@ import {
 import {
   buildExpiredKexiaozhanOrderUpdate,
   extractKexiaozhanOutTradeNo,
-  isKexiaozhanHandoffExpired,
   KEXIAOZHAN_EXPIRED_HANDOFF_ERROR,
+  shouldBlockExpiredKexiaozhanHandoff,
 } from "../_shared/kexiaozhan-payment-guard.ts";
 import {
   isMissingSupabaseRowError,
@@ -250,7 +250,10 @@ serve(async (req) => {
 
     if (
       handoff &&
-      isKexiaozhanHandoffExpired(handoff as KexiaozhanHandoffRecord)
+      shouldBlockExpiredKexiaozhanHandoff(
+        handoff as KexiaozhanHandoffRecord,
+        Deno.env.get("KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON"),
+      )
     ) {
       const expiredOrderUpdate = buildExpiredKexiaozhanOrderUpdate(updateData);
       const { error: expiredOrderError } = await supabaseClient

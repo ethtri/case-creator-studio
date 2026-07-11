@@ -68,7 +68,10 @@ Latest vendor clarification:
 - Print status and detailed order-status query APIs are still forthcoming.
 - Polling frequency should be slower than every 2 seconds.
 - Reprint API details are still forthcoming.
-- Unpaid vendor orders time out after 15 minutes and then become canceled.
+- Unpaid vendor orders time out after 15 minutes and then become canceled. For
+  `deferredPrint`, Kexiaozhan accepts a valid signed success callback after that
+  cancellation, restores the order to Pending Print, and does not enforce a
+  30-minute callback cutoff. Non-deferred modes keep the 15-minute timeout.
 
 ## Relationship To Existing API Notes
 
@@ -354,16 +357,14 @@ Unpaid or cannot-confirm response:
 - `route-fulfillment-order` records a Kexiaozhan payment notification plan under
   `production_jobs.metadata.kexiaozhan.paymentNotification` for onshore jobs
   that include `outTradeNo`, `machineSn`, and `amount`.
-- `stripe-webhook`, `verify-payment`, and `route-fulfillment-order` now block
-  automatic fulfillment when an existing `kexiaozhan_handoffs` row is past
-  `expires_at`. The order is marked for `payment_review` with
-  `kexiaozhan_handoff_expired`, and the handoff is marked `expired` instead of
-  notifying the vendor or routing production.
-- `kexiaozhan-checkout-expirer` is the proactive fallback for the 15-minute
-  vendor TTL. It is scheduled every minute, finds active handoffs near
-  `expires_at`, expires still-open Stripe Checkout Sessions through Stripe, and
-  marks the handoff `expired` so the same signed payload cannot create a new
-  checkout after the safe window.
+- `stripe-webhook`, `verify-payment`, and `route-fulfillment-order` accept an
+  expired handoff only when the server-side callback configuration is exactly
+  `{"fulfillmentMethod":"deferredPrint"}`. Missing, invalid, or
+  `immediatePrint` configuration remains fail-closed and records
+  `payment_review` / `kexiaozhan_handoff_expired`.
+- `kexiaozhan-checkout-expirer` is the local Checkout Session/replay cap. It is
+  scheduled every minute, expires still-open sessions near the stored handoff
+  deadline, and prevents the same signed payload from starting a new checkout.
 - The route calls `/client/process-payment-notify` only when
   `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=true`, `KEXIAOZHAN_MACHINE_KEY` is set, and
   a verified payment reference and valid `fulfillmentMethod` are present.
@@ -421,6 +422,9 @@ Unpaid or cannot-confirm response:
   not directly set the Stripe total.
 - Configure `KEXIAOZHAN_CHECKOUT_EXPIRY_LEEWAY_SECONDS` for the scheduled
   expirer buffer. Default is 60 seconds.
+- Configure `KEXIAOZHAN_HANDOFF_MAX_AGE_SECONDS=2100` for the server-controlled
+  deferred-print flow. This gives the local signed handoff a bounded 35-minute
+  replay/checkout window; non-deferred modes are capped locally at 15 minutes.
 - Configure `KEXIAOZHAN_CHECKOUT_EXPIRER_AUTH_SECRET` in Edge Function secrets
   and the matching `kexiaozhan_checkout_expirer_auth_secret` in Supabase Vault;
   the scheduled cron uses this dedicated secret instead of the service-role key.
@@ -429,12 +433,10 @@ Unpaid or cannot-confirm response:
   Successful vendor callbacks are blocked locally if the field is absent or not
   one of the two exact vendor values.
 - Stripe Checkout Sessions cannot be configured to expire sooner than 30
-  minutes. Kexiaozhan says unpaid vendor orders cancel after 15 minutes, so
-  production launch should still resolve that mismatch with the vendor if
-  possible; see GitHub issue #30. Snapcase now has a fail-closed late-payment
-  guard and a proactive Stripe Checkout expirer fallback, but the preferred
-  production behavior is still to prevent customers from paying after the vendor
-  order is no longer valid.
+  minutes. Kexiaozhan's 2026-07-11 deferred-print exception resolves that
+  payment risk: a valid signed `deferredPrint` callback is accepted after vendor
+  cancellation and restores Pending Print, with no 30-minute callback cutoff.
+  Snapcase still limits initial signed-handoff and Checkout Session reuse locally.
 - The local trigger guide provides a browser HTML verifier plus a local proxy.
   These are debugging aids only and must not be committed or used as production
   integration code. Their historical default domain is outdated, and their
@@ -455,7 +457,7 @@ These items remain unresolved after the latest WeChat clarification:
    `/client/query-status`.
 2. Reprint API details and idempotency/failure rules.
 3. Public mobile designer URL and return URL configuration.
-4. Production validation of either Kexiaozhan's TTL extension/cancel behavior or
-   Snapcase's scheduled `kexiaozhan-checkout-expirer` fallback.
-5. Kexiaozhan's administrator release/batch-print procedure for a
-   `deferredPrint` order, followed by a supervised deferred physical test.
+4. Staging evidence that a delayed valid `deferredPrint` callback is accepted,
+   restores Pending Print, and creates exactly one Snapcase production job.
+5. A supervised deferred physical test of the documented Merchant Portal
+   **Order List > Pending Print > Send to Print** procedure.

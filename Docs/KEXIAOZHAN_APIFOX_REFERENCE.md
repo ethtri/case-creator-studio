@@ -42,7 +42,8 @@ now; `/client/query-status` is the current payment-status API, returns
 `status: 0` unpaid or `status: 1` paid, and should be polled less frequently
 than every 2 seconds. Print/order detail APIs and reprint APIs are still
 forthcoming. Unpaid vendor orders time out after 15 minutes and then become
-canceled.
+canceled; a valid signed `deferredPrint` payment callback is the documented
+exception and restores Pending Print after cancellation.
 
 The 2026-06-09 Gmail attachments are local debugging tools, not a final sandbox
 credential package. They include:
@@ -173,7 +174,9 @@ Key updates:
 - `/client/query-status` is payment-status only and should be polled less
   frequently than every 2 seconds.
 - Print/order detail status APIs and reprint APIs are still forthcoming.
-- Unpaid vendor orders cancel after 15 minutes.
+- Unpaid vendor orders cancel after 15 minutes. A valid signed
+  `deferredPrint` payment callback is accepted after cancellation and restores
+  Pending Print.
 - Local trigger tooling exists for manual signature/proxy testing. The tool
   defaults can lag the latest contract; prefer this doc for current field rules.
 - Test/prod API base URLs are now confirmed; Snapcase's real test redirect
@@ -578,11 +581,12 @@ a specific API.
 8. Keep operator queue as fallback for failed callback, timeout, reprint, or
    unclear machine state.
 
-Production caveat: Stripe Checkout Sessions can be configured to expire no
-sooner than 30 minutes, while Kexiaozhan currently cancels unpaid orders after
-15 minutes. Treat issue #30 as a launch blocker unless Kexiaozhan extends the
-TTL, provides cancel/refresh/recreate APIs, or Snapcase adds a tested early
-session-expiration mechanism.
+Production clarification (2026-07-11): Stripe Checkout Sessions can be
+configured no shorter than 30 minutes, while Kexiaozhan normally cancels unpaid
+orders after 15 minutes. For a valid signed `fulfillmentMethod=deferredPrint`
+callback, Kexiaozhan accepts the payment after cancellation, restores Pending
+Print, and does not enforce a 30-minute callback cutoff. Issue #30 remains open
+only until Snapcase records the corresponding delayed-payment staging evidence.
 
 ## Open Vendor Questions
 
@@ -606,8 +610,9 @@ These remain blocking for machine automation:
 9. What are the reprint API's idempotency and failure rules?
 10. What are the exact printer queue fields and status values beyond
     `printStatus=0/1/2` and `contact=0-100`?
-11. Can Snapcase explicitly cancel a vendor order when Stripe checkout expires,
-    or should Snapcase rely on the vendor's 15-minute timeout?
+11. Resolved for `deferredPrint`: Kexiaozhan accepts a valid signed payment
+    callback after the normal 15-minute cancellation and restores Pending Print.
+    A cancel API is not required for the first controlled manual pilot.
 12. Can `extraInfo` safely carry Snapcase order IDs, and what is the max useful
     shape under the 1000-character limit?
 

@@ -6,9 +6,9 @@ Controlled Kexiaozhan/onshore production pilot runbook. This is not a full publi
 
 - PR #27 is merged and production deploy is healthy.
 - Alejandro completes the async staging manual dry run in issue #35, using a verified staging `/operations` URL and a fresh staging test job.
-- Issue #30 has an accepted TTL operating answer:
-  - preferred: Kexiaozhan extends unpaid-order TTL to 30+ minutes, or
-  - accepted fallback: `kexiaozhan-checkout-expirer` is deployed, scheduled every minute, and verified to expire open Stripe Checkout Sessions before the Kexiaozhan TTL cutoff.
+- Issue #30 staging evidence confirms Kexiaozhan's accepted deferred-print
+  behavior: a valid signed callback after cancellation restores Pending Print,
+  produces exactly one Snapcase job, and does not dispatch immediate printing.
 - Issue #36 staging validation is complete: the signed success callback uses
   `fulfillmentMethod=deferredPrint`, and the vendor administrator release/batch
   procedure is documented and tested.
@@ -27,8 +27,8 @@ Configure these only after dry-run and TTL/print-mode gates are accepted. Do not
 | Kexiaozhan API | `KEXIAOZHAN_API_BASE_URL=https://kxzus.kexiaozhan.com` |
 | Kexiaozhan auth | `KEXIAOZHAN_MACHINE_KEY`, `KEXIAOZHAN_ALLOWED_MACHINE_SN` |
 | Checkout pricing | `KEXIAOZHAN_CHECKOUT_UNIT_AMOUNT_CENTS`, `KEXIAOZHAN_CHECKOUT_SHIPPING_CENTS`, `KEXIAOZHAN_CHECKOUT_CURRENCY` |
-| Handoff TTL | `KEXIAOZHAN_HANDOFF_MAX_AGE_SECONDS=900` unless issue #30 changes the accepted TTL |
-| Checkout expirer | `KEXIAOZHAN_CHECKOUT_EXPIRY_LEEWAY_SECONDS=60` unless operations chooses a larger buffer |
+| Handoff window | `KEXIAOZHAN_HANDOFF_MAX_AGE_SECONDS=2100` for deferred printing; non-deferred modes remain capped at 15 minutes |
+| Checkout expirer | `KEXIAOZHAN_CHECKOUT_EXPIRY_LEEWAY_SECONDS=60` for local session/replay expiry |
 | Checkout expirer auth | `KEXIAOZHAN_CHECKOUT_EXPIRER_AUTH_SECRET` |
 | Print-mode field | `KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON={"fulfillmentMethod":"deferredPrint"}` |
 | Callback gate | `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false` until supervised go/no-go |
@@ -122,7 +122,7 @@ Already queued onshore jobs are not automatically moved. An operator must manual
 Go only if:
 
 - #35 dry run passed.
-- #30 TTL/expirer behavior passed.
+- #30 delayed deferred-print callback behavior passed.
 - #36 print-mode field is confirmed and verified, or callbacks remain disabled.
 - #33 production env/secrets are configured without exposure.
 - #34 runbook has been reviewed.
@@ -130,7 +130,8 @@ Go only if:
 
 No-go if:
 
-- Stripe payment can complete after Kexiaozhan order expiry without proactive expiry or fail-closed handling.
+- A delayed deferred-print callback does not restore Pending Print, creates a
+  duplicate job, or triggers immediate printing.
 - Callback fails or signs the wrong body.
 - Duplicate production jobs appear.
 - Alejandro cannot handle the physical process.

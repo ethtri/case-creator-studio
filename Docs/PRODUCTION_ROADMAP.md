@@ -7,7 +7,10 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 - Kexiaozhan signed redirect, Stripe Checkout, Stripe webhook, Snapcase onshore job routing, and signed `/client/process-payment-notify` callback are proven in staging.
 - Four real Kexiaozhan sandbox orders completed successfully on 2026-06-17 UTC.
 - Production remains Printful-backed until an explicit cutover is approved.
-- Issue #30 remains a production gate for the Kexiaozhan 15-minute unpaid-order timeout versus Stripe Checkout's 30-minute minimum expiration. Snapcase now has fail-closed handling and a scheduled `kexiaozhan-checkout-expirer` fallback, but production still needs the accepted operating answer verified.
+- Issue #30 remains a production gate only for final staging evidence. Kexiaozhan
+  now accepts a valid signed `deferredPrint` callback after cancellation and
+  restores Pending Print, with no enforced 30-minute callback cutoff; Snapcase
+  must deploy and prove the corresponding local behavior.
 - Issue #36 tracks new Kexiaozhan/Alejandro guidance that paid online orders should use admin-controlled batch printing, not uncontrolled immediate continuous printing.
 
 ## Production Gates
@@ -20,10 +23,14 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
    - Alejandro prints, packs, and marks the job shipped from `/operations` when he is available; a live call is not required.
    - Verify tracking/status update and exactly one `production_jobs` row.
 
-2. Kexiaozhan resolves the production TTL risk.
-   - Preferred: extend unpaid-order validity to at least 30 minutes.
-   - Acceptable alternatives: provide tested cancel, refresh, or recreate behavior, or deploy and verify `kexiaozhan-checkout-expirer` so open Stripe Checkout Sessions are expired before the vendor TTL cutoff.
-   - Do not enable public production Kexiaozhan traffic until issue #30 is resolved.
+2. Kexiaozhan deferred-payment recovery is validated.
+   - Vendor confirmation: valid signed `deferredPrint` callbacks received after
+     cancellation restore Pending Print; the callback endpoint has no enforced
+     30-minute cutoff.
+   - Deploy the local deferred-print guard and prove a delayed sandbox callback,
+     exactly one production job, and no automatic print.
+   - Do not enable public production Kexiaozhan traffic until issue #30 records
+     this evidence.
 
 3. Kexiaozhan print mode is server-controlled.
    - Confirm the exact payment-callback field that controls immediate print versus admin/batch handling.
@@ -74,6 +81,10 @@ Could you please send the email address you want to use for the operations login
 
 Kexiaozhan engineers:
 
+Historical draft only. Do not send it: its timeout and print-mode questions were
+answered on 2026-07-10 and 2026-07-11. No further vendor message is needed until
+Snapcase has a specific delayed-payment sandbox order ready for validation.
+
 ```text
 谢谢你们配合测试！我们这边确认四笔 sandbox 订单数据都正确，Stripe 测试支付和 /client/process-payment-notify 回调都成功了。
 
@@ -101,6 +112,7 @@ https://www.snapcase.ai/kexiaozhan/checkout
 - `npm run type-check --if-present`
 - Deno tests for Kexiaozhan signing, handoff, callback gate, timeout guard, Stripe config, and CORS.
 - Async staging dry run with Alejandro through a verified staging `/operations` URL.
-- Delayed-payment or expired-handoff scenario proves fail-closed behavior.
+- Delayed `deferredPrint` payment restores Pending Print and creates one job;
+  expired non-deferred/misconfigured payment remains fail-closed.
 - Kexiaozhan callback print-mode field proves admin/batch handling and no uncontrolled immediate printing.
 - Production pilot order proves live Stripe payment, Kexiaozhan callback, exactly one production job, and operator workflow.

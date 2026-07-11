@@ -7,12 +7,18 @@ import { getStripeSecretKey } from "../_shared/stripe-config.ts";
 import {
   buildKexiaozhanSignedPayload,
   isAllowedKexiaozhanMachineSn,
+  KEXIAOZHAN_DEFERRED_HANDOFF_MAX_AGE_SECONDS,
   normalizeKexiaozhanRedirectParams,
+  resolveKexiaozhanHandoffMaxAgeSeconds,
   sameKexiaozhanSignedPayload,
   toKexiaozhanPaymentContext,
   validateKexiaozhanHandoffFreshness,
   verifyKexiaozhanRedirectSignature,
 } from "../_shared/kexiaozhan-handoff.ts";
+import {
+  getKexiaozhanFulfillmentMethod,
+  parseKexiaozhanPaymentNotificationExtraFields,
+} from "../_shared/kexiaozhan-payment.ts";
 
 const TRUE_VALUES = new Set(["1", "true", "yes"]);
 const DEFAULT_PRODUCT_PRICE_CENTS = 2999;
@@ -210,9 +216,24 @@ serve(async (req) => {
       );
     }
 
-    const maxAgeSeconds = readPositiveIntegerEnv(
+    let fulfillmentMethod: string | null = null;
+    try {
+      fulfillmentMethod = getKexiaozhanFulfillmentMethod(
+        parseKexiaozhanPaymentNotificationExtraFields(
+          Deno.env.get("KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON"),
+        ),
+      );
+    } catch {
+      // Route fulfillment will report the invalid configuration before it mutates Kexiaozhan.
+    }
+
+    const configuredMaxAgeSeconds = readPositiveIntegerEnv(
       "KEXIAOZHAN_HANDOFF_MAX_AGE_SECONDS",
-      15 * 60,
+      KEXIAOZHAN_DEFERRED_HANDOFF_MAX_AGE_SECONDS,
+    );
+    const maxAgeSeconds = resolveKexiaozhanHandoffMaxAgeSeconds(
+      configuredMaxAgeSeconds,
+      fulfillmentMethod,
     );
     const futureSkewSeconds = readIntegerEnv(
       "KEXIAOZHAN_HANDOFF_FUTURE_SKEW_SECONDS",
