@@ -10,6 +10,7 @@ import {
   KEXIAOZHAN_EXPIRED_HANDOFF_ERROR,
   KEXIAOZHAN_EXPIRED_PAYMENT_REVIEW_STATUS,
   parseKexiaozhanHandoffExpiresAt,
+  shouldBlockExpiredKexiaozhanHandoff,
 } from "./kexiaozhan-payment-guard.ts";
 
 Deno.test("extractKexiaozhanOutTradeNo returns the first non-empty vendor payment id", () => {
@@ -61,6 +62,40 @@ Deno.test("isKexiaozhanHandoffExpired only expires after the cutoff", () => {
       new Date("2026-06-16T05:10:01Z"),
     ),
     true,
+  );
+});
+
+Deno.test("allows only configured deferred-print payments after local checkout expiry", () => {
+  const expired = { expires_at: "2026-06-16T05:10:00Z" };
+  const now = new Date("2026-06-16T05:10:01Z");
+
+  assertEquals(
+    shouldBlockExpiredKexiaozhanHandoff(
+      expired,
+      '{"fulfillmentMethod":"deferredPrint"}',
+      now,
+    ),
+    false,
+  );
+  assertEquals(
+    shouldBlockExpiredKexiaozhanHandoff(
+      expired,
+      '{"fulfillmentMethod":"immediatePrint"}',
+      now,
+    ),
+    true,
+  );
+  assertEquals(
+    shouldBlockExpiredKexiaozhanHandoff(expired, "{", now),
+    true,
+  );
+  assertEquals(
+    shouldBlockExpiredKexiaozhanHandoff(
+      { expires_at: "2026-06-16T05:10:02Z" },
+      undefined,
+      now,
+    ),
+    false,
   );
 });
 

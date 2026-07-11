@@ -71,26 +71,24 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
   `https://staging.snapcase.ai/operations`; GoDaddy DNS must add
   `A staging.snapcase.ai 76.76.21.21` before Vercel can finish the
   alias/certificate.
-- Kexiaozhan late-payment protection is fail-closed: if Stripe confirms payment
-  after the stored Kexiaozhan handoff `expires_at`, `stripe-webhook`,
-  `verify-payment`, and `route-fulfillment-order` mark the order for
-  `payment_review`/`kexiaozhan_handoff_expired` instead of routing production or
-  notifying the vendor.
+- Kexiaozhan late-payment policy: vendor cancellation still occurs after 15
+  minutes, but a valid signed `deferredPrint` success callback is accepted after
+  cancellation and restores Pending Print. Snapcase permits an expired handoff
+  only for exactly configured `deferredPrint`; `immediatePrint`, missing, and
+  invalid fulfillment configuration remain fail-closed.
 - `stripe-webhook` ignores completed Stripe Checkout Sessions that do not carry
   Snapcase ownership metadata and have no matching order row. Missing rows for
   Snapcase-owned sessions still fail loudly for investigation.
-- `kexiaozhan-checkout-expirer` is the scheduled fallback for issue #30. It
-  expires open Stripe Checkout Sessions close to the Kexiaozhan unpaid-order TTL
-  and marks the handoff `expired`; schedule it every minute through the Supabase
-  cron migration before production pilot traffic.
+- `kexiaozhan-checkout-expirer` is the scheduled local Checkout Session/replay
+  cap. It expires sessions close to the Snapcase handoff deadline and marks the
+  handoff `expired`; schedule it every minute through the Supabase cron migration
+  before production pilot traffic.
 - Staging smoke on 2026-06-17 UTC proved real Kexiaozhan-originated signed
   redirect payloads, Stripe test payment, webhook update, single onshore job per
   order, and live signed Kexiaozhan callback responses from the vendor sandbox.
-- Do not enable production traffic until issue #30 has an accepted operating
-  decision: Kexiaozhan's 15-minute unpaid-order timeout is shorter than Stripe
-  Checkout's 30-minute minimum configurable expiration. Snapcase now blocks late
-  payments from fulfillment, but a customer review/refund path is still worse
-  than vendor TTL extension or explicit cancel/refresh/recreate behavior.
+- Do not enable production traffic until issue #30 has staging evidence for the
+  accepted vendor behavior: a delayed valid `deferredPrint` callback restores
+  Pending Print and Snapcase creates only one production job.
 - `route-fulfillment-order` accepts Supabase's runtime service-role key and can also accept `ROUTE_FULFILLMENT_AUTH_SECRET` for staging/QA service-role calls. Never expose that secret to browsers.
 - The isolated Supabase staging project is `snapcase-onshore-staging` (`onztuktjcmjukfhcuphh`). Do not commit keys or service-role credentials.
 - Rollback by environment change affects newly created checkouts. Orders already persisted with `fulfillment_provider=onshore_manual` stay in the manual queue unless an operator explicitly cancels, completes, or reroutes them.
@@ -118,8 +116,9 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 ## Controlled Production Pilot Checklist
 
 - Alejandro completes one async on-site staging dry run: use a verified staging `/operations` URL, print, pack, ship, and update the fresh staging test job when available.
-- Issue #30 is resolved with a production-safe TTL answer from Kexiaozhan: extend unpaid-order validity to 30+ minutes, or provide tested cancel/refresh/recreate behavior.
-- Issue #30 fallback is verified if Kexiaozhan does not change TTL: `kexiaozhan-checkout-expirer` expires open Stripe Checkout Sessions before the vendor TTL cutoff.
+- Issue #30 staging evidence confirms the vendor's deferred-print exception:
+  after cancellation, a valid signed callback restores Pending Print and does
+  not create duplicate Snapcase jobs.
 - Issue #36 now has Kexiaozhan's exact signed callback field contract:
   `fulfillmentMethod=deferredPrint` for admin-controlled printing. Customers do
   not choose whether orders print immediately. Keep the issue open until the

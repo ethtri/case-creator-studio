@@ -7,7 +7,10 @@ import { signKexiaozhanPayload } from "./kexiaozhan-payment.ts";
 import {
   buildKexiaozhanRedirectSigningString,
   isAllowedKexiaozhanMachineSn,
+  KEXIAOZHAN_DEFERRED_HANDOFF_MAX_AGE_SECONDS,
+  KEXIAOZHAN_LEGACY_HANDOFF_MAX_AGE_SECONDS,
   normalizeKexiaozhanRedirectParams,
+  resolveKexiaozhanHandoffMaxAgeSeconds,
   sameKexiaozhanSignedPayload,
   validateKexiaozhanHandoffFreshness,
   verifyKexiaozhanRedirectSignature,
@@ -109,6 +112,27 @@ Deno.test("detects stale and future handoff timestamps", () => {
       ),
     Error,
     "future",
+  );
+});
+
+Deno.test("extends the local checkout window only for deferred printing", () => {
+  assertEquals(
+    resolveKexiaozhanHandoffMaxAgeSeconds(
+      KEXIAOZHAN_DEFERRED_HANDOFF_MAX_AGE_SECONDS,
+      "deferredPrint",
+    ),
+    35 * 60,
+  );
+  assertEquals(
+    resolveKexiaozhanHandoffMaxAgeSeconds(
+      KEXIAOZHAN_DEFERRED_HANDOFF_MAX_AGE_SECONDS,
+      "immediatePrint",
+    ),
+    KEXIAOZHAN_LEGACY_HANDOFF_MAX_AGE_SECONDS,
+  );
+  assertEquals(
+    resolveKexiaozhanHandoffMaxAgeSeconds(10 * 60, null),
+    10 * 60,
   );
 });
 

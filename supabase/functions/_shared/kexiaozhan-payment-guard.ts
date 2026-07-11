@@ -1,3 +1,8 @@
+import {
+  getKexiaozhanFulfillmentMethod,
+  parseKexiaozhanPaymentNotificationExtraFields,
+} from "./kexiaozhan-payment.ts";
+
 export const KEXIAOZHAN_EXPIRED_PAYMENT_REVIEW_STATUS = "payment_review";
 export const KEXIAOZHAN_EXPIRED_FULFILLMENT_STATUS =
   "kexiaozhan_handoff_expired";
@@ -44,6 +49,23 @@ export function isKexiaozhanHandoffExpired(
 ): boolean {
   const expiresAt = parseKexiaozhanHandoffExpiresAt(handoff?.expires_at);
   return expiresAt !== null && now.getTime() > expiresAt.getTime();
+}
+
+export function shouldBlockExpiredKexiaozhanHandoff(
+  handoff: KexiaozhanHandoffExpiryRecord | null | undefined,
+  extraFieldsJson: string | null | undefined,
+  now = new Date(),
+): boolean {
+  if (!isKexiaozhanHandoffExpired(handoff, now)) return false;
+
+  try {
+    return getKexiaozhanFulfillmentMethod(
+      parseKexiaozhanPaymentNotificationExtraFields(extraFieldsJson),
+    ) !== "deferredPrint";
+  } catch {
+    // An invalid print-mode configuration must keep the original fail-closed rule.
+    return true;
+  }
 }
 
 export function buildExpiredKexiaozhanOrderUpdate(

@@ -21,6 +21,9 @@ export type KexiaozhanHandoffFreshness = {
   expiresAt: Date;
 };
 
+export const KEXIAOZHAN_LEGACY_HANDOFF_MAX_AGE_SECONDS = 15 * 60;
+export const KEXIAOZHAN_DEFERRED_HANDOFF_MAX_AGE_SECONDS = 35 * 60;
+
 export type KexiaozhanPaymentContext = {
   orderNo: string;
   outTradeNo: string;
@@ -121,7 +124,7 @@ export function parseKexiaozhanTimestampSeconds(timestamp: string): number {
 export function validateKexiaozhanHandoffFreshness(
   params: Pick<KexiaozhanRedirectParams, "timestamp">,
   now = new Date(),
-  maxAgeSeconds = 15 * 60,
+  maxAgeSeconds = KEXIAOZHAN_LEGACY_HANDOFF_MAX_AGE_SECONDS,
   futureSkewSeconds = 5 * 60,
 ): KexiaozhanHandoffFreshness {
   const timestampSeconds = parseKexiaozhanTimestampSeconds(params.timestamp);
@@ -140,6 +143,20 @@ export function validateKexiaozhanHandoffFreshness(
     handoffTimestamp,
     expiresAt: new Date(handoffTimestamp.getTime() + maxAgeSeconds * 1000),
   };
+}
+
+export function resolveKexiaozhanHandoffMaxAgeSeconds(
+  configuredMaxAgeSeconds: number,
+  fulfillmentMethod: string | null,
+): number {
+  if (fulfillmentMethod === "deferredPrint") {
+    return configuredMaxAgeSeconds;
+  }
+
+  return Math.min(
+    configuredMaxAgeSeconds,
+    KEXIAOZHAN_LEGACY_HANDOFF_MAX_AGE_SECONDS,
+  );
 }
 
 export function kexiaozhanRedirectParamsToSignableRecord(
