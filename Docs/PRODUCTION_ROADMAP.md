@@ -12,15 +12,17 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
   restores Pending Print, with no enforced 30-minute callback cutoff; Snapcase
   must deploy and prove the corresponding local behavior.
 - Issue #36 tracks new Kexiaozhan/Alejandro guidance that paid online orders should use admin-controlled batch printing, not uncontrolled immediate continuous printing.
-- Do not schedule the final vendor test yet. Staging domain isolation (#50) is
-  complete. The remaining internal prerequisites are #43 Stripe Dashboard webhook
-  validation and #51 a real zero-total Checkout creation path.
+- Internal staging prerequisites are complete: staging isolation (#50), Stripe
+  Dashboard webhook validation (#43), and the disabled-by-default zero-total
+  implementation/deployment (#51). The next dependency is a coordinated pair of
+  fresh vendor-signed sandbox handoffs for live evidence.
 
 ## Production Gates
 
 1. The delayed deferred-print staging and physical-release test passes.
-   - First complete #43 and #51. No vendor engineer or Alejandro action is
-     needed before those internal gates pass.
+   - Coordinate the vendor test window now that #43 and the #51 implementation
+     gate are complete. Alejandro still has no action until Pending Print is
+     verified.
    - Kexiaozhan creates one fresh unpaid sandbox order through the normal Snapcase
      staging redirect and provides the complete signed redirect query payload,
      including `order_no` and `out_trade_no`.
@@ -71,9 +73,10 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 - #38 - Obsolete: no Snapcase login is required for Alejandro's vendor-portal test.
 - #39 - Create and run the vendor-originated staging deferred-print test order.
 - #40 - Verify delayed callback and physical-release evidence.
-- #43 - Clean up and verify the staging Stripe webhook endpoint.
+- #43 - Clean up and verify the staging Stripe webhook endpoint (complete).
 - #50 - Restore isolated staging domain for Kexiaozhan validation (complete).
-- #51 - Enable zero-total Kexiaozhan Checkout validation.
+- #51 - Enable zero-total Kexiaozhan Checkout validation (implementation and
+  deployment complete; vendor-originated live evidence pending).
 - #33 - Production environment and secret readiness.
 - #34 - Production cutover and rollback runbook.
 - #32 - Production pilot order and monitoring.
@@ -141,7 +144,7 @@ traffic.
 Kexiaozhan engineers:
 
 ```text
-Do not send this until issues #43 and #51 are complete.
+This request is ready to send once both teams agree on a bounded test window.
 
 For the final staging test, please create the agreed fresh unpaid sandbox orders
 using the approved Snapcase staging redirect. Please send the complete signed

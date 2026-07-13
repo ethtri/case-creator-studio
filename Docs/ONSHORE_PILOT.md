@@ -69,8 +69,11 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Readiness audit on 2026-07-12 verified that `https://staging.snapcase.ai`
   serves the protected staging deployment, whose browser bundle points only to
   `snapcase-onshore-staging`. The bridge redirects to the clean staging URL and
-  no longer relies on a Vercel bypass mechanism. Do not request a vendor order
-  until the remaining Stripe Dashboard and zero-total checkout gates pass.
+  no longer relies on a Vercel bypass mechanism.
+- Stripe Dashboard validation completed on 2026-07-13. The retained staging
+  destination is test-mode-only, listens to the two required Checkout events,
+  and returned HTTP 200 for a signed unrelated Checkout fixture. Duplicate
+  staging destinations were removed; issue #43 is closed.
 - For the Kexiaozhan physical test, Alejandro needs no Snapcase account, email
   allowlist entry, or customer checkout action. After Snapcase verifies the
   vendor order is `Pending Print`, he opens Merchant Portal **Order Center > Order
@@ -128,9 +131,11 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 
 ## Controlled Production Pilot Checklist
 
-- Do not request a new vendor handoff until issues #43 and #51 pass. Then
-  Kexiaozhan creates fresh unpaid sandbox handoffs using the approved isolated
-  staging redirect and supplies the complete signed query payloads. Snapcase
+- The #51 zero-total implementation and isolated staging deployment are ready;
+  its live evidence requires the vendor order and is not a prerequisite to
+  requesting it. Coordinate fresh paid and zero-value sandbox handoffs using the
+  approved isolated staging redirect and require the complete signed query
+  payloads. Snapcase
   waits past the normal cancellation point for the paid order, completes the
   Stripe test Checkout, and confirms the signed `deferredPrint` callback restores
   `Pending Print` with exactly one production job.
