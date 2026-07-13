@@ -8,35 +8,38 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 **Sprint goal:** Stabilize EDM-first flow through checkout
 
 ## Blockers
-- Final Kexiaozhan staging test needs one fresh vendor-originated unpaid sandbox
-  order. After the normal 15-minute cancellation point, Snapcase will complete
-  the Stripe test Checkout with the callback enabled only for that exact
-  `outTradeNo` and verify that `deferredPrint` restores `Pending Print`.
-- The physical release test follows that verification: Alejandro uses the
-  Kexiaozhan Merchant Portal, not Snapcase `/operations`, to select the verified
-  `Pending Print` order and click `Send to Print` once. No Snapcase login or
-  customer checkout action is required from him.
-- Issue #36 still requires positive, zero-amount, and physical-release evidence.
-  Production Kexiaozhan traffic remains disabled.
+- Do not ask Kexiaozhan or Alejandro to start a test yet. The public
+  `staging.snapcase.ai` alias currently serves a Vercel production deployment
+  whose bundle points to production Supabase, not `snapcase-onshore-staging`.
+  Issue #50 must restore staging isolation before any vendor-facing test.
+- Issue #43 must confirm the staging Stripe Dashboard webhook is test-mode-only,
+  narrowed to Checkout events, and uses the matching staging signing secret.
+- Issue #51 must add a server-controlled zero-total Kexiaozhan Checkout path.
+  The callback code supports no-cost sessions, but the checkout creator currently
+  rejects a zero unit price and has no discount path.
+- Once #43, #50, and #51 pass, request fresh vendor orders with the complete
+  signed `webhookUrl` query payload, not just `order_no` and `out_trade_no`.
+  The paid order then proves delayed `deferredPrint` recovery and one Merchant
+  Portal `Send to Print` release by Alejandro.
 
 ## Top 3 Next Tasks
-1. P0: Ask Kexiaozhan to create the fresh sandbox handoff and provide its
-   `order_no` and `out_trade_no` (#39).
-2. P0: Run the delayed `deferredPrint` callback test, then have Alejandro release
-   that verified `Pending Print` order from the Merchant Portal (#30, #35, #40).
-3. P0: Complete the zero-amount callback test and Stripe Dashboard cleanup (#36, #43).
+1. P0: Restore the public staging domain's isolated Supabase deployment (#50).
+2. P0: Finish Stripe Dashboard webhook validation and add a staging-safe
+   zero-total Checkout path (#43, #51).
+3. P0: Then request the complete signed vendor payloads and run the combined
+   delayed, no-cost, and physical-release evidence flow (#30, #35, #36, #39, #40).
 
 ## Now / Next / Later
 **Now**
-- P0: Obtain a fresh Kexiaozhan sandbox handoff for the controlled delayed
-  `deferredPrint` test. Alejandro has no action until it is verified as
-  `Pending Print`.
+- P0: Fix and verify staging isolation before requesting any new Kexiaozhan
+  sandbox order. Alejandro and the vendor engineers have no action now.
 
 **Next**
-- P0: Complete the delayed `deferredPrint` callback, one-job, and physical
-  Merchant Portal release evidence in #30, #35, #36, #39, and #40.
-- P0: Run the zero-total staging callback and finish Stripe Dashboard webhook
-  cleanup (#36, #43).
+- P0: Complete #43, #50, and #51, then request two fresh vendor-signed handoffs
+  in one coordinated test window: paid/delayed and zero-total.
+- P0: Complete the delayed `deferredPrint` callback, one-job, no-auto-print,
+  zero-total, and physical Merchant Portal release evidence in #30, #35, #36,
+  #39, and #40.
 - P0: Production cutover readiness - production secrets, rollback runbook, and first supervised pilot order.
 
 **Later**
@@ -82,6 +85,16 @@ Owner-updated snapshot for AI agents. Keep this short and current.
   release the identified `Pending Print` order with Merchant Portal `Send to
   Print` after Snapcase verifies the delayed payment callback. A Snapcase operator
   records internal job status separately.
+- Readiness audit on 2026-07-12: staging Edge Functions are active and their
+  callback gate is correctly fail-closed (`deferredPrint`, callback disabled,
+  exact allowlist required, empty allowlists). The protected bridge still reaches
+  the isolated staging preview, but `staging.snapcase.ai` currently aliases a
+  Vercel production deployment whose frontend bundle references production
+  Supabase. Do not use that custom domain for vendor testing until #50 passes.
+- The same audit found that a real zero-total Kexiaozhan Checkout cannot yet be
+  created, despite the downstream no-cost callback handling and tests. #51 tracks
+  the server-controlled staging checkout capability; do not request a zero-value
+  vendor order before it is complete.
 - Kexiaozhan 2026-07-11 timeout clarification: for `deferredPrint`, a valid
   signed success callback is processed even after the vendor order has been
   canceled and restores it to Pending Print; `/process-payment-notify` has no

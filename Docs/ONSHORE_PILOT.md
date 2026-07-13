@@ -66,9 +66,13 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - For protected PR previews, `kexiaozhan-checkout-redirect` provides a clean
   vendor-facing staging URL and server-side redirects into the protected preview
   with the temporary Vercel bypass. Do not post or commit the bypass secret.
-- `https://staging.snapcase.ai/operations` is a verified, authenticated Snapcase
-  internal queue. It remains available for Snapcase operators, but is not the
-  Kexiaozhan Merchant Portal and is not part of Alejandro's vendor physical test.
+- Readiness audit on 2026-07-12 found that `https://staging.snapcase.ai` aliases
+  a Vercel production deployment whose frontend bundle references production
+  Supabase. Do not use that custom domain for the Kexiaozhan staging test until
+  issue #50 restores isolated staging deployment and browser verification. The
+  protected Kexiaozhan bridge still reaches an isolated staging preview, but
+  remains an internal path until the final vendor-facing redirect base is
+  revalidated.
 - For the Kexiaozhan physical test, Alejandro needs no Snapcase account, email
   allowlist entry, or customer checkout action. After Snapcase verifies the
   vendor order is `Pending Print`, he opens Merchant Portal **Order Center > Order
@@ -122,8 +126,10 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 
 ## Controlled Production Pilot Checklist
 
-- Kexiaozhan creates one fresh unpaid sandbox handoff using the normal staging
-  redirect. Snapcase waits past the normal cancellation point, completes the
+- Do not request a new vendor handoff until issues #43, #50, and #51 pass. Then
+  Kexiaozhan creates fresh unpaid sandbox handoffs using the approved isolated
+  staging redirect and supplies the complete signed query payloads. Snapcase
+  waits past the normal cancellation point for the paid order, completes the
   Stripe test Checkout, and confirms the signed `deferredPrint` callback restores
   `Pending Print` with exactly one production job.
 - Alejandro then completes the supervised physical release from Merchant Portal
