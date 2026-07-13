@@ -1,7 +1,4 @@
-import {
-  assertEquals,
-  assertThrows,
-} from "https://deno.land/std@0.190.0/testing/asserts.ts";
+import { assertEquals, assertThrows } from "jsr:@std/assert";
 import { getStripeMode, getStripeSecretKey } from "./stripe-config.ts";
 
 const ENV_KEYS = [

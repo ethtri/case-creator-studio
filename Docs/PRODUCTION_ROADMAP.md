@@ -12,14 +12,14 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
   restores Pending Print, with no enforced 30-minute callback cutoff; Snapcase
   must deploy and prove the corresponding local behavior.
 - Issue #36 tracks new Kexiaozhan/Alejandro guidance that paid online orders should use admin-controlled batch printing, not uncontrolled immediate continuous printing.
-- Do not schedule the final vendor test yet. The readiness audit found three
-  internal prerequisites: #43 Stripe Dashboard webhook validation, #50 staging
-  domain isolation, and #51 a real zero-total Checkout creation path.
+- Do not schedule the final vendor test yet. Staging domain isolation (#50) is
+  complete. The remaining internal prerequisites are #43 Stripe Dashboard webhook
+  validation and #51 a real zero-total Checkout creation path.
 
 ## Production Gates
 
 1. The delayed deferred-print staging and physical-release test passes.
-   - First complete #43, #50, and #51. No vendor engineer or Alejandro action is
+   - First complete #43 and #51. No vendor engineer or Alejandro action is
      needed before those internal gates pass.
    - Kexiaozhan creates one fresh unpaid sandbox order through the normal Snapcase
      staging redirect and provides the complete signed redirect query payload,
@@ -72,7 +72,7 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 - #39 - Create and run the vendor-originated staging deferred-print test order.
 - #40 - Verify delayed callback and physical-release evidence.
 - #43 - Clean up and verify the staging Stripe webhook endpoint.
-- #50 - Restore isolated staging domain for Kexiaozhan validation.
+- #50 - Restore isolated staging domain for Kexiaozhan validation (complete).
 - #51 - Enable zero-total Kexiaozhan Checkout validation.
 - #33 - Production environment and secret readiness.
 - #34 - Production cutover and rollback runbook.
@@ -141,7 +141,7 @@ traffic.
 Kexiaozhan engineers:
 
 ```text
-Do not send this until issues #43, #50, and #51 are complete.
+Do not send this until issues #43 and #51 are complete.
 
 For the final staging test, please create the agreed fresh unpaid sandbox orders
 using the approved Snapcase staging redirect. Please send the complete signed

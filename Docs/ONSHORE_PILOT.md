@@ -66,19 +66,21 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - For protected PR previews, `kexiaozhan-checkout-redirect` provides a clean
   vendor-facing staging URL and server-side redirects into the protected preview
   with the temporary Vercel bypass. Do not post or commit the bypass secret.
-- Readiness audit on 2026-07-12 found that `https://staging.snapcase.ai` aliases
-  a Vercel production deployment whose frontend bundle references production
-  Supabase. Do not use that custom domain for the Kexiaozhan staging test until
-  issue #50 restores isolated staging deployment and browser verification. The
-  protected Kexiaozhan bridge still reaches an isolated staging preview, but
-  remains an internal path until the final vendor-facing redirect base is
-  revalidated.
+- Readiness audit on 2026-07-12 verified that `https://staging.snapcase.ai`
+  serves the protected staging deployment, whose browser bundle points only to
+  `snapcase-onshore-staging`. The bridge redirects to the clean staging URL and
+  no longer relies on a Vercel bypass mechanism. Do not request a vendor order
+  until the remaining Stripe Dashboard and zero-total checkout gates pass.
 - For the Kexiaozhan physical test, Alejandro needs no Snapcase account, email
   allowlist entry, or customer checkout action. After Snapcase verifies the
   vendor order is `Pending Print`, he opens Merchant Portal **Order Center > Order
   List**, locates the supplied order ID, selects **Send to Print** once, and
   reports the physical outcome. A Snapcase operator records internal job status
   separately.
+- A zero-total Kexiaozhan Checkout is disabled by default. It may be enabled only
+  in isolated staging with `KEXIAOZHAN_ALLOW_ZERO_TOTAL_CHECKOUTS=true` and both
+  checkout price settings at 0, for a vendor handoff whose signed `amount` is 0.
+  Restore the normal staging price and disable the flag after the evidence run.
 - Kexiaozhan late-payment policy: vendor cancellation still occurs after 15
   minutes, but a valid signed `deferredPrint` success callback is accepted after
   cancellation and restores Pending Print. Snapcase permits an expired handoff
@@ -126,7 +128,7 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 
 ## Controlled Production Pilot Checklist
 
-- Do not request a new vendor handoff until issues #43, #50, and #51 pass. Then
+- Do not request a new vendor handoff until issues #43 and #51 pass. Then
   Kexiaozhan creates fresh unpaid sandbox handoffs using the approved isolated
   staging redirect and supplies the complete signed query payloads. Snapcase
   waits past the normal cancellation point for the paid order, completes the

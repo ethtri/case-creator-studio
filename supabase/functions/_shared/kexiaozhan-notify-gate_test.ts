@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std@0.190.0/testing/asserts.ts";
+import { assertEquals } from "jsr:@std/assert";
 import { resolveKexiaozhanLiveNotifyGate } from "./kexiaozhan-notify-gate.ts";
 
 Deno.test("resolveKexiaozhanLiveNotifyGate blocks when notify is disabled", () => {
