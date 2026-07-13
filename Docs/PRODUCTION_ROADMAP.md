@@ -12,12 +12,18 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
   restores Pending Print, with no enforced 30-minute callback cutoff; Snapcase
   must deploy and prove the corresponding local behavior.
 - Issue #36 tracks new Kexiaozhan/Alejandro guidance that paid online orders should use admin-controlled batch printing, not uncontrolled immediate continuous printing.
+- Do not schedule the final vendor test yet. The readiness audit found three
+  internal prerequisites: #43 Stripe Dashboard webhook validation, #50 staging
+  domain isolation, and #51 a real zero-total Checkout creation path.
 
 ## Production Gates
 
 1. The delayed deferred-print staging and physical-release test passes.
+   - First complete #43, #50, and #51. No vendor engineer or Alejandro action is
+     needed before those internal gates pass.
    - Kexiaozhan creates one fresh unpaid sandbox order through the normal Snapcase
-     staging redirect and provides its `order_no` and `out_trade_no`.
+     staging redirect and provides the complete signed redirect query payload,
+     including `order_no` and `out_trade_no`.
    - Snapcase waits past the normal 15-minute cancellation point, enables the
      callback only for that exact `outTradeNo`, and completes the Stripe test
      Checkout.
@@ -65,6 +71,9 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 - #38 - Obsolete: no Snapcase login is required for Alejandro's vendor-portal test.
 - #39 - Create and run the vendor-originated staging deferred-print test order.
 - #40 - Verify delayed callback and physical-release evidence.
+- #43 - Clean up and verify the staging Stripe webhook endpoint.
+- #50 - Restore isolated staging domain for Kexiaozhan validation.
+- #51 - Enable zero-total Kexiaozhan Checkout validation.
 - #33 - Production environment and secret readiness.
 - #34 - Production cutover and rollback runbook.
 - #32 - Production pilot order and monitoring.
@@ -132,18 +141,17 @@ traffic.
 Kexiaozhan engineers:
 
 ```text
-Thank you for the clarification on deferred printing. For the final staging test,
-could you please create one fresh unpaid sandbox order using the same Snapcase
-staging redirect setup as the previous successful tests?
+Do not send this until issues #43, #50, and #51 are complete.
 
-After it is created, please send us its order_no and out_trade_no only. Please do
-not pay it or send it to print. We will wait until after the normal 15-minute
-cancellation point, complete the Stripe test payment, and verify that the signed
-deferredPrint callback restores the order to Pending Print. We will then ask our
-on-site manager to release the verified Pending Print order from the Merchant
-Portal.
+For the final staging test, please create the agreed fresh unpaid sandbox orders
+using the approved Snapcase staging redirect. Please send the complete signed
+webhookUrl query payload for each order, including order_no, out_trade_no,
+amount, goods_name, currency, machine_sn, timestamp, nonce, and sign. Please do
+not pay or print either order.
 
-No new API documentation or configuration is needed from your side. Thank you.
+We will use the paid order for the delayed deferredPrint test and the zero-value
+order for the no-cost Checkout test. We will coordinate the bounded test window
+before you generate the signed redirects.
 ```
 
 ## Verification Before Cutover

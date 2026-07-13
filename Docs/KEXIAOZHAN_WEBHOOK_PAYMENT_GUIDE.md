@@ -461,3 +461,10 @@ These items remain unresolved after the latest WeChat clarification:
    restores Pending Print, and creates exactly one Snapcase production job.
 5. A supervised deferred physical test of the documented Merchant Portal
    **Order List > Pending Print > Send to Print** procedure.
+6. Staging-domain isolation: the public `staging.snapcase.ai` alias currently
+   serves a frontend bundle configured for production Supabase. Do not use it for
+   vendor testing until issue #50 confirms isolated staging deployment.
+7. A real zero-total handoff checkout: downstream no-cost callback handling is
+   implemented, but `kexiaozhan-create-checkout` currently rejects zero unit
+   prices and has no discount path. Issue #51 must provide a server-controlled
+   staging path before asking the vendor for a zero-value order.
