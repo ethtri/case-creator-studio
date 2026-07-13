@@ -19,6 +19,7 @@ import {
   getKexiaozhanFulfillmentMethod,
   parseKexiaozhanPaymentNotificationExtraFields,
 } from "../_shared/kexiaozhan-payment.ts";
+import { resolveKexiaozhanCheckoutPricing } from "../_shared/kexiaozhan-checkout-pricing.ts";
 
 const TRUE_VALUES = new Set(["1", "true", "yes"]);
 const DEFAULT_PRODUCT_PRICE_CENTS = 2999;
@@ -87,6 +88,13 @@ function readPositiveIntegerEnv(name: string, fallback: number): number {
     throw new Error(`${name} must be greater than zero`);
   }
   return value;
+}
+
+function isZeroTotalCheckoutEnabled(): boolean {
+  return TRUE_VALUES.has(
+    (Deno.env.get("KEXIAOZHAN_ALLOW_ZERO_TOTAL_CHECKOUTS") ?? "").trim()
+      .toLowerCase(),
+  );
 }
 
 function readCheckoutCurrency(): string {
@@ -449,18 +457,25 @@ serve(async (req) => {
       }
     }
 
-    const unitAmountCents = readPositiveIntegerEnv(
+    const configuredUnitAmountCents = readIntegerEnv(
       "KEXIAOZHAN_CHECKOUT_UNIT_AMOUNT_CENTS",
       DEFAULT_PRODUCT_PRICE_CENTS,
     );
-    const shippingCents = readIntegerEnv(
+    const configuredShippingCents = readIntegerEnv(
       "KEXIAOZHAN_CHECKOUT_SHIPPING_CENTS",
       DEFAULT_SHIPPING_CENTS,
     );
+    const pricing = resolveKexiaozhanCheckoutPricing({
+      unitAmountCents: configuredUnitAmountCents,
+      shippingCents: configuredShippingCents,
+      vendorAmount: params.amount,
+      allowZeroTotalCheckout: isZeroTotalCheckoutEnabled(),
+    });
+    const { unitAmountCents, shippingCents } = pricing;
     const checkoutCurrency = readCheckoutCurrency();
     const subtotal = unitAmountCents / 100;
     const shippingCost = shippingCents / 100;
-    const total = subtotal + shippingCost;
+    const total = pricing.totalCents / 100;
     const orderItem = buildOrderItem(params, unitAmountCents);
     const productName = clampText(
       Deno.env.get("KEXIAOZHAN_CHECKOUT_PRODUCT_NAME")?.trim() ||
@@ -522,14 +537,16 @@ serve(async (req) => {
         outTradeNo: params.out_trade_no,
         machineSn: params.machine_sn,
       },
-      payment_intent_data: {
-        metadata: {
-          source: "kexiaozhan",
-          orderNo: params.order_no,
-          outTradeNo: params.out_trade_no,
-          machineSn: params.machine_sn,
+      ...(pricing.isNoCostCheckout ? {} : {
+        payment_intent_data: {
+          metadata: {
+            source: "kexiaozhan",
+            orderNo: params.order_no,
+            outTradeNo: params.out_trade_no,
+            machineSn: params.machine_sn,
+          },
         },
-      },
+      }),
     }, {
       idempotencyKey: `kexiaozhan-checkout-${params.out_trade_no}`.slice(
         0,

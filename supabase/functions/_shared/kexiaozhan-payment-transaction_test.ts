@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std@0.190.0/testing/asserts.ts";
+import { assertEquals } from "jsr:@std/assert";
 import { resolveKexiaozhanPaymentTransaction } from "./kexiaozhan-payment-transaction.ts";
 
 const ORDER_ID = "a059d2eb-3ada-4dd5-8f32-a4fa88e1a873";

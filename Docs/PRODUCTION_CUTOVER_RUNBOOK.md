@@ -29,6 +29,7 @@ Configure these only after dry-run and TTL/print-mode gates are accepted. Do not
 | Kexiaozhan API | `KEXIAOZHAN_API_BASE_URL=https://kxzus.kexiaozhan.com` |
 | Kexiaozhan auth | `KEXIAOZHAN_MACHINE_KEY`, `KEXIAOZHAN_ALLOWED_MACHINE_SN` |
 | Checkout pricing | `KEXIAOZHAN_CHECKOUT_UNIT_AMOUNT_CENTS`, `KEXIAOZHAN_CHECKOUT_SHIPPING_CENTS`, `KEXIAOZHAN_CHECKOUT_CURRENCY` |
+| No-cost checkout guard | `KEXIAOZHAN_ALLOW_ZERO_TOTAL_CHECKOUTS=false` |
 | Handoff window | `KEXIAOZHAN_HANDOFF_MAX_AGE_SECONDS=2100` for deferred printing; non-deferred modes remain capped at 15 minutes |
 | Checkout expirer | `KEXIAOZHAN_CHECKOUT_EXPIRY_LEEWAY_SECONDS=60` for local session/replay expiry |
 | Checkout expirer auth | `KEXIAOZHAN_CHECKOUT_EXPIRER_AUTH_SECRET` |

@@ -1,7 +1,4 @@
-import {
-  assertEquals,
-  assertExists,
-} from "https://deno.land/std@0.190.0/testing/asserts.ts";
+import { assertEquals, assertExists } from "jsr:@std/assert";
 import {
   buildExpiredKexiaozhanOrderUpdate,
   extractKexiaozhanOutTradeNo,

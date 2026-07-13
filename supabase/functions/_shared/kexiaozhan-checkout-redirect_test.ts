@@ -1,7 +1,4 @@
-import {
-  assertEquals,
-  assertRejects,
-} from "https://deno.land/std@0.190.0/testing/asserts.ts";
+import { assertEquals, assertRejects } from "jsr:@std/assert";
 import { buildKexiaozhanCheckoutRedirectUrl } from "./kexiaozhan-checkout-redirect.ts";
 
 Deno.test("buildKexiaozhanCheckoutRedirectUrl preserves vendor params and adds bypass", () => {

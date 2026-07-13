@@ -1,8 +1,4 @@
-import {
-  assertEquals,
-  assertRejects,
-  assertThrows,
-} from "https://deno.land/std@0.190.0/testing/asserts.ts";
+import { assertEquals, assertRejects, assertThrows } from "jsr:@std/assert";
 import { signKexiaozhanPayload } from "./kexiaozhan-payment.ts";
 import {
   buildKexiaozhanRedirectSigningString,

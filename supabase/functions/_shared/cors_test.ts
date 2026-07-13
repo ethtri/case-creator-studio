@@ -1,7 +1,4 @@
-import {
-  assertEquals,
-  assertThrows,
-} from "https://deno.land/std@0.190.0/testing/asserts.ts";
+import { assertEquals, assertThrows } from "jsr:@std/assert";
 import { isAllowedOrigin, requireAllowedOrigin } from "./cors.ts";
 
 function withPreviewOrigins(value: string, test: () => void): void {

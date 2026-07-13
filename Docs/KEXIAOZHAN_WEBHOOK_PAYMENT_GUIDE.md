@@ -432,6 +432,13 @@ Unpaid or cannot-confirm response:
   `{"fulfillmentMethod":"deferredPrint"}` in staging and the first pilot.
   Successful vendor callbacks are blocked locally if the field is absent or not
   one of the two exact vendor values.
+- `KEXIAOZHAN_ALLOW_ZERO_TOTAL_CHECKOUTS` is false by default. For the isolated
+  staging no-cost test only, set it to true and set both
+  `KEXIAOZHAN_CHECKOUT_UNIT_AMOUNT_CENTS` and
+  `KEXIAOZHAN_CHECKOUT_SHIPPING_CENTS` to 0. Snapcase accepts this only when the
+  signed vendor `amount` is also zero; the browser cannot select the price or
+  enable the mode. Restore the normal staging price and disable the flag after
+  the test.
 - Stripe Checkout Sessions cannot be configured to expire sooner than 30
   minutes. Kexiaozhan's 2026-07-11 deferred-print exception resolves that
   payment risk: a valid signed `deferredPrint` callback is accepted after vendor
@@ -461,10 +468,6 @@ These items remain unresolved after the latest WeChat clarification:
    restores Pending Print, and creates exactly one Snapcase production job.
 5. A supervised deferred physical test of the documented Merchant Portal
    **Order List > Pending Print > Send to Print** procedure.
-6. Staging-domain isolation: the public `staging.snapcase.ai` alias currently
-   serves a frontend bundle configured for production Supabase. Do not use it for
-   vendor testing until issue #50 confirms isolated staging deployment.
-7. A real zero-total handoff checkout: downstream no-cost callback handling is
-   implemented, but `kexiaozhan-create-checkout` currently rejects zero unit
-   prices and has no discount path. Issue #51 must provide a server-controlled
-   staging path before asking the vendor for a zero-value order.
+6. A real zero-total handoff checkout and callback test. The server-controlled
+   staging capability is tracked in issue #51; do not enable it in production
+   without separate approval.

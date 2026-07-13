@@ -8,34 +8,30 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 **Sprint goal:** Stabilize EDM-first flow through checkout
 
 ## Blockers
-- Do not ask Kexiaozhan or Alejandro to start a test yet. The public
-  `staging.snapcase.ai` alias currently serves a Vercel production deployment
-  whose bundle points to production Supabase, not `snapcase-onshore-staging`.
-  Issue #50 must restore staging isolation before any vendor-facing test.
 - Issue #43 must confirm the staging Stripe Dashboard webhook is test-mode-only,
   narrowed to Checkout events, and uses the matching staging signing secret.
-- Issue #51 must add a server-controlled zero-total Kexiaozhan Checkout path.
-  The callback code supports no-cost sessions, but the checkout creator currently
-  rejects a zero unit price and has no discount path.
-- Once #43, #50, and #51 pass, request fresh vendor orders with the complete
+- Issue #51 must merge, deploy, and prove the server-controlled zero-total
+  Kexiaozhan Checkout path. The code path must remain disabled except during the
+  isolated zero-value staging test.
+- Once #43 and #51 pass, request fresh vendor orders with the complete
   signed `webhookUrl` query payload, not just `order_no` and `out_trade_no`.
   The paid order then proves delayed `deferredPrint` recovery and one Merchant
   Portal `Send to Print` release by Alejandro.
 
 ## Top 3 Next Tasks
-1. P0: Restore the public staging domain's isolated Supabase deployment (#50).
-2. P0: Finish Stripe Dashboard webhook validation and add a staging-safe
-   zero-total Checkout path (#43, #51).
+1. P0: Merge and deploy the staging-safe zero-total Checkout path (#51).
+2. P0: Finish Stripe Dashboard webhook validation (#43).
 3. P0: Then request the complete signed vendor payloads and run the combined
    delayed, no-cost, and physical-release evidence flow (#30, #35, #36, #39, #40).
 
 ## Now / Next / Later
 **Now**
-- P0: Fix and verify staging isolation before requesting any new Kexiaozhan
-  sandbox order. Alejandro and the vendor engineers have no action now.
+- P0: Staging isolation is restored: `staging.snapcase.ai` serves the protected
+  staging deployment, whose bundle uses `snapcase-onshore-staging`. Alejandro
+  and the vendor engineers still have no action while #43 and #51 are completed.
 
 **Next**
-- P0: Complete #43, #50, and #51, then request two fresh vendor-signed handoffs
+- P0: Complete #43 and #51, then request two fresh vendor-signed handoffs
   in one coordinated test window: paid/delayed and zero-total.
 - P0: Complete the delayed `deferredPrint` callback, one-job, no-auto-print,
   zero-total, and physical Merchant Portal release evidence in #30, #35, #36,
@@ -87,14 +83,16 @@ Owner-updated snapshot for AI agents. Keep this short and current.
   records internal job status separately.
 - Readiness audit on 2026-07-12: staging Edge Functions are active and their
   callback gate is correctly fail-closed (`deferredPrint`, callback disabled,
-  exact allowlist required, empty allowlists). The protected bridge still reaches
-  the isolated staging preview, but `staging.snapcase.ai` currently aliases a
-  Vercel production deployment whose frontend bundle references production
-  Supabase. Do not use that custom domain for vendor testing until #50 passes.
-- The same audit found that a real zero-total Kexiaozhan Checkout cannot yet be
-  created, despite the downstream no-cost callback handling and tests. #51 tracks
-  the server-controlled staging checkout capability; do not request a zero-value
-  vendor order before it is complete.
+  exact allowlist required, empty allowlists). The staging alias was corrected to
+  the protected staging deployment; its browser bundle uses only
+  `snapcase-onshore-staging`, its CORS policy permits `staging.snapcase.ai`, and
+  the redirect bridge targets that clean staging URL without a Vercel bypass
+  token. Issue #50 is complete.
+- The same audit found that a real zero-total Kexiaozhan Checkout could not yet
+  be created, despite downstream no-cost callback handling and tests. #51 now
+  tracks merge, staging deployment, and live evidence for a server-controlled
+  zero-total checkout capability; do not request a zero-value vendor order before
+  those steps complete.
 - Kexiaozhan 2026-07-11 timeout clarification: for `deferredPrint`, a valid
   signed success callback is processed even after the vendor order has been
   canceled and restores it to Pending Print; `/process-payment-notify` has no
