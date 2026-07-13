@@ -66,11 +66,15 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - For protected PR previews, `kexiaozhan-checkout-redirect` provides a clean
   vendor-facing staging URL and server-side redirects into the protected preview
   with the temporary Vercel bypass. Do not post or commit the bypass secret.
-- For Alejandro's async `/operations` dry run, prefer a real staging custom
-  domain over sharing a preview bypass token. Current planned URL is
-  `https://staging.snapcase.ai/operations`; GoDaddy DNS must add
-  `A staging.snapcase.ai 76.76.21.21` before Vercel can finish the
-  alias/certificate.
+- `https://staging.snapcase.ai/operations` is a verified, authenticated Snapcase
+  internal queue. It remains available for Snapcase operators, but is not the
+  Kexiaozhan Merchant Portal and is not part of Alejandro's vendor physical test.
+- For the Kexiaozhan physical test, Alejandro needs no Snapcase account, email
+  allowlist entry, or customer checkout action. After Snapcase verifies the
+  vendor order is `Pending Print`, he opens Merchant Portal **Order Center > Order
+  List**, locates the supplied order ID, selects **Send to Print** once, and
+  reports the physical outcome. A Snapcase operator records internal job status
+  separately.
 - Kexiaozhan late-payment policy: vendor cancellation still occurs after 15
   minutes, but a valid signed `deferredPrint` success callback is accepted after
   cancellation and restores Pending Print. Snapcase permits an expired handoff
@@ -106,16 +110,25 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 
 - Staging test proves Stripe test payment creates exactly one onshore manual job.
 - Duplicate webhook or success-page verification does not duplicate jobs.
-- Late Kexiaozhan payments after handoff expiration do not create production
-  jobs or vendor payment callbacks.
+- A delayed valid `deferredPrint` Kexiaozhan payment callback restores `Pending
+  Print`, creates exactly one production job, and does not dispatch a print task
+  automatically. Missing, invalid, or non-deferred fulfillment mode remains
+  fail-closed.
 - Operator allowlist blocks non-operators from reading or updating jobs.
-- A test order can be manually printed, packed, shipped, and tracked.
+- A verified `Pending Print` test order can be released once through the Merchant
+  Portal and the physical result is recorded without output-slot blockage.
 - Rollback for new orders is one environment change from `onshore_manual` back to `printful`; already-queued onshore jobs require manual operator disposition.
 - Machine automation waits until vendor questions are answered and tested in a non-production machine flow.
 
 ## Controlled Production Pilot Checklist
 
-- Alejandro completes one async on-site staging dry run: use a verified staging `/operations` URL, print, pack, ship, and update the fresh staging test job when available.
+- Kexiaozhan creates one fresh unpaid sandbox handoff using the normal staging
+  redirect. Snapcase waits past the normal cancellation point, completes the
+  Stripe test Checkout, and confirms the signed `deferredPrint` callback restores
+  `Pending Print` with exactly one production job.
+- Alejandro then completes the supervised physical release from Merchant Portal
+  **Order Center > Order List > Send to Print**. He does not use Snapcase
+  `/operations`, create an order, or make a payment.
 - Issue #30 staging evidence confirms the vendor's deferred-print exception:
   after cancellation, a valid signed callback restores Pending Print and does
   not create duplicate Snapcase jobs.

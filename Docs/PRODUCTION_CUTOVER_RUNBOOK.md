@@ -5,7 +5,9 @@ Controlled Kexiaozhan/onshore production pilot runbook. This is not a full publi
 ## Preconditions
 
 - PR #27 is merged and production deploy is healthy.
-- Alejandro completes the async staging manual dry run in issue #35, using a verified staging `/operations` URL and a fresh staging test job.
+- Issue #35 physical staging evidence confirms that Alejandro can release one
+  verified `Pending Print` order through the Kexiaozhan Merchant Portal. This
+  action does not require Snapcase `/operations` access or a Snapcase login.
 - Issue #30 staging evidence confirms Kexiaozhan's accepted deferred-print
   behavior: a valid signed callback after cancellation restores Pending Print,
   produces exactly one Snapcase job, and does not dispatch immediate printing.
@@ -22,7 +24,7 @@ Configure these only after dry-run and TTL/print-mode gates are accepted. Do not
 | --- | --- |
 | Fulfillment | `FULFILLMENT_PROVIDER=onshore_manual` |
 | Fulfillment safety | `ALLOW_ONSHORE_MANUAL=true` |
-| Operators | `OPERATOR_EMAILS=<Ethan email>,<Alejandro email>` |
+| Operators | `OPERATOR_EMAILS=<Snapcase administrator email(s)>` |
 | Stripe | `STRIPE_MODE=live`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
 | Kexiaozhan API | `KEXIAOZHAN_API_BASE_URL=https://kxzus.kexiaozhan.com` |
 | Kexiaozhan auth | `KEXIAOZHAN_MACHINE_KEY`, `KEXIAOZHAN_ALLOWED_MACHINE_SN` |
@@ -77,7 +79,7 @@ The Vault `kexiaozhan_checkout_expirer_auth_secret` value must match the Edge Fu
 ## Cutover Sequence
 
 1. Confirm PR #27 production deploy is live and healthy.
-2. Confirm `/operations` login works for Ethan and Alejandro.
+2. Confirm `/operations` access works for a designated Snapcase administrator.
 3. Confirm production Kexiaozhan redirect URL:
    - `https://www.snapcase.ai/kexiaozhan/checkout`
 4. Configure production envs, leaving `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false`.
@@ -101,8 +103,10 @@ For the first order, record evidence in issue #32:
 - `/client/process-payment-notify` response is successful.
 - The signed callback body contains the confirmed admin/batch print-mode field from issue #36.
 - Exactly one `production_jobs` row exists for the order.
-- Alejandro sees the job in `/operations`.
-- Alejandro completes or confirms the physical handling path.
+- A designated Snapcase administrator can see the job in `/operations`.
+- Alejandro finds the verified `Pending Print` order in Kexiaozhan Merchant
+  Portal **Order Center > Order List**, selects `Send to Print` once, and
+  confirms the physical outcome.
 - No immediate uncontrolled print occurs unless operations explicitly approved it.
 
 ## Rollback
