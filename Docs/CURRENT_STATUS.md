@@ -2,37 +2,39 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-07-12
+**Last updated:** 2026-07-13
 **Last updated by:** Codex
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
 
 ## Blockers
-- Issue #43 must confirm the staging Stripe Dashboard webhook is test-mode-only,
-  narrowed to Checkout events, and uses the matching staging signing secret.
-- Issue #51 must merge, deploy, and prove the server-controlled zero-total
-  Kexiaozhan Checkout path. The code path must remain disabled except during the
-  isolated zero-value staging test.
-- Once #43 and #51 pass, request fresh vendor orders with the complete
-  signed `webhookUrl` query payload, not just `order_no` and `out_trade_no`.
-  The paid order then proves delayed `deferredPrint` recovery and one Merchant
-  Portal `Send to Print` release by Alejandro.
+- Fresh vendor-signed sandbox handoffs are required to collect the remaining
+  cross-system evidence. Request one normal paid order and one zero-value order
+  in a coordinated window; each complete payload must include all signed
+  `webhookUrl` query fields.
+- The paid handoff must remain unpaid past Kexiaozhan's normal 15-minute
+  cancellation point before Snapcase completes Stripe Checkout. The zero-total
+  handoff must be completed while the staging-only no-cost flag and prices are
+  temporarily enabled.
+- Alejandro acts only after Snapcase verifies the paid vendor order is restored
+  to `Pending Print`; he then selects Merchant Portal `Send to Print` once.
 
 ## Top 3 Next Tasks
-1. P0: Merge and deploy the staging-safe zero-total Checkout path (#51).
-2. P0: Finish Stripe Dashboard webhook validation (#43).
-3. P0: Then request the complete signed vendor payloads and run the combined
-   delayed, no-cost, and physical-release evidence flow (#30, #35, #36, #39, #40).
+1. P0: Coordinate fresh complete vendor-signed paid and zero-value handoffs (#39, #51).
+2. P0: Run the delayed and no-cost callbacks with exact allowlists, then reset
+   every temporary staging gate (#30, #36, #40, #51).
+3. P0: After Pending Print is verified, have Alejandro release the paid order
+   once in Merchant Portal and record the physical result (#35, #40).
 
 ## Now / Next / Later
 **Now**
-- P0: Staging isolation is restored: `staging.snapcase.ai` serves the protected
-  staging deployment, whose bundle uses `snapcase-onshore-staging`. Alejandro
-  and the vendor engineers still have no action while #43 and #51 are completed.
+- P0: Internal prerequisites are complete. Staging isolation is verified, the
+  zero-total path is merged/deployed but disabled by default, and #43 is closed
+  after Stripe delivered a signed test Checkout event with HTTP 200.
 
 **Next**
-- P0: Complete #43 and #51, then request two fresh vendor-signed handoffs
-  in one coordinated test window: paid/delayed and zero-total.
+- P0: Request two fresh vendor-signed handoffs in one coordinated test window:
+  paid/delayed and zero-total. Do not reuse the expired July 13 payloads.
 - P0: Complete the delayed `deferredPrint` callback, one-job, no-auto-print,
   zero-total, and physical Merchant Portal release evidence in #30, #35, #36,
   #39, and #40.
@@ -88,11 +90,16 @@ Owner-updated snapshot for AI agents. Keep this short and current.
   `snapcase-onshore-staging`, its CORS policy permits `staging.snapcase.ai`, and
   the redirect bridge targets that clean staging URL without a Vercel bypass
   token. Issue #50 is complete.
-- The same audit found that a real zero-total Kexiaozhan Checkout could not yet
-  be created, despite downstream no-cost callback handling and tests. #51 now
-  tracks merge, staging deployment, and live evidence for a server-controlled
-  zero-total checkout capability; do not request a zero-value vendor order before
-  those steps complete.
+- The server-controlled zero-total Kexiaozhan Checkout path is merged and
+  deployed to isolated staging. It remains disabled by default and requires all
+  three server-side conditions: explicit opt-in, zero configured unit/shipping
+  prices, and a valid signed vendor amount of zero. #51 remains open only for a
+  real vendor-originated no-cost Checkout/callback/job evidence run.
+- Stripe Dashboard cleanup completed on 2026-07-13: duplicate staging
+  destinations were removed, the original test-mode destination remains scoped
+  to two Checkout events, and a synthetic `checkout.session.completed` delivery
+  returned HTTP 200 `Ignored`. This proves the staging signing secret matches
+  while unrelated Checkout Sessions remain non-mutating. Issue #43 is closed.
 - Kexiaozhan 2026-07-11 timeout clarification: for `deferredPrint`, a valid
   signed success callback is processed even after the vendor order has been
   canceled and restores it to Pending Print; `/process-payment-notify` has no
