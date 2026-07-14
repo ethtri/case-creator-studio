@@ -63,13 +63,15 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Kexiaozhan's browser redirect intake is `/kexiaozhan/checkout?<signed query>`.
   It calls `kexiaozhan-create-checkout`, stores `kexiaozhan_handoffs`, creates
   Stripe Checkout, and keeps the existing fake handoff separate.
-- For protected PR previews, `kexiaozhan-checkout-redirect` provides a clean
-  vendor-facing staging URL and server-side redirects into the protected preview
-  with the temporary Vercel bypass. Do not post or commit the bypass secret.
-- Readiness audit on 2026-07-12 verified that `https://staging.snapcase.ai`
-  serves the protected staging deployment, whose browser bundle points only to
-  `snapcase-onshore-staging`. The bridge redirects to the clean staging URL and
-  no longer relies on a Vercel bypass mechanism.
+- `https://staging.snapcase.ai` is the vendor-facing staging URL. It is mapped to
+  the dedicated Vercel project `snapcase-staging`, whose public deployment is
+  built against the isolated Supabase staging project
+  `onztuktjcmjukfhcuphh`. Keep it separate from the production Vercel project;
+  do not use branch-scoped preview aliases or Vercel bypass tokens for vendor
+  tests.
+- Readiness audit on 2026-07-14 verified unauthenticated HTTP 200 access, a
+  browser bundle containing the staging Supabase project and no production
+  project reference, and CORS permission for `staging.snapcase.ai`.
 - Stripe Dashboard validation completed on 2026-07-13. The retained staging
   destination is test-mode-only, listens to the two required Checkout events,
   and returned HTTP 200 for a signed unrelated Checkout fixture. Duplicate

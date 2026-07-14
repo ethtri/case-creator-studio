@@ -28,6 +28,10 @@ Lightweight routines for keeping the repo reviewable, verifiable, and safe for m
 ## Monthly or Pre-Launch
 - Run `Docs/QA_SMOKE_TEST_CHECKLIST.md` against the current deployment path.
 - Review `Docs/VERCEL_SETUP_STEPS.md` and Supabase notes for drift from actual deployment settings.
+- Verify `staging.snapcase.ai` still resolves to the dedicated `snapcase-staging`
+  Vercel project and that its unauthenticated bundle references only the isolated
+  staging Supabase project. Never attach the staging domain to the production
+  Vercel project or a branch-scoped preview deployment.
 - Run `npm run build` and review warnings, especially bundle-size and browser-data warnings.
 - Revisit branch protection on `main`: require PRs, block direct pushes, require verification, and require up-to-date branches when practical.
 

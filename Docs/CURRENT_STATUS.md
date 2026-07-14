@@ -2,7 +2,7 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-07-13
+**Last updated:** 2026-07-14
 **Last updated by:** Codex
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
@@ -63,10 +63,10 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - Kexiaozhan latest status clarification: no order validation API exists today; `/client/query-status` is payment-status only (`0=unpaid`, `1=paid`) and polling should be slower than every 2 seconds; unpaid vendor orders cancel after 15 minutes; print/order detail APIs and reprint API are forthcoming.
 - Kexiaozhan 2026-06-10 clarification: chief engineer confirmed test API base `https://kxzcnt.kexiaozhan.com`, production API base `https://kxzus.kexiaozhan.com`, no current IP restriction/VPN requirement, and provided test machine credentials out of band. Do not commit the test `machineKey`.
 - Kexiaozhan redirect checkout intake: `/kexiaozhan/checkout`, `kexiaozhan-create-checkout`, and `kexiaozhan_handoffs` now accept signed vendor query parameters, verify HMAC server-side, create Snapcase-owned Stripe Checkout, and persist handoff state keyed by `out_trade_no`.
-- Kexiaozhan staging bridge: `kexiaozhan-checkout-redirect` accepts Kexiaozhan's normal clean `?order_no=...` redirect shape and server-side redirects to the protected PR preview using the temporary Vercel bypass secret. The bridge does not validate payment truth; `kexiaozhan-create-checkout` remains the authoritative HMAC verifier.
+- Kexiaozhan staging deployment: `https://staging.snapcase.ai` is mapped to the dedicated Vercel project `snapcase-staging`, whose public production deployment is built against isolated Supabase staging `onztuktjcmjukfhcuphh`. It is independent from the production Vercel project `snapcase_app_v2`; do not use branch-scoped preview aliases for vendor tests. The bridge does not validate payment truth; `kexiaozhan-create-checkout` remains the authoritative HMAC verifier.
 - Kexiaozhan payment scaffold: server-only HMAC helpers, vendor-vector tests, fake handoff payment context, real redirect handoff context, and `route-fulfillment-order` notification metadata are implemented. Live vendor POSTs require explicit `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=true` plus backend `KEXIAOZHAN_MACHINE_KEY`. For staging vendor smoke tests, require an exact/prefix allowlist with `KEXIAOZHAN_PAYMENT_NOTIFY_REQUIRE_ALLOWLIST=true`, `KEXIAOZHAN_PAYMENT_NOTIFY_ALLOWED_OUT_TRADE_NOS`, or `KEXIAOZHAN_PAYMENT_NOTIFY_ALLOWED_PREFIXES` so only the real Kexiaozhan sandbox order is mutated.
 - Kexiaozhan staging smoke on 2026-06-16: deployed `20260616034837_add_kexiaozhan_handoffs`, `kexiaozhan-create-checkout`, `stripe-webhook`, and `route-fulfillment-order` to Supabase staging `onztuktjcmjukfhcuphh`; configured sandbox Kexiaozhan secrets without committing them; verified signed checkout creation, duplicate retry reuse, changed replay rejection, bad signature rejection, wrong-machine rejection, real Stripe test payment, webhook order update, one onshore production job, and dry-run signed Kexiaozhan callback metadata.
-- Kexiaozhan preview-bypass smoke on 2026-06-16: a private Vercel automation-bypass URL was verified for the PR preview, preserving vendor query params and reaching Stripe Checkout with signed test payload `PAYBYPASS20260616045447`; do not post the bypass token publicly. Prefer the clean Supabase staging bridge URL for Kexiaozhan so they can append params with `?` normally.
+- Historical note: a private Vercel preview-bypass URL was used during the initial staging setup. It is not part of the current vendor test path; do not post or reuse bypass tokens.
 - Kexiaozhan timeout policy: vendor cancellation still occurs after 15 minutes, but
   a valid signed `deferredPrint` success callback is accepted after cancellation
   and restores the order to Pending Print, with no vendor-enforced 30-minute
@@ -83,13 +83,13 @@ Owner-updated snapshot for AI agents. Keep this short and current.
   release the identified `Pending Print` order with Merchant Portal `Send to
   Print` after Snapcase verifies the delayed payment callback. A Snapcase operator
   records internal job status separately.
-- Readiness audit on 2026-07-12: staging Edge Functions are active and their
+- Readiness audit on 2026-07-14: staging Edge Functions are active and their
   callback gate is correctly fail-closed (`deferredPrint`, callback disabled,
-  exact allowlist required, empty allowlists). The staging alias was corrected to
-  the protected staging deployment; its browser bundle uses only
-  `snapcase-onshore-staging`, its CORS policy permits `staging.snapcase.ai`, and
-  the redirect bridge targets that clean staging URL without a Vercel bypass
-  token. Issue #50 is complete.
+  exact allowlist required, empty allowlists). `staging.snapcase.ai` is now
+  permanently mapped to the dedicated `snapcase-staging` Vercel project; an
+  unauthenticated check returned HTTP 200, the browser bundle used only
+  `snapcase-onshore-staging` (no production Supabase reference), and CORS
+  permitted the staging origin. Issue #50 is complete.
 - The server-controlled zero-total Kexiaozhan Checkout path is merged and
   deployed to isolated staging. It remains disabled by default and requires all
   three server-side conditions: explicit opt-in, zero configured unit/shipping

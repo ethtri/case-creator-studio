@@ -12,7 +12,8 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
   restores Pending Print, with no enforced 30-minute callback cutoff; Snapcase
   must deploy and prove the corresponding local behavior.
 - Issue #36 tracks new Kexiaozhan/Alejandro guidance that paid online orders should use admin-controlled batch printing, not uncontrolled immediate continuous printing.
-- Internal staging prerequisites are complete: staging isolation (#50), Stripe
+- Internal staging prerequisites are complete: permanent staging deployment
+  isolation (#50), Stripe
   Dashboard webhook validation (#43), and the disabled-by-default zero-total
   implementation/deployment (#51). The next dependency is a coordinated pair of
   fresh vendor-signed sandbox handoffs for live evidence.
@@ -74,7 +75,9 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 - #39 - Create and run the vendor-originated staging deferred-print test order.
 - #40 - Verify delayed callback and physical-release evidence.
 - #43 - Clean up and verify the staging Stripe webhook endpoint (complete).
-- #50 - Restore isolated staging domain for Kexiaozhan validation (complete).
+- #50 - Restore isolated staging domain for Kexiaozhan validation (complete;
+  `staging.snapcase.ai` is permanently mapped to the dedicated `snapcase-staging`
+  Vercel project as of 2026-07-14).
 - #51 - Enable zero-total Kexiaozhan Checkout validation (implementation and
   deployment complete; vendor-originated live evidence pending).
 - #33 - Production environment and secret readiness.

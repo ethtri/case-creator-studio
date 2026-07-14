@@ -1,5 +1,24 @@
 # Vercel Setup - Step-by-Step Guide
 
+## Required Staging/Production Separation
+
+Keep the vendor-facing staging site in the separate Vercel project
+`snapcase-staging`. The production site uses `snapcase_app_v2`.
+
+- `https://staging.snapcase.ai` must remain attached to `snapcase-staging`.
+- Build staging with `VITE_SUPABASE_URL`,
+  `VITE_SUPABASE_PUBLISHABLE_KEY`, and `VITE_SUPABASE_PROJECT_ID` for
+  `snapcase-onshore-staging` (`onztuktjcmjukfhcuphh`).
+- Build production with the production Supabase project and keep its domain on
+  `snapcase_app_v2`.
+- Do not use a branch-scoped Vercel preview alias or a Vercel bypass token as the
+  vendor test URL. A production deploy must not be able to replace the staging
+  domain's deployment.
+- Before sending vendor test URLs, verify the public page returns HTTP 200, its
+  bundle contains the staging Supabase project and no production project, and
+  the staging Edge Function returns CORS `Access-Control-Allow-Origin:
+  https://staging.snapcase.ai`.
+
 ## 🎯 What You Need Before Starting
 
 1. ✅ Your code pushed to GitHub (if not already)
