@@ -2,16 +2,16 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-07-14
+**Last updated:** 2026-07-15
 **Last updated by:** Codex
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
 
 ## Blockers
-- Fresh vendor-signed sandbox handoffs are required to collect the remaining
-  cross-system evidence. Request one normal paid order and one zero-value order
-  in a coordinated window; each complete payload must include all signed
-  `webhookUrl` query fields.
+- A fresh vendor-signed paid/zero sandbox pair is required after the 2026-07-15
+  coordinated run expired before Stripe payment submission. The URLs reached
+  Snapcase promptly; the failure was caused by stale 15-minute staging
+  configuration plus an unsafe sequential test procedure, not by vendor delay.
 - The paid handoff must remain unpaid past Kexiaozhan's normal 15-minute
   cancellation point before Snapcase completes Stripe Checkout. The zero-total
   handoff must be completed while the staging-only no-cost flag and prices are
@@ -20,21 +20,24 @@ Owner-updated snapshot for AI agents. Keep this short and current.
   to `Pending Print`; he then selects Merchant Portal `Send to Print` once.
 
 ## Top 3 Next Tasks
-1. P0: Coordinate fresh complete vendor-signed paid and zero-value handoffs (#39, #51).
-2. P0: Run the delayed and no-cost callbacks with exact allowlists, then reset
+1. P0: Run the 2026-07-16 09:30 PDT / 2026-07-17 00:30 UTC+8 coordinated
+   test using the automated staging baseline and signed-URL preflight (#39, #51).
+2. P0: Create both Checkout Sessions first, complete zero promptly, then
+   complete the paid order after T+16 minutes with exact allowlists and reset
    every temporary staging gate (#30, #36, #40, #51).
 3. P0: After Pending Print is verified, have Alejandro release the paid order
    once in Merchant Portal and record the physical result (#35, #40).
 
 ## Now / Next / Later
 **Now**
-- P0: Internal prerequisites are complete. Staging isolation is verified, the
-  zero-total path is merged/deployed but disabled by default, and #43 is closed
-  after Stripe delivered a signed test Checkout event with HTTP 200.
+- P0: The July 15 miss is contained. Staging is fail-closed, and executable
+  baseline/preflight/arm/cleanup controls now prevent another run from starting
+  with stale timing or broad callback state.
 
 **Next**
-- P0: Request two fresh vendor-signed handoffs in one coordinated test window:
-  paid/delayed and zero-total. Do not reuse the expired July 13 payloads.
+- P0: Request two fresh vendor-signed handoffs at the agreed test time only.
+  Start only when `npm run kexiaozhan:preflight` reports `READY`; never reuse a
+  prior pair or continue after a preflight failure.
 - P0: Complete the delayed `deferredPrint` callback, one-job, no-auto-print,
   zero-total, and physical Merchant Portal release evidence in #30, #35, #36,
   #39, and #40.

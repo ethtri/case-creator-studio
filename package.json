@@ -20,7 +20,10 @@
     "outreach:check": "node scripts/validate-outreach.mjs",
     "sync:status": "node scripts/sync-current-status.mjs",
     "prerender": "node scripts/prerender.mjs",
-    "validate:printful": "node scripts/validate-printful-variants.mjs"
+    "validate:printful": "node scripts/validate-printful-variants.mjs",
+    "kexiaozhan:preflight": "node scripts/kexiaozhan-test-preflight.mjs",
+    "kexiaozhan:staging": "node scripts/kexiaozhan-staging-mode.mjs",
+    "test": "node --test scripts/kexiaozhan-test-preflight.test.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

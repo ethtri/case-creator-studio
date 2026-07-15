@@ -1,6 +1,6 @@
 # Kexiaozhan Webhook Payment Integration Guide
 
-Last updated: 2026-07-10
+Last updated: 2026-07-15
 
 Purpose: preserve the latest vendor-provided payment webhook guide and email
 confirmation so future agents do not have to recover this from chat history,
@@ -455,6 +455,68 @@ Unpaid or cannot-confirm response:
 - The HTML query tool includes a camelCase/snake_case selector for debugging.
   Current confirmed `/client/query-status` fields are camelCase
   `outTradeNo` and `machineSn`.
+
+## Coordinated Staging Test Procedure
+
+The 2026-07-15 run did not reach payment. Although the signed URLs were shared
+promptly, the paid handoff was persisted with the old 15-minute local deadline
+and expired while Checkout details were being entered. Running the paid case
+first also risked aging the zero-value handoff while waiting for the delayed
+payment target. No PaymentIntent, vendor callback, or production job was
+created.
+
+Use this procedure for the next coordinated run. The vendor should not create
+orders until step 1 passes.
+
+1. At least 15 minutes before the agreed time, apply the fail-closed baseline:
+
+   ```powershell
+   npm run kexiaozhan:staging -- baseline
+   ```
+
+2. When the new paid and zero-value URLs arrive, run the preflight within five
+   minutes of their signed timestamps. Stop if it does not print `READY`:
+
+   ```powershell
+   npm run kexiaozhan:preflight -- --paid-url '<paid URL>' --zero-url '<zero URL>'
+   ```
+
+3. Create both Stripe Checkout Sessions before completing either one. Start in
+   paid mode and open the paid URL. Then switch to zero mode and open the zero
+   URL. Restore paid mode immediately after both sessions exist:
+
+   ```powershell
+   # Apply paid pricing, then open the paid URL through Stripe Checkout.
+   npm run kexiaozhan:staging -- paid
+
+   # Apply zero pricing, then open the zero URL through Stripe Checkout.
+   npm run kexiaozhan:staging -- zero
+
+   # With both sessions open, restore normal paid pricing.
+   npm run kexiaozhan:staging -- paid
+   ```
+
+4. Arm callbacks for only the two exact payment order numbers:
+
+   ```powershell
+   npm run kexiaozhan:staging -- arm --orders <paid-outTradeNo>,<zero-outTradeNo>
+   ```
+
+5. Complete the zero-value Checkout first and within ten minutes of receipt.
+   Complete the paid Checkout no earlier than T+16 minutes from its signed
+   timestamp. The preflight output prints the exact Pacific and China times.
+6. Verify both callbacks succeeded, each order created exactly one Snapcase
+   production job, both vendor orders are Pending Print, and no automatic print
+   task was dispatched.
+7. Always restore the fail-closed baseline, including after any partial failure:
+
+   ```powershell
+   npm run kexiaozhan:staging -- cleanup
+   ```
+
+Alejandro is not part of this server-side payment/callback run. Contact him only
+after Snapcase and Kexiaozhan confirm the paid order is Pending Print; his later
+task is one supervised Merchant Portal `Send to Print` action.
 
 ## Still Open
 

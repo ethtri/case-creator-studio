@@ -17,6 +17,10 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
   Dashboard webhook validation (#43), and the disabled-by-default zero-total
   implementation/deployment (#51). The next dependency is a coordinated pair of
   fresh vendor-signed sandbox handoffs for live evidence.
+- The 2026-07-15 coordinated attempt exposed a Snapcase test-process gap: the
+  effective handoff deadline was still 15 minutes and the sequential flow left
+  too little time to submit payment. Automated staging modes and a signed-URL
+  go/no-go preflight now guard the rerun.
 
 ## Production Gates
 
@@ -24,12 +28,15 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
    - Coordinate the vendor test window now that #43 and the #51 implementation
      gate are complete. Alejandro still has no action until Pending Print is
      verified.
-   - Kexiaozhan creates one fresh unpaid sandbox order through the normal Snapcase
-     staging redirect and provides the complete signed redirect query payload,
-     including `order_no` and `out_trade_no`.
-   - Snapcase waits past the normal 15-minute cancellation point, enables the
-     callback only for that exact `outTradeNo`, and completes the Stripe test
-     Checkout.
+   - Kexiaozhan creates one fresh paid and one fresh zero-value unpaid sandbox
+     order through the normal Snapcase staging redirect and provides both
+     complete signed redirect query payloads, including `order_no` and
+     `out_trade_no`.
+   - Snapcase runs the signed-URL preflight within five minutes of generation and
+     starts only when it reports `READY`.
+   - Snapcase creates both paid and zero-total Stripe Checkout Sessions first,
+     completes zero promptly, and holds paid until T+16 minutes.
+   - Snapcase enables callbacks only for those two exact `outTradeNo` values.
    - Verify the valid signed `deferredPrint` callback restores `Pending Print`,
      creates exactly one `production_jobs` row, and triggers no automatic print.
    - Alejandro then uses the Kexiaozhan Merchant Portal **Order Center > Order
@@ -159,6 +166,10 @@ We will use the paid order for the delayed deferredPrint test and the zero-value
 order for the no-cost Checkout test. We will coordinate the bounded test window
 before you generate the signed redirects.
 ```
+
+For the 2026-07-16 Pacific / 2026-07-17 China rerun, the requested test time is
+09:30 PDT / 00:30 UTC+8. Kexiaozhan only needs to generate one fresh paid order
+and one fresh zero-value order at that time; Snapcase owns every other test step.
 
 ## Verification Before Cutover
 
