@@ -14,8 +14,8 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 ## Top 3 Next Tasks
 1. P0: Have Alejandro release paid order `4612221969487051` once in Merchant
    Portal and record the physical result (#35, #40). Do not release the zero order.
-2. P0: Complete production environment, cutover, and supervised-pilot readiness
-   (#32, #33, #34).
+2. P0: Complete production environment and supervised-pilot readiness
+   (#32, #33). The cutover/rollback runbook review is complete (#34).
 3. P0: Run one allowlisted, supervised production pilot only after all physical
    and configuration gates pass (#32).
 
