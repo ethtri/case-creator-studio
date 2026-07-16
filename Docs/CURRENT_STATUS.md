@@ -2,45 +2,35 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-07-15
+**Last updated:** 2026-07-16
 **Last updated by:** Codex
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
 
 ## Blockers
-- A fresh vendor-signed paid/zero sandbox pair is required after the 2026-07-15
-  coordinated run expired before Stripe payment submission. The URLs reached
-  Snapcase promptly; the failure was caused by stale 15-minute staging
-  configuration plus an unsafe sequential test procedure, not by vendor delay.
-- The paid handoff must remain unpaid past Kexiaozhan's normal 15-minute
-  cancellation point before Snapcase completes Stripe Checkout. The zero-total
-  handoff must be completed while the staging-only no-cost flag and prices are
-  temporarily enabled.
+- Kexiaozhan must confirm the two successful 2026-07-16 sandbox orders appear
+  as `Pending Print` in Merchant Portal and that neither automatically printed.
 - Alejandro acts only after Snapcase verifies the paid vendor order is restored
   to `Pending Print`; he then selects Merchant Portal `Send to Print` once.
 
 ## Top 3 Next Tasks
-1. P0: Run the 2026-07-16 09:30 PDT / 2026-07-17 00:30 UTC+8 coordinated
-   test using the automated staging baseline and signed-URL preflight (#39, #51).
-2. P0: Create both Checkout Sessions first, complete zero promptly, then
-   complete the paid order after T+16 minutes with exact allowlists and reset
-   every temporary staging gate (#30, #36, #40, #51).
-3. P0: After Pending Print is verified, have Alejandro release the paid order
+1. P0: Receive Kexiaozhan Merchant Portal confirmation for paid vendor order
+   `4612221969487051` and zero vendor order `9386670048758095` (#36, #39).
+2. P0: After Pending Print is verified, have Alejandro release the paid order
    once in Merchant Portal and record the physical result (#35, #40).
+3. P0: Complete production environment, cutover, and supervised-pilot readiness
+   (#32, #33, #34).
 
 ## Now / Next / Later
 **Now**
-- P0: The July 15 miss is contained. Staging is fail-closed, and executable
-  baseline/preflight/arm/cleanup controls now prevent another run from starting
-  with stale timing or broad callback state.
+- P0: The 2026-07-16 coordinated paid/delayed and zero-total staging run passed
+  on Snapcase and Kexiaozhan payment status. Issues #30 and #51 are complete.
+  Staging cleanup passed and all temporary gates are fail-closed again.
 
 **Next**
-- P0: Request two fresh vendor-signed handoffs at the agreed test time only.
-  Start only when `npm run kexiaozhan:preflight` reports `READY`; never reuse a
-  prior pair or continue after a preflight failure.
-- P0: Complete the delayed `deferredPrint` callback, one-job, no-auto-print,
-  zero-total, and physical Merchant Portal release evidence in #30, #35, #36,
-  #39, and #40.
+- P0: Ask Kexiaozhan only to confirm both successful orders are Pending Print
+  with no automatic dispatch. No additional API or payment test is needed.
+- P0: Complete the physical Merchant Portal release evidence in #35 and #40.
 - P0: Production cutover readiness - production secrets, rollback runbook, and first supervised pilot order.
 
 **Later**

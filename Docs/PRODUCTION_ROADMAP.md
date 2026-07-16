@@ -7,16 +7,14 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 - Kexiaozhan signed redirect, Stripe Checkout, Stripe webhook, Snapcase onshore job routing, and signed `/client/process-payment-notify` callback are proven in staging.
 - Four real Kexiaozhan sandbox orders completed successfully on 2026-06-17 UTC.
 - Production remains Printful-backed until an explicit cutover is approved.
-- Issue #30 remains a production gate only for final staging evidence. Kexiaozhan
-  now accepts a valid signed `deferredPrint` callback after cancellation and
-  restores Pending Print, with no enforced 30-minute callback cutoff; Snapcase
-  must deploy and prove the corresponding local behavior.
+- Issue #30 is complete. The 2026-07-16 staging run submitted the paid Checkout
+  after T+16 minutes; Snapcase remained paid with one queued job and the signed
+  Kexiaozhan payment-status query returned paid.
 - Issue #36 tracks new Kexiaozhan/Alejandro guidance that paid online orders should use admin-controlled batch printing, not uncontrolled immediate continuous printing.
 - Internal staging prerequisites are complete: permanent staging deployment
   isolation (#50), Stripe
   Dashboard webhook validation (#43), and the disabled-by-default zero-total
-  implementation/deployment (#51). The next dependency is a coordinated pair of
-  fresh vendor-signed sandbox handoffs for live evidence.
+  implementation/deployment and vendor-originated live evidence (#51).
 - The 2026-07-15 coordinated attempt exposed a Snapcase test-process gap: the
   effective handoff deadline was still 15 minutes and the sequential flow left
   too little time to submit payment. Automated staging modes and a signed-URL
@@ -44,11 +42,11 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
      physical result. He does not need Snapcase `/operations` access, a Snapcase
      login, or a payment task.
 
-2. Zero-total callback safety is validated.
-   - Run a fully discounted sandbox Checkout and verify that the signed
-     `deferredPrint` callback uses Snapcase's deterministic transaction reference
-     without setting a Stripe PaymentIntent ID.
-   - Verify exactly one production job and no automatic print.
+2. Zero-total callback safety is validated. Complete 2026-07-16.
+   - A real vendor-originated zero-value Checkout completed with no Stripe
+     PaymentIntent, one queued onshore job, and paid Kexiaozhan query status.
+   - Kexiaozhan Merchant Portal confirmation of Pending Print/no automatic
+     dispatch remains grouped with gate 1.
 
 3. Kexiaozhan print mode remains server-controlled.
    - The confirmed signed callback field is `fulfillmentMethod`, with
@@ -75,7 +73,7 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 
 ## Production Board
 
-- #30 - Delayed Stripe Checkout payment recovery test.
+- #30 - Delayed Stripe Checkout payment recovery test (complete 2026-07-16).
 - #36 - Validate Kexiaozhan deferred-print callback and release flow.
 - #35 - Alejandro Kexiaozhan deferred-print physical release test.
 - #38 - Obsolete: no Snapcase login is required for Alejandro's vendor-portal test.
@@ -85,8 +83,7 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 - #50 - Restore isolated staging domain for Kexiaozhan validation (complete;
   `staging.snapcase.ai` is permanently mapped to the dedicated `snapcase-staging`
   Vercel project as of 2026-07-14).
-- #51 - Enable zero-total Kexiaozhan Checkout validation (implementation and
-  deployment complete; vendor-originated live evidence pending).
+- #51 - Enable zero-total Kexiaozhan Checkout validation (complete 2026-07-16).
 - #33 - Production environment and secret readiness.
 - #34 - Production cutover and rollback runbook.
 - #32 - Production pilot order and monitoring.
