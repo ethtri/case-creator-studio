@@ -1,6 +1,6 @@
 # Kexiaozhan Webhook Payment Integration Guide
 
-Last updated: 2026-07-15
+Last updated: 2026-07-16
 
 Purpose: preserve the latest vendor-provided payment webhook guide and email
 confirmation so future agents do not have to recover this from chat history,
@@ -518,6 +518,24 @@ Alejandro is not part of this server-side payment/callback run. Contact him only
 after Snapcase and Kexiaozhan confirm the paid order is Pending Print; his later
 task is one supervised Merchant Portal `Send to Print` action.
 
+### 2026-07-16 Staging Result
+
+The corrected procedure passed with real vendor-originated sandbox orders:
+
+- Paid/delayed: Checkout was submitted after T+16 minutes, Snapcase recorded a
+  Stripe PaymentIntent and exactly one queued onshore fulfillment job, and the
+  signed vendor payment-status query returned paid.
+- Zero-total: Checkout completed with `stripe_payment_intent_id=null`, exactly
+  one queued onshore fulfillment job, and the signed vendor payment-status query
+  returned paid.
+- Cleanup succeeded: live callback disabled, exact allowlist cleared to the
+  fail-closed sentinel, zero-total mode disabled, and normal staging pricing
+  restored.
+
+Do not run another payment test. The only vendor follow-up is confirmation that
+both orders appear as Pending Print with no automatic print dispatch. After that
+confirmation, Alejandro may release the paid order once for the physical test.
+
 ## Still Open
 
 These items remain unresolved after the latest WeChat clarification:
@@ -526,10 +544,7 @@ These items remain unresolved after the latest WeChat clarification:
    `/client/query-status`.
 2. Reprint API details and idempotency/failure rules.
 3. Public mobile designer URL and return URL configuration.
-4. Staging evidence that a delayed valid `deferredPrint` callback is accepted,
-   restores Pending Print, and creates exactly one Snapcase production job.
+4. Vendor confirmation that both successful 2026-07-16 orders appear as Pending
+   Print and did not automatically dispatch.
 5. A supervised deferred physical test of the documented Merchant Portal
    **Order List > Pending Print > Send to Print** procedure.
-6. A real zero-total handoff checkout and callback test. The server-controlled
-   staging capability is tracked in issue #51; do not enable it in production
-   without separate approval.
