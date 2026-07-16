@@ -130,7 +130,7 @@ const Catalog = () => {
                 <Link
                   to={`/design/${variant.id}`}
                   onClick={() =>
-                    trackMarketingEvent("select_model", {
+                    trackMarketingEvent("model_select", {
                       variant_id: variant.id,
                       brand: variant.brand,
                       model: variant.model,

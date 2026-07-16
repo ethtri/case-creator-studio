@@ -1,12 +1,12 @@
 export type MarketingEventName =
   | "page_view"
   | "view_catalog"
-  | "select_model"
-  | "begin_design"
-  | "preview_generated"
-  | "save_design"
+  | "model_select"
+  | "design_start"
+  | "preview_generate"
+  | "design_save"
   | "add_to_cart"
-  | "begin_checkout"
+  | "checkout_start"
   | "purchase"
   | "promo_applied";
 

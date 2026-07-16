@@ -382,7 +382,7 @@ const Preview = () => {
               setDesignPreviewAngled(mockupUrlAngled);
             }
             setPreviewKind("mockup");
-            trackMarketingEvent("preview_generated", {
+            trackMarketingEvent("preview_generate", {
               variant_id: variant.id,
               brand: variant.brand,
               model: variant.model,
@@ -560,7 +560,7 @@ const Preview = () => {
     if (error) {
       toast.error("Unable to save design. Please try again.");
     } else {
-      trackMarketingEvent("save_design", {
+      trackMarketingEvent("design_save", {
         variant_id: variant.id,
         brand: variant.brand,
         model: variant.model,

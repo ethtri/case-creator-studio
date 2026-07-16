@@ -5,9 +5,11 @@ import {
   loadGoogleAnalytics,
   trackMarketingEvent,
 } from "@/lib/marketing";
+import { getMarketingPagePath } from "@/lib/marketing-routing";
 
 export const MarketingRuntime = () => {
   const location = useLocation();
+  const pagePath = getMarketingPagePath(location.pathname, location.search);
 
   useEffect(() => {
     loadGoogleAnalytics();
@@ -16,11 +18,11 @@ export const MarketingRuntime = () => {
   useEffect(() => {
     captureMarketingAttribution();
     trackMarketingEvent("page_view", {
-      page_path: `${location.pathname}${location.search}`,
+      page_path: pagePath,
       page_location: window.location.href,
       page_title: document.title,
     });
-  }, [location.pathname, location.search]);
+  }, [pagePath]);
 
   return null;
 };

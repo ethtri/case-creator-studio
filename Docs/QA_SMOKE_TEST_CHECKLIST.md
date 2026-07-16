@@ -21,3 +21,10 @@ Goal: validate the editor → preview → cart → checkout → order flow fast.
 ## Expected
 - Pricing consistent across cart, Stripe, and order records.
 - No errors or regressions in editor → preview → checkout.
+
+## Mobile editor regression
+1. Open the editor in iPhone Safari or Android Chrome in portrait orientation.
+2. Wait for the embedded designer to become interactive, then rotate to landscape and back to portrait.
+3. Confirm the same design remains loaded, the editor does not show an error overlay, and the page does not reload.
+4. Add an image or text after rotating and continue to preview.
+5. Confirm the preview uses the selected phone model and the latest design.

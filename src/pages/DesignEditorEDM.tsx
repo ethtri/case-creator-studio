@@ -9,6 +9,7 @@ import { Loader2, AlertCircle, ExternalLink, ArrowLeft, ArrowRight, Maximize2, M
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { trackMarketingEvent } from "@/lib/marketing";
+import { createEditorInitializationGuard } from "@/lib/editor-initialization";
 
 // Printful product IDs for snap cases
 const PRINTFUL_PRODUCT_IDS = {
@@ -131,6 +132,10 @@ const DesignEditorEDM = () => {
   const designerContainerRef = useRef<HTMLDivElement | null>(null);
   const [designerHeight, setDesignerHeight] = useState<number | null>(null);
   const resizeIntervalRef = useRef<number | null>(null);
+  const isMobileRef = useRef(isMobile);
+  const initializationGuardRef = useRef(createEditorInitializationGuard());
+
+  isMobileRef.current = isMobile;
 
   const buildDesignKey = useCallback((id: string, suffix: string) => `edmDesign:${id}:${suffix}`, []);
 
@@ -291,6 +296,12 @@ const DesignEditorEDM = () => {
       return;
     }
 
+    const initializationKey = `${variantId}:${designId}`;
+    if (!initializationGuardRef.current.begin(initializationKey)) {
+      debugLog('Design maker initialization already started for this design.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setSaveError(null);
@@ -308,6 +319,10 @@ const DesignEditorEDM = () => {
           productId,
         },
       });
+
+      if (!initializationGuardRef.current.isCurrent(initializationKey)) {
+        return;
+      }
 
       const nonceValue = extractNonce(data);
       const templateIdFromNonce = typeof data?.templateId === "number" ? data.templateId : null;
@@ -350,7 +365,7 @@ const DesignEditorEDM = () => {
       };
 
       const reassertDesignStep = () => {
-        if (!isMobile) return;
+        if (!isMobileRef.current) return;
         lockDesignStep();
         window.setTimeout(lockDesignStep, 350);
         window.setTimeout(lockDesignStep, 1200);
@@ -459,8 +474,10 @@ const DesignEditorEDM = () => {
         },
         debug: isDev,
       });
+      initializationGuardRef.current.complete(initializationKey);
 
     } catch (err) {
+      initializationGuardRef.current.fail(initializationKey);
       debugLog('Error initializing EDM:', err);
       setError(err instanceof Error ? err.message : 'Failed to initialize design maker');
       setLoading(false);
@@ -475,7 +492,6 @@ const DesignEditorEDM = () => {
     getStoredTemplateId,
     prewarmEdmPreview,
     buildDesignKey,
-    isMobile,
     isDesignerReady,
   ]);
 
@@ -516,7 +532,7 @@ const DesignEditorEDM = () => {
   useEffect(() => {
     if (!variant) return;
 
-    trackMarketingEvent("begin_design", {
+    trackMarketingEvent("design_start", {
       variant_id: variant.id,
       brand: variant.brand,
       model: variant.model,
@@ -768,13 +784,7 @@ const DesignEditorEDM = () => {
   };
 
   const handleRetryEditor = () => {
-    setError(null);
-    setLoading(true);
-    if (window.PFDesignMaker && scriptLoadedRef.current) {
-      initializeDesignMaker();
-    } else {
-      window.location.reload();
-    }
+    window.location.reload();
   };
 
   if (!variant) {

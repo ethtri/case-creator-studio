@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
 import { getVariantById, phoneVariants } from "@/data/phoneVariants";
+import { trackMarketingEvent } from "@/lib/marketing";
 import NotFound from "@/pages/NotFound";
 import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
 import samsungCaseFront from "@/assets/mockups/samsung-case-front.png";
@@ -90,7 +91,17 @@ const PhoneCaseSeo = () => {
                 Preview your design before checkout and keep the order tied to the exact model.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
-                <Link to={`/design/${variant.id}`}>
+                <Link
+                  to={`/design/${variant.id}`}
+                  onClick={() =>
+                    trackMarketingEvent("model_select", {
+                      variant_id: variant.id,
+                      brand: variant.brand,
+                      model: variant.model,
+                      surface: "model_seo_page",
+                    })
+                  }
+                >
                   <Button size="lg" className="bg-cta hover:bg-cta/90 text-cta-foreground">
                     Start designing
                     <ChevronRight className="w-4 h-4 ml-1" />

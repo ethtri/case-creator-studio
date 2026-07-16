@@ -155,7 +155,7 @@ const Checkout = () => {
       }));
       const marketingAttribution = getMarketingAttribution();
 
-      trackMarketingEvent("begin_checkout", {
+      trackMarketingEvent("checkout_start", {
         item_count: cartItems.length,
         value: total,
         currency: "USD",
