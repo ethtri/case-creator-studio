@@ -19,6 +19,9 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
   effective handoff deadline was still 15 minutes and the sequential flow left
   too little time to submit payment. Automated staging modes and a signed-URL
   go/no-go preflight now guard the rerun.
+- Merchant Portal verification on 2026-07-16 confirmed both successful rerun
+  orders are Payment Successful, Pending Print, Print Time `0`, with `Send to
+  Print` still available. No automatic print dispatch occurred.
 
 ## Production Gates
 
@@ -37,6 +40,7 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
    - Snapcase enables callbacks only for those two exact `outTradeNo` values.
    - Verify the valid signed `deferredPrint` callback restores `Pending Print`,
      creates exactly one `production_jobs` row, and triggers no automatic print.
+     Complete 2026-07-16 for both paid/delayed and zero-total paths.
    - Alejandro then uses the Kexiaozhan Merchant Portal **Order Center > Order
      List > Send to Print** once for the identified order and confirms the
      physical result. He does not need Snapcase `/operations` access, a Snapcase
@@ -45,8 +49,8 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 2. Zero-total callback safety is validated. Complete 2026-07-16.
    - A real vendor-originated zero-value Checkout completed with no Stripe
      PaymentIntent, one queued onshore job, and paid Kexiaozhan query status.
-   - Kexiaozhan Merchant Portal confirmation of Pending Print/no automatic
-     dispatch remains grouped with gate 1.
+   - Merchant Portal confirmed Pending Print, Print Time `0`, and no automatic
+     dispatch for the zero-total order on 2026-07-16.
 
 3. Kexiaozhan print mode remains server-controlled.
    - The confirmed signed callback field is `fulfillmentMethod`, with
@@ -77,7 +81,8 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 - #36 - Validate Kexiaozhan deferred-print callback and release flow.
 - #35 - Alejandro Kexiaozhan deferred-print physical release test.
 - #38 - Obsolete: no Snapcase login is required for Alejandro's vendor-portal test.
-- #39 - Create and run the vendor-originated staging deferred-print test order.
+- #39 - Create and run the vendor-originated staging deferred-print test order
+  (complete 2026-07-16).
 - #40 - Verify delayed callback and physical-release evidence.
 - #43 - Clean up and verify the staging Stripe webhook endpoint (complete).
 - #50 - Restore isolated staging domain for Kexiaozhan validation (complete;

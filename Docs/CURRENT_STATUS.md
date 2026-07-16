@@ -8,28 +8,24 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 **Sprint goal:** Stabilize EDM-first flow through checkout
 
 ## Blockers
-- Kexiaozhan must confirm the two successful 2026-07-16 sandbox orders appear
-  as `Pending Print` in Merchant Portal and that neither automatically printed.
-- Alejandro acts only after Snapcase verifies the paid vendor order is restored
-  to `Pending Print`; he then selects Merchant Portal `Send to Print` once.
+- Alejandro must complete one supervised physical release of paid vendor order
+  `4612221969487051` with Merchant Portal `Send to Print` and report the result.
 
 ## Top 3 Next Tasks
-1. P0: Receive Kexiaozhan Merchant Portal confirmation for paid vendor order
-   `4612221969487051` and zero vendor order `9386670048758095` (#36, #39).
-2. P0: After Pending Print is verified, have Alejandro release the paid order
-   once in Merchant Portal and record the physical result (#35, #40).
+1. P0: Have Alejandro release paid order `4612221969487051` once in Merchant
+   Portal and record the physical result (#35, #40). Do not release the zero order.
+2. P0: Correct deferred-order success-page wording before production (#59).
 3. P0: Complete production environment, cutover, and supervised-pilot readiness
    (#32, #33, #34).
 
 ## Now / Next / Later
 **Now**
 - P0: The 2026-07-16 coordinated paid/delayed and zero-total staging run passed
-  on Snapcase and Kexiaozhan payment status. Issues #30 and #51 are complete.
-  Staging cleanup passed and all temporary gates are fail-closed again.
+  end to end. Merchant Portal independently showed both orders as Payment
+  Successful, Pending Print, Print Time `0`, with `Send to Print` available.
+  Issues #30, #39, and #51 are complete. Staging is fail-closed again.
 
 **Next**
-- P0: Ask Kexiaozhan only to confirm both successful orders are Pending Print
-  with no automatic dispatch. No additional API or payment test is needed.
 - P0: Complete the physical Merchant Portal release evidence in #35 and #40.
 - P0: Production cutover readiness - production secrets, rollback runbook, and first supervised pilot order.
 
