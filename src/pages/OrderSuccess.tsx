@@ -15,7 +15,29 @@ interface OrderDetails {
   items: any[];
   total: number;
   status: string;
+  fulfillment_provider?: string | null;
 }
+
+const getOrderProgressCopy = (isManualProduction: boolean) =>
+  isManualProduction
+    ? {
+        summary:
+          "Your order is confirmed and queued for printing. Our production team will release it when the equipment is ready.",
+        steps: [
+          "Your order is added to the production queue",
+          "Our production team releases your case for printing",
+          "Your finished case ships within 2-4 business days",
+        ],
+      }
+    : {
+        summary:
+          "We've received your order and will start producing your custom case right away.",
+        steps: [
+          "Your custom design is sent to production",
+          "Your case is printed with high-quality UV printing",
+          "Ships within 2-4 business days",
+        ],
+      };
 
 const OrderSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -105,6 +127,10 @@ const OrderSuccess = () => {
     );
   }
 
+  const progressCopy = getOrderProgressCopy(
+    orderDetails?.fulfillment_provider === "onshore_manual",
+  );
+
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -140,7 +166,7 @@ const OrderSuccess = () => {
             Thank you for your order!
           </h1>
           <p className="text-lg text-muted-foreground mb-8">
-            We've received your order and will start producing your custom case right away.
+            {progressCopy.summary}
           </p>
 
           {orderDetails && (
@@ -181,15 +207,15 @@ const OrderSuccess = () => {
             <ol className="text-sm text-muted-foreground space-y-2 text-left max-w-sm mx-auto">
               <li className="flex items-start gap-2">
                 <span className="w-5 h-5 rounded-full bg-accent/20 text-accent text-xs flex items-center justify-center shrink-0 mt-0.5">1</span>
-                Your custom design is sent to production
+                {progressCopy.steps[0]}
               </li>
               <li className="flex items-start gap-2">
                 <span className="w-5 h-5 rounded-full bg-accent/20 text-accent text-xs flex items-center justify-center shrink-0 mt-0.5">2</span>
-                Your case is printed with high-quality UV printing
+                {progressCopy.steps[1]}
               </li>
               <li className="flex items-start gap-2">
                 <span className="w-5 h-5 rounded-full bg-accent/20 text-accent text-xs flex items-center justify-center shrink-0 mt-0.5">3</span>
-                Ships within 2-4 business days
+                {progressCopy.steps[2]}
               </li>
             </ol>
           </div>
