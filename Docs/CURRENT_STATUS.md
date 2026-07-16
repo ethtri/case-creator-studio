@@ -14,9 +14,10 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 ## Top 3 Next Tasks
 1. P0: Have Alejandro release paid order `4612221969487051` once in Merchant
    Portal and record the physical result (#35, #40). Do not release the zero order.
-2. P0: Correct deferred-order success-page wording before production (#59).
-3. P0: Complete production environment, cutover, and supervised-pilot readiness
-   (#32, #33, #34).
+2. P0: Complete production environment and supervised-pilot readiness
+   (#32, #33). The cutover/rollback runbook review is complete (#34).
+3. P0: Run one allowlisted, supervised production pilot only after all physical
+   and configuration gates pass (#32).
 
 ## Now / Next / Later
 **Now**
@@ -43,6 +44,9 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - UAT: multi-item checkout metadata limit handled.
 - Onshore staging: Stripe sandbox checkout, webhook routing, duplicate replay, operator allowlist/update, tracking, and provider rollback smoke passed.
 - Onshore staging: owner dry-run job `a059d2eb-3ada-4dd5-8f32-a4fa88e1a873` is queued from paid Stripe test order `d89cfec5-d190-4209-aff5-c017c22225c6`; duplicate routing reused the same job.
+- Kexiaozhan deferred-order success pages use the persisted
+  `fulfillment_provider=onshore_manual` value to describe an administrator-held
+  production queue; normal Printful order copy is unchanged (#59).
 - Vendor designer research: do not expose the tokenized vendor URL as a public CTA. Preferred target is vendor designer output returning to Snapcase-owned Stripe checkout and onshore queue; lead engineer/vendor questions are in `Docs/VENDOR_DESIGNER_RESEARCH.md`.
 - Fake vendor handoff: staging-only signed endpoint added for the proposed vendor design-complete -> Snapcase Stripe checkout flow. Contract is in `Docs/VENDOR_HANDOFF_CONTRACT.md`.
 - Kexiaozhan Apifox reference: API contract findings, signature rules, endpoint inventory, and remaining vendor blockers are in `Docs/KEXIAOZHAN_APIFOX_REFERENCE.md`.
@@ -82,8 +86,8 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - The server-controlled zero-total Kexiaozhan Checkout path is merged and
   deployed to isolated staging. It remains disabled by default and requires all
   three server-side conditions: explicit opt-in, zero configured unit/shipping
-  prices, and a valid signed vendor amount of zero. #51 remains open only for a
-  real vendor-originated no-cost Checkout/callback/job evidence run.
+  prices, and a valid signed vendor amount of zero. The vendor-originated
+  no-cost Checkout/callback/job evidence passed on 2026-07-16; #51 is closed.
 - Stripe Dashboard cleanup completed on 2026-07-13: duplicate staging
   destinations were removed, the original test-mode destination remains scoped
   to two Checkout events, and a synthetic `checkout.session.completed` delivery
@@ -93,13 +97,14 @@ Owner-updated snapshot for AI agents. Keep this short and current.
   signed success callback is processed even after the vendor order has been
   canceled and restores it to Pending Print; `/process-payment-notify` has no
   enforced 30-minute callback cutoff. Other fulfillment modes retain the
-  15-minute timeout. No additional vendor API is needed; #30 now needs Snapcase
-  deployment and delayed-payment staging evidence.
+  15-minute timeout. The delayed-payment staging evidence passed on 2026-07-16;
+  #30 is closed and no additional vendor API is needed.
 - Kexiaozhan fulfillment-mode update on 2026-07-10: successful callbacks now
   require a signed `fulfillmentMethod` with exact values `immediatePrint` or
   `deferredPrint`. Snapcase will use server-controlled `deferredPrint` through
   `KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON`; customers do not choose print
   timing. Snapcase blocks invalid configuration before sending a success callback
   and uses a deterministic Snapcase transaction reference for verified zero-total
-  Checkout Sessions without a Stripe PaymentIntent. Issue #36 remains open for
-  staging evidence and the vendor administrator release/batch-print procedure.
+  Checkout Sessions without a Stripe PaymentIntent. Payment/callback evidence
+  and the Merchant Portal release procedure are verified; #36 remains open only
+  for Alejandro's physical `Send to Print` result.
