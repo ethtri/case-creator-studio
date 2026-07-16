@@ -531,10 +531,13 @@ The corrected procedure passed with real vendor-originated sandbox orders:
 - Cleanup succeeded: live callback disabled, exact allowlist cleared to the
   fail-closed sentinel, zero-total mode disabled, and normal staging pricing
   restored.
+- Merchant Portal independently showed both orders as Payment Successful,
+  Pending Print, Print Time `0`, with `Send to Print` available. This proves the
+  signed `deferredPrint` callbacks did not automatically dispatch either order.
 
-Do not run another payment test. The only vendor follow-up is confirmation that
-both orders appear as Pending Print with no automatic print dispatch. After that
-confirmation, Alejandro may release the paid order once for the physical test.
+Do not run another payment test or ask the vendor for more confirmation.
+Alejandro may now release the paid order once for the physical test. Do not
+release the zero-value order.
 
 ## Still Open
 
@@ -544,7 +547,5 @@ These items remain unresolved after the latest WeChat clarification:
    `/client/query-status`.
 2. Reprint API details and idempotency/failure rules.
 3. Public mobile designer URL and return URL configuration.
-4. Vendor confirmation that both successful 2026-07-16 orders appear as Pending
-   Print and did not automatically dispatch.
-5. A supervised deferred physical test of the documented Merchant Portal
+4. A supervised deferred physical test of the documented Merchant Portal
    **Order List > Pending Print > Send to Print** procedure.
