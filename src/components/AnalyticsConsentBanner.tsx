@@ -9,9 +9,14 @@ import {
 } from "@/lib/marketing";
 
 export const AnalyticsConsentBanner = () => {
-  const [consent, setConsent] = useState<AnalyticsConsent>(getAnalyticsConsent);
+  // Match the server-rendered first pass, then restore the browser preference
+  // after hydration so prerendered routes stay console-clean.
+  const [consent, setConsent] = useState<AnalyticsConsent>("unset");
 
-  useEffect(() => subscribeToAnalyticsConsent(setConsent), []);
+  useEffect(() => {
+    setConsent(getAnalyticsConsent());
+    return subscribeToAnalyticsConsent(setConsent);
+  }, []);
 
   if (consent !== "unset") return null;
 
