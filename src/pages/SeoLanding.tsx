@@ -3,7 +3,7 @@ import { ChevronRight, Gift, ShieldCheck, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
-import { getStaticSeoPage } from "@/data/seoRoutes";
+import { getStaticSeoPage, SITE_URL } from "@/data/seoRoutes";
 import { phoneVariants } from "@/data/phoneVariants";
 import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
 import samsungCaseAngled from "@/assets/mockups/samsung-case-angled.png";
@@ -30,7 +30,7 @@ const SeoLanding = () => {
           "@type": "WebPage",
           name: page.headline,
           description: page.intro,
-          url: `https://snapcase.ai${page.path}`,
+          url: `${SITE_URL}${page.path}`,
         }}
       />
 

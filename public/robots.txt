@@ -12,4 +12,4 @@ Allow: /
 
 User-agent: *
 Allow: /
-Sitemap: https://snapcase.ai/sitemap.xml
+Sitemap: https://www.snapcase.ai/sitemap.xml

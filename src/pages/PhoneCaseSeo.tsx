@@ -7,6 +7,7 @@ import { getVariantById, phoneVariants } from "@/data/phoneVariants";
 import NotFound from "@/pages/NotFound";
 import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
 import samsungCaseFront from "@/assets/mockups/samsung-case-front.png";
+import { SITE_URL } from "@/data/seoRoutes";
 
 const JsonLd = ({ value }: { value: Record<string, unknown> }) => (
   <script
@@ -49,14 +50,14 @@ const PhoneCaseSeo = () => {
           "@type": "Product",
           name: productName,
           description: `Design a personalized ${variant.model} phone case with your own photo, text, or artwork.`,
-          image: "https://snapcase.ai/og-image.png",
+          image: new URL(mockup, `${SITE_URL}/`).href,
           brand: {
             "@type": "Brand",
             name: "Snapcase",
           },
           offers: {
             "@type": "Offer",
-            url: `https://snapcase.ai/phone-cases/${variant.id}`,
+            url: `${SITE_URL}/phone-cases/${variant.id}`,
             priceCurrency: variant.currency,
             price: variant.price.toFixed(2),
             availability: "https://schema.org/InStock",
