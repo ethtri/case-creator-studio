@@ -173,8 +173,10 @@ const renderRoutes = async () => {
     for (const route of routes) {
       const { appHtml } = await render(route.path);
       let html = injectAppHtml(template, appHtml);
-      html = replaceAssetUrls(html, assetMap);
       html = applySeo(html, route);
+      // SSR returns source asset URLs while the browser build emits hashed files.
+      // Apply metadata first so social-image URLs are rewritten along with markup.
+      html = replaceAssetUrls(html, assetMap);
 
       const outputPath =
         route.path === "/"
