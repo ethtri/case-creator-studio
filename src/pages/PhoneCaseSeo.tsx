@@ -42,6 +42,7 @@ const PhoneCaseSeo = () => {
     .filter((candidate) => candidate.brand === variant.brand && candidate.id !== variant.id)
     .slice(0, 3);
   const productName = `${variant.model} Custom Phone Case`;
+  const productUrl = `${SITE_URL}/phone-cases/${variant.id}`;
   const mockup = variant.brand === "Apple" ? iphoneCaseFront : samsungCaseFront;
   const designIdeas =
     variant.brand === "Apple"
@@ -64,6 +65,7 @@ const PhoneCaseSeo = () => {
           "@type": "Product",
           name: productName,
           description: `Design a personalized ${variant.model} phone case with your own photo, text, or artwork.`,
+          url: productUrl,
           image: new URL(mockup, `${SITE_URL}/`).href,
           brand: {
             "@type": "Brand",
@@ -71,7 +73,7 @@ const PhoneCaseSeo = () => {
           },
           offers: {
             "@type": "Offer",
-            url: `${SITE_URL}/phone-cases/${variant.id}`,
+            url: productUrl,
             priceCurrency: variant.currency,
             price: variant.price.toFixed(2),
             availability: "https://schema.org/InStock",

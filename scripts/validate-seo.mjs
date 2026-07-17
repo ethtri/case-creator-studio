@@ -10,6 +10,15 @@ const fail = (message) => {
 
 const getMatches = (html, pattern) => [...html.matchAll(pattern)].map((match) => match[1]);
 
+const getJsonLd = (route, html) =>
+  getMatches(html, /<script\s+type="application\/ld\+json">(.*?)<\/script>/gs).map((value) => {
+    try {
+      return JSON.parse(value);
+    } catch {
+      fail(`${route}: contains invalid JSON-LD`);
+    }
+  });
+
 const collectIndexFiles = async (directory) => {
   const entries = await fs.readdir(directory, { withFileTypes: true });
   const files = [];
@@ -84,6 +93,16 @@ for (const file of indexFiles) {
     fail(`${route}: product metadata still uses the generic social image`);
   }
   await assertLocalImageExists(route, ogImage[0], "og:image");
+
+  if (route.startsWith("/phone-cases/")) {
+    const product = getJsonLd(route, html).find((value) => value?.["@type"] === "Product");
+    if (!product) fail(`${route}: missing Product JSON-LD`);
+    if (product.url !== canonical[0]) fail(`${route}: Product JSON-LD URL does not match canonical`);
+    if (product.image !== ogImage[0]) fail(`${route}: Product JSON-LD image does not match og:image`);
+    if (product.offers?.url !== canonical[0]) {
+      fail(`${route}: Product offer URL does not match canonical`);
+    }
+  }
 }
 
 const sitemap = await fs.readFile(path.join(DIST, "sitemap.xml"), "utf8");
