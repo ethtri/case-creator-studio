@@ -757,6 +757,42 @@ test("reconciles purchase and paid-order revenue to strict item totals", async (
   assert.ok(codes.includes("paid_order_item_revenue_mismatch"));
 });
 
+test("enforces coherent order totals and purchase/order shipping and tax", async () => {
+  const incoherentOrder = await loadFixture();
+  incoherentOrder.report.orders[0].total = 999999;
+  assert.ok(analyzeReportingExport(
+    incoherentOrder.report,
+    incoherentOrder.contract,
+  ).findings.some((item) => item.code === "order_total_mismatch"));
+
+  const mismatchedPurchase = await loadFixture();
+  mismatchedPurchase.report.events.find(
+    (event) => event.event_name === "purchase",
+  ).shipping = 999999;
+  assert.ok(analyzeReportingExport(
+    mismatchedPurchase.report,
+    mismatchedPurchase.contract,
+  ).findings.some(
+    (item) => item.code === "purchase_order_monetary_mismatch",
+  ));
+});
+
+test("requires every exported monetary field to be finite and non-negative", async () => {
+  const purchase = await loadFixture();
+  purchase.report.events.find(
+    (event) => event.event_name === "purchase",
+  ).shipping = null;
+  assert.ok(analyzeReportingExport(purchase.report, purchase.contract)
+    .findings.some((item) =>
+      item.code === "invalid_purchase_monetary_value"
+    ));
+
+  const order = await loadFixture();
+  order.report.orders[0].tax = -1;
+  assert.ok(analyzeReportingExport(order.report, order.contract)
+    .findings.some((item) => item.code === "export_schema_invalid"));
+});
+
 test("rejects an export whose purchases and orders use a non-contract currency", async () => {
   const { contract, report } = await loadFixture();
   report.events.find((event) => event.event_name === "purchase").currency = "EUR";
@@ -821,6 +857,175 @@ test("requires event and paid-order timestamps inside the export window", async 
   }
 });
 
+test("validates status, timestamp, numerics, and items for non-paid orders", async (t) => {
+  const cases = [
+    {
+      name: "invalid pending timestamp",
+      mutate: (order) => {
+        order.status = "pending";
+        order.created_at = "not-a-date";
+      },
+      code: "export_record_outside_window",
+    },
+    {
+      name: "garbage status",
+      mutate: (order) => {
+        order.status = "whatever";
+      },
+      code: "order_status_invalid",
+    },
+    {
+      name: "out-of-window pending order",
+      mutate: (order) => {
+        order.status = "pending";
+        order.created_at = "2026-07-17T07:00:00.000Z";
+      },
+      code: "export_record_outside_window",
+    },
+    {
+      name: "null pending revenue",
+      mutate: (order) => {
+        order.status = "pending";
+        order.product_revenue = null;
+      },
+      code: "export_schema_invalid",
+    },
+  ];
+
+  for (const orderCase of cases) {
+    await t.test(orderCase.name, async () => {
+      const { contract, report } = await loadFixture();
+      const order = structuredClone(report.orders[0]);
+      order.transaction_id = `pending-order-${orderCase.name.replaceAll(" ", "-")}`;
+      orderCase.mutate(order);
+      report.orders.push(order);
+
+      const codes = analyzeReportingExport(report, contract).findings
+        .map((item) => item.code);
+      assert.ok(codes.includes(orderCase.code));
+    });
+  }
+});
+
+test("enforces one-to-one paid-order transaction integrity", async () => {
+  const duplicate = await loadFixture();
+  duplicate.report.orders.push(structuredClone(duplicate.report.orders[0]));
+  const duplicateCodes = analyzeReportingExport(
+    duplicate.report,
+    duplicate.contract,
+  ).findings.map((item) => item.code);
+  assert.ok(duplicateCodes.includes("duplicate_order_transaction"));
+  assert.ok(duplicateCodes.includes("transaction_integrity_invalid"));
+
+  const pending = await loadFixture();
+  const pendingOrder = structuredClone(pending.report.orders[0]);
+  pendingOrder.transaction_id = "pending-order-without-purchase";
+  pendingOrder.status = "pending";
+  pending.report.orders.push(pendingOrder);
+  const pendingCodes = analyzeReportingExport(
+    pending.report,
+    pending.contract,
+  ).findings.map((item) => item.code);
+  assert.ok(pendingCodes.includes("order_status_invalid"));
+  assert.ok(pendingCodes.includes("transaction_integrity_invalid"));
+
+  const unreferenced = await loadFixture();
+  const unreferencedOrder = structuredClone(unreferenced.report.orders[0]);
+  unreferencedOrder.transaction_id = "unreferenced-paid-order";
+  unreferenced.report.orders.push(unreferencedOrder);
+  const unreferencedCodes = analyzeReportingExport(
+    unreferenced.report,
+    unreferenced.contract,
+  ).findings.map((item) => item.code);
+  assert.ok(unreferencedCodes.includes("missing_purchase_for_order"));
+  assert.ok(unreferencedCodes.includes("transaction_integrity_invalid"));
+});
+
+test("requires unique sessions and exact event-to-session membership", async () => {
+  const duplicate = await loadFixture();
+  duplicate.report.sessions.push(structuredClone(duplicate.report.sessions[0]));
+  const duplicateCodes = analyzeReportingExport(
+    duplicate.report,
+    duplicate.contract,
+  ).findings.map((item) => item.code);
+  assert.ok(duplicateCodes.includes("duplicate_session_id"));
+  assert.ok(duplicateCodes.includes("event_session_not_found"));
+
+  const ghost = await loadFixture();
+  ghost.report.events[0].session_id = "ghost-session";
+  const ghostCodes = analyzeReportingExport(ghost.report, ghost.contract)
+    .findings.map((item) => item.code);
+  assert.ok(ghostCodes.includes("event_session_not_found"));
+});
+
+test("enforces event-specific reporting parameters", async () => {
+  const cta = await loadFixture();
+  delete cta.report.events.find(
+    (event) => event.event_name === "primary_cta_click",
+  ).placement;
+  assert.ok(analyzeReportingExport(cta.report, cta.contract).findings.some(
+    (item) => item.code === "event_required_parameter_missing",
+  ));
+
+  const editor = await loadFixture();
+  const editorEvent = editor.report.events.find(
+    (event) => event.event_name === "primary_cta_click",
+  );
+  editorEvent.event_name = "editor_first_action";
+  delete editorEvent.placement;
+  editorEvent.brand = "Apple";
+  editorEvent.model = "iPhone 16";
+  assert.ok(analyzeReportingExport(editor.report, editor.contract).findings.some(
+    (item) =>
+      item.code === "event_required_parameter_missing" &&
+      item.location.endsWith(".variant_id"),
+  ));
+
+  const checkout = await loadFixture();
+  const checkoutEvent = checkout.report.events.find(
+    (event) => event.event_name === "primary_cta_click",
+  );
+  checkoutEvent.event_name = "checkout_error";
+  delete checkoutEvent.placement;
+  checkoutEvent.error_code = "checkout_start_failed";
+  assert.ok(analyzeReportingExport(
+    checkout.report,
+    checkout.contract,
+  ).findings.some((item) =>
+    item.code === "event_required_parameter_missing" &&
+    item.location.endsWith(".stage")
+  ));
+});
+
+test("accepts current preview and script-load editor emitter parameters", async () => {
+  const preview = await loadFixture();
+  const previewEvent = preview.report.events.find(
+    (event) => event.event_name === "primary_cta_click",
+  );
+  previewEvent.event_name = "preview_success";
+  delete previewEvent.placement;
+  previewEvent.brand = "Apple";
+  previewEvent.model = "iPhone 16";
+  previewEvent.variant_id = "iphone-16";
+  previewEvent.has_angled_view = true;
+  const previewCodes = analyzeReportingExport(preview.report, preview.contract)
+    .findings.map((item) => item.code);
+  assert.ok(!previewCodes.includes("export_unknown_field"));
+  assert.ok(!previewCodes.includes("event_required_parameter_missing"));
+
+  const editor = await loadFixture();
+  const editorEvent = editor.report.events.find(
+    (event) => event.event_name === "primary_cta_click",
+  );
+  editorEvent.event_name = "editor_error";
+  delete editorEvent.placement;
+  editorEvent.variant_id = "iphone-16";
+  editorEvent.error_code = "designer_script_load_failed";
+  const editorCodes = analyzeReportingExport(editor.report, editor.contract)
+    .findings.map((item) => item.code);
+  assert.ok(!editorCodes.includes("event_required_parameter_missing"));
+});
+
 test("rejects prohibited reporting fields", async () => {
   const { contract, report } = await loadFixture();
   report.sessions[0].email = "synthetic@example.invalid";
@@ -830,6 +1035,59 @@ test("rejects prohibited reporting fields", async () => {
     item.code === "prohibited_field" &&
     item.location === "$.sessions[0].email"
   ));
+});
+
+test("requires the exact supported export schema version", async () => {
+  const { contract, report } = await loadFixture();
+  report.exportVersion = "9.9.9";
+
+  const codes = analyzeReportingExport(report, contract).findings
+    .map((item) => item.code);
+  assert.ok(codes.includes("export_version_invalid"));
+});
+
+test("rejects PII-like values even when their keys are allowlisted", async (t) => {
+  const cases = [
+    {
+      name: "campaign email",
+      mutate: (report) => {
+        report.sessions[0].campaign = "person@example.com";
+      },
+    },
+    {
+      name: "campaign phone",
+      mutate: (report) => {
+        report.sessions[0].campaign = "555-123-4567";
+      },
+    },
+    {
+      name: "CTA label email",
+      mutate: (report) => {
+        report.events.find(
+          (event) => event.event_name === "primary_cta_click",
+        ).label = "person@example.com";
+      },
+    },
+    {
+      name: "matching item name email",
+      mutate: (report) => {
+        report.events.find(
+          (event) => event.event_name === "purchase",
+        ).items[0].item_name = "person@example.com";
+        report.orders[0].items[0].item_name = "person@example.com";
+      },
+    },
+  ];
+
+  for (const piiCase of cases) {
+    await t.test(piiCase.name, async () => {
+      const { contract, report } = await loadFixture();
+      piiCase.mutate(report);
+      const codes = analyzeReportingExport(report, contract).findings
+        .map((item) => item.code);
+      assert.ok(codes.includes("pii_value_detected"));
+    });
+  }
 });
 
 test("rejects unknown export fields and privacy aliases", async () => {

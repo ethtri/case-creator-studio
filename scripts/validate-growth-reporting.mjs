@@ -333,6 +333,7 @@ const EXPORT_SCHEMA = {
     "stage",
     "code",
     "discount_amount",
+    "has_angled_view",
     "item_list_id",
     "item_list_name",
     "transaction_id",
@@ -366,6 +367,22 @@ const EXPORT_SCHEMA = {
   ]),
 };
 
+const ALLOWED_ORDER_STATUSES = new Set(["paid"]);
+
+const EVENT_REQUIRED_PARAMETERS = new Map([
+  ["primary_cta_click", ["placement"]],
+  ["design_start", ["brand", "model", "variant_id"]],
+  ["editor_first_action", ["brand", "model", "variant_id"]],
+  ["preview_success", ["brand", "model", "variant_id"]],
+  [
+    "preview_failure",
+    ["brand", "model", "variant_id", "error_code"],
+  ],
+  ["design_save", ["brand", "model", "variant_id"]],
+  ["editor_error", ["variant_id", "error_code"]],
+  ["checkout_error", ["error_code", "stage"]],
+]);
+
 const isObject = (value) =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -379,6 +396,14 @@ const arraysHaveSameValues = (actual, expected) =>
   Array.isArray(actual) &&
   actual.length === expected.length &&
   [...actual].sort().join("\n") === [...expected].sort().join("\n");
+
+const isBoundedString = (value, maximumLength, pattern) =>
+  isNonEmptyString(value) &&
+  value.length <= maximumLength &&
+  pattern.test(value);
+
+const SAFE_DIMENSION_VALUE_PATTERN = /^[\p{L}\p{N} .,_:/+&'()#-]+$/u;
+const SAFE_IDENTIFIER_PATTERN = /^[a-z0-9][a-z0-9._:-]*$/i;
 
 const isNonEmptyString = (value) =>
   typeof value === "string" && value.trim().length > 0;
@@ -736,6 +761,50 @@ const collectForbiddenFields = (value, prohibited, location = "$", found = []) =
     }
     collectForbiddenFields(nested, prohibited, nestedLocation, found);
   });
+  return found;
+};
+
+const EMAIL_VALUE_PATTERN =
+  /\b[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+\b/i;
+const PHONE_VALUE_PATTERN = /\+?\d[\d\s().-]{5,}\d/g;
+
+const containsPhoneLikeValue = (value) => {
+  if (isIsoTimestamp(value)) return false;
+  for (const match of value.matchAll(PHONE_VALUE_PATTERN)) {
+    const candidate = match[0].trim();
+    const digits = candidate.replace(/\D/g, "");
+    if (
+      digits.length >= 7 &&
+      digits.length <= 15 &&
+      !/^\d{4}-\d{2}-\d{2}$/.test(candidate)
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const collectUnsafeStringValues = (value, location = "$", found = []) => {
+  if (typeof value === "string") {
+    if (EMAIL_VALUE_PATTERN.test(value)) {
+      found.push({ location, kind: "email" });
+    } else if (containsPhoneLikeValue(value)) {
+      found.push({ location, kind: "phone" });
+    } else if (value.length > 500 || /[\u0000-\u001f\u007f]/.test(value)) {
+      found.push({ location, kind: "unsafe_or_oversized" });
+    }
+    return found;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) =>
+      collectUnsafeStringValues(entry, `${location}[${index}]`, found)
+    );
+    return found;
+  }
+  if (!isObject(value)) return found;
+  Object.entries(value).forEach(([key, nested]) =>
+    collectUnsafeStringValues(nested, `${location}.${key}`, found)
+  );
   return found;
 };
 
@@ -1954,6 +2023,13 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
       "$",
     ));
   }
+  if (report?.exportVersion !== "1.0.0") {
+    findings.push(finding(
+      "export_version_invalid",
+      "Reporting exportVersion must be exactly '1.0.0'.",
+      "$.exportVersion",
+    ));
+  }
 
   if (
     !sessions.some(isObject) ||
@@ -2028,7 +2104,19 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
   for (const location of collectForbiddenFields(report, prohibited)) {
     findings.push(finding("prohibited_field", "Reporting export contains a prohibited field.", location));
   }
+  for (const unsafeValue of collectUnsafeStringValues(report)) {
+    findings.push(finding(
+      unsafeValue.kind === "email" || unsafeValue.kind === "phone"
+        ? "pii_value_detected"
+        : "unsafe_string_value",
+      unsafeValue.kind === "email" || unsafeValue.kind === "phone"
+        ? `Reporting export contains a ${unsafeValue.kind}-like string value.`
+        : "Reporting export contains an oversized or control-character string.",
+      unsafeValue.location,
+    ));
+  }
 
+  const sessionIdCounts = new Map();
   sessions.forEach((session, index) => {
     const location = `$.sessions[${index}]`;
     if (!validateAllowedKeys(
@@ -2047,6 +2135,20 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
         "Session requires a non-empty session_id.",
         `${location}.session_id`,
       ));
+    } else {
+      sessionIdCounts.set(
+        session.session_id,
+        (sessionIdCounts.get(session.session_id) ?? 0) + 1,
+      );
+      if (
+        !isBoundedString(session.session_id, 128, SAFE_IDENTIFIER_PATTERN)
+      ) {
+        findings.push(finding(
+          "export_string_format_invalid",
+          "Session ID exceeds its bound or contains unsupported characters.",
+          `${location}.session_id`,
+        ));
+      }
     }
     for (const dimension of CANONICAL_DATA_QUALITY.requiredSessionDimensions) {
       const value = session[dimension];
@@ -2066,7 +2168,31 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
         `${location}.campaign`,
       ));
     }
+    for (const field of ["source", "medium", "campaign", "device", "browser"]) {
+      if (
+        !isBoundedString(
+          session[field],
+          field === "campaign" ? 160 : 100,
+          SAFE_DIMENSION_VALUE_PATTERN,
+        )
+      ) {
+        findings.push(finding(
+          "export_string_format_invalid",
+          `Session field '${field}' exceeds its bound or contains unsupported characters.`,
+          `${location}.${field}`,
+        ));
+      }
+    }
   });
+  for (const [sessionId, count] of sessionIdCounts) {
+    if (count > 1) {
+      findings.push(finding(
+        "duplicate_session_id",
+        `Session ID '${sessionId}' appears ${count} times in the export.`,
+        "$.sessions",
+      ));
+    }
+  }
 
   const allowedEvents = new Set(CANONICAL_DATA_QUALITY.allowedEventNames);
   const ecommerceEvents = new Set(
@@ -2098,6 +2224,41 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
             `Required item dimension '${dimension}' is missing or '(not set)'.`,
             `${itemLocation}.${dimension}`,
             dimension === "item_id" ? "error" : "warning",
+          ));
+          allValid = false;
+        }
+      }
+      if (
+        !isBoundedString(
+          item.item_id,
+          120,
+          SAFE_IDENTIFIER_PATTERN,
+        )
+      ) {
+        findings.push(finding(
+          "export_string_format_invalid",
+          "Item ID exceeds its bound or contains unsupported characters.",
+          `${itemLocation}.item_id`,
+        ));
+        allValid = false;
+      }
+      for (const field of [
+        "item_name",
+        "item_brand",
+        "item_category",
+        "item_variant",
+      ]) {
+        if (
+          !isBoundedString(
+            item[field],
+            field === "item_name" ? 200 : 120,
+            SAFE_DIMENSION_VALUE_PATTERN,
+          )
+        ) {
+          findings.push(finding(
+            "export_string_format_invalid",
+            `Item field '${field}' exceeds its bound or contains unsupported characters.`,
+            `${itemLocation}.${field}`,
           ));
           allValid = false;
         }
@@ -2163,6 +2324,37 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
         location,
       ));
     }
+    if (
+      !isBoundedString(event.event_id, 128, SAFE_IDENTIFIER_PATTERN) ||
+      !isBoundedString(event.session_id, 128, SAFE_IDENTIFIER_PATTERN) ||
+      !isBoundedString(
+        event.normalized_path,
+        256,
+        /^\/[a-z0-9/_-]*$/i,
+      )
+    ) {
+      findings.push(finding(
+        "export_string_format_invalid",
+        "Event ID, session ID, and normalized path must use bounded reporting-safe formats.",
+        location,
+      ));
+    }
+    if (sessionIdCounts.get(event.session_id) !== 1) {
+      findings.push(finding(
+        "event_session_not_found",
+        "Every event must reference exactly one exported session.",
+        `${location}.session_id`,
+      ));
+    }
+    for (const parameter of EVENT_REQUIRED_PARAMETERS.get(event.event_name) ?? []) {
+      if (!isNonEmptyString(event[parameter])) {
+        findings.push(finding(
+          "event_required_parameter_missing",
+          `Event '${event.event_name}' requires reporting parameter '${parameter}'.`,
+          `${location}.${parameter}`,
+        ));
+      }
+    }
     for (const field of [
       "placement",
       "label",
@@ -2174,6 +2366,7 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
       "stage",
       "code",
       "item_list_id",
+      "transaction_id",
       "item_list_name",
       "transaction_id",
       "currency",
@@ -2202,6 +2395,68 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
           `${location}.${field}`,
         ));
       }
+    }
+    if (
+      Object.hasOwn(event, "has_angled_view") &&
+      typeof event.has_angled_view !== "boolean"
+    ) {
+      findings.push(finding(
+        "export_schema_invalid",
+        "Event field 'has_angled_view' must be boolean when present.",
+        `${location}.has_angled_view`,
+      ));
+    }
+    for (const field of [
+      "placement",
+      "variant_id",
+      "error_code",
+      "stage",
+      "code",
+      "item_list_id",
+    ]) {
+      if (
+        Object.hasOwn(event, field) &&
+        !isBoundedString(event[field], 100, SAFE_IDENTIFIER_PATTERN)
+      ) {
+        findings.push(finding(
+          "export_string_format_invalid",
+          `Event field '${field}' exceeds its bound or contains unsupported characters.`,
+          `${location}.${field}`,
+        ));
+      }
+    }
+    for (const field of ["brand", "model", "label", "item_list_name"]) {
+      if (
+        Object.hasOwn(event, field) &&
+        !isBoundedString(
+          event[field],
+          field === "label" ? 160 : 120,
+          SAFE_DIMENSION_VALUE_PATTERN,
+        )
+      ) {
+        findings.push(finding(
+          "export_string_format_invalid",
+          `Event field '${field}' exceeds its bound or contains unsupported characters.`,
+          `${location}.${field}`,
+        ));
+      }
+    }
+    if (
+      Object.hasOwn(event, "destination") &&
+      (
+        !isNonEmptyString(event.destination) ||
+        event.destination.length > 300 ||
+        !(
+          event.destination.startsWith("/") ||
+          /^https:\/\//i.test(event.destination)
+        )
+      )
+    ) {
+      findings.push(finding(
+        "export_string_format_invalid",
+        "CTA destination must be a bounded relative path or HTTPS URL.",
+        `${location}.destination`,
+      ));
     }
     if (!isTimestampInsideWindow(event.occurred_at, report?.window)) {
       findings.push(finding(
@@ -2251,6 +2506,20 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
       return;
     }
     purchaseIds.set(event.transaction_id, (purchaseIds.get(event.transaction_id) ?? 0) + 1);
+    for (const field of ["shipping", "tax"]) {
+      if (
+        !Object.hasOwn(event, field) ||
+        typeof event[field] !== "number" ||
+        !Number.isFinite(event[field]) ||
+        event[field] < 0
+      ) {
+        findings.push(finding(
+          "invalid_purchase_monetary_value",
+          `Purchase ${field} must be a present finite non-negative number.`,
+          `${location}.${field}`,
+        ));
+      }
+    }
     if (
       typeof event.value !== "number" ||
       !Number.isFinite(event.value) ||
@@ -2282,6 +2551,7 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
     }
   }
 
+  const orderIds = new Map();
   orders.forEach((order, index) => {
     const location = `$.orders[${index}]`;
     if (!validateAllowedKeys(
@@ -2303,7 +2573,43 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
         ));
       }
     }
-    for (const field of ["shipping", "tax", "total"]) {
+    if (isNonEmptyString(order.transaction_id)) {
+      orderIds.set(
+        order.transaction_id,
+        (orderIds.get(order.transaction_id) ?? 0) + 1,
+      );
+    }
+    if (!ALLOWED_ORDER_STATUSES.has(order.status)) {
+      findings.push(finding(
+        "order_status_invalid",
+        `Order status must be one of: ${[...ALLOWED_ORDER_STATUSES].join(", ")}.`,
+        `${location}.status`,
+      ));
+    }
+    if (!isTimestampInsideWindow(order.created_at, report?.window)) {
+      findings.push(finding(
+        "export_record_outside_window",
+        "Order created_at must be a valid timestamp inside the half-open export window.",
+        `${location}.created_at`,
+      ));
+    }
+    if (
+      !isBoundedString(order.transaction_id, 128, SAFE_IDENTIFIER_PATTERN)
+    ) {
+      findings.push(finding(
+        "export_string_format_invalid",
+        "Order transaction_id exceeds its bound or contains unsupported characters.",
+        `${location}.transaction_id`,
+      ));
+    }
+    if (order.currency !== contract.currency) {
+      findings.push(finding(
+        "export_currency_mismatch",
+        `Order currency must match contract currency ${contract.currency}.`,
+        `${location}.currency`,
+      ));
+    }
+    for (const field of ["product_revenue", "shipping", "tax", "total"]) {
       if (
         typeof order[field] !== "number" ||
         !Number.isFinite(order[field]) ||
@@ -2316,6 +2622,25 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
         ));
       }
     }
+    if (
+      ["product_revenue", "shipping", "tax", "total"].every(
+        (field) =>
+          typeof order[field] === "number" &&
+          Number.isFinite(order[field]) &&
+          order[field] >= 0,
+      ) &&
+      exceedsTolerance(
+        order.total,
+        order.product_revenue + order.shipping + order.tax,
+        tolerance,
+      )
+    ) {
+      findings.push(finding(
+        "order_total_mismatch",
+        "Order total must equal product_revenue plus shipping and tax.",
+        location,
+      ));
+    }
     if (!Array.isArray(order.items) || order.items.length === 0) {
       findings.push(finding(
         "missing_items",
@@ -2324,8 +2649,48 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
       ));
     } else {
       validateItems(order.items, `${location}.items`);
+      if (
+        typeof order.product_revenue === "number" &&
+        Number.isFinite(order.product_revenue)
+      ) {
+        const itemTotal = itemsRevenue(order.items);
+        if (
+          itemTotal === null ||
+          exceedsTolerance(order.product_revenue, itemTotal, tolerance)
+        ) {
+          findings.push(finding(
+            "order_item_revenue_mismatch",
+            "Order product_revenue must reconcile to its strict item revenue total.",
+            location,
+          ));
+        }
+      }
     }
   });
+  for (const [transactionId, count] of orderIds) {
+    if (count > 1) {
+      findings.push(finding(
+        "duplicate_order_transaction",
+        `Transaction '${transactionId}' appears in ${count} exported orders.`,
+        "$.orders",
+      ));
+    }
+  }
+  for (const transactionId of new Set([
+    ...purchaseIds.keys(),
+    ...orderIds.keys(),
+  ])) {
+    if (
+      purchaseIds.get(transactionId) !== 1 ||
+      orderIds.get(transactionId) !== 1
+    ) {
+      findings.push(finding(
+        "transaction_integrity_invalid",
+        `Transaction '${transactionId}' must have exactly one purchase and one exported paid order.`,
+        "$",
+      ));
+    }
+  }
   const paidOrders = orders.filter(
     (order) => isObject(order) && order.status === "paid",
   );
@@ -2336,13 +2701,6 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
         "export_currency_mismatch",
         `Paid-order currency must match contract currency ${contract.currency}.`,
         `${location}.currency`,
-      ));
-    }
-    if (!isTimestampInsideWindow(order.created_at, report?.window)) {
-      findings.push(finding(
-        "export_record_outside_window",
-        "Paid-order created_at must be a valid timestamp inside the half-open export window.",
-        `${location}.created_at`,
       ));
     }
     if (
@@ -2379,6 +2737,22 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
     }
     if (event.currency !== order.currency) {
       findings.push(finding("purchase_currency_mismatch", `Transaction '${order.transaction_id}' has mismatched currency.`, "$.events"));
+    }
+    if (
+      !["shipping", "tax"].every(
+        (field) =>
+          typeof event[field] === "number" &&
+          Number.isFinite(event[field]) &&
+          typeof order[field] === "number" &&
+          Number.isFinite(order[field]) &&
+          !exceedsTolerance(event[field], order[field], tolerance),
+      )
+    ) {
+      findings.push(finding(
+        "purchase_order_monetary_mismatch",
+        `Transaction '${order.transaction_id}' purchase shipping/tax must match its paid order.`,
+        "$.events",
+      ));
     }
     if (
       typeof event.value === "number" &&

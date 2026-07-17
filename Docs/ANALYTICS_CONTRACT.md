@@ -347,14 +347,27 @@ by at most the greater of $0.01 or 0.1%; anything larger requires investigation
 before a dashboard or experiment decision is trusted.
 
 The export format is a positive schema: report, window, session, event, order,
-and item objects accept only documented keys and required types. Unknown
+and item objects accept only documented keys and required types, and
+`exportVersion` must be the supported `1.0.0`. Unknown
 aliases such as contact or mobile-number fields fail even if they do not appear
-in the configured denylist. Null collection entries fail as schema findings
-instead of crashing validation. Purchase `value` and paid-order
+in the configured denylist. Email- and phone-like values also fail recursively
+when hidden in allowlisted campaign, CTA, or catalog fields; high-value strings
+use field-specific length and character bounds. Null collection entries fail as
+schema findings instead of crashing validation. Session IDs must be unique, and
+every event must reference exactly one exported session. Event-specific
+parameters keep the report dimensions executable: CTA events require placement,
+design/editor/preview events require their emitted phone context, diagnostic
+events require their applicable error code/stage, and supported optional emitter
+fields such as `has_angled_view` remain schema-valid. Purchase `value` and paid-order
 `product_revenue` must be present finite non-negative numbers, and each must
 reconcile to the sum of strict item price-minus-discount times quantity.
-Data-quality arrays remain canonical and tolerance/cardinality settings may
-become stricter but cannot be weakened beyond the checked-in ceilings.
+Purchase shipping and tax must match the paid order, whose total must equal
+product revenue plus shipping and tax. This is a paid-order export: every order
+must use `paid`, a unique transaction ID, a valid in-window timestamp, coherent
+numeric values, and the strict item schema; every transaction must have exactly
+one purchase and one order. Data-quality arrays remain canonical and
+tolerance/cardinality settings may become stricter but cannot be weakened
+beyond the checked-in ceilings.
 
 The checked-in export fixture is synthetic. Its single matching purchase and
 paid order prove the validator, not production collection or dashboard
