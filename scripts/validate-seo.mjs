@@ -26,6 +26,29 @@ const routeFromFile = (file) => {
   return relativeDirectory ? `/${relativeDirectory}` : "/";
 };
 
+const assertLocalImageExists = async (route, value, label) => {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    fail(`${route}: ${label} is not an absolute URL`);
+  }
+
+  if (url.origin !== SITE_URL) fail(`${route}: ${label} uses a noncanonical host`);
+  if (url.pathname.startsWith("/src/")) fail(`${route}: ${label} exposes a source asset URL`);
+
+  const assetPath = path.resolve(DIST, `.${decodeURIComponent(url.pathname)}`);
+  if (!assetPath.startsWith(`${DIST}${path.sep}`)) fail(`${route}: ${label} escapes dist`);
+
+  let stat;
+  try {
+    stat = await fs.stat(assetPath);
+  } catch {
+    fail(`${route}: ${label} does not resolve to a built file (${url.pathname})`);
+  }
+  if (!stat.isFile()) fail(`${route}: ${label} does not resolve to a built file (${url.pathname})`);
+};
+
 const indexFiles = await collectIndexFiles(DIST);
 const canonicals = new Set();
 
@@ -38,6 +61,7 @@ for (const file of indexFiles) {
   const canonical = getMatches(html, /<link\s+rel="canonical"\s+href="([^"]+)"\s*\/?>/g);
   const ogUrl = getMatches(html, /<meta\s+property="og:url"\s+content="([^"]+)"\s*\/?>/g);
   const ogImage = getMatches(html, /<meta\s+property="og:image"\s+content="([^"]+)"\s*\/?>/g);
+  const twitterImage = getMatches(html, /<meta\s+name="twitter:image"\s+content="([^"]+)"\s*\/?>/g);
 
   if (titles.length !== 1) fail(`${route}: expected one title, found ${titles.length}`);
   if (descriptions.length !== 1) fail(`${route}: expected one description, found ${descriptions.length}`);
@@ -45,6 +69,9 @@ for (const file of indexFiles) {
   if (canonical.length !== 1) fail(`${route}: expected one canonical, found ${canonical.length}`);
   if (ogUrl.length !== 1 || ogUrl[0] !== canonical[0]) fail(`${route}: og:url does not match canonical`);
   if (ogImage.length !== 1) fail(`${route}: expected one og:image, found ${ogImage.length}`);
+  if (twitterImage.length !== 1 || twitterImage[0] !== ogImage[0]) {
+    fail(`${route}: twitter:image does not match og:image`);
+  }
 
   const expectedCanonical = route === "/" ? `${SITE_URL}/` : `${SITE_URL}${route}`;
   if (canonical[0] !== expectedCanonical) {
@@ -56,6 +83,7 @@ for (const file of indexFiles) {
   if (route.startsWith("/phone-cases/") && ogImage[0] === `${SITE_URL}/og-image.png`) {
     fail(`${route}: product metadata still uses the generic social image`);
   }
+  await assertLocalImageExists(route, ogImage[0], "og:image");
 }
 
 const sitemap = await fs.readFile(path.join(DIST, "sitemap.xml"), "utf8");
