@@ -1,0 +1,78 @@
+name: Growth experiment
+description: Propose a measurable conversion, merchandising, acquisition, or retention test.
+title: "[Experiment] "
+labels:
+  - enhancement
+  - marketing
+  - cro
+  - codex
+body:
+  - type: textarea
+    id: observation
+    attributes:
+      label: Observation and baseline
+      description: Link the funnel data, research, recordings, or customer evidence that motivates the test.
+    validations:
+      required: true
+  - type: textarea
+    id: hypothesis
+    attributes:
+      label: Hypothesis
+      placeholder: If we change ... for ..., then ... will improve because ...
+    validations:
+      required: true
+  - type: textarea
+    id: audience
+    attributes:
+      label: Audience and eligibility
+      description: Define inclusion, exclusion, traffic allocation, device/region constraints, and consent implications.
+    validations:
+      required: true
+  - type: textarea
+    id: variants
+    attributes:
+      label: Control and variants
+      description: Describe what changes and what must remain identical.
+    validations:
+      required: true
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Primary metric and guardrails
+      placeholder: |
+        Primary metric and expected direction:
+        Guardrails (revenue, checkout, accessibility, performance, errors):
+    validations:
+      required: true
+  - type: textarea
+    id: decision_rule
+    attributes:
+      label: Run and decision rules
+      description: Define minimum sample/time, novelty handling, stop criteria, segmentation plan, and who makes the final decision.
+    validations:
+      required: true
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation and QA plan
+      description: Include event names, assignment persistence, browser/device coverage, accessibility, performance, and rollback.
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies, risks, and overlap
+      description: Link prerequisite instrumentation, assets, approvals, issues, and open PRs.
+    validations:
+      required: true
+  - type: checkboxes
+    id: integrity
+    attributes:
+      label: Experiment integrity
+      options:
+        - label: The hypothesis and decision rule were written before results are available.
+          required: true
+        - label: The test will not use fake scarcity, fabricated proof, dark patterns, or unapproved personal data.
+          required: true
+        - label: I checked existing experiments, issues, and open PRs for overlap.
+          required: true
