@@ -406,6 +406,7 @@ export const validateReportingContract = (contract) => {
   const dimensionIds = new Set();
   reportingDimensions.forEach((dimension, index) => {
     const location = `$.dashboard.reportingDimensions[${index}]`;
+    const sources = Array.isArray(dimension?.sources) ? dimension.sources : [];
     if (!isNonEmptyString(dimension?.id) || dimensionIds.has(dimension.id)) {
       findings.push(finding(
         "reporting_dimension_id_invalid",
@@ -418,8 +419,7 @@ export const validateReportingContract = (contract) => {
       !isNonEmptyString(dimension?.label) ||
       !Array.isArray(dimension?.usage) ||
       dimension.usage.length === 0 ||
-      !Array.isArray(dimension?.sources) ||
-      dimension.sources.length === 0
+      sources.length === 0
     ) {
       findings.push(finding(
         "reporting_dimension_definition_incomplete",
@@ -427,7 +427,7 @@ export const validateReportingContract = (contract) => {
         location,
       ));
     }
-    for (const [sourceIndex, source] of (dimension?.sources ?? []).entries()) {
+    for (const [sourceIndex, source] of sources.entries()) {
       if (
         source?.sourceType === "ga4_custom_event" &&
         (
@@ -459,8 +459,9 @@ export const validateReportingContract = (contract) => {
       ));
       continue;
     }
+    const sources = Array.isArray(dimension.sources) ? dimension.sources : [];
     for (const expected of expectedSources) {
-      if (!(dimension.sources ?? []).some((source) => dimensionSourceMatches(source, expected))) {
+      if (!sources.some((source) => dimensionSourceMatches(source, expected))) {
         findings.push(finding(
           "required_dimension_source_missing",
           `Reporting dimension '${dimensionId}' is missing its ${expected.scope}-scoped ${expected.apiName} source.`,
@@ -842,14 +843,14 @@ export const validateReportingContract = (contract) => {
     });
     if (
       !Number.isInteger(reconciliation.purchaseCount) ||
-      reconciliation.purchaseCount < 0 ||
+      reconciliation.purchaseCount <= 0 ||
       !Number.isInteger(reconciliation.paidOrderCount) ||
-      reconciliation.paidOrderCount < 0 ||
+      reconciliation.paidOrderCount <= 0 ||
       reconciliation.purchaseCount !== reconciliation.paidOrderCount
     ) {
       findings.push(finding(
         "reconciliation_counts_invalid",
-        "Completed reconciliation requires equal non-negative purchase and paid-order counts.",
+        "Completed reconciliation requires equal positive purchase and paid-order counts.",
         "$.dashboard.reconciliation",
       ));
     }

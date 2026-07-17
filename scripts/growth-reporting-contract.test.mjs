@@ -226,6 +226,8 @@ test("keeps consent, suppression, T+1, tolerance, and no-PII guardrails enforcea
   contract.privacy.minimumCellSize = 5;
   contract.dashboard.decisionFreshness.maximumLagHours = 72;
   contract.dashboard.reconciliation.purchaseRevenue = 340;
+  contract.dashboard.reconciliation.purchaseCount = 0;
+  contract.dashboard.reconciliation.paidOrderCount = 0;
   contract.dashboard.reportingDimensions.push({
     id: "session_identifier",
     label: "Session identifier",
@@ -242,6 +244,7 @@ test("keeps consent, suppression, T+1, tolerance, and no-PII guardrails enforcea
   assert.ok(codes.includes("consented_rate_label_missing"));
   assert.ok(codes.includes("minimum_cell_size_invalid"));
   assert.ok(codes.includes("decision_freshness_invalid"));
+  assert.ok(codes.includes("reconciliation_counts_invalid"));
   assert.ok(codes.includes("reconciliation_tolerance_failed"));
   assert.ok(codes.includes("custom_dimension_invalid"));
 });
