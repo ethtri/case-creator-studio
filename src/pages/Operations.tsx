@@ -94,7 +94,7 @@ const statusClasses: Record<ProductionJobStatus, string> = {
   artwork_ready: "bg-accent/10 text-accent border-accent/20",
   printed: "bg-primary/10 text-primary border-primary/20",
   packed: "bg-primary/10 text-primary border-primary/20",
-  shipped: "bg-success/10 text-success border-success/20",
+  shipped: "bg-success/10 text-success-emphasis border-success/20",
   failed: "bg-destructive/10 text-destructive border-destructive/20",
 };
 

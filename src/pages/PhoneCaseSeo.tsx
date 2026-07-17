@@ -98,7 +98,7 @@ const PhoneCaseSeo = () => {
         <section className="pt-28 pb-16 bg-surface-sunken">
           <div className="container mx-auto px-6 grid lg:grid-cols-[1fr_360px] gap-12 items-center">
             <div>
-              <p className="text-sm font-semibold text-cta mb-4">{variant.brand} custom case</p>
+              <p className="text-sm font-semibold text-cta-emphasis mb-4">{variant.brand} custom case</p>
               <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
                 Design your own {variant.model} phone case.
               </h1>
@@ -107,35 +107,35 @@ const PhoneCaseSeo = () => {
                 Preview your design before checkout and keep the order tied to the exact model.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
-                <Link
-                  to={`/design/${variant.id}`}
-                  onClick={() => {
-                    const items = asMarketingItems(
-                      [buildAnalyticsItem({ variant })].filter(Boolean),
-                    );
-                    trackMarketingEvent("select_item", {
-                      item_list_id: "model_seo_page",
-                      item_list_name: "Model SEO page",
-                      placement: "model_seo_page",
-                      items,
-                    });
-                    trackMarketingEvent("primary_cta_click", {
-                      placement: "model_seo_page",
-                      destination: `/design/${variant.id}`,
-                      label: "Start designing",
-                    });
-                  }}
-                >
-                  <Button size="lg" className="bg-cta hover:bg-cta/90 text-cta-foreground">
+                <Button asChild size="lg" className="bg-cta hover:bg-cta/90 text-cta-foreground">
+                  <Link
+                    to={`/design/${variant.id}`}
+                    onClick={() => {
+                      const items = asMarketingItems(
+                        [buildAnalyticsItem({ variant })].filter(Boolean),
+                      );
+                      trackMarketingEvent("select_item", {
+                        item_list_id: "model_seo_page",
+                        item_list_name: "Model SEO page",
+                        placement: "model_seo_page",
+                        items,
+                      });
+                      trackMarketingEvent("primary_cta_click", {
+                        placement: "model_seo_page",
+                        destination: `/design/${variant.id}`,
+                        label: "Start designing",
+                      });
+                    }}
+                  >
                     Start designing
                     <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </Link>
-                <Link to="/catalog">
-                  <Button size="lg" variant="outline">
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline">
+                  <Link to="/catalog">
                     Change phone model
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </div>
             </div>
 
@@ -152,7 +152,7 @@ const PhoneCaseSeo = () => {
         <section className="py-16">
           <div className="container mx-auto px-6 grid md:grid-cols-3 gap-6">
             <article className="rounded-lg border border-border bg-card p-6">
-              <Palette className="w-6 h-6 text-cta mb-4" />
+              <Palette className="w-6 h-6 text-cta-emphasis mb-4" aria-hidden="true" />
               <h2 className="text-xl font-semibold mb-3">Personal design</h2>
               <p className="text-sm text-muted-foreground">
                 Upload an image, add text, and make a case around a memory, pet, trip, or milestone.
@@ -160,7 +160,7 @@ const PhoneCaseSeo = () => {
               </p>
             </article>
             <article className="rounded-lg border border-border bg-card p-6">
-              <Package className="w-6 h-6 text-cta mb-4" />
+              <Package className="w-6 h-6 text-cta-emphasis mb-4" aria-hidden="true" />
               <h2 className="text-xl font-semibold mb-3">Model-specific order</h2>
               <p className="text-sm text-muted-foreground">
                 This page starts with the {variant.model}, so the case order stays connected to the selected phone.
@@ -168,7 +168,7 @@ const PhoneCaseSeo = () => {
               </p>
             </article>
             <article className="rounded-lg border border-border bg-card p-6">
-              <ShieldCheck className="w-6 h-6 text-cta mb-4" />
+              <ShieldCheck className="w-6 h-6 text-cta-emphasis mb-4" aria-hidden="true" />
               <h2 className="text-xl font-semibold mb-3">Preview first</h2>
               <p className="text-sm text-muted-foreground">
                 Generate a preview before cart and checkout so the design can be reviewed first.

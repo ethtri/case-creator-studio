@@ -108,7 +108,7 @@ const Auth = () => {
         </div>
       </nav>
 
-      <div className="container mx-auto px-6 py-12">
+      <main className="container mx-auto px-6 py-12">
         <div className="max-w-md mx-auto bg-card border border-border rounded-2xl p-6 shadow-soft">
           <h1 className="text-2xl font-semibold mb-2">
             {mode === "signin" ? "Welcome back" : "Create your account"}
@@ -186,7 +186,9 @@ const Auth = () => {
             </div>
 
             {message && (
-              <p className="text-sm text-destructive">{message}</p>
+              <p className="text-sm text-destructive" role="alert" aria-live="polite">
+                {message}
+              </p>
             )}
 
             <Button
@@ -203,7 +205,8 @@ const Auth = () => {
               <>
                 New here?{" "}
                 <button
-                  className="text-foreground underline"
+                  className="min-h-11 rounded-md px-2 text-foreground underline"
+                  type="button"
                   onClick={() => setMode("signup")}
                 >
                   Create an account
@@ -213,7 +216,8 @@ const Auth = () => {
               <>
                 Already have an account?{" "}
                 <button
-                  className="text-foreground underline"
+                  className="min-h-11 rounded-md px-2 text-foreground underline"
+                  type="button"
                   onClick={() => setMode("signin")}
                 >
                   Sign in
@@ -228,7 +232,7 @@ const Auth = () => {
             <Link to="/privacy" className="underline">Privacy Policy</Link>.
           </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

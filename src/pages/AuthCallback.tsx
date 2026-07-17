@@ -38,8 +38,12 @@ const AuthCallback = () => {
   }, [navigate]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center space-y-3">
+    <main className="min-h-screen flex items-center justify-center bg-background">
+      <div
+        className="text-center space-y-3"
+        role={status === "error" ? "alert" : "status"}
+        aria-live={status === "error" ? "assertive" : "polite"}
+      >
         {status === "loading" && (
           <div className="animate-spin w-10 h-10 border-2 border-cta border-t-transparent rounded-full mx-auto" />
         )}
@@ -49,7 +53,7 @@ const AuthCallback = () => {
           {status === "done" && "Sign-in complete. You can close this tab."}
         </p>
       </div>
-    </div>
+    </main>
   );
 };
 

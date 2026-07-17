@@ -122,7 +122,7 @@ const OrderSuccess = () => {
         </div>
       </nav>
 
-      <div className="container mx-auto px-6 py-16">
+      <main className="container mx-auto px-6 py-16">
         <motion.div
           className="max-w-2xl mx-auto text-center"
           initial={{ opacity: 0, y: 20 }}
@@ -135,7 +135,7 @@ const OrderSuccess = () => {
             animate={{ scale: 1 }}
             transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
           >
-            <CheckCircle className="w-10 h-10 text-success" />
+            <CheckCircle className="w-10 h-10 text-success-emphasis" />
           </motion.div>
 
           <h1 className="text-3xl md:text-4xl font-bold mb-4">
@@ -214,7 +214,7 @@ const OrderSuccess = () => {
             </Button>
           </div>
         </motion.div>
-      </div>
+      </main>
     </div>
   );
 };

@@ -99,7 +99,7 @@ const DesignsContent = () => {
         </div>
       </nav>
 
-      <div className="container mx-auto px-6 pt-12 pb-16">
+      <main className="container mx-auto px-6 pt-12 pb-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -112,15 +112,19 @@ const DesignsContent = () => {
                 Resume, edit, or reorder your saved Snapcase designs.
               </p>
             </div>
-            <Link to="/catalog">
-              <Button className="bg-cta hover:bg-cta/90 text-cta-foreground">
+            <Button asChild className="bg-cta hover:bg-cta/90 text-cta-foreground">
+              <Link to="/catalog">
                 Start New Design
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
 
           {isLoading ? (
-            <div className="text-center py-16 bg-card rounded-2xl shadow-soft">
+            <div
+              className="text-center py-16 bg-card rounded-2xl shadow-soft"
+              role="status"
+              aria-live="polite"
+            >
               <div className="animate-spin w-8 h-8 border-2 border-cta border-t-transparent rounded-full mx-auto mb-4" />
               <p className="text-muted-foreground">Loading your designs...</p>
             </div>
@@ -131,11 +135,11 @@ const DesignsContent = () => {
               <p className="text-muted-foreground mb-6">
                 Save a design from the preview screen to access it anytime.
               </p>
-              <Link to="/catalog">
-                <Button className="bg-cta hover:bg-cta/90 text-cta-foreground">
+              <Button asChild className="bg-cta hover:bg-cta/90 text-cta-foreground">
+                <Link to="/catalog">
                   Start Designing
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -149,9 +153,10 @@ const DesignsContent = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.4, delay: index * 0.05 }}
                   >
-                    <div
-                      className="h-48 rounded-xl bg-muted mb-4 bg-cover bg-center"
-                      style={{ backgroundImage: `url(${design.previewUrl})` }}
+                    <img
+                      src={design.previewUrl}
+                      alt={`${variant ? `${variant.brand} ${variant.model}` : "Custom phone case"} saved design preview`}
+                      className="h-48 w-full rounded-xl bg-muted mb-4 object-cover"
                     />
                     <div className="space-y-2 mb-4">
                       <h3 className="font-semibold">
@@ -176,8 +181,9 @@ const DesignsContent = () => {
                         size="icon"
                         disabled={isDeleting === design.id}
                         onClick={() => handleDelete(design.id)}
+                        aria-label={`Delete ${variant ? `${variant.brand} ${variant.model}` : "custom phone case"} design`}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </div>
                   </motion.div>
@@ -186,7 +192,7 @@ const DesignsContent = () => {
             </div>
           )}
         </motion.div>
-      </div>
+      </main>
     </div>
   );
 };

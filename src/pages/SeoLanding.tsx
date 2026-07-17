@@ -50,7 +50,7 @@ const SeoLanding = () => {
         <section className="pt-28 pb-16 bg-surface-sunken">
           <div className="container mx-auto px-6 grid lg:grid-cols-[1fr_420px] gap-12 items-center">
             <div className="max-w-3xl">
-              <p className="text-sm font-semibold text-cta mb-4">{page.eyebrow}</p>
+              <p className="text-sm font-semibold text-cta-emphasis mb-4">{page.eyebrow}</p>
               <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
                 {page.headline}
               </h1>
@@ -58,17 +58,17 @@ const SeoLanding = () => {
                 {page.intro}
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
-                <Link to="/catalog">
-                  <Button size="lg" className="bg-cta hover:bg-cta/90 text-cta-foreground">
+                <Button asChild size="lg" className="bg-cta hover:bg-cta/90 text-cta-foreground">
+                  <Link to="/catalog">
                     {page.cta}
                     <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
-                </Link>
-                <Link to="/gifts/custom-phone-case">
-                  <Button size="lg" variant="outline">
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline">
+                  <Link to="/gifts/custom-phone-case">
                     Gift ideas
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </div>
             </div>
 
@@ -94,7 +94,7 @@ const SeoLanding = () => {
               const Icon = icons[index] ?? Gift;
               return (
                 <article key={section.title} className="border border-border rounded-lg p-6 bg-card">
-                  <Icon className="w-6 h-6 text-cta mb-4" />
+                  <Icon className="w-6 h-6 text-cta-emphasis mb-4" aria-hidden="true" />
                   <h2 className="text-xl font-semibold mb-3">{section.title}</h2>
                   <p className="text-sm text-muted-foreground">{section.body}</p>
                 </article>
@@ -130,7 +130,10 @@ const SeoLanding = () => {
                   Choose the model first, then personalize the case.
                 </p>
               </div>
-              <Link to="/catalog" className="hidden md:inline-flex text-sm text-cta">
+              <Link
+                to="/catalog"
+                className="hidden min-h-11 items-center text-sm text-cta-emphasis md:inline-flex"
+              >
                 Browse all cases
               </Link>
             </div>
@@ -147,7 +150,7 @@ const SeoLanding = () => {
                   <p className="text-sm text-muted-foreground mb-4">
                     Personalize this model with a photo, design, or message.
                   </p>
-                  <span className="text-sm font-medium text-cta">View details</span>
+                  <span className="text-sm font-medium text-cta-emphasis">View details</span>
                 </Link>
               ))}
             </div>

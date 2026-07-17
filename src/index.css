@@ -41,7 +41,7 @@
     --primary-foreground: 0 0% 100%;
 
     /* Teal secondary - CTA color */
-    --secondary: 167 60% 33%;
+    --secondary: 167 60% 28%;
     --secondary-foreground: 0 0% 100%;
 
     /* Muted tones */
@@ -53,15 +53,17 @@
     --accent-foreground: 0 0% 100%;
 
     /* Teal CTA */
-    --cta: 167 60% 33%;
+    --cta: 167 60% 28%;
     --cta-foreground: 0 0% 100%;
+    --cta-emphasis: 167 60% 28%;
 
     /* Status colors */
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 167 60% 33%;
+    --success: 167 60% 28%;
     --success-foreground: 0 0% 100%;
+    --success-emphasis: 167 60% 28%;
 
     --warning: 38 92% 50%;
     --warning-foreground: 260 50% 10%;
@@ -69,7 +71,7 @@
     /* Borders and inputs */
     --border: 260 10% 85%;
     --input: 260 10% 85%;
-    --ring: 167 60% 33%;
+    --ring: 167 60% 28%;
 
     --radius: 0.75rem;
 
@@ -99,7 +101,7 @@
     --sidebar-accent: 260 10% 95%;
     --sidebar-accent-foreground: 260 50% 10%;
     --sidebar-border: 260 10% 90%;
-    --sidebar-ring: 167 60% 33%;
+    --sidebar-ring: 167 60% 28%;
   }
 
   .dark {
@@ -116,7 +118,7 @@
     --primary: 320 100% 30%;
     --primary-foreground: 20 20% 96%;
 
-    --secondary: 167 60% 33%;
+    --secondary: 167 60% 28%;
     --secondary-foreground: 20 20% 96%;
 
     --muted: 280 30% 15%;
@@ -126,21 +128,23 @@
     --accent-foreground: 20 20% 96%;
 
     /* Teal CTA */
-    --cta: 167 60% 33%;
+    --cta: 167 60% 28%;
     --cta-foreground: 20 20% 96%;
+    --cta-emphasis: 167 60% 42%;
 
     --destructive: 0 62% 45%;
     --destructive-foreground: 20 20% 96%;
 
-    --success: 167 60% 33%;
+    --success: 167 60% 28%;
     --success-foreground: 20 20% 96%;
+    --success-emphasis: 167 60% 42%;
 
     --warning: 38 92% 50%;
     --warning-foreground: 260 50% 5%;
 
     --border: 280 20% 18%;
     --input: 280 20% 18%;
-    --ring: 167 60% 33%;
+    --ring: 167 60% 42%;
 
     --surface-elevated: 280 40% 10%;
     --surface-sunken: 260 50% 5%;
@@ -159,7 +163,7 @@
     --sidebar-accent: 280 30% 15%;
     --sidebar-accent-foreground: 20 20% 96%;
     --sidebar-border: 280 20% 15%;
-    --sidebar-ring: 167 60% 33%;
+    --sidebar-ring: 167 60% 42%;
   }
 }
 
@@ -175,6 +179,28 @@
 
   html {
     scroll-behavior: smooth;
+  }
+
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 3px solid hsl(var(--ring));
+    outline-offset: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-delay: 0ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-delay: 0ms !important;
+    transition-duration: 1ms !important;
   }
 }
 

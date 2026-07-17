@@ -35,8 +35,8 @@ const statusColors: Record<string, string> = {
   submitted: "bg-primary/10 text-primary",
   processing: "bg-primary/10 text-primary",
   fulfilling: "bg-primary/10 text-primary",
-  shipped: "bg-success/10 text-success",
-  delivered: "bg-success/10 text-success",
+  shipped: "bg-success/10 text-success-emphasis",
+  delivered: "bg-success/10 text-success-emphasis",
   canceled: "bg-destructive/10 text-destructive",
   failed: "bg-destructive/10 text-destructive",
 };
@@ -129,7 +129,7 @@ const OrdersContent = () => {
         </div>
       </nav>
 
-      <div className="container mx-auto px-6 pt-28 pb-12">
+      <main className="container mx-auto px-6 pt-28 pb-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -142,12 +142,12 @@ const OrdersContent = () => {
                 Track your purchases and reorder your favorites.
               </p>
             </div>
-            <Link to="/catalog">
-              <Button className="bg-cta hover:bg-cta/90 text-cta-foreground">
+            <Button asChild className="bg-cta hover:bg-cta/90 text-cta-foreground">
+              <Link to="/catalog">
                 <Plus className="w-4 h-4 mr-1" />
                 New Design
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
 
           <div className="bg-card rounded-2xl p-6 shadow-soft mb-8">
@@ -196,11 +196,11 @@ const OrdersContent = () => {
               <p className="text-muted-foreground mb-6">
                 Once you purchase a case, it will appear here.
               </p>
-              <Link to="/catalog">
-                <Button className="bg-cta hover:bg-cta/90 text-cta-foreground">
+              <Button asChild className="bg-cta hover:bg-cta/90 text-cta-foreground">
+                <Link to="/catalog">
                   Start Designing
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           ) : (
             <div className="space-y-4">
@@ -256,7 +256,7 @@ const OrdersContent = () => {
             </div>
           )}
         </motion.div>
-      </div>
+      </main>
     </div>
   );
 };

@@ -32,7 +32,8 @@ const Privacy = () => {
         </div>
       </nav>
 
-      <section className="pt-28 pb-16">
+      <main>
+        <section className="pt-28 pb-16">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -47,9 +48,9 @@ const Privacy = () => {
             </p>
           </motion.div>
         </div>
-      </section>
+        </section>
 
-      <section className="pb-24">
+        <section className="pb-24">
         <div className="container mx-auto px-6">
           <div className="max-w-3xl space-y-10 text-muted-foreground">
             <div>
@@ -133,7 +134,8 @@ const Privacy = () => {
             </div>
           </div>
         </div>
-      </section>
+        </section>
+      </main>
     </div>
   );
 };

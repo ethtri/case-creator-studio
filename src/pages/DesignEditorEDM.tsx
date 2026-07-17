@@ -526,8 +526,12 @@ const DesignEditorEDM = () => {
     if (iframe) {
       iframe.setAttribute("width", "100%");
       iframe.setAttribute("height", "100%");
+      iframe.setAttribute(
+        "title",
+        variant ? `Design editor for ${variant.brand} ${variant.model}` : "Phone case design editor",
+      );
     }
-  }, [designerHeight]);
+  }, [designerHeight, variant]);
 
   // Fetch variant and initialize
   useEffect(() => {
@@ -830,11 +834,11 @@ const DesignEditorEDM = () => {
         isImmersive ? null : (
         <header
           ref={headerRef}
-          className="h-11 bg-card border-b border-border flex items-center justify-between px-3 z-40 shrink-0"
+          className="h-14 bg-card border-b border-border flex items-center justify-between px-3 z-40 shrink-0"
         >
           <Link
             to="/catalog"
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+            className="-ml-2 flex min-h-11 items-center gap-2 rounded-md px-2 text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
             <span className="text-sm font-medium">Catalog</span>
@@ -848,7 +852,6 @@ const DesignEditorEDM = () => {
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9"
               onClick={() => setIsImmersive(true)}
               aria-label="Hide top bar"
             >
@@ -856,7 +859,7 @@ const DesignEditorEDM = () => {
             </Button>
             <Button
               size="sm"
-              className="bg-cta hover:bg-cta/90 text-cta-foreground h-9 px-3"
+              className="bg-cta hover:bg-cta/90 text-cta-foreground px-3"
               disabled={isSaving}
               onClick={handleContinue}
             >
@@ -888,20 +891,30 @@ const DesignEditorEDM = () => {
               Designing: <span className="text-foreground font-medium">{variant.brand} {variant.model}</span>
             </div>
           </div>
-          <nav className="flex items-center gap-4">
+          <div className="flex items-center gap-4">
             <ThemeToggle />
             <CartSheet />
-          </nav>
+          </div>
         </header>
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-0 relative">
+      <main
+        className="flex-1 flex flex-col min-h-0 relative"
+        aria-label={`${variant.brand} ${variant.model} case editor`}
+      >
+        <h1 className="sr-only">
+          Design a case for {variant.brand} {variant.model}
+        </h1>
         {/* Error State */}
         {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50">
+          <div
+            className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50"
+            role="alert"
+            aria-live="assertive"
+          >
             <div className="max-w-md p-6 bg-card border border-border rounded-xl text-center space-y-4">
-              <AlertCircle className="w-12 h-12 text-destructive mx-auto" />
+              <AlertCircle className="w-12 h-12 text-destructive mx-auto" aria-hidden="true" />
               <h3 className="text-lg font-semibold">Unable to Load Design Maker</h3>
               <p className="text-sm text-muted-foreground">{error}</p>
               <div className="flex gap-3 justify-center">
@@ -929,7 +942,11 @@ const DesignEditorEDM = () => {
 
         {/* Loading State */}
         {loading && !error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50">
+          <div
+            className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50"
+            role="status"
+            aria-live="polite"
+          >
             <div className="text-center space-y-4">
               <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
               <div>
@@ -941,7 +958,10 @@ const DesignEditorEDM = () => {
         )}
 
         {isMobile && saveError && (
-          <div className="absolute left-4 right-4 top-[calc(0.75rem+env(safe-area-inset-top))] z-40 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center justify-between">
+          <div
+            className="absolute left-4 right-4 top-[calc(0.75rem+env(safe-area-inset-top))] z-40 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center justify-between"
+            role="alert"
+          >
             <span>{saveError}</span>
             <Button variant="outline" size="sm" onClick={handleRetrySave}>
               Retry
@@ -954,7 +974,7 @@ const DesignEditorEDM = () => {
               <Button
                 variant="secondary"
                 size="icon"
-                className="h-9 w-14 shadow-md"
+                className="h-11 w-14 shadow-md"
                 onClick={() => setIsImmersive(false)}
                 aria-label="Show top bar"
               >
@@ -993,7 +1013,7 @@ const DesignEditorEDM = () => {
               {saveError ? (
                 <span className="text-destructive">{saveError}</span>
               ) : templateId ? (
-                <span className="text-success">Design saved (Template #{templateId})</span>
+                <span className="text-success-emphasis">Design saved (Template #{templateId})</span>
               ) : (
                 <span>Design your case using our editor</span>
               )}
@@ -1014,7 +1034,7 @@ const DesignEditorEDM = () => {
             </div>
           </div>
         )}
-      </div>
+      </main>
       {isMobile && <div ref={footerRef} className="h-0" />}
     </div>
   );

@@ -35,6 +35,7 @@ export default {
         cta: {
           DEFAULT: "hsl(var(--cta))",
           foreground: "hsl(var(--cta-foreground))",
+          emphasis: "hsl(var(--cta-emphasis))",
         },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
@@ -43,6 +44,7 @@ export default {
         success: {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",
+          emphasis: "hsl(var(--success-emphasis))",
         },
         warning: {
           DEFAULT: "hsl(var(--warning))",
