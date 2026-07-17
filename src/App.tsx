@@ -9,6 +9,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import type { ReactNode } from "react";
 import AppRoutes from "./AppRoutes";
 import { MarketingRuntime } from "./components/MarketingRuntime";
+import { SeoRuntime } from "./components/SeoRuntime";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => (
 const App = () => (
   <AppShell>
     <BrowserRouter>
+      <SeoRuntime />
       <MarketingRuntime />
       <AppRoutes />
     </BrowserRouter>

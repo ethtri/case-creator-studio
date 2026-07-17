@@ -46,6 +46,8 @@ build
 coverage
 .nyc_output
 *.lcov
+.playwright-cli/
+output/playwright/
 
 # Temporary files
 *.tmp

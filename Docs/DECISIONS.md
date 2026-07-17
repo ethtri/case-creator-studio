@@ -14,3 +14,9 @@ Lightweight record of key decisions for AI agents.
 - Kexiazhan machine automation is deferred until file upload, prepaid/internal payment, machine targeting, and failure-state behavior are confirmed.
 - `onshore_manual` requires both `FULFILLMENT_PROVIDER=onshore_manual` and `ALLOW_ONSHORE_MANUAL=true`; production should keep the allow flag unset until a controlled pilot is approved.
 - The tokenized Kexiaozhan/Xiaojiang URL is operator-only and must not become a public CTA. The preferred research target is vendor designer output feeding back into Snapcase-owned Stripe checkout and onshore queue.
+
+## 2026-07-16
+- `https://www.snapcase.ai` is the canonical public host. Vercel already serves it
+  as the primary production domain and redirects the apex host to it. Canonical
+  tags, sitemap URLs, structured data, social metadata, analytics locations, and
+  public return URLs must use `www`; the apex redirect must remain permanent.

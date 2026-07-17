@@ -288,6 +288,8 @@ const Index = () => {
             </div>
             <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
               <Link to="/custom-phone-case" className="hover:text-foreground transition-colors">Custom Cases</Link>
+              <Link to="/custom-iphone-case" className="hover:text-foreground transition-colors">iPhone Cases</Link>
+              <Link to="/custom-samsung-case" className="hover:text-foreground transition-colors">Samsung Cases</Link>
               <Link to="/gifts/custom-phone-case" className="hover:text-foreground transition-colors">Gift Ideas</Link>
               <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
               <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>

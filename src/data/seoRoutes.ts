@@ -1,4 +1,6 @@
 import { phoneVariants } from "@/data/phoneVariants";
+import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
+import samsungCaseFront from "@/assets/mockups/samsung-case-front.png";
 
 export type SeoRoute = {
   path: string;
@@ -31,14 +33,19 @@ export type StaticSeoPage = {
   giftAngles: string[];
 };
 
-const SITE_URL = "https://snapcase.ai";
-const OG_IMAGE = `${SITE_URL}/og-image.png`;
+export const SITE_URL = "https://www.snapcase.ai";
+export const OG_IMAGE = `${SITE_URL}/og-image.png`;
+
+const toAbsoluteAssetUrl = (assetUrl: string) => new URL(assetUrl, `${SITE_URL}/`).href;
+const IPHONE_IMAGE = toAbsoluteAssetUrl(iphoneCaseFront);
+const SAMSUNG_IMAGE = toAbsoluteAssetUrl(samsungCaseFront);
 
 const makeRoute = (
   path: string,
   title: string,
   description: string,
-  priority = "0.7"
+  priority = "0.7",
+  ogImage = OG_IMAGE
 ): SeoRoute => {
   const canonical = `${SITE_URL}${path}`;
 
@@ -50,15 +57,30 @@ const makeRoute = (
     ogTitle: title,
     ogDescription: description,
     ogUrl: canonical,
-    ogImage: OG_IMAGE,
+    ogImage,
     twitterTitle: title,
     twitterDescription: description,
-    twitterImage: OG_IMAGE,
+    twitterImage: ogImage,
     robots: "index,follow",
     changefreq: "weekly",
     priority,
   };
 };
+
+const baseSeoRoutes = [
+  makeRoute(
+    "/",
+    "Snapcase | Design Custom Phone Cases",
+    "Design a custom phone case in minutes. Personalized iPhone and Samsung cases printed for U.S. shipping.",
+    "1.0"
+  ),
+  makeRoute(
+    "/catalog",
+    "Phone Case Catalog | Snapcase",
+    "Browse iPhone and Samsung phone cases to start your custom Snapcase design.",
+    "0.8"
+  ),
+];
 
 export const staticSeoPages: StaticSeoPage[] = [
   {
@@ -186,7 +208,17 @@ export const staticSeoPages: StaticSeoPage[] = [
 ];
 
 const staticSeoRoutes = staticSeoPages.map((page) =>
-  makeRoute(page.path, `${page.eyebrow} | Snapcase`, page.intro, page.path === "/custom-phone-case" ? "0.9" : "0.8")
+  makeRoute(
+    page.path,
+    `${page.eyebrow} | Snapcase`,
+    page.intro,
+    page.path === "/custom-phone-case" ? "0.9" : "0.8",
+    page.featuredBrand === "Apple"
+      ? IPHONE_IMAGE
+      : page.featuredBrand === "Samsung"
+        ? SAMSUNG_IMAGE
+        : OG_IMAGE
+  )
 );
 
 const productSeoRoutes = phoneVariants.map((variant) =>
@@ -194,14 +226,19 @@ const productSeoRoutes = phoneVariants.map((variant) =>
     `/phone-cases/${variant.id}`,
     `${variant.model} Custom Phone Case | Snapcase`,
     `Design a personalized ${variant.model} phone case with your own photo, text, or artwork.`,
-    "0.6"
+    "0.6",
+    variant.brand === "Apple" ? IPHONE_IMAGE : SAMSUNG_IMAGE
   )
 );
 
-export const seoRoutes: SeoRoute[] = [...staticSeoRoutes, ...productSeoRoutes];
+export const seoRoutes: SeoRoute[] = [
+  ...baseSeoRoutes,
+  ...staticSeoRoutes,
+  ...productSeoRoutes,
+];
 
 export const getStaticSeoPage = (path: string) =>
   staticSeoPages.find((page) => page.path === path) ?? staticSeoPages[0];
 
 export const getSeoRouteByPath = (path: string) =>
-  seoRoutes.find((route) => route.path === path);
+  seoRoutes.find((route) => route.path === (path === "/" ? path : path.replace(/\/$/, "")));
