@@ -169,9 +169,7 @@ const renderRoutes = async () => {
     "/src/assets/hero-narrow-640.jpg": await resolveAsset("hero-narrow-640", "jpg"),
     "/src/assets/hero-narrow-1024.jpg": await resolveAsset("hero-narrow-1024", "jpg"),
     "/src/assets/mockups/iphone-case-front.png": await resolveAsset("iphone-case-front"),
-    "/src/assets/mockups/iphone-case-angled.png": await resolveAsset("iphone-case-angled"),
     "/src/assets/mockups/samsung-case-front.png": await resolveAsset("samsung-case-front"),
-    "/src/assets/mockups/samsung-case-angled.png": await resolveAsset("samsung-case-angled"),
   };
   const vite = await createServer({
     appType: "custom",

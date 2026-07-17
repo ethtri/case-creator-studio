@@ -16,17 +16,13 @@ import { asMarketingItems, buildAnalyticsItem } from "@/lib/analytics-commerce";
 
 // Import mockup images
 import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
-import iphoneCaseAngled from "@/assets/mockups/iphone-case-angled.png";
 import samsungCaseFront from "@/assets/mockups/samsung-case-front.png";
-import samsungCaseAngled from "@/assets/mockups/samsung-case-angled.png";
 
 type MockupView = "front" | "angled";
 
-const getMockupImage = (brand: string, view: MockupView): string => {
+const getMockupImage = (brand: string): string => {
   const isApple = brand.toLowerCase() === "apple";
-  return view === "angled" 
-    ? (isApple ? iphoneCaseAngled : samsungCaseAngled)
-    : (isApple ? iphoneCaseFront : samsungCaseFront);
+  return isApple ? iphoneCaseFront : samsungCaseFront;
 };
 
 const extractFunctionErrorMessage = async (
@@ -616,18 +612,21 @@ const Preview = () => {
     setPreviewRetryNonce((value) => value + 1);
   };
 
+  const angledAvailable =
+    previewKind === "mockup" &&
+    !!designPreviewAngled &&
+    designPreviewAngled !== designPreview;
   const mockupViews: { name: string; view: MockupView; icon: typeof Eye }[] = [
     { name: "Front", view: "front", icon: Smartphone },
-    { name: "3D View", view: "angled", icon: Eye },
+    ...(angledAvailable
+      ? [{ name: "3D View", view: "angled" as const, icon: Eye }]
+      : []),
   ];
-
-  const angledAvailable =
-    previewKind !== "mockup" || (!!designPreviewAngled && designPreviewAngled !== designPreview);
   const showPreviewLoader = edmPreviewLoading;
   const showViewControls =
     !showPreviewLoader &&
     (!edmPreviewError || Boolean(designPreview)) &&
-    !(previewKind === "mockup" && !angledAvailable);
+    mockupViews.length > 1;
   const showMissingTemplateBadge = !!designId && !edmTemplateId;
 
   useEffect(() => {
@@ -655,7 +654,7 @@ const Preview = () => {
     : designPreview;
   const baseImageSrc = useMockupPreview
     ? mockupPreviewSrc!
-    : getMockupImage(variant.brand, resolvedActiveView);
+    : getMockupImage(variant.brand);
 
   return (
     <div className="min-h-screen bg-surface-sunken">
@@ -734,7 +733,7 @@ const Preview = () => {
                       {designPreview && !useMockupPreview && (
                         <div 
                           className={`absolute z-[20] overflow-hidden ${
-                            activeView === "front" 
+                            resolvedActiveView === "front"
                               ? isApple 
                                 ? "inset-[4%] rounded-[2rem]" 
                                 : "inset-[3%] rounded-[1.5rem]"
@@ -743,7 +742,7 @@ const Preview = () => {
                                 : "top-[8%] left-[12%] right-[18%] bottom-[6%] rounded-[1.2rem]"
                           }`}
                           style={{
-                            transform: activeView === "angled" 
+                            transform: resolvedActiveView === "angled"
                               ? "perspective(1000px) rotateY(-8deg) rotateX(3deg)" 
                               : undefined,
                           }}
@@ -804,23 +803,17 @@ const Preview = () => {
                 <div className="flex items-center justify-center mt-6">
                   <div className="inline-flex rounded-full bg-muted p-1">
                     {mockupViews.map((item) => {
-                      const isDisabled = item.view === "angled" && !angledAvailable;
                       return (
                         <button
                           key={item.view}
-                          onClick={() => {
-                            if (!isDisabled) {
-                              setActiveView(item.view);
-                            }
-                          }}
-                          disabled={isDisabled}
+                          onClick={() => setActiveView(item.view)}
                           className={`
                             relative flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200
-                            ${activeView === item.view && !isDisabled
+                            ${activeView === item.view
                               ? "bg-card text-foreground shadow-sm" 
                               : "text-muted-foreground"
                             }
-                            ${isDisabled ? "opacity-50 cursor-not-allowed" : "hover:text-foreground"}
+                            hover:text-foreground
                           `}
                         >
                           <item.icon className="w-4 h-4" />
@@ -834,27 +827,24 @@ const Preview = () => {
                 {/* Thumbnail strip for quick preview */}
                 <div className="flex items-center justify-center gap-3 mt-4">
                   {mockupViews.map((item) => {
-                    const isDisabled = item.view === "angled" && !angledAvailable;
+                    const thumbnailSrc =
+                      item.view === "angled" && designPreviewAngled
+                        ? designPreviewAngled
+                        : getMockupImage(variant.brand);
                     return (
                       <button
                         key={`thumb-${item.view}`}
-                        onClick={() => {
-                          if (!isDisabled) {
-                            setActiveView(item.view);
-                          }
-                        }}
-                        disabled={isDisabled}
+                        onClick={() => setActiveView(item.view)}
                         className={`
                           relative w-16 h-20 rounded-xl overflow-hidden transition-all duration-200 bg-muted
-                          ${activeView === item.view && !isDisabled
+                          ${activeView === item.view
                             ? "ring-2 ring-cta ring-offset-2 ring-offset-background" 
                             : "opacity-60 hover:opacity-100"
                           }
-                          ${isDisabled ? "cursor-not-allowed opacity-40 hover:opacity-40" : ""}
                         `}
                       >
                         <img
-                          src={getMockupImage(variant.brand, item.view)}
+                          src={thumbnailSrc}
                           alt={item.name}
                           className="w-full h-full object-cover"
                         />
