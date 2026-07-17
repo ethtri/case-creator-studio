@@ -233,11 +233,102 @@ timezone, owner role, and supported filters:
 Product revenue follows the GA4 purchase payload: item revenue after item
 discounts, excluding shipping and tax. A purchase reconciles only when one
 unique purchase transaction matches one paid order in transaction ID, currency,
-product revenue, and item ID/price/quantity/discount.
+product revenue, and the complete item identity: ID, name, brand, category,
+variant, price, quantity, and discount.
 
 Required dashboard filters are date, source, medium, campaign, device, browser,
 phone family, and phone model. Filters apply only where the source supports
 them; for example, CrUX field data supports date/device but not campaign.
+
+### GA4 reporting-dimension map
+
+`dashboard.reportingDimensions` is the authoritative report-builder map. GA4
+Data API names and scopes are intentional:
+
+| Report use | GA4 source | Scope | Storefront parameter |
+| --- | --- | --- | --- |
+| Date | `date` | event | built in |
+| Source / medium / campaign | `sessionSource`, `sessionMedium`, `sessionCampaignName` | session | built in |
+| Device / browser | `deviceCategory`, `browser` | user | built in |
+| Phone family on editor/preview/error events | `customEvent:brand` | event | `brand` |
+| Phone model on editor/preview/error events | `customEvent:model` | event | `model` |
+| Phone family/model in ecommerce item reports | `itemBrand`, `itemVariant` | item | `item_brand`, `item_variant` |
+| CTA placement | `customEvent:placement` | event | `placement` |
+| Phone variant | `customEvent:variant_id` | event | `variant_id` |
+| Error code/stage | `customEvent:error_code`, `customEvent:stage` | event | `error_code`, `stage` |
+| Contract version | `customEvent:analytics_contract_version` | event | `analytics_contract_version` |
+
+The seven `customEvent:*` sources above are registered as event-scoped custom
+dimensions. Do not substitute `itemBrand`/`itemVariant` for custom event
+parameters: the standard ecommerce dimensions are item-scoped and answer a
+different question. Metrics with phone filters therefore declare
+`dimensionBindings`: editor, preview, and error metrics bind to the event
+dimensions, while ecommerce, revenue, and reconciliation metrics bind to the
+item dimensions. The validator rejects missing, swapped, invented, malformed,
+or differently scoped sources.
+
+Never register transaction, session, client, user, order, artwork/design,
+contact, address, phone, email, or free-text values as custom dimensions. This
+privacy floor is enforced independently of the configurable prohibited-field
+list, so removing a configuration entry cannot make that field reportable.
+
+Newly registered custom dimensions need Google's normal processing time before
+they are available consistently in reports, and their registration does not
+retroactively populate historical events. Keep a dependent report or filter
+pending until the dimension is observable. Never backfill a missing historical
+dimension with an invented baseline.
+
+Build or refresh the reporting surface in this order:
+
+1. confirm the seven custom definitions and their event scope in GA4 Admin;
+2. wait until each `customEvent:*` dimension is selectable in the report;
+3. add built-in acquisition/device dimensions, then custom event dimensions;
+4. add standard ecommerce item dimensions in item-scoped report sections;
+5. apply the consented-only label and suppress segments below 10 sessions;
+6. validate complete T+1 windows, then reconcile purchases, paid orders,
+   currency, items, and product revenue before recording evidence.
+
+### Evidence lifecycle
+
+The checked-in contract remains
+`repository_ready_external_evidence_pending`. The validator also accepts
+`partially_evidenced` and `evidence_backed_completed` when the state proves
+itself. Report creation, baseline capture, cadence assignment, reconciliation,
+and each experiment baseline/result transition require a named owner, ISO
+timestamp, non-placeholder HTTPS evidence reference, meaningful notes, and,
+where data is evaluated, a complete T+1 window. Experiment results additionally
+require control/variant values and a decision whose winner is internally
+consistent. A winner also requires structured evidence that the
+pre-registered sample, at least 14 complete days, at least two weekly cycles,
+and guardrails all passed. Every recorded result includes per-arm session and
+conversion counts, an absolute minimum detectable effect, alpha, power, and a
+declared required sample per arm. The validator derives the minimum sample from
+the captured baseline, MDE, alpha, and power; derives both rates, the two-sided
+two-proportion z-test p-value, and confidence interval from the arm counts; and
+requires the declared statistics to match. A winner additionally requires both
+arms to meet the derived sample, `p < alpha`, and a confidence interval wholly
+in the winner's direction. An underpowered release may be recorded only as an
+inconclusive observational result.
+
+Reconciliation must satisfy the configured count and revenue tolerance. A
+completed reconciliation is valid only when the combined validator binds its
+positive counts, numeric revenue, exact window, evidence ID/URL, generated
+timestamp, and source to the analyzed export. The export must be explicitly
+non-synthetic, contain sessions, events, at least one purchase and paid order,
+cover at least one full 24-hour complete T+1 window, and use the contract
+currency. Evidence timestamps and windows cannot be in the future beyond the
+small validation clock-skew allowance. Export generation must occur after the
+window and within the configured T+1 lag; every event and paid order must have
+a valid timestamp inside the half-open export window.
+
+`evidence_backed_completed` means the reporting foundation, baseline,
+reconciliation, and named review cadence are complete. Ranked experiments keep
+independent baseline/result lifecycles; unrun future experiments may remain
+pending and do not misrepresent the reporting foundation as incomplete.
+
+The lifecycle examples under `scripts/fixtures/` exist only to test the
+validator. They are not production evidence and must never be copied into the
+live contract as baselines, experiment results, or owner assignments.
 
 ### Automated data-quality gate
 
@@ -251,12 +342,41 @@ node scripts/validate-growth-reporting.mjs path/to/export.json
 The gate fails on duplicate purchase transactions, missing ecommerce item IDs,
 unexpected `(not set)` values in required dimensions, unnormalized or
 high-cardinality paths, unknown event names, prohibited fields, and purchase
-count/revenue/item mismatch. Aggregate product revenue may differ by at most
-the greater of $0.01 or 0.1%; anything larger requires investigation before a
-dashboard or experiment decision is trusted.
+count/revenue/full-item-identity mismatch. Aggregate product revenue may differ
+by at most the greater of $0.01 or 0.1%; anything larger requires investigation
+before a dashboard or experiment decision is trusted.
 
-The checked-in fixture is synthetic. Its single matching purchase and paid
-order prove the validator, not production collection or dashboard accuracy.
+The export format is a positive schema: report, window, session, event, order,
+and item objects accept only documented keys and required types, and
+`exportVersion` must be the supported `1.0.0`. Unknown
+aliases such as contact or mobile-number fields fail even if they do not appear
+in the configured denylist. Email- and phone-like values also fail recursively
+when hidden in allowlisted campaign, CTA, or catalog fields; high-value strings
+use field-specific length and character bounds. Phone heuristics apply to
+human-readable, display, attribution, and URL values; schema-validated system
+identifiers, versions, and timestamps use their strict bounded formats so
+numeric GA session IDs, numeric SKUs, and UUID transaction IDs remain valid.
+Null collection entries fail as schema findings instead of crashing validation.
+Session IDs must be unique, and every event must reference exactly one exported
+session. Event transaction IDs are required and bounded on purchase and refund
+events and rejected on every other event name. Event-specific
+parameters keep the report dimensions executable: CTA events require placement,
+design/editor/preview events require their emitted phone context, diagnostic
+events require their applicable error code/stage, and supported optional emitter
+fields such as `has_angled_view` remain schema-valid. Purchase `value` and paid-order
+`product_revenue` must be present finite non-negative numbers, and each must
+reconcile to the sum of strict item price-minus-discount times quantity.
+Purchase shipping and tax must match the paid order, whose total must equal
+product revenue plus shipping and tax. This is a paid-order export: every order
+must use `paid`, a unique transaction ID, a valid in-window timestamp, coherent
+numeric values, and the strict item schema; every transaction must have exactly
+one purchase and one order. Data-quality arrays remain canonical and
+tolerance/cardinality settings may become stricter but cannot be weakened
+beyond the checked-in ceilings.
+
+The checked-in export fixture is synthetic. Its single matching purchase and
+paid order prove the validator, not production collection or dashboard
+accuracy.
 
 ## Growth review and experiments
 
@@ -265,7 +385,8 @@ audience, primary metric, guardrails, effort, minimum-run rule, and stop
 criteria. The first CTA-copy experiment also includes implementation and
 analysis plans plus accessibility and performance guardrails.
 
-No baseline, owner, result, or winner is claimed. Before the first experiment:
+The current pending contract claims no baseline, owner, result, or winner.
+Before the first experiment:
 
 1. complete the #66 production analytics rollout and order/refund
    reconciliation evidence;

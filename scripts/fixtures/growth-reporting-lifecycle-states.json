@@ -1,0 +1,384 @@
+{
+  "fixtureOnly": true,
+  "partial": {
+    "status": "partially_evidenced",
+    "dashboard": {
+      "status": "created",
+      "createdAt": "2026-07-09T17:00:00.000Z",
+      "ownerName": "Jordan Rivera",
+      "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+      "notes": "Report creation and ownership were recorded for lifecycle validation.",
+      "baseline": {
+        "status": "captured",
+        "capturedAt": "2026-07-10T07:00:00.000Z",
+        "ownerName": "Jordan Rivera",
+        "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+        "window": {
+          "start": "2026-07-02T07:00:00.000Z",
+          "end": "2026-07-09T07:00:00.000Z",
+          "timezone": "America/Los_Angeles",
+          "dataStatus": "complete_t_plus_1"
+        },
+        "notes": "The complete pre-change metric snapshot and data-quality review are linked."
+      }
+    },
+    "cadence": {
+      "ownerName": "Jordan Rivera",
+      "ownerStatus": "assigned",
+      "assignedAt": "2026-07-09T17:30:00.000Z",
+      "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+      "notes": "The weekly review owner accepted responsibility for the launch cadence.",
+      "schedule": "Every Tuesday at 10:00 America/Los_Angeles during launch hardening.",
+      "decisionLog": "https://github.com/ethtri/case-creator-studio/issues/73"
+    },
+    "experiments": [
+      {
+        "id": "primary_cta_copy",
+        "baseline": {
+          "status": "captured",
+          "value": 0.42,
+          "window": {
+            "start": "2026-05-25T07:00:00.000Z",
+            "end": "2026-06-01T07:00:00.000Z",
+            "timezone": "America/Los_Angeles",
+            "dataStatus": "complete_t_plus_1"
+          },
+          "capturedAt": "2026-06-02T07:00:00.000Z",
+          "ownerName": "Jordan Rivera",
+          "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+          "notes": "The pre-registered primary metric baseline and eligibility window are linked."
+        }
+      }
+    ]
+  },
+  "completed": {
+    "status": "evidence_backed_completed",
+    "dashboard": {
+      "status": "created",
+      "createdAt": "2026-07-09T17:00:00.000Z",
+      "ownerName": "Jordan Rivera",
+      "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+      "notes": "Report creation, filters, data sources, and ownership were reviewed.",
+      "baseline": {
+        "status": "captured",
+        "capturedAt": "2026-07-10T07:00:00.000Z",
+        "ownerName": "Jordan Rivera",
+        "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+        "window": {
+          "start": "2026-07-02T07:00:00.000Z",
+          "end": "2026-07-09T07:00:00.000Z",
+          "timezone": "America/Los_Angeles",
+          "dataStatus": "complete_t_plus_1"
+        },
+        "notes": "The complete pre-change dashboard snapshot and quality checks are linked."
+      },
+      "reconciliation": {
+        "status": "completed",
+        "completedAt": "2026-07-17T07:00:00.000Z",
+        "ownerName": "Morgan Lee",
+        "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+        "window": {
+          "start": "2026-07-15T07:00:00.000Z",
+          "end": "2026-07-16T07:00:00.000Z",
+          "timezone": "America/Los_Angeles",
+          "dataStatus": "complete_t_plus_1"
+        },
+        "purchaseCount": 12,
+        "paidOrderCount": 12,
+        "purchaseRevenue": 359.88,
+        "paidOrderProductRevenue": 359.88,
+        "decision": "within_tolerance",
+        "exportEvidenceId": "production-growth-export-2026-07-16",
+        "exportGeneratedAt": "2026-07-17T06:30:00.000Z",
+        "exportSource": "privacy reviewed GA4 and paid-order export",
+        "notes": "Unique purchases, paid orders, item payloads, currency, and product revenue reconciled."
+      }
+    },
+    "cadence": {
+      "ownerName": "Jordan Rivera",
+      "ownerStatus": "assigned",
+      "assignedAt": "2026-07-09T17:30:00.000Z",
+      "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+      "notes": "The weekly review owner accepted responsibility for the launch cadence.",
+      "schedule": "Every Tuesday at 10:00 America/Los_Angeles during launch hardening.",
+      "decisionLog": "https://github.com/ethtri/case-creator-studio/issues/73"
+    },
+    "experiments": [
+      {
+        "id": "primary_cta_copy",
+        "baseline": {
+          "status": "captured",
+          "value": 0.42,
+          "window": {
+            "start": "2026-05-25T07:00:00.000Z",
+            "end": "2026-06-01T07:00:00.000Z",
+            "timezone": "America/Los_Angeles",
+            "dataStatus": "complete_t_plus_1"
+          },
+          "capturedAt": "2026-06-02T07:00:00.000Z",
+          "ownerName": "Jordan Rivera",
+          "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+          "notes": "The pre-registered primary metric baseline and eligibility window are linked."
+        },
+        "result": {
+          "status": "recorded",
+          "winner": "variant",
+          "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+          "recordedAt": "2026-06-17T07:00:00.000Z",
+          "ownerName": "Jordan Rivera",
+          "window": {
+            "start": "2026-06-02T07:00:00.000Z",
+            "end": "2026-06-16T07:00:00.000Z",
+            "timezone": "America/Los_Angeles",
+            "dataStatus": "complete_t_plus_1"
+          },
+          "controlValue": 0.41,
+          "variantValue": 0.46,
+          "decision": "roll_out_variant",
+          "analysisType": "pre_registered_experiment",
+          "minimumRunStatus": "met",
+          "guardrailStatus": "passed",
+          "eligibleSessions": 20000,
+          "requiredSessions": 20000,
+          "minimumDays": 14,
+          "minimumCycles": 2,
+          "completedCycles": 2,
+          "statisticalMethod": "two_proportion_z_test",
+          "controlSessions": 10000,
+          "controlConversions": 4100,
+          "variantSessions": 10000,
+          "variantConversions": 4600,
+          "minimumDetectableEffect": 0.03,
+          "alpha": 0.05,
+          "power": 0.8,
+          "requiredSamplePerArm": 10000,
+          "pValue": 0,
+          "confidenceIntervalLow": 0.036276,
+          "confidenceIntervalHigh": 0.063724,
+          "directionalSignificance": "variant",
+          "notes": "The decision followed the minimum-run rule and all registered guardrails."
+        }
+      },
+      {
+        "id": "hero_value_proposition",
+        "baseline": {
+          "status": "captured",
+          "value": 0.42,
+          "window": {
+            "start": "2026-05-25T07:00:00.000Z",
+            "end": "2026-06-01T07:00:00.000Z",
+            "timezone": "America/Los_Angeles",
+            "dataStatus": "complete_t_plus_1"
+          },
+          "capturedAt": "2026-06-02T07:00:00.000Z",
+          "ownerName": "Jordan Rivera",
+          "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+          "notes": "The pre-registered primary metric baseline and eligibility window are linked."
+        },
+        "result": {
+          "status": "recorded",
+          "winner": "control",
+          "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+          "recordedAt": "2026-06-17T07:00:00.000Z",
+          "ownerName": "Jordan Rivera",
+          "window": {
+            "start": "2026-06-02T07:00:00.000Z",
+            "end": "2026-06-16T07:00:00.000Z",
+            "timezone": "America/Los_Angeles",
+            "dataStatus": "complete_t_plus_1"
+          },
+          "controlValue": 0.45,
+          "variantValue": 0.4,
+          "decision": "keep_control",
+          "analysisType": "pre_registered_experiment",
+          "minimumRunStatus": "met",
+          "guardrailStatus": "passed",
+          "eligibleSessions": 20000,
+          "requiredSessions": 20000,
+          "minimumDays": 14,
+          "minimumCycles": 2,
+          "completedCycles": 2,
+          "statisticalMethod": "two_proportion_z_test",
+          "controlSessions": 10000,
+          "controlConversions": 4500,
+          "variantSessions": 10000,
+          "variantConversions": 4000,
+          "minimumDetectableEffect": 0.03,
+          "alpha": 0.05,
+          "power": 0.8,
+          "requiredSamplePerArm": 10000,
+          "pValue": 0,
+          "confidenceIntervalLow": -0.063685,
+          "confidenceIntervalHigh": -0.036315,
+          "directionalSignificance": "control",
+          "notes": "The control remained because the registered primary metric did not improve."
+        }
+      },
+      {
+        "id": "finished_case_hero",
+        "baseline": {
+          "status": "captured",
+          "value": 0.08,
+          "window": {
+            "start": "2026-05-25T07:00:00.000Z",
+            "end": "2026-06-01T07:00:00.000Z",
+            "timezone": "America/Los_Angeles",
+            "dataStatus": "complete_t_plus_1"
+          },
+          "capturedAt": "2026-06-02T07:00:00.000Z",
+          "ownerName": "Jordan Rivera",
+          "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+          "notes": "The pre-registered primary metric baseline and eligibility window are linked."
+        },
+        "result": {
+          "status": "recorded",
+          "winner": null,
+          "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+          "recordedAt": "2026-06-17T07:00:00.000Z",
+          "ownerName": "Jordan Rivera",
+          "window": {
+            "start": "2026-06-02T07:00:00.000Z",
+            "end": "2026-06-16T07:00:00.000Z",
+            "timezone": "America/Los_Angeles",
+            "dataStatus": "complete_t_plus_1"
+          },
+          "controlValue": 0.08,
+          "variantValue": 0.081,
+          "decision": "inconclusive",
+          "analysisType": "pre_registered_experiment",
+          "minimumRunStatus": "met",
+          "guardrailStatus": "passed",
+          "eligibleSessions": 20000,
+          "requiredSessions": 20000,
+          "minimumDays": 14,
+          "minimumCycles": 2,
+          "completedCycles": 2,
+          "statisticalMethod": "two_proportion_z_test",
+          "controlSessions": 10000,
+          "controlConversions": 800,
+          "variantSessions": 10000,
+          "variantConversions": 810,
+          "minimumDetectableEffect": 0.03,
+          "alpha": 0.05,
+          "power": 0.8,
+          "requiredSamplePerArm": 10000,
+          "pValue": 0.794939,
+          "confidenceIntervalLow": -0.006541,
+          "confidenceIntervalHigh": 0.008541,
+          "directionalSignificance": "none",
+          "notes": "No winner was declared because the registered minimum-run decision was inconclusive."
+        }
+      },
+      {
+        "id": "delivery_estimate_placement",
+        "baseline": {
+          "status": "captured",
+          "value": 0.31,
+          "window": {
+            "start": "2026-05-25T07:00:00.000Z",
+            "end": "2026-06-01T07:00:00.000Z",
+            "timezone": "America/Los_Angeles",
+            "dataStatus": "complete_t_plus_1"
+          },
+          "capturedAt": "2026-06-02T07:00:00.000Z",
+          "ownerName": "Jordan Rivera",
+          "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+          "notes": "The pre-registered primary metric baseline and eligibility window are linked."
+        },
+        "result": {
+          "status": "recorded",
+          "winner": null,
+          "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+          "recordedAt": "2026-06-10T07:00:00.000Z",
+          "ownerName": "Jordan Rivera",
+          "window": {
+            "start": "2026-06-02T07:00:00.000Z",
+            "end": "2026-06-09T07:00:00.000Z",
+            "timezone": "America/Los_Angeles",
+            "dataStatus": "complete_t_plus_1"
+          },
+          "controlValue": 0.312,
+          "variantValue": 0.32,
+          "decision": "inconclusive",
+          "analysisType": "observational_release",
+          "minimumRunStatus": "not_met",
+          "guardrailStatus": "passed",
+          "eligibleSessions": 500,
+          "requiredSessions": 20000,
+          "minimumDays": 14,
+          "minimumCycles": 2,
+          "completedCycles": 1,
+          "statisticalMethod": "two_proportion_z_test",
+          "controlSessions": 250,
+          "controlConversions": 78,
+          "variantSessions": 250,
+          "variantConversions": 80,
+          "minimumDetectableEffect": 0.03,
+          "alpha": 0.05,
+          "power": 0.8,
+          "requiredSamplePerArm": 10000,
+          "pValue": 0.84744,
+          "confidenceIntervalLow": -0.0735,
+          "confidenceIntervalHigh": 0.0895,
+          "directionalSignificance": "none",
+          "notes": "No rollout decision was made because the registered minimum-run rule was unmet."
+        }
+      },
+      {
+        "id": "product_gallery_placement",
+        "baseline": {
+          "status": "captured",
+          "value": 0.19,
+          "window": {
+            "start": "2026-05-25T07:00:00.000Z",
+            "end": "2026-06-01T07:00:00.000Z",
+            "timezone": "America/Los_Angeles",
+            "dataStatus": "complete_t_plus_1"
+          },
+          "capturedAt": "2026-06-02T07:00:00.000Z",
+          "ownerName": "Jordan Rivera",
+          "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+          "notes": "The pre-registered primary metric baseline and eligibility window are linked."
+        },
+        "result": {
+          "status": "recorded",
+          "winner": "variant",
+          "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
+          "recordedAt": "2026-06-17T07:00:00.000Z",
+          "ownerName": "Jordan Rivera",
+          "window": {
+            "start": "2026-06-02T07:00:00.000Z",
+            "end": "2026-06-16T07:00:00.000Z",
+            "timezone": "America/Los_Angeles",
+            "dataStatus": "complete_t_plus_1"
+          },
+          "controlValue": 0.19,
+          "variantValue": 0.23,
+          "decision": "roll_out_variant",
+          "analysisType": "pre_registered_experiment",
+          "minimumRunStatus": "met",
+          "guardrailStatus": "passed",
+          "eligibleSessions": 20000,
+          "requiredSessions": 20000,
+          "minimumDays": 14,
+          "minimumCycles": 2,
+          "completedCycles": 2,
+          "statisticalMethod": "two_proportion_z_test",
+          "controlSessions": 10000,
+          "controlConversions": 1900,
+          "variantSessions": 10000,
+          "variantConversions": 2300,
+          "minimumDetectableEffect": 0.03,
+          "alpha": 0.05,
+          "power": 0.8,
+          "requiredSamplePerArm": 10000,
+          "pValue": 0,
+          "confidenceIntervalLow": 0.028724,
+          "confidenceIntervalHigh": 0.051276,
+          "directionalSignificance": "variant",
+          "notes": "The registered primary metric improved without violating the stated guardrails."
+        }
+      }
+    ]
+  }
+}
