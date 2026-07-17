@@ -11,6 +11,8 @@ Lightweight routines for keeping the repo reviewable, verifiable, and safe for m
 - Check open PR overlap with `gh pr list --state open` and call out shared files in the PR.
 - Run and record:
   - `npm ci`
+  - `npm run audit:production` (fails on high or critical production advisories;
+    moderate findings remain visible in the job output)
   - `npm run lint --if-present`
   - `npm run type-check`
   - `npm run build`
@@ -40,6 +42,7 @@ Lightweight routines for keeping the repo reviewable, verifiable, and safe for m
 - Do not delete branches attached to active worktrees until the worktree is removed or intentionally repurposed.
 - Check that `Docs/BACKLOG.md` and `Docs/CURRENT_STATUS.md` agree; run `npm run sync:status` after backlog edits.
 - Run `npm audit` and record whether findings need immediate action or backlog tracking.
+  Keep this full dependency-tree review separate from the production CI gate.
 - Review `Docs/DEPLOYMENT_STATUS.md` for stale deployment or preview-environment notes.
 
 ## Monthly or Pre-Launch
@@ -51,6 +54,21 @@ Lightweight routines for keeping the repo reviewable, verifiable, and safe for m
   Vercel project or a branch-scoped preview deployment.
 - Run `npm run build` and review warnings, especially bundle-size and browser-data warnings.
 - Revisit branch protection on `main`: require PRs, block direct pushes, require verification, and require up-to-date branches when practical.
+
+## Temporary Development-Tool Exception
+- `vite@5.4.21` remains a development-only dependency while the production tree
+  is audited separately. The current npm advisory report covers local Vite
+  development-server behavior, including Windows path and editor-launch handling;
+  Vite is not shipped in the static production bundle.
+- Compensating controls: do not expose `vite dev` to untrusted networks, do not
+  run editor-launch links from untrusted input, and keep `npm run
+  audit:production` as a required PR check.
+- Owner: repository maintainers. Revisit by **2026-08-15** with a focused Vite
+  major-version compatibility PR. Upstream advisories:
+  [GHSA-4w7w-66w2-5vf9](https://github.com/advisories/GHSA-4w7w-66w2-5vf9),
+  [GHSA-v6wh-96g9-6wx3](https://github.com/advisories/GHSA-v6wh-96g9-6wx3),
+  and
+  [GHSA-fx2h-pf6j-xcff](https://github.com/advisories/GHSA-fx2h-pf6j-xcff).
 
 ## Local Hooks
 - Local hooks are optional guardrails for faster feedback.
