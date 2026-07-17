@@ -352,9 +352,13 @@ and item objects accept only documented keys and required types, and
 aliases such as contact or mobile-number fields fail even if they do not appear
 in the configured denylist. Email- and phone-like values also fail recursively
 when hidden in allowlisted campaign, CTA, or catalog fields; high-value strings
-use field-specific length and character bounds. Null collection entries fail as
-schema findings instead of crashing validation. Session IDs must be unique, and
-every event must reference exactly one exported session. Event-specific
+use field-specific length and character bounds. Phone heuristics apply to
+human-readable, display, attribution, and URL values; schema-validated system
+identifiers, versions, and timestamps use their strict bounded formats so
+numeric GA session IDs, numeric SKUs, and UUID transaction IDs remain valid.
+Null collection entries fail as schema findings instead of crashing validation.
+Session IDs must be unique, and every event must reference exactly one exported
+session. Event-specific
 parameters keep the report dimensions executable: CTA events require placement,
 design/editor/preview events require their emitted phone context, diagnostic
 events require their applicable error code/stage, and supported optional emitter

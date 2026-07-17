@@ -767,6 +767,22 @@ const collectForbiddenFields = (value, prohibited, location = "$", found = []) =
 const EMAIL_VALUE_PATTERN =
   /\b[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+\b/i;
 const PHONE_VALUE_PATTERN = /\+?\d[\d\s().-]{5,}\d/g;
+const PHONE_SCREEN_EXEMPT_FIELDS = new Set([
+  "analytics_contract_version",
+  "created_at",
+  "end",
+  "event_id",
+  "evidenceId",
+  "exportVersion",
+  "generatedAt",
+  "item_id",
+  "item_list_id",
+  "occurred_at",
+  "session_id",
+  "start",
+  "transaction_id",
+  "variant_id",
+]);
 
 const containsPhoneLikeValue = (value) => {
   if (isIsoTimestamp(value)) return false;
@@ -784,11 +800,19 @@ const containsPhoneLikeValue = (value) => {
   return false;
 };
 
-const collectUnsafeStringValues = (value, location = "$", found = []) => {
+const collectUnsafeStringValues = (
+  value,
+  location = "$",
+  found = [],
+  fieldName = null,
+) => {
   if (typeof value === "string") {
     if (EMAIL_VALUE_PATTERN.test(value)) {
       found.push({ location, kind: "email" });
-    } else if (containsPhoneLikeValue(value)) {
+    } else if (
+      !PHONE_SCREEN_EXEMPT_FIELDS.has(fieldName) &&
+      containsPhoneLikeValue(value)
+    ) {
       found.push({ location, kind: "phone" });
     } else if (value.length > 500 || /[\u0000-\u001f\u007f]/.test(value)) {
       found.push({ location, kind: "unsafe_or_oversized" });
@@ -797,13 +821,18 @@ const collectUnsafeStringValues = (value, location = "$", found = []) => {
   }
   if (Array.isArray(value)) {
     value.forEach((entry, index) =>
-      collectUnsafeStringValues(entry, `${location}[${index}]`, found)
+      collectUnsafeStringValues(
+        entry,
+        `${location}[${index}]`,
+        found,
+        fieldName,
+      )
     );
     return found;
   }
   if (!isObject(value)) return found;
   Object.entries(value).forEach(([key, nested]) =>
-    collectUnsafeStringValues(nested, `${location}.${key}`, found)
+    collectUnsafeStringValues(nested, `${location}.${key}`, found, key)
   );
   return found;
 };

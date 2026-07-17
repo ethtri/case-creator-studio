@@ -1046,6 +1046,32 @@ test("requires the exact supported export schema version", async () => {
   assert.ok(codes.includes("export_version_invalid"));
 });
 
+test("allows schema-valid numeric and UUID system identifiers", async () => {
+  const { contract, report } = await loadFixture();
+  const sessionId = "1721234567";
+  const itemId = "123456789012";
+  const transactionId = "550e8400-e29b-41d4-a716-446655440000";
+
+  report.sessions[0].session_id = sessionId;
+  report.events.forEach((event) => {
+    event.session_id = sessionId;
+    event.items?.forEach((item) => {
+      item.item_id = itemId;
+    });
+    if (event.event_name === "purchase") {
+      event.transaction_id = transactionId;
+    }
+  });
+  report.orders[0].transaction_id = transactionId;
+  report.orders[0].items.forEach((item) => {
+    item.item_id = itemId;
+  });
+
+  const result = analyzeReportingExport(report, contract);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.findings, []);
+});
+
 test("rejects PII-like values even when their keys are allowlisted", async (t) => {
   const cases = [
     {
@@ -1069,12 +1095,29 @@ test("rejects PII-like values even when their keys are allowlisted", async (t) =
       },
     },
     {
+      name: "CTA label phone",
+      mutate: (report) => {
+        report.events.find(
+          (event) => event.event_name === "primary_cta_click",
+        ).label = "Call 555-123-4567";
+      },
+    },
+    {
       name: "matching item name email",
       mutate: (report) => {
         report.events.find(
           (event) => event.event_name === "purchase",
         ).items[0].item_name = "person@example.com";
         report.orders[0].items[0].item_name = "person@example.com";
+      },
+    },
+    {
+      name: "matching item name phone",
+      mutate: (report) => {
+        report.events.find(
+          (event) => event.event_name === "purchase",
+        ).items[0].item_name = "Case 555-123-4567";
+        report.orders[0].items[0].item_name = "Case 555-123-4567";
       },
     },
   ];
