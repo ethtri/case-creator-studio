@@ -1,0 +1,444 @@
+{
+  "contractVersion": "1.0.0",
+  "analyticsContractVersion": "1.0.0",
+  "reportingTimezone": "America/Los_Angeles",
+  "currency": "USD",
+  "status": "repository_ready_external_evidence_pending",
+  "privacy": {
+    "consentScope": "Only consented GA4 sessions and events are observable; this must be stated beside every rate or trend.",
+    "prohibitedFields": [
+      "address",
+      "artwork",
+      "customer_email",
+      "customer_name",
+      "design_preview",
+      "email",
+      "free_text",
+      "name",
+      "preview_url",
+      "shipping_address"
+    ],
+    "minimumCellSize": 10,
+    "notes": "Do not expose customer-level rows, uploaded artwork, contact details, or tiny segments. Suppress segmented cells with fewer than 10 sessions."
+  },
+  "dashboard": {
+    "status": "pending_external_ga4_access",
+    "requiredFilters": [
+      {
+        "id": "date",
+        "label": "Date range",
+        "sourceFields": ["event_date", "order_created_at"],
+        "required": true
+      },
+      {
+        "id": "source",
+        "label": "Source",
+        "sourceFields": ["session_source", "first_touch.utm_source"],
+        "required": true
+      },
+      {
+        "id": "medium",
+        "label": "Medium",
+        "sourceFields": ["session_medium", "first_touch.utm_medium"],
+        "required": true
+      },
+      {
+        "id": "campaign",
+        "label": "Campaign",
+        "sourceFields": ["session_campaign", "first_touch.utm_campaign"],
+        "required": true
+      },
+      {
+        "id": "device",
+        "label": "Device category",
+        "sourceFields": ["device_category"],
+        "required": true
+      },
+      {
+        "id": "browser",
+        "label": "Browser",
+        "sourceFields": ["browser"],
+        "required": true
+      },
+      {
+        "id": "phone_family",
+        "label": "Phone family",
+        "sourceFields": ["item_brand"],
+        "required": true
+      },
+      {
+        "id": "phone_model",
+        "label": "Phone model",
+        "sourceFields": ["item_variant"],
+        "required": true
+      }
+    ],
+    "freshnessExpectation": "GA4 events: intraday for operational checks and T+1 for decision reporting; orders and Stripe: near real time; Core Web Vitals field data: trailing 28 days.",
+    "baseline": {
+      "status": "pending",
+      "capturedAt": null,
+      "evidenceUrl": null
+    }
+  },
+  "metrics": [
+    {
+      "id": "sessions",
+      "name": "Consented sessions",
+      "numerator": "Distinct GA4 session IDs in the selected period",
+      "denominator": "None (absolute count)",
+      "sources": ["ga4_sessions"],
+      "freshness": "T+1 for decisions; intraday is directional only",
+      "timezone": "America/Los_Angeles",
+      "ownerRole": "Growth review owner (human assignment pending)",
+      "filters": ["date", "source", "medium", "campaign", "device", "browser"]
+    },
+    {
+      "id": "new_users",
+      "name": "Consented new users",
+      "numerator": "Distinct consented GA4 users with first_visit in the selected period",
+      "denominator": "None (absolute count)",
+      "sources": ["ga4_sessions"],
+      "freshness": "T+1",
+      "timezone": "America/Los_Angeles",
+      "ownerRole": "Growth review owner (human assignment pending)",
+      "filters": ["date", "source", "medium", "campaign", "device", "browser"]
+    },
+    {
+      "id": "homepage_cta_rate",
+      "name": "Homepage primary CTA rate",
+      "numerator": "Distinct eligible homepage sessions with primary_cta_click, reported by placement",
+      "denominator": "Distinct consented sessions with a homepage page_view",
+      "sources": ["ga4_events"],
+      "freshness": "T+1",
+      "timezone": "America/Los_Angeles",
+      "ownerRole": "Growth review owner (human assignment pending)",
+      "filters": ["date", "source", "medium", "campaign", "device", "browser"]
+    },
+    {
+      "id": "catalog_model_selection_rate",
+      "name": "Catalog-to-model selection rate",
+      "numerator": "Distinct catalog sessions with select_item",
+      "denominator": "Distinct sessions with view_item_list for the catalog",
+      "sources": ["ga4_events"],
+      "freshness": "T+1",
+      "timezone": "America/Los_Angeles",
+      "ownerRole": "Growth review owner (human assignment pending)",
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+    },
+    {
+      "id": "editor_first_action_rate",
+      "name": "Editor first-action rate",
+      "numerator": "Distinct design-start sessions with editor_first_action",
+      "denominator": "Distinct sessions with design_start",
+      "sources": ["ga4_events"],
+      "freshness": "T+1",
+      "timezone": "America/Los_Angeles",
+      "ownerRole": "Product/growth review owner (human assignment pending)",
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+    },
+    {
+      "id": "preview_success_rate",
+      "name": "Preview success rate",
+      "numerator": "Distinct design-start sessions with preview_success",
+      "denominator": "Distinct sessions with design_start",
+      "sources": ["ga4_events"],
+      "freshness": "T+1",
+      "timezone": "America/Los_Angeles",
+      "ownerRole": "Product/growth review owner (human assignment pending)",
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+    },
+    {
+      "id": "preview_failure_rate",
+      "name": "Preview failure rate",
+      "numerator": "Distinct design-start sessions with preview_failure",
+      "denominator": "Distinct sessions with design_start",
+      "sources": ["ga4_events"],
+      "freshness": "T+1",
+      "timezone": "America/Los_Angeles",
+      "ownerRole": "Product/growth review owner (human assignment pending)",
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+    },
+    {
+      "id": "add_to_cart_rate",
+      "name": "Add-to-cart rate",
+      "numerator": "Distinct product or design sessions with add_to_cart",
+      "denominator": "Distinct sessions with view_item or design_start",
+      "sources": ["ga4_events"],
+      "freshness": "T+1",
+      "timezone": "America/Los_Angeles",
+      "ownerRole": "Growth review owner (human assignment pending)",
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+    },
+    {
+      "id": "checkout_start_rate",
+      "name": "Checkout start rate",
+      "numerator": "Distinct sessions with begin_checkout",
+      "denominator": "Distinct sessions with add_to_cart",
+      "sources": ["ga4_events"],
+      "freshness": "T+1",
+      "timezone": "America/Los_Angeles",
+      "ownerRole": "Growth review owner (human assignment pending)",
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+    },
+    {
+      "id": "purchase_rate",
+      "name": "Purchase rate",
+      "numerator": "Distinct reconciled purchase transaction IDs",
+      "denominator": "Distinct consented sessions",
+      "sources": ["ga4_events", "orders", "stripe"],
+      "freshness": "T+1 after outbox health and order reconciliation pass",
+      "timezone": "America/Los_Angeles",
+      "ownerRole": "Growth review owner (human assignment pending)",
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+    },
+    {
+      "id": "checkout_completion_rate",
+      "name": "Checkout completion rate",
+      "numerator": "Distinct reconciled purchase transaction IDs",
+      "denominator": "Distinct sessions with begin_checkout",
+      "sources": ["ga4_events", "orders", "stripe"],
+      "freshness": "T+1 after order reconciliation",
+      "timezone": "America/Los_Angeles",
+      "ownerRole": "Growth review owner (human assignment pending)",
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+    },
+    {
+      "id": "revenue",
+      "name": "Product revenue",
+      "numerator": "Sum of reconciled purchase value after item discounts, excluding shipping and tax",
+      "denominator": "None (absolute currency amount)",
+      "sources": ["ga4_events", "orders", "stripe"],
+      "freshness": "T+1 after order reconciliation",
+      "timezone": "America/Los_Angeles",
+      "ownerRole": "Growth review owner (human assignment pending)",
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+    },
+    {
+      "id": "revenue_per_session",
+      "name": "Revenue per consented session",
+      "numerator": "Reconciled product revenue",
+      "denominator": "Distinct consented sessions",
+      "sources": ["ga4_sessions", "ga4_events", "orders", "stripe"],
+      "freshness": "T+1 after order reconciliation",
+      "timezone": "America/Los_Angeles",
+      "ownerRole": "Growth review owner (human assignment pending)",
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+    },
+    {
+      "id": "experience_error_rate",
+      "name": "User-visible experience error rate",
+      "numerator": "Distinct sessions with preview_failure, editor_error, or checkout_error",
+      "denominator": "Distinct sessions entering the corresponding editor, preview, or checkout flow",
+      "sources": ["ga4_events"],
+      "freshness": "Intraday for alerts; T+1 for decisions",
+      "timezone": "America/Los_Angeles",
+      "ownerRole": "Engineering/product review owner (human assignment pending)",
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+    },
+    {
+      "id": "core_web_vitals_good_rate",
+      "name": "Core Web Vitals good-experience rate",
+      "numerator": "Eligible field experiences rated good for LCP, INP, and CLS at the 75th percentile",
+      "denominator": "Eligible field experiences with sufficient CrUX data",
+      "sources": ["crux_pagespeed"],
+      "freshness": "Trailing 28-day field window",
+      "timezone": "UTC source window; label dates in America/Los_Angeles",
+      "ownerRole": "Frontend performance owner (human assignment pending)",
+      "filters": ["date", "device"]
+    },
+    {
+      "id": "purchase_reconciliation_rate",
+      "name": "Purchase/order reconciliation rate",
+      "numerator": "Unique purchase transaction IDs matching one paid order in ID, currency, product revenue, and items",
+      "denominator": "Paid orders with analytics consent and a valid analytics client ID",
+      "sources": ["ga4_events", "orders", "stripe", "analytics_events_outbox"],
+      "freshness": "Daily before the growth review",
+      "timezone": "America/Los_Angeles",
+      "ownerRole": "Analytics/operations review owner (human assignment pending)",
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+    }
+  ],
+  "dataQuality": {
+    "revenueTolerance": {
+      "absoluteUsd": 0.01,
+      "relative": 0.001
+    },
+    "cardinality": {
+      "minimumObservations": 50,
+      "eventNameMaximumUniqueValues": 25,
+      "normalizedPathMaximumUniqueRatio": 0.25,
+      "normalizedPathMaximumUniqueValues": 100
+    },
+    "requiredSessionDimensions": ["source", "medium", "device", "browser"],
+    "requiredItemDimensions": ["item_id", "item_name", "item_brand", "item_variant"],
+    "ecommerceEventsRequiringItems": [
+      "view_item_list",
+      "select_item",
+      "view_item",
+      "add_to_cart",
+      "begin_checkout",
+      "purchase",
+      "refund"
+    ],
+    "allowedEventNames": [
+      "page_view",
+      "view_item_list",
+      "select_item",
+      "view_item",
+      "design_start",
+      "editor_first_action",
+      "preview_success",
+      "preview_failure",
+      "design_save",
+      "add_to_cart",
+      "begin_checkout",
+      "purchase",
+      "refund",
+      "checkout_abandoned",
+      "primary_cta_click",
+      "editor_error",
+      "checkout_error",
+      "promo_applied"
+    ]
+  },
+  "cadence": {
+    "ownerRole": "Growth review owner",
+    "ownerName": null,
+    "ownerStatus": "pending_human_assignment",
+    "schedule": "Weekly during launch hardening; day and time pending owner assignment",
+    "decisionLog": "Use the relevant GitHub experiment issue created from `.github/ISSUE_TEMPLATE/experiment.yml`; record the evidence window, decision, guardrails, and follow-up in that issue.",
+    "requiredInputs": [
+      "Dashboard freshness and filter check",
+      "Analytics outbox failures or pending deliveries",
+      "Purchase/order/Stripe reconciliation",
+      "Core Web Vitals and user-visible error rate",
+      "Experiment minimum-run status and guardrails"
+    ]
+  },
+  "experiments": [
+    {
+      "rank": 1,
+      "id": "primary_cta_copy",
+      "name": "Primary CTA clarity",
+      "scores": {
+        "impact": 4,
+        "confidence": 4,
+        "effort": 1
+      },
+      "hypothesis": "For new eligible homepage visitors, a specific action-led primary CTA will increase design starts because it makes the next step clearer.",
+      "audience": "New, consented homepage sessions; exclude staff, test traffic, returning assigned users, and users entering below the hero.",
+      "primaryMetric": "editor_first_action_rate",
+      "guardrailMetrics": [
+        "checkout_completion_rate",
+        "purchase_rate",
+        "experience_error_rate",
+        "core_web_vitals_good_rate"
+      ],
+      "effort": "Small copy-only change behind a reversible assignment; exact copy requires approval in the experiment issue.",
+      "minimumRunRule": "After a production baseline exists, pre-register the minimum detectable effect, alpha, power, and resulting sample size; run until that sample and at least 14 complete days/two weekly cycles are reached. If traffic cannot meet the requirement, ship sequentially and label the read observational.",
+      "stopCriteria": "Stop for a material accessibility regression, a sustained error-rate increase, a Core Web Vitals regression, checkout/purchase harm beyond the pre-registered guardrail, or broken assignment/data quality. Do not stop early for a favorable click trend.",
+      "baseline": {
+        "status": "pending",
+        "value": null,
+        "window": null
+      },
+      "result": {
+        "status": "not_started",
+        "winner": null,
+        "evidenceUrl": null
+      },
+      "implementationPlan": [
+        "Open a dedicated experiment issue and record approved control/variant copy before implementation.",
+        "Require #66 production reconciliation, a clean data-quality check, and a captured baseline before assignment begins.",
+        "Assign eligible sessions consistently to control or variant; do not use personal data or uploaded design content.",
+        "Change only the CTA wording, preserve semantic button/link behavior, visible focus, accessible name, target, and rollback path.",
+        "Record exposure once per eligible session and analyze by intent-to-treat."
+      ],
+      "analysisPlan": [
+        "Use editor_first_action_rate as the sole primary metric; report homepage_cta_rate as diagnostic only.",
+        "Compare pre-registered control and variant windows/assignments only after the minimum-run rule passes.",
+        "Check purchase, checkout completion, user-visible errors, accessibility, and performance before any rollout decision.",
+        "Treat device and campaign cuts as descriptive unless separately powered and pre-registered.",
+        "Record win, loss, or inconclusive honestly in the experiment issue; never promote a click-only result that harms guardrails."
+      ],
+      "accessibilityGuardrail": "No change may reduce keyboard operation, focus visibility, accessible name accuracy, target size, contrast, or reduced-motion behavior.",
+      "performanceGuardrail": "Copy assignment must add no blocking third-party request and must not materially regress LCP, INP, CLS, or bundle size."
+    },
+    {
+      "rank": 2,
+      "id": "hero_value_proposition",
+      "name": "Hero value-proposition emphasis",
+      "scores": {
+        "impact": 5,
+        "confidence": 3,
+        "effort": 2
+      },
+      "hypothesis": "Leading with a verified customer outcome will increase design starts because visitors will understand Snapcase's value before evaluating the editor.",
+      "audience": "New homepage sessions after production analytics and claim substantiation are complete.",
+      "primaryMetric": "editor_first_action_rate",
+      "guardrailMetrics": ["purchase_rate", "experience_error_rate", "core_web_vitals_good_rate"],
+      "effort": "Medium copy/layout treatment; every production, delivery, and quality claim must be substantiated first.",
+      "minimumRunRule": "Pre-register effect size and required sample from the production baseline; run at least 14 complete days/two weekly cycles and the calculated sample, otherwise use a labeled observational release.",
+      "stopCriteria": "Stop for misleading/unsubstantiated copy, accessibility regression, performance regression, or material purchase/error guardrail harm.",
+      "baseline": {"status": "pending", "value": null, "window": null},
+      "result": {"status": "not_started", "winner": null, "evidenceUrl": null}
+    },
+    {
+      "rank": 3,
+      "id": "finished_case_hero",
+      "name": "Real finished-case hero versus catalog cutout",
+      "scores": {
+        "impact": 4,
+        "confidence": 3,
+        "effort": 3
+      },
+      "hypothesis": "A genuine, representative finished-case photograph will increase purchase rate because it gives stronger physical-product evidence than a catalog cutout.",
+      "audience": "New homepage sessions only after approved, representative finished-product photography exists.",
+      "primaryMetric": "purchase_rate",
+      "guardrailMetrics": ["editor_first_action_rate", "experience_error_rate", "core_web_vitals_good_rate"],
+      "effort": "Medium asset production, responsive art direction, compression, and provenance review.",
+      "minimumRunRule": "Do not start without approved real photography and a production baseline; then pre-register sample size and run at least 14 complete days/two weekly cycles.",
+      "stopCriteria": "Stop if imagery is synthetic or unrepresentative, lacks rights/provenance, regresses LCP/CLS or accessibility, or materially harms design starts/errors.",
+      "baseline": {"status": "pending", "value": null, "window": null},
+      "result": {"status": "not_started", "winner": null, "evidenceUrl": null}
+    },
+    {
+      "rank": 4,
+      "id": "delivery_estimate_placement",
+      "name": "Verified delivery-estimate placement",
+      "scores": {
+        "impact": 4,
+        "confidence": 2,
+        "effort": 3
+      },
+      "hypothesis": "Showing a verified, conditional delivery estimate near the purchase decision will improve checkout completion by reducing timing uncertainty.",
+      "audience": "Eligible US sessions only after production and carrier service levels are verified.",
+      "primaryMetric": "checkout_completion_rate",
+      "guardrailMetrics": ["purchase_rate", "experience_error_rate"],
+      "effort": "Medium operational verification plus conditional UI/copy.",
+      "minimumRunRule": "Do not start before operations approves the estimate and exceptions; pre-register sample size and run at least 14 complete days/two weekly cycles.",
+      "stopCriteria": "Stop for missed or misleading promises, geography mismatch, accessibility defects, support complaints, or purchase/error guardrail harm.",
+      "baseline": {"status": "pending", "value": null, "window": null},
+      "result": {"status": "not_started", "winner": null, "evidenceUrl": null}
+    },
+    {
+      "rank": 5,
+      "id": "product_gallery_placement",
+      "name": "Product-gallery placement",
+      "scores": {
+        "impact": 3,
+        "confidence": 2,
+        "effort": 4
+      },
+      "hypothesis": "Showing an accessible gallery earlier in the decision flow will improve add-to-cart rate by answering product-fit and finish questions sooner.",
+      "audience": "Product/model page sessions after representative gallery assets and mobile interaction QA exist.",
+      "primaryMetric": "add_to_cart_rate",
+      "guardrailMetrics": ["purchase_rate", "experience_error_rate", "core_web_vitals_good_rate"],
+      "effort": "Large asset, interaction, responsive, and performance treatment.",
+      "minimumRunRule": "Do not start without approved assets and a production baseline; pre-register sample size and run at least 14 complete days/two weekly cycles.",
+      "stopCriteria": "Stop for inaccessible controls, misleading imagery, mobile interaction defects, LCP/CLS regression, or purchase/error guardrail harm.",
+      "baseline": {"status": "pending", "value": null, "window": null},
+      "result": {"status": "not_started", "winner": null, "evidenceUrl": null}
+    }
+  ]
+}

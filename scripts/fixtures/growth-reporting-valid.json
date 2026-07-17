@@ -1,0 +1,124 @@
+{
+  "exportVersion": "1.0.0",
+  "generatedAt": "2026-07-17T16:00:00.000Z",
+  "window": {
+    "start": "2026-07-16T07:00:00.000Z",
+    "end": "2026-07-17T07:00:00.000Z",
+    "timezone": "America/Los_Angeles"
+  },
+  "synthetic": true,
+  "sessions": [
+    {
+      "session_id": "synthetic-session-1",
+      "source": "launch-fixture",
+      "medium": "test",
+      "campaign": "contract-validation",
+      "device": "mobile",
+      "browser": "Chrome"
+    }
+  ],
+  "events": [
+    {
+      "event_id": "synthetic-event-page",
+      "event_name": "page_view",
+      "session_id": "synthetic-session-1",
+      "normalized_path": "/",
+      "occurred_at": "2026-07-16T18:00:00.000Z"
+    },
+    {
+      "event_id": "synthetic-event-cta",
+      "event_name": "primary_cta_click",
+      "session_id": "synthetic-session-1",
+      "normalized_path": "/",
+      "placement": "hero",
+      "occurred_at": "2026-07-16T18:01:00.000Z"
+    },
+    {
+      "event_id": "synthetic-event-select",
+      "event_name": "select_item",
+      "session_id": "synthetic-session-1",
+      "normalized_path": "/catalog",
+      "occurred_at": "2026-07-16T18:02:00.000Z",
+      "items": [
+        {
+          "item_id": "iphone-16",
+          "item_name": "Apple iPhone 16 Custom Case",
+          "item_brand": "Apple",
+          "item_category": "Custom Phone Case",
+          "item_variant": "iPhone 16",
+          "price": 29.99,
+          "quantity": 1,
+          "discount": 0
+        }
+      ]
+    },
+    {
+      "event_id": "synthetic-event-checkout",
+      "event_name": "begin_checkout",
+      "session_id": "synthetic-session-1",
+      "normalized_path": "/checkout",
+      "occurred_at": "2026-07-16T18:10:00.000Z",
+      "currency": "USD",
+      "value": 29.99,
+      "items": [
+        {
+          "item_id": "iphone-16",
+          "item_name": "Apple iPhone 16 Custom Case",
+          "item_brand": "Apple",
+          "item_category": "Custom Phone Case",
+          "item_variant": "iPhone 16",
+          "price": 29.99,
+          "quantity": 1,
+          "discount": 0
+        }
+      ]
+    },
+    {
+      "event_id": "synthetic-event-purchase",
+      "event_name": "purchase",
+      "session_id": "synthetic-session-1",
+      "normalized_path": "/order-success",
+      "occurred_at": "2026-07-16T18:15:00.000Z",
+      "transaction_id": "synthetic-order-growth-contract-1",
+      "currency": "USD",
+      "value": 29.99,
+      "shipping": 4.99,
+      "tax": 0,
+      "items": [
+        {
+          "item_id": "iphone-16",
+          "item_name": "Apple iPhone 16 Custom Case",
+          "item_brand": "Apple",
+          "item_category": "Custom Phone Case",
+          "item_variant": "iPhone 16",
+          "price": 29.99,
+          "quantity": 1,
+          "discount": 0
+        }
+      ]
+    }
+  ],
+  "orders": [
+    {
+      "transaction_id": "synthetic-order-growth-contract-1",
+      "status": "paid",
+      "currency": "USD",
+      "product_revenue": 29.99,
+      "shipping": 4.99,
+      "tax": 0,
+      "total": 34.98,
+      "items": [
+        {
+          "item_id": "iphone-16",
+          "item_name": "Apple iPhone 16 Custom Case",
+          "item_brand": "Apple",
+          "item_category": "Custom Phone Case",
+          "item_variant": "iPhone 16",
+          "price": 29.99,
+          "quantity": 1,
+          "discount": 0
+        }
+      ]
+    }
+  ]
+}
