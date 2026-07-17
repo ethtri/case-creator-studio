@@ -3,6 +3,8 @@
 Lightweight routines for keeping the repo reviewable, verifiable, and safe for multi-agent work.
 
 ## Per PR
+- Start from a GitHub issue with evidence, one outcome, explicit non-goals,
+  observable acceptance criteria, dependencies, verification, and rollback.
 - Work from a dedicated worktree: `../wt-<short-task-slug>` on `agent/<short-task-slug>`.
 - Start from current `main`; sync from `main` again before final verification if shared-foundation PRs merged.
 - Confirm `git status --short --branch` is clean or contains only intended files before staging.
@@ -14,7 +16,22 @@ Lightweight routines for keeping the repo reviewable, verifiable, and safe for m
   - `npm run build`
   - `npm test --if-present`
 - Update docs when the work changes scope, status, launch readiness, or P0 completion.
-- Open a PR into `main`; do not push directly to `main`.
+- Open a PR into `main` with `Closes #<issue>`; do not push directly to `main`.
+- Complete every section and checklist item in the PR template. CI rejects missing
+  traceability, placeholders, unchecked verification, and empty evidence sections.
+- For an exceptional documentation-only or emergency change, a maintainer may add
+  `governance-exception` with a comment explaining why the normal evidence contract
+  cannot be completed. Remove the label as soon as the exception is no longer needed.
+
+## Priority and Work Labels
+- `P0`: blocks the controlled production-ready pilot. Complete before P1/P2 work.
+- `P1`: major launch-quality work to complete before scaling customer traffic.
+- `P2`: post-launch optimization, experiment, or non-blocking improvement.
+- `epic`: parent issue coordinating several independently reviewable outcomes.
+- `production-readiness`: controlled-production work; use with `P0` when blocking.
+- `marketing`, `analytics`, `performance`, `accessibility`, `seo`, `cro`,
+  `governance`, and `security`: topical ownership labels. Pair with one priority.
+- `codex`: work specified so a coding agent can execute it using repository rules.
 
 ## Weekly
 - Review open PRs for stale work, conflicts, and overlapping files.

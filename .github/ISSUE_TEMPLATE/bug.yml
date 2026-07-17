@@ -1,0 +1,88 @@
+name: Bug or regression
+description: Report a reproducible defect with impact, evidence, and a safe verification path.
+title: "[Bug] "
+labels:
+  - bug
+  - codex
+body:
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - P0 - blocks the controlled production pilot
+        - P1 - major launch or customer impact
+        - P2 - non-blocking defect
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Customer or operational impact
+      placeholder: Who is affected, how often, and what can no longer be completed safely?
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include deployment URL, commit/deployment ID, browser/device, account state, fulfillment provider, and test/live mode where relevant. Never paste secrets.
+      placeholder: Production or staging; URL; browser/device; relevant feature flags...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Start at...
+        2. Select...
+        3. Observe...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior and evidence
+      description: Attach screenshots, safe log excerpts, request IDs, or videos. Redact personal data and credentials.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Suspected scope and recent changes
+      description: Link likely files, services, deployments, issues, or PRs. State if unknown.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Fix acceptance criteria
+      placeholder: |
+        - [ ] Reproduction no longer fails
+        - [ ] Regression coverage fails before the fix and passes after it
+        - [ ] Must-not-break flow ... still passes
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification and rollback
+      description: Include commands, browser checks, production evidence, monitoring, and rollback conditions.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety checks
+      options:
+        - label: I removed secrets and personal data from this report.
+          required: true
+        - label: I checked for an existing issue and overlapping PR.
+          required: true
