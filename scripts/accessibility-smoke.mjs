@@ -321,6 +321,18 @@ try {
   await assertTargetSize(page.getByRole("button", { name: /Increase quantity/ }), "Cart increase");
   await assertTargetSize(page.getByRole("button", { name: /Remove Apple iPhone 17 Pro Max/ }), "Cart remove");
   await assertTargetSize(page.getByRole("button", { name: "Close" }), "Cart close");
+  await page.keyboard.press("Tab");
+  assert.equal(
+    await cartDialog.evaluate((dialog) => dialog.contains(document.activeElement)),
+    true,
+    "Tab focus must remain inside the open cart dialog.",
+  );
+  await page.keyboard.press("Shift+Tab");
+  assert.equal(
+    await cartDialog.evaluate((dialog) => dialog.contains(document.activeElement)),
+    true,
+    "Reverse-tab focus must remain inside the open cart dialog.",
+  );
   auditResults.push(await assertNoSeriousAxeViolations(page, "cart-light-desktop"));
 
   await page.keyboard.press("Escape");
