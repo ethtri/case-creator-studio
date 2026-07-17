@@ -440,6 +440,7 @@ export const validateReportingContract = (contract) => {
         (
           source.scope !== "event" ||
           !isNonEmptyString(source.parameter) ||
+          !isNonEmptyString(source.registeredDisplayName) ||
           source.apiName !== `customEvent:${source.parameter}` ||
           prohibitedFields.has(source.parameter.toLowerCase()) ||
           PROHIBITED_CUSTOM_DIMENSION_PARAMETERS.has(
@@ -449,7 +450,7 @@ export const validateReportingContract = (contract) => {
       ) {
         findings.push(finding(
           "custom_dimension_invalid",
-          "Custom GA4 reporting dimensions must be event-scoped, use customEvent:<parameter>, and exclude prohibited fields.",
+          "Custom GA4 reporting dimensions must include their registered display name, be event-scoped, use customEvent:<parameter>, and exclude prohibited fields.",
           `${location}.sources[${sourceIndex}]`,
         ));
       }
@@ -483,6 +484,13 @@ export const validateReportingContract = (contract) => {
       findings.push(finding(
         "required_filter_mapping_invalid",
         `Reporting dimension '${dimensionId}' must be available as a dashboard filter.`,
+        `$.dashboard.reportingDimensions[${reportingDimensions.indexOf(dimension)}].usage`,
+      ));
+    }
+    if (!(dimension.usage ?? []).includes("breakdown")) {
+      findings.push(finding(
+        "required_breakdown_mapping_invalid",
+        `Reporting dimension '${dimensionId}' must be available as a dashboard breakdown.`,
         `$.dashboard.reportingDimensions[${reportingDimensions.indexOf(dimension)}].usage`,
       ));
     }

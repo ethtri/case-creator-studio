@@ -97,6 +97,9 @@ test("maps every filter and registered custom dimension to the correct GA4 scope
   for (const filter of contract.dashboard.requiredFilters) {
     assert.ok(dimensions.get(filter.id)?.usage.includes("filter"), filter.id);
   }
+  for (const dimension of dimensions.values()) {
+    assert.ok(dimension.usage.includes("breakdown"), dimension.id);
+  }
   assert.ok(dimensions.get("device").sources.some((source) =>
     source.apiName === "deviceCategory" && source.scope === "user"
   ));
