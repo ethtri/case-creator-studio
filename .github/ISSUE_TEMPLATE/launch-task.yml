@@ -1,0 +1,129 @@
+name: Launch or implementation task
+description: Define a reviewable product, engineering, operations, or growth outcome.
+title: "[Task] "
+labels:
+  - codex
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use one issue for one independently verifiable outcome. Search existing issues and open pull requests before submitting.
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: P0 blocks the controlled production pilot. P1 is required before scaling traffic. P2 is a non-blocking improvement.
+      options:
+        - P0
+        - P1
+        - P2
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and evidence
+      description: Describe the current behavior and include logs, screenshots, metrics, URLs, or source locations that prove it.
+      placeholder: What is happening now, and what evidence makes this worth changing?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: User or business outcome
+      description: State the result to achieve without prescribing unnecessary implementation details.
+      placeholder: When this closes, what will be measurably better for a customer, operator, or the business?
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: In scope
+      description: List the smallest coherent implementation surface.
+      placeholder: |
+        - Change...
+        - Preserve...
+    validations:
+      required: true
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Non-goals
+      description: Name adjacent work this issue must not absorb.
+      placeholder: |
+        - Do not...
+        - Defer...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Write observable pass/fail statements. Avoid "works correctly" without defining correct.
+      placeholder: |
+        - [ ] Given..., when..., then...
+        - [ ] Existing ... still passes
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and overlap
+      description: Link blockers, related issues, active PRs, shared files, vendors, approvals, or environment requirements.
+      placeholder: "Depends on #...; overlaps with PR #...; external owner..."
+    validations:
+      required: true
+  - type: textarea
+    id: quality
+    attributes:
+      label: Quality implications
+      description: Cover analytics, SEO, accessibility, performance, security, privacy, and responsive behavior as applicable. Use N/A with a reason where not applicable.
+      placeholder: |
+        - Analytics:
+        - SEO:
+        - Accessibility:
+        - Performance:
+        - Security/privacy:
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification plan
+      description: Include automated commands, browser/device paths, external evidence, and failure-path checks.
+      placeholder: |
+        - npm ci
+        - npm run build
+        - npm run type-check
+        - npm test --if-present
+        - npm run lint --if-present
+        - Browser path and viewport...
+    validations:
+      required: true
+  - type: textarea
+    id: risk
+    attributes:
+      label: Risk and rollback
+      description: Explain the likely failure mode, blast radius, monitoring, and how to reverse the change.
+      placeholder: Risk... Rollback...
+    validations:
+      required: true
+  - type: textarea
+    id: docs
+    attributes:
+      label: Documentation and status impact
+      description: Name canonical docs that change, or explain why none change.
+      placeholder: Docs/CURRENT_STATUS.md, Docs/BACKLOG.md, or N/A because...
+    validations:
+      required: true
+  - type: checkboxes
+    id: readiness
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched existing issues and open pull requests for overlap.
+          required: true
+        - label: This issue describes one independently reviewable outcome.
+          required: true
+        - label: Acceptance criteria are observable and testable.
+          required: true

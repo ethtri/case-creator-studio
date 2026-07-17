@@ -16,6 +16,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css,md}\"",
     "clean": "rm -rf dist node_modules/.vite",
     "audit": "npm audit",
+    "audit:production": "npm audit --omit=dev --audit-level=high",
     "audit:fix": "npm audit fix",
     "outreach:check": "node scripts/validate-outreach.mjs",
     "sync:status": "node scripts/sync-current-status.mjs",
@@ -100,6 +101,6 @@
   "overrides": {
     "esbuild": "0.25.0",
     "glob": "10.5.0",
-    "js-yaml": "4.1.1"
+    "js-yaml": "4.3.0"
   }
 }
