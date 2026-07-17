@@ -7,6 +7,7 @@ import {
   type Ga4MeasurementPayload,
   type Ga4Order,
 } from "./ga4-measurement.ts";
+import { resolveGa4ClientId } from "./ga4-client-id.ts";
 
 export const ANALYTICS_OUTBOX_LEASE_MS = 5 * 60 * 1000;
 export const ANALYTICS_OUTBOX_MAX_ATTEMPTS = 5;
@@ -64,7 +65,11 @@ export type AnalyticsOutboxDependencies = {
   markAmbiguous: (
     claim: AnalyticsOutboxClaim,
     reason: string,
-    httpStatus: number,
+    httpStatus: number | null,
+    now: string,
+  ) => Promise<boolean>;
+  renewLease: (
+    claim: AnalyticsOutboxClaim,
     now: string,
   ) => Promise<boolean>;
   now?: () => Date;
@@ -76,6 +81,7 @@ export type AnalyticsOutboxSummary = {
   claimed: number;
   deadLetter: number;
   failed: number;
+  leaseLost: number;
   sent: number;
   splitBrainPersistenceFailures: number;
   suppressed: number;
@@ -231,7 +237,7 @@ export const buildGa4RetryPayload = (
   }
 
   return {
-    client_id: order.analytics_client_id || `server.${order.id}`,
+    client_id: resolveGa4ClientId(order.analytics_client_id, order.id),
     events: [{ name: claim.event_name, params }],
   };
 };
@@ -256,6 +262,7 @@ const createSummary = (workerId: string): AnalyticsOutboxSummary => ({
   claimed: 0,
   deadLetter: 0,
   failed: 0,
+  leaseLost: 0,
   sent: 0,
   splitBrainPersistenceFailures: 0,
   suppressed: 0,
@@ -347,13 +354,49 @@ export const drainAnalyticsOutbox = async (
     }
 
     let delivery: { httpStatus: number };
+    let leaseRenewed = false;
+    try {
+      leaseRenewed = await dependencies.renewLease(
+        claim,
+        now().toISOString(),
+      );
+    } catch {
+      summary.transitionErrors += 1;
+      continue;
+    }
+    if (!leaseRenewed) {
+      summary.leaseLost += 1;
+      continue;
+    }
+
     try {
       delivery = await dependencies.deliver(payload);
     } catch (error) {
+      const failure = describeFailure(error);
+      if (failure.failureKind === "network") {
+        const reason =
+          `GA delivery outcome is uncertain after a network exception: ${failure.message}`;
+        try {
+          const marked = await dependencies.markAmbiguous(
+            claim,
+            reason,
+            null,
+            now().toISOString(),
+          );
+          if (marked) {
+            summary.ambiguous += 1;
+          } else {
+            summary.splitBrainPersistenceFailures += 1;
+          }
+        } catch {
+          summary.splitBrainPersistenceFailures += 1;
+        }
+        continue;
+      }
       try {
         const status = await dependencies.fail(
           claim,
-          describeFailure(error),
+          failure,
           now().toISOString(),
         );
         summary[status === "dead_letter" ? "deadLetter" : "failed"] += 1;

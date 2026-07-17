@@ -18,8 +18,13 @@ import {
 import {
   buildGa4PurchaseParams,
   buildGa4RefundParams,
+  postGa4Measurement,
   sendGa4Event,
 } from "../supabase/functions/_shared/ga4-measurement.ts";
+import {
+  normalizeGa4BrowserClientId,
+  resolveGa4ClientId,
+} from "../supabase/functions/_shared/ga4-client-id.ts";
 
 test("normalizes generated and campaign query values out of page paths", () => {
   assert.equal(
@@ -127,6 +132,34 @@ test("preserves first touch and refreshes only last touch", () => {
   assert.deepEqual(updated.lastTouch, second);
 });
 
+test("accepts only pseudonymous GA client IDs and falls back for hostile text", async () => {
+  const orderId = "22222222-2222-4222-8222-222222222222";
+  assert.equal(normalizeGa4BrowserClientId(" 123.456 "), "123.456");
+  assert.equal(normalizeGa4BrowserClientId("private@example.com"), null);
+  assert.equal(
+    resolveGa4ClientId("private@example.com", orderId),
+    `server.${orderId}`,
+  );
+
+  let fetchCalls = 0;
+  await assert.rejects(
+    postGa4Measurement({
+      apiSecret: "secret",
+      measurementId: "G-TEST",
+      payload: {
+        client_id: "private@example.com",
+        events: [{ name: "purchase", params: {} }],
+      },
+      async fetchImpl() {
+        fetchCalls += 1;
+        return new Response(null, { status: 204 });
+      },
+    }),
+    /not an approved pseudonymous identifier/,
+  );
+  assert.equal(fetchCalls, 0);
+});
+
 test("builds reconciled server purchase and refund payloads from order state", () => {
   const order = {
     id: "order-123",
@@ -189,7 +222,7 @@ test("claims an event before sending and skips duplicate or in-flight claims", a
     store,
     measurementId: "G-TEST",
     apiSecret: "secret",
-    clientId: "client.1",
+    clientId: "123.456",
     eventKey: "purchase:order-123",
     eventName: "purchase",
     eventParams: { transaction_id: "order-123", value: 29.99 },
@@ -202,7 +235,7 @@ test("claims an event before sending and skips duplicate or in-flight claims", a
   assert.equal(result.status, "sent");
   assert.match(request.url, /measurement_id=G-TEST/);
   assert.deepEqual(JSON.parse(request.options.body), {
-    client_id: "client.1",
+    client_id: "123.456",
     events: [{
       name: "purchase",
       params: { transaction_id: "order-123", value: 29.99 },
@@ -221,7 +254,7 @@ test("claims an event before sending and skips duplicate or in-flight claims", a
     store: duplicateStore,
     measurementId: "G-TEST",
     apiSecret: "secret",
-    clientId: "client.1",
+    clientId: "123.456",
     eventKey: "purchase:order-123",
     eventName: "purchase",
     eventParams: {},
@@ -254,7 +287,7 @@ test("records a bounded failure without making a production GA request when cred
   await assert.rejects(
     sendGa4Event({
       store,
-      clientId: "client.1",
+      clientId: "123.456",
       eventKey: "purchase:order-123",
       eventName: "purchase",
       eventParams: { transaction_id: "order-123", value: 29.99 },
@@ -269,6 +302,48 @@ test("records a bounded failure without making a production GA request when cred
   assert.equal(fetchCalls, 0);
   assert.equal(calls.at(-1).name, "fail_analytics_event");
   assert.equal(calls.at(-1).values.p_failure_kind, "credentials");
+});
+
+test("records a network exception as uncertain delivery instead of auto-retrying", async () => {
+  const calls = [];
+  const store = {
+    async rpc(name, values) {
+      calls.push({ name, values });
+      if (name === "claim_analytics_event") {
+        return {
+          data: [{ id: "event-1", claim_token: "claim-1" }],
+          error: null,
+        };
+      }
+      if (name === "mark_analytics_event_ambiguous") {
+        return { data: true, error: null };
+      }
+      throw new Error(`Unexpected RPC: ${name}`);
+    },
+  };
+
+  await assert.rejects(
+    sendGa4Event({
+      store,
+      measurementId: "G-TEST",
+      apiSecret: "secret",
+      clientId: "123.456",
+      eventKey: "purchase:order-123",
+      eventName: "purchase",
+      eventParams: { transaction_id: "order-123", value: 29.99 },
+      async fetchImpl() {
+        throw new Error("connection reset after upload");
+      },
+    }),
+    /connection reset after upload/,
+  );
+
+  assert.deepEqual(
+    calls.map((call) => call.name),
+    ["claim_analytics_event", "mark_analytics_event_ambiguous"],
+  );
+  assert.equal(calls.at(-1).values.p_http_status, null);
+  assert.match(calls.at(-1).values.p_error, /outcome is uncertain/);
 });
 
 test("marks a post-send state failure ambiguous instead of scheduling a silent replay", async () => {
@@ -300,7 +375,7 @@ test("marks a post-send state failure ambiguous instead of scheduling a silent r
       store,
       measurementId: "G-TEST",
       apiSecret: "secret",
-      clientId: "client.1",
+      clientId: "123.456",
       eventKey: "refund:re_test",
       eventName: "refund",
       eventParams: { transaction_id: "order-123", value: 29.99 },

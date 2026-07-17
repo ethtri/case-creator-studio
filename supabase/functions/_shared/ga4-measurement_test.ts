@@ -47,6 +47,27 @@ Deno.test("missing GA credentials fail before a network call", async () => {
   assertEquals(fetchCalls, 0);
 });
 
+Deno.test("hostile GA client text fails before a network call", async () => {
+  let fetchCalls = 0;
+  await assertRejects(
+    () =>
+      postGa4Measurement({
+        apiSecret: "test-secret",
+        measurementId: "G-TEST",
+        payload: {
+          client_id: "private@example.com",
+          events: [{ name: "purchase", params: {} }],
+        },
+        fetchImpl() {
+          fetchCalls += 1;
+          return Promise.resolve(new Response(null, { status: 204 }));
+        },
+      }),
+    /not an approved pseudonymous identifier/,
+  );
+  assertEquals(fetchCalls, 0);
+});
+
 Deno.test("GA HTTP failure persists a retryable diagnostic", async () => {
   const calls: string[] = [];
   const store: AnalyticsStore = {
@@ -88,6 +109,49 @@ Deno.test("GA HTTP failure persists a retryable diagnostic", async () => {
   );
 
   assertEquals(calls, ["claim_analytics_event", "fail_analytics_event"]);
+});
+
+Deno.test("network uncertainty is marked ambiguous instead of retryable", async () => {
+  const calls: string[] = [];
+  const store: AnalyticsStore = {
+    rpc(name) {
+      calls.push(name);
+      if (name === "claim_analytics_event") {
+        return Promise.resolve({
+          data: [{
+            claim_token: "11111111-1111-4111-8111-111111111111",
+            id: "22222222-2222-4222-8222-222222222222",
+          }],
+          error: null,
+        });
+      }
+      if (name === "mark_analytics_event_ambiguous") {
+        return Promise.resolve({ data: true, error: null });
+      }
+      throw new Error(`Unexpected RPC: ${name}`);
+    },
+  };
+
+  await assertRejects(
+    () =>
+      sendGa4Event({
+        apiSecret: "test-secret",
+        clientId: "123.456",
+        eventKey: "purchase:order",
+        eventName: "purchase",
+        eventParams: {},
+        fetchImpl: () =>
+          Promise.reject(new Error("connection reset after upload")),
+        measurementId: "G-TEST",
+        store,
+      }),
+    /connection reset after upload/,
+  );
+
+  assertEquals(calls, [
+    "claim_analytics_event",
+    "mark_analytics_event_ambiguous",
+  ]);
 });
 
 Deno.test("post-send persistence failure is marked ambiguous", async () => {

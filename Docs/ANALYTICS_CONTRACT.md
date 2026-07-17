@@ -11,6 +11,10 @@ Version: `1.0.0`
   user data, and personalization remain denied.
 - Events must not contain artwork, preview URLs, names, email addresses,
   shipping addresses, or free-form user text.
+- Browser GA client IDs are accepted only in the pseudonymous numeric
+  `<number>.<number>` shape. Checkout rejects other values, and direct/retry
+  delivery replaces any invalid legacy value with `server.<order-uuid>`;
+  free text is never forwarded as `client_id`.
 - The Privacy Policy exposes the current device preference and lets the visitor
   change it.
 - This implementation is a conservative global default. The selling-region
@@ -104,6 +108,9 @@ refund concurrently. A server-only worker drains eligible `pending`, `failed`,
 and stale `sending` rows every minute. Claims use a five-minute lease and
 `FOR UPDATE SKIP LOCKED`, so concurrent workers do not wait on or deliver the
 same claimed row.
+Before each outbound request, the worker renews the row's lease using the same
+claim token. If another worker already reclaimed it, the stale worker records
+`leaseLost` and does not send.
 
 Retries are bounded to five attempts with deterministic delays of 1, 5, 15,
 and 60 minutes after attempts 1-4. Exhausted rows become `dead_letter`.
@@ -119,6 +126,12 @@ the stale lease can cause a duplicate GA send; the five-attempt cap prevents an
 infinite replay, and the worker reports
 `splitBrainPersistenceFailures` for alerting. Reconcile the GA transaction ID
 and order before manually requeueing any ambiguous row.
+
+A timeout, connection reset, or other network exception after the request
+starts is also delivery-ambiguous because GA may have accepted the body before
+the response was lost. These rows become `ambiguous` with
+`last_failure_kind=uncertain_delivery`; they are never automatically replayed.
+Confirmed non-success HTTP responses remain eligible for bounded retry.
 
 The server payload is built from the stored order and includes transaction ID,
 currency, value, shipping, coupon, tax, and safe line-item fields. Browser
@@ -167,7 +180,8 @@ order by created_at;
 
 Alert when a drain returns `transitionErrors` or
 `splitBrainPersistenceFailures` above zero, when any `ambiguous` or
-`dead_letter` row appears, or when an eligible `pending`/`failed` row remains
+`dead_letter` row appears, when `leaseLost` is above zero, or when an eligible
+`pending`/`failed` row remains
 past its retry time for more than five minutes. Reconcile ambiguous rows before
 manual retry. A service-role operator can requeue a reconciled row:
 

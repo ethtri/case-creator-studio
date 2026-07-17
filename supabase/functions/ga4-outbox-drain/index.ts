@@ -236,13 +236,29 @@ serve(async (req) => {
         if (error) throw new Error(error.message);
         return data === true;
       },
+      async renewLease(claim, now) {
+        const { data, error } = await store.rpc(
+          "renew_analytics_event_lease",
+          {
+            p_claim_token: claim.claim_token,
+            p_event_id: claim.id,
+            p_now: now,
+          },
+        );
+        if (error) throw new Error(error.message);
+        return data === true;
+      },
     }, limit);
 
     const unhealthy = summary.transitionErrors > 0 ||
       summary.splitBrainPersistenceFailures > 0;
     if (unhealthy) {
       console.error("[GA4-OUTBOX] Drain completed with state errors", summary);
-    } else if (summary.ambiguous > 0 || summary.deadLetter > 0) {
+    } else if (
+      summary.ambiguous > 0 ||
+      summary.deadLetter > 0 ||
+      summary.leaseLost > 0
+    ) {
       console.warn("[GA4-OUTBOX] Drain requires operator review", summary);
     } else {
       console.log("[GA4-OUTBOX] Drain completed", summary);

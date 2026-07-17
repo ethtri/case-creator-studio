@@ -62,6 +62,7 @@ const dependencies = (
   finalizeWithoutDelivery: () => Promise.resolve(true),
   loadOrder: () => Promise.resolve(order()),
   markAmbiguous: () => Promise.resolve(true),
+  renewLease: () => Promise.resolve(true),
   now: () => new Date("2026-07-17T17:00:00.000Z"),
   workerId: "deno-test-worker",
   ...overrides,
@@ -95,6 +96,24 @@ Deno.test("analytics outbox retries once with a reconstructed safe payload", asy
   assertEquals(summary.sent, 1);
   assert(body.includes("iphone-16"), "safe merchandise data should be present");
   assert(!body.includes("email"), "contact fields must not be present");
+});
+
+Deno.test("hostile stored client text uses the server fallback", async () => {
+  let body = "";
+  await drainAnalyticsOutbox(dependencies({
+    deliver(payload) {
+      body = JSON.stringify(payload);
+      return Promise.resolve({ httpStatus: 204 });
+    },
+    loadOrder: () =>
+      Promise.resolve(order({ analytics_client_id: "private@example.com" })),
+  }), 25);
+
+  assert(
+    body.includes("server.22222222-2222-4222-8222-222222222222"),
+    "server fallback should be used",
+  );
+  assert(!body.includes("private@example.com"), "hostile text must be removed");
 });
 
 Deno.test("refund retry requires an authoritative stored amount", () => {
@@ -137,6 +156,20 @@ Deno.test("concurrent drains cannot send the same atomic claim", async () => {
   assertEquals(sends, 1);
 });
 
+Deno.test("a lost lease prevents a stale worker from sending", async () => {
+  let sends = 0;
+  const summary = await drainAnalyticsOutbox(dependencies({
+    deliver() {
+      sends += 1;
+      return Promise.resolve({ httpStatus: 204 });
+    },
+    renewLease: () => Promise.resolve(false),
+  }), 25);
+
+  assertEquals(sends, 0);
+  assertEquals(summary.leaseLost, 1);
+});
+
 Deno.test("missing credentials remain retryable without network access", async () => {
   let failureKind = "";
   const summary = await drainAnalyticsOutbox(dependencies({
@@ -156,6 +189,29 @@ Deno.test("missing credentials remain retryable without network access", async (
 
   assertEquals(failureKind, "credentials");
   assertEquals(summary.failed, 1);
+});
+
+Deno.test("network uncertainty becomes terminal ambiguous", async () => {
+  let failures = 0;
+  let marked = false;
+  const summary = await drainAnalyticsOutbox(dependencies({
+    deliver: () =>
+      Promise.reject(
+        new Ga4DeliveryError("request timed out after upload", "network"),
+      ),
+    fail() {
+      failures += 1;
+      return Promise.resolve("failed");
+    },
+    markAmbiguous(_claim, _reason, httpStatus) {
+      marked = httpStatus === null;
+      return Promise.resolve(true);
+    },
+  }), 25);
+
+  assert(marked, "uncertain delivery should be marked ambiguous");
+  assertEquals(failures, 0);
+  assertEquals(summary.ambiguous, 1);
 });
 
 Deno.test("denied consent suppresses delivery", async () => {

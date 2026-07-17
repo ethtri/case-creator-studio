@@ -1,3 +1,8 @@
+import {
+  isApprovedGa4ClientId,
+  resolveGa4ClientId,
+} from "./ga4-client-id.ts";
+
 export type Ga4OrderItem = {
   variantId?: string | null;
   brand?: string | null;
@@ -67,12 +72,12 @@ type PostGa4MeasurementOptions = {
 };
 
 export class Ga4DeliveryError extends Error {
-  failureKind: "credentials" | "http" | "network";
+  failureKind: "credentials" | "http" | "network" | "payload";
   httpStatus: number | null;
 
   constructor(
     message: string,
-    failureKind: "credentials" | "http" | "network",
+    failureKind: "credentials" | "http" | "network" | "payload",
     httpStatus: number | null = null,
   ) {
     super(message);
@@ -83,6 +88,7 @@ export class Ga4DeliveryError extends Error {
 }
 
 const ANALYTICS_CONTRACT_VERSION = "1.0.0";
+const GA4_REQUEST_TIMEOUT_MS = 10_000;
 
 const toFiniteNumber = (value: unknown, fallback = 0) => {
   const number = Number(value);
@@ -196,6 +202,12 @@ export const postGa4Measurement = async ({
       "credentials",
     );
   }
+  if (!isApprovedGa4ClientId(payload.client_id)) {
+    throw new Ga4DeliveryError(
+      "GA4 client ID is not an approved pseudonymous identifier",
+      "payload",
+    );
+  }
 
   let response: Response;
   try {
@@ -264,9 +276,32 @@ export const sendGa4Event = async ({
       fetchImpl,
       measurementId,
       payload,
+      signal: AbortSignal.timeout(GA4_REQUEST_TIMEOUT_MS),
     });
   } catch (error) {
     const failure = failureDetails(error);
+    if (failure.failureKind === "network") {
+      const diagnostic =
+        `GA delivery outcome is uncertain after a network exception: ${failure.message}`;
+      const { data: markedAmbiguous, error: ambiguousError } = await store.rpc(
+        "mark_analytics_event_ambiguous",
+        {
+          p_claim_token: claim.claim_token,
+          p_error: diagnostic,
+          p_event_id: claim.id,
+          p_http_status: null,
+          p_now: new Date().toISOString(),
+        },
+      );
+      if (ambiguousError || !rpcSucceeded(markedAmbiguous)) {
+        console.error("[GA4] Uncertain delivery state could not be persisted", {
+          ambiguousError,
+          claimId: claim.id,
+          eventKey,
+        });
+      }
+      throw error;
+    }
     const { data: failed, error: failError } = await store.rpc(
       "fail_analytics_event",
       {
@@ -336,7 +371,7 @@ export const sendGa4Purchase = (
     store,
     measurementId,
     apiSecret,
-    clientId: order.analytics_client_id || `server.${order.id}`,
+    clientId: resolveGa4ClientId(order.analytics_client_id, order.id),
     eventKey: `purchase:${order.id}`,
     eventName: "purchase",
     eventParams: buildGa4PurchaseParams(order),
@@ -354,7 +389,7 @@ export const sendGa4Refund = (
     store,
     measurementId,
     apiSecret,
-    clientId: order.analytics_client_id || `server.${order.id}`,
+    clientId: resolveGa4ClientId(order.analytics_client_id, order.id),
     eventKey: `refund:${refundId}`,
     eventName: "refund",
     eventParams: buildGa4RefundParams(order, amount),
@@ -373,7 +408,7 @@ export const sendGa4CheckoutSignal = (
     store,
     measurementId,
     apiSecret,
-    clientId: order.analytics_client_id || `server.${order.id}`,
+    clientId: resolveGa4ClientId(order.analytics_client_id, order.id),
     eventKey: `${eventName}:${stripeEventId}`,
     eventName,
     eventParams: {

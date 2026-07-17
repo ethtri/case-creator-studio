@@ -72,6 +72,9 @@ const dependencies = (overrides = {}) => ({
   async markAmbiguous() {
     return true;
   },
+  async renewLease() {
+    return true;
+  },
   now: () => new Date("2026-07-17T17:00:00.000Z"),
   workerId: "test-worker",
   ...overrides,
@@ -134,6 +137,22 @@ test("retries a failed purchase independently and rebuilds a privacy-safe payloa
   assert.equal(JSON.stringify(delivered).includes("artwork.png"), false);
 });
 
+test("hostile stored client text is never forwarded to GA", () => {
+  const retryPayload = buildGa4RetryPayload(
+    claim(),
+    order({ analytics_client_id: "private@example.com" }),
+  );
+
+  assert.equal(
+    retryPayload.client_id,
+    "server.22222222-2222-4222-8222-222222222222",
+  );
+  assert.equal(
+    JSON.stringify(retryPayload).includes("private@example.com"),
+    false,
+  );
+});
+
 test("two concurrent drains receive one database claim and send exactly once", async () => {
   let available = true;
   let sends = 0;
@@ -156,6 +175,23 @@ test("two concurrent drains receive one database claim and send exactly once", a
 
   assert.equal(results.reduce((sum, result) => sum + result.claimed, 0), 1);
   assert.equal(sends, 1);
+});
+
+test("a worker that lost its lease cannot send after another worker reclaimed it", async () => {
+  let sends = 0;
+  const result = await drainAnalyticsOutbox(dependencies({
+    async deliver() {
+      sends += 1;
+      return { httpStatus: 204 };
+    },
+    async renewLease() {
+      return false;
+    },
+  }), 25);
+
+  assert.equal(sends, 0);
+  assert.equal(result.leaseLost, 1);
+  assert.equal(result.sent, 0);
 });
 
 test("denied and unset consent are suppressed without delivery", async (t) => {
@@ -246,6 +282,32 @@ test("GA HTTP failures remain retryable and never use an unmocked network", asyn
   assert.equal(result.sent, 0);
 });
 
+test("a network exception is terminal ambiguous because GA may have accepted it", async () => {
+  let failures = 0;
+  let ambiguous = null;
+  const result = await drainAnalyticsOutbox(dependencies({
+    async deliver() {
+      throw new Ga4DeliveryError(
+        "request timed out after upload",
+        "network",
+      );
+    },
+    async fail() {
+      failures += 1;
+      return "failed";
+    },
+    async markAmbiguous(_claim, reason, httpStatus) {
+      ambiguous = { httpStatus, reason };
+      return true;
+    },
+  }), 25);
+
+  assert.equal(failures, 0);
+  assert.equal(result.ambiguous, 1);
+  assert.equal(ambiguous.httpStatus, null);
+  assert.match(ambiguous.reason, /outcome is uncertain/);
+});
+
 test("database claim failure prevents every downstream send", async () => {
   let sends = 0;
   await assert.rejects(
@@ -304,11 +366,48 @@ test("the SQL contract uses unique event keys, lease tokens, and skip-locked cla
   assert.match(hardeningSql, /attempts < (?:event\.)?max_attempts/i);
   assert.match(hardeningSql, /INTERVAL '5 minutes'/i);
   assert.match(hardeningSql, /status = 'ambiguous'/i);
+  assert.match(hardeningSql, /renew_analytics_event_lease/i);
   assert.match(
     hardeningSql,
     /WHERE status IN \('pending', 'failed'\)/i,
   );
   assert.match(hardeningSql, /WHERE status = 'sending'/i);
+});
+
+test("migration-first rollout keeps failures from the legacy webhook retryable", async () => {
+  const hardeningSql = await readFile(
+    new URL(
+      "../supabase/migrations/20260717160000_harden_analytics_event_outbox.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(
+    hardeningSql,
+    /worker_id = 'stripe-webhook',[\s\S]{0,240}next_attempt_at = v_now \+ make_interval\(\s+secs => public\.analytics_event_backoff_seconds\(attempts \+ 1\)/i,
+  );
+
+  const legacyFailure = {
+    attempts: 1,
+    createdAt: "2026-07-17T16:59:00.000Z",
+    nextAttemptAt: "2026-07-17T17:00:00.000Z",
+    status: "failed",
+  };
+  assert.equal(
+    isAnalyticsOutboxRetryEligible(
+      legacyFailure,
+      new Date("2026-07-17T16:59:59.999Z"),
+    ),
+    false,
+  );
+  assert.equal(
+    isAnalyticsOutboxRetryEligible(
+      legacyFailure,
+      new Date("2026-07-17T17:00:00.000Z"),
+    ),
+    true,
+  );
 });
 
 test("the scheduled worker uses a dedicated auth secret, not the service-role key", async () => {

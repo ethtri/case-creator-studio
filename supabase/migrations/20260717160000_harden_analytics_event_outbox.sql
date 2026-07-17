@@ -165,7 +165,11 @@ BEGIN
     lease_expires_at = v_now + INTERVAL '5 minutes',
     claim_token = gen_random_uuid(),
     worker_id = 'stripe-webhook',
-    next_attempt_at = NULL,
+    -- Keep migration-first rollout compatible with the previous webhook,
+    -- whose failure update changes status/error but not next_attempt_at.
+    next_attempt_at = v_now + make_interval(
+      secs => public.analytics_event_backoff_seconds(attempts + 1)
+    ),
     ambiguous_at = NULL,
     terminal_at = NULL
   WHERE event_key = p_event_key
@@ -256,7 +260,10 @@ BEGIN
     lease_expires_at = p_now + INTERVAL '5 minutes',
     claim_token = gen_random_uuid(),
     worker_id = p_worker_id,
-    next_attempt_at = NULL,
+    -- This fallback survives any legacy/minimal status-only failure update.
+    next_attempt_at = p_now + make_interval(
+      secs => public.analytics_event_backoff_seconds(event.attempts + 1)
+    ),
     ambiguous_at = NULL,
     terminal_at = NULL
   FROM candidates
@@ -292,6 +299,30 @@ BEGIN
     worker_id = NULL,
     ambiguous_at = NULL,
     terminal_at = NULL
+  WHERE id = p_event_id
+    AND claim_token = p_claim_token
+    AND status = 'sending';
+
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  RETURN v_updated = 1;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.renew_analytics_event_lease(
+  p_event_id UUID,
+  p_claim_token UUID,
+  p_now TIMESTAMPTZ
+)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_updated INTEGER;
+BEGIN
+  UPDATE public.analytics_events
+  SET lease_expires_at = p_now + INTERVAL '5 minutes'
   WHERE id = p_event_id
     AND claim_token = p_claim_token
     AND status = 'sending';
@@ -374,7 +405,10 @@ BEGIN
       ),
       500
     ),
-    last_failure_kind = 'post_send_state',
+    last_failure_kind = CASE
+      WHEN p_http_status IS NULL THEN 'uncertain_delivery'
+      ELSE 'post_send_state'
+    END,
     last_http_status = p_http_status,
     claim_token = NULL,
     worker_id = NULL
@@ -477,6 +511,11 @@ REVOKE ALL ON FUNCTION public.complete_analytics_event(
   INTEGER,
   TIMESTAMPTZ
 ) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.renew_analytics_event_lease(
+  UUID,
+  UUID,
+  TIMESTAMPTZ
+) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.fail_analytics_event(
   UUID,
   UUID,
@@ -518,6 +557,11 @@ GRANT EXECUTE ON FUNCTION public.complete_analytics_event(
   INTEGER,
   TIMESTAMPTZ
 ) TO service_role;
+GRANT EXECUTE ON FUNCTION public.renew_analytics_event_lease(
+  UUID,
+  UUID,
+  TIMESTAMPTZ
+) TO service_role;
 GRANT EXECUTE ON FUNCTION public.fail_analytics_event(
   UUID,
   UUID,
@@ -550,5 +594,7 @@ COMMENT ON COLUMN public.analytics_events.ambiguous_at IS
   'Set when GA accepted a request but the local sent-state update could not be confirmed. Ambiguous rows never retry automatically.';
 COMMENT ON FUNCTION public.claim_analytics_event_batch(INTEGER, TEXT, TIMESTAMPTZ)
   IS 'Atomically claims retry-ready analytics events with row locks and SKIP LOCKED.';
+COMMENT ON FUNCTION public.renew_analytics_event_lease(UUID, UUID, TIMESTAMPTZ)
+  IS 'Renews a sending lease only while the caller still owns its claim token.';
 COMMENT ON FUNCTION public.requeue_analytics_event(TEXT, TEXT, BOOLEAN)
   IS 'Explicit operator-only retry path. Ambiguous events require external reconciliation before requeue.';
