@@ -292,6 +292,11 @@ require control/variant values and a decision whose winner is internally
 consistent. Reconciliation must satisfy the configured count and revenue
 tolerance.
 
+`evidence_backed_completed` means the reporting foundation, baseline,
+reconciliation, and named review cadence are complete. Ranked experiments keep
+independent baseline/result lifecycles; unrun future experiments may remain
+pending and do not misrepresent the reporting foundation as incomplete.
+
 The lifecycle examples under `scripts/fixtures/` exist only to test the
 validator. They are not production evidence and must never be copied into the
 live contract as baselines, experiment results, or owner assignments.

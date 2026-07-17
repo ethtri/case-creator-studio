@@ -59,6 +59,7 @@ const REQUIRED_DIMENSION_SOURCES = {
       apiName: "customEvent:brand",
       scope: "event",
       parameter: "brand",
+      registeredDisplayName: "Phone family",
     },
     {
       sourceType: "ga4_builtin",
@@ -73,6 +74,7 @@ const REQUIRED_DIMENSION_SOURCES = {
       apiName: "customEvent:model",
       scope: "event",
       parameter: "model",
+      registeredDisplayName: "Phone model",
     },
     {
       sourceType: "ga4_builtin",
@@ -86,30 +88,35 @@ const REQUIRED_DIMENSION_SOURCES = {
     apiName: "customEvent:placement",
     scope: "event",
     parameter: "placement",
+    registeredDisplayName: "CTA placement",
   }],
   phone_variant: [{
     sourceType: "ga4_custom_event",
     apiName: "customEvent:variant_id",
     scope: "event",
     parameter: "variant_id",
+    registeredDisplayName: "Phone variant",
   }],
   error_code: [{
     sourceType: "ga4_custom_event",
     apiName: "customEvent:error_code",
     scope: "event",
     parameter: "error_code",
+    registeredDisplayName: "Error code",
   }],
   error_stage: [{
     sourceType: "ga4_custom_event",
     apiName: "customEvent:stage",
     scope: "event",
     parameter: "stage",
+    registeredDisplayName: "Error stage",
   }],
   analytics_contract_version: [{
     sourceType: "ga4_custom_event",
     apiName: "customEvent:analytics_contract_version",
     scope: "event",
     parameter: "analytics_contract_version",
+    registeredDisplayName: "Analytics contract version",
   }],
 };
 
@@ -612,6 +619,13 @@ export const validateReportingContract = (contract) => {
           `${location}.baseline.value`,
         ));
       }
+      if (contract?.dashboard?.baseline?.status !== "captured") {
+        findings.push(finding(
+          "experiment_baseline_without_dashboard_baseline",
+          `Experiment '${experiment.id}' cannot capture a baseline before the dashboard baseline is captured.`,
+          `${location}.baseline`,
+        ));
+      }
     }
 
     const result = experiment.result;
@@ -657,6 +671,13 @@ export const validateReportingContract = (contract) => {
         findings.push(finding(
           "experiment_result_without_baseline",
           `Experiment '${experiment.id}' cannot record a result before its baseline is captured.`,
+          `${location}.result`,
+        ));
+      }
+      if (contract?.dashboard?.reconciliation?.status !== "completed") {
+        findings.push(finding(
+          "experiment_result_without_reconciliation",
+          `Experiment '${experiment.id}' cannot record a result before purchase/order reconciliation is completed.`,
           `${location}.result`,
         ));
       }
@@ -918,19 +939,24 @@ export const validateReportingContract = (contract) => {
     }
   }
 
-  const evidenceStates = [
+  const reportingFoundationStates = [
     dashboard?.status === "created",
     dashboardBaseline?.status === "captured",
     reconciliation?.status === "completed",
     cadence?.ownerStatus === "assigned",
+  ];
+  const experimentEvidenceStates = [
     ...experiments.flatMap((experiment) => [
       experiment.baseline?.status === "captured",
       experiment.result?.status === "recorded",
     ]),
   ];
-  const hasEvidence = evidenceStates.some(Boolean);
-  const allEvidenceComplete = evidenceStates.every(Boolean);
-  const expectedContractStatus = allEvidenceComplete
+  const hasEvidence = [
+    ...reportingFoundationStates,
+    ...experimentEvidenceStates,
+  ].some(Boolean);
+  const reportingFoundationComplete = reportingFoundationStates.every(Boolean);
+  const expectedContractStatus = reportingFoundationComplete
     ? "evidence_backed_completed"
     : hasEvidence
       ? "partially_evidenced"

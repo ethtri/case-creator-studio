@@ -164,6 +164,24 @@ test("accepts an evidence-backed completed lifecycle", async () => {
   ));
 });
 
+test("accepts a completed reporting foundation while future experiments remain pending", async () => {
+  const [completed, { contract: pending }] = await Promise.all([
+    loadLifecycleContract("completed"),
+    loadFixture(),
+  ]);
+  completed.experiments.forEach((experiment, index) => {
+    experiment.baseline = structuredClone(pending.experiments[index].baseline);
+    experiment.result = structuredClone(pending.experiments[index].result);
+  });
+
+  assert.deepEqual(validateReportingContract(completed), []);
+  assert.equal(completed.status, "evidence_backed_completed");
+  assert.ok(completed.experiments.every((experiment) =>
+    experiment.baseline.status === "pending" &&
+    experiment.result.status === "pending"
+  ));
+});
+
 test("rejects a completed dashboard without evidence", async () => {
   const contract = await loadLifecycleContract("partial");
   contract.dashboard.evidenceUrl = null;
@@ -218,6 +236,27 @@ test("rejects results without a baseline and stale T+1 evidence", async () => {
   const codes = validateReportingContract(contract).map((item) => item.code);
   assert.ok(codes.includes("experiment_result_without_baseline"));
   assert.ok(codes.includes("lifecycle_freshness_invalid"));
+});
+
+test("rejects experiment results before commerce reconciliation", async () => {
+  const contract = await loadLifecycleContract("completed");
+  contract.status = "partially_evidenced";
+  contract.dashboard.reconciliation = {
+    status: "pending",
+    completedAt: null,
+    ownerName: null,
+    evidenceUrl: null,
+    window: null,
+    purchaseCount: null,
+    paidOrderCount: null,
+    purchaseRevenue: null,
+    paidOrderProductRevenue: null,
+    decision: null,
+    notes: null,
+  };
+
+  const codes = validateReportingContract(contract).map((item) => item.code);
+  assert.ok(codes.includes("experiment_result_without_reconciliation"));
 });
 
 test("keeps consent, suppression, T+1, tolerance, and no-PII guardrails enforceable", async () => {
