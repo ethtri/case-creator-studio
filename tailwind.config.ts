@@ -27,6 +27,7 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          emphasis: "hsl(var(--primary-emphasis))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -40,6 +41,7 @@ export default {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+          emphasis: "hsl(var(--destructive-emphasis))",
         },
         success: {
           DEFAULT: "hsl(var(--success))",
@@ -57,6 +59,7 @@ export default {
         accent: {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
+          emphasis: "hsl(var(--accent-emphasis))",
         },
         popover: {
           DEFAULT: "hsl(var(--popover))",

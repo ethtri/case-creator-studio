@@ -31,14 +31,14 @@ interface Order {
 
 const statusColors: Record<string, string> = {
   pending: "bg-warning/10 text-warning",
-  paid: "bg-accent/10 text-accent",
-  submitted: "bg-primary/10 text-primary",
-  processing: "bg-primary/10 text-primary",
-  fulfilling: "bg-primary/10 text-primary",
+  paid: "bg-accent/10 text-accent-emphasis",
+  submitted: "bg-primary/10 text-primary-emphasis",
+  processing: "bg-primary/10 text-primary-emphasis",
+  fulfilling: "bg-primary/10 text-primary-emphasis",
   shipped: "bg-success/10 text-success-emphasis",
   delivered: "bg-success/10 text-success-emphasis",
-  canceled: "bg-destructive/10 text-destructive",
-  failed: "bg-destructive/10 text-destructive",
+  canceled: "bg-destructive/10 text-destructive-emphasis",
+  failed: "bg-destructive/10 text-destructive-emphasis",
 };
 
 const OrdersContent = () => {
@@ -153,7 +153,7 @@ const OrdersContent = () => {
           <div className="bg-card rounded-2xl p-6 shadow-soft mb-8">
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
-                <ClipboardCheck className="w-5 h-5 text-accent" />
+                <ClipboardCheck className="w-5 h-5 text-accent-emphasis" />
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-semibold mb-1">Claim past orders</h2>

@@ -186,7 +186,7 @@ const Auth = () => {
             </div>
 
             {message && (
-              <p className="text-sm text-destructive" role="alert" aria-live="polite">
+              <p className="text-sm text-destructive-emphasis" role="alert" aria-live="polite">
                 {message}
               </p>
             )}

@@ -68,6 +68,7 @@ const installAppState = async (context, theme) => {
     ({ expectedOrigin, storedCartItem, storedPreviewUrl, selectedTheme }) => {
       if (window.location.origin !== expectedOrigin) return;
       window.localStorage.setItem("theme", selectedTheme);
+      window.localStorage.setItem("snapcase_analytics_consent_v1", "denied");
       window.localStorage.setItem("snapcase_cart_v1", JSON.stringify([storedCartItem]));
       window.sessionStorage.setItem(
         `snapcase_cart_preview:${storedCartItem.id}`,
@@ -95,7 +96,8 @@ const mockExternalServices = async (context) => {
             constructor(config) {
               const host = document.getElementById(config.elemId);
               const frame = document.createElement("iframe");
-              frame.src = "about:blank";
+              frame.title = "Design editor for Apple iPhone 17 Pro Max";
+              frame.srcdoc = "<!doctype html><html lang='en'><head><title>Mock design editor</title></head><body><main aria-label='Mock design canvas'></main></body></html>";
               host.appendChild(frame);
               setTimeout(() => config.onIframeLoaded?.(), 0);
             }
@@ -187,6 +189,59 @@ const assertTargetSize = async (locator, label) => {
   );
 };
 
+const assertTextContrast = async (locator, label) => {
+  const contrast = await locator.evaluate((element) => {
+    const parseRgb = (value) => {
+      const channels = value.match(/[\d.]+/g)?.slice(0, 3).map(Number);
+      if (!channels || channels.length !== 3) {
+        throw new Error(`Unable to parse color: ${value}`);
+      }
+      return channels.map((channel) => channel / 255);
+    };
+    const luminance = (channels) =>
+      channels
+        .map((channel) =>
+          channel <= 0.04045
+            ? channel / 12.92
+            : ((channel + 0.055) / 1.055) ** 2.4,
+        )
+        .reduce(
+          (total, channel, index) =>
+            total + channel * [0.2126, 0.7152, 0.0722][index],
+          0,
+        );
+    const style = getComputedStyle(element);
+    const foreground = luminance(parseRgb(style.color));
+    const background = luminance(parseRgb(style.backgroundColor));
+    return (
+      (Math.max(foreground, background) + 0.05) /
+      (Math.min(foreground, background) + 0.05)
+    );
+  });
+  assert.ok(
+    contrast >= 4.5,
+    `${label} text contrast is ${contrast.toFixed(2)}:1; expected at least 4.5:1.`,
+  );
+};
+
+const assertFocusIndicator = async (locator, label) => {
+  await locator.focus();
+  const focusStyle = await locator.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      outlineStyle: style.outlineStyle,
+      outlineWidth: Number.parseFloat(style.outlineWidth),
+      outlineColor: style.outlineColor,
+    };
+  });
+  assert.ok(
+    focusStyle.outlineStyle !== "none" &&
+      focusStyle.outlineWidth >= 2 &&
+      !focusStyle.outlineColor.endsWith(", 0)"),
+    `${label} does not expose a clear focus outline.`,
+  );
+};
+
 const assertNoHorizontalOverflow = async (page, label) => {
   const widths = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
@@ -219,6 +274,14 @@ try {
   await assertTargetSize(page.getByRole("button", { name: "Open cart, 2 items" }), "Home cart");
   await assertTargetSize(page.getByRole("button", { name: "Open site menu" }), "Home menu");
   await assertTargetSize(page.getByRole("link", { name: /Start designing/ }), "Home primary CTA");
+  const homePrimaryCta = page.getByRole("link", { name: /Start designing/ });
+  await assertTextContrast(homePrimaryCta, "Home primary CTA default");
+  await homePrimaryCta.hover();
+  await page.waitForTimeout(20);
+  await assertTextContrast(homePrimaryCta, "Home primary CTA hover");
+  await homePrimaryCta.focus();
+  await assertTextContrast(homePrimaryCta, "Home primary CTA focus");
+  await assertFocusIndicator(homePrimaryCta, "Home primary CTA");
   assert.equal(await page.getByRole("main").count(), 1, "Home must expose one main landmark.");
   auditResults.push(await assertNoSeriousAxeViolations(page, "home-light-desktop"));
   await page.screenshot({
@@ -238,7 +301,7 @@ try {
   const modelLink = page.getByRole("link", {
     name: /iPhone 17 Pro Max.*Apple.*\$29\.99/i,
   }).first();
-  await modelLink.focus();
+  await assertFocusIndicator(modelLink, "Catalog model link");
   await page.keyboard.press("Enter");
   await page.waitForURL(/\/design\/iphone-17-pro-max/);
   await page.getByRole("heading", {
@@ -316,6 +379,10 @@ try {
   await assertTargetSize(
     mobilePage.getByRole("button", { name: "Open site menu" }),
     "Mobile home menu",
+  );
+  await assertTextContrast(
+    mobilePage.getByRole("link", { name: /Start designing/ }),
+    "Mobile dark primary CTA",
   );
   auditResults.push(await assertNoSeriousAxeViolations(mobilePage, "home-dark-mobile"));
   await mobilePage.screenshot({

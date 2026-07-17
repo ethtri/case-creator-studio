@@ -882,7 +882,7 @@ const DesignEditorEDM = () => {
             <Link to="/" className="flex items-center gap-2">
               <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
             </Link>
-            <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-medium">
+            <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary-emphasis font-medium">
               Editor
             </span>
           </div>
@@ -914,7 +914,7 @@ const DesignEditorEDM = () => {
             aria-live="assertive"
           >
             <div className="max-w-md p-6 bg-card border border-border rounded-xl text-center space-y-4">
-              <AlertCircle className="w-12 h-12 text-destructive mx-auto" aria-hidden="true" />
+              <AlertCircle className="w-12 h-12 text-destructive-emphasis mx-auto" aria-hidden="true" />
               <h3 className="text-lg font-semibold">Unable to Load Design Maker</h3>
               <p className="text-sm text-muted-foreground">{error}</p>
               <div className="flex gap-3 justify-center">
@@ -931,7 +931,7 @@ const DesignEditorEDM = () => {
                   href="https://www.printful.com/enterprise/embedded-design-maker" 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-primary hover:underline inline-flex items-center gap-1 ml-1"
+                  className="text-primary-emphasis hover:underline inline-flex items-center gap-1 ml-1"
                 >
                   Learn more <ExternalLink className="w-3 h-3" />
                 </a>
@@ -948,7 +948,7 @@ const DesignEditorEDM = () => {
             aria-live="polite"
           >
             <div className="text-center space-y-4">
-              <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
+              <Loader2 className="w-10 h-10 animate-spin text-primary-emphasis mx-auto" />
               <div>
                 <p className="text-foreground font-medium">Loading design editor</p>
                 <p className="text-sm text-muted-foreground">This may take a few seconds...</p>
@@ -959,7 +959,7 @@ const DesignEditorEDM = () => {
 
         {isMobile && saveError && (
           <div
-            className="absolute left-4 right-4 top-[calc(0.75rem+env(safe-area-inset-top))] z-40 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-center justify-between"
+            className="absolute left-4 right-4 top-[calc(0.75rem+env(safe-area-inset-top))] z-40 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive-emphasis flex items-center justify-between"
             role="alert"
           >
             <span>{saveError}</span>
@@ -1011,7 +1011,7 @@ const DesignEditorEDM = () => {
           >
             <div className="text-sm text-muted-foreground">
               {saveError ? (
-                <span className="text-destructive">{saveError}</span>
+                <span className="text-destructive-emphasis">{saveError}</span>
               ) : templateId ? (
                 <span className="text-success-emphasis">Design saved (Template #{templateId})</span>
               ) : (

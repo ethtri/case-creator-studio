@@ -91,11 +91,11 @@ const statusLabels: Record<ProductionJobStatus, string> = {
 
 const statusClasses: Record<ProductionJobStatus, string> = {
   queued: "bg-warning/10 text-warning border-warning/20",
-  artwork_ready: "bg-accent/10 text-accent border-accent/20",
-  printed: "bg-primary/10 text-primary border-primary/20",
-  packed: "bg-primary/10 text-primary border-primary/20",
+  artwork_ready: "bg-accent/10 text-accent-emphasis border-accent/20",
+  printed: "bg-primary/10 text-primary-emphasis border-primary/20",
+  packed: "bg-primary/10 text-primary-emphasis border-primary/20",
   shipped: "bg-success/10 text-success-emphasis border-success/20",
-  failed: "bg-destructive/10 text-destructive border-destructive/20",
+  failed: "bg-destructive/10 text-destructive-emphasis border-destructive/20",
 };
 
 const buildDraft = (job: ProductionJob): DraftUpdate => ({

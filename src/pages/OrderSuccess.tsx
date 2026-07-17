@@ -83,7 +83,7 @@ const OrderSuccess = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-accent mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-accent-emphasis mx-auto mb-4" />
           <p className="text-muted-foreground">Verifying your payment...</p>
         </div>
       </div>
@@ -95,7 +95,7 @@ const OrderSuccess = () => {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center max-w-md">
           <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-            <span className="text-destructive text-2xl">!</span>
+            <span className="text-destructive-emphasis text-2xl">!</span>
           </div>
           <h1 className="text-2xl font-bold mb-2">Something went wrong</h1>
           <p className="text-muted-foreground mb-6">{error}</p>
@@ -182,15 +182,15 @@ const OrderSuccess = () => {
             <h3 className="font-medium mb-2">What happens next?</h3>
             <ol className="text-sm text-muted-foreground space-y-2 text-left max-w-sm mx-auto">
               <li className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-accent/20 text-accent text-xs flex items-center justify-center shrink-0 mt-0.5">1</span>
+                <span className="w-5 h-5 rounded-full bg-accent/20 text-accent-emphasis text-xs flex items-center justify-center shrink-0 mt-0.5">1</span>
                 {orderProgressCopy.steps[0]}
               </li>
               <li className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-accent/20 text-accent text-xs flex items-center justify-center shrink-0 mt-0.5">2</span>
+                <span className="w-5 h-5 rounded-full bg-accent/20 text-accent-emphasis text-xs flex items-center justify-center shrink-0 mt-0.5">2</span>
                 {orderProgressCopy.steps[1]}
               </li>
               <li className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-accent/20 text-accent text-xs flex items-center justify-center shrink-0 mt-0.5">3</span>
+                <span className="w-5 h-5 rounded-full bg-accent/20 text-accent-emphasis text-xs flex items-center justify-center shrink-0 mt-0.5">3</span>
                 {orderProgressCopy.steps[2]}
               </li>
             </ol>

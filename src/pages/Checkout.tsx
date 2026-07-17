@@ -377,7 +377,7 @@ const Checkout = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-destructive"
+                          className="text-destructive-emphasis"
                           type="button"
                           onClick={() => removeFromCart(item.id)}
                           aria-label={`Remove ${item.variant.brand} ${item.variant.model} from order`}
@@ -440,7 +440,7 @@ const Checkout = () => {
                     </Button>
                   </div>
                   {promoError && (
-                    <p id="promo-error" className="text-xs text-destructive" role="alert">
+                    <p id="promo-error" className="text-xs text-destructive-emphasis" role="alert">
                       {promoError}
                     </p>
                   )}

@@ -53,7 +53,7 @@ export function CartSheet() {
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-md">
+      <SheetContent className="flex w-full flex-col overflow-hidden sm:max-w-md">
         <SheetHeader>
           <SheetTitle>
             Your Cart ({totalItems} {totalItems === 1 ? "item" : "items"})
@@ -63,8 +63,8 @@ export function CartSheet() {
           </SheetDescription>
         </SheetHeader>
         
-        <div className="flex flex-col h-full">
-          <div className="flex-1 overflow-y-auto py-4">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto py-4">
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
                 <ShoppingCart className="h-12 w-12 mb-4 opacity-50" />
@@ -110,10 +110,11 @@ export function CartSheet() {
                           </Button>
                           <span
                             className="w-8 text-center text-sm"
-                            aria-label={`${item.quantity} in cart`}
                             aria-live="polite"
+                            aria-atomic="true"
                           >
-                            {item.quantity}
+                            <span aria-hidden="true">{item.quantity}</span>
+                            <span className="sr-only">{item.quantity} in cart</span>
                           </span>
                           <Button
                             variant="outline"
@@ -128,7 +129,7 @@ export function CartSheet() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-destructive"
+                          className="text-destructive-emphasis"
                           onClick={() => removeFromCart(item.id)}
                           aria-label={`Remove ${item.variant.brand} ${item.variant.model} from cart`}
                         >

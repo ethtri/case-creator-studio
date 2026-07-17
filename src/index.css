@@ -39,6 +39,7 @@
     /* Deep purple primary */
     --primary: 320 100% 35%;
     --primary-foreground: 0 0% 100%;
+    --primary-emphasis: 320 100% 35%;
 
     /* Teal secondary - CTA color */
     --secondary: 167 60% 28%;
@@ -51,6 +52,7 @@
     /* Magenta accent */
     --accent: 330 75% 50%;
     --accent-foreground: 0 0% 100%;
+    --accent-emphasis: 330 75% 45%;
 
     /* Teal CTA */
     --cta: 167 60% 28%;
@@ -60,6 +62,7 @@
     /* Status colors */
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
+    --destructive-emphasis: 0 72% 51%;
 
     --success: 167 60% 28%;
     --success-foreground: 0 0% 100%;
@@ -117,6 +120,7 @@
 
     --primary: 320 100% 30%;
     --primary-foreground: 20 20% 96%;
+    --primary-emphasis: 320 100% 60%;
 
     --secondary: 167 60% 28%;
     --secondary-foreground: 20 20% 96%;
@@ -126,6 +130,7 @@
 
     --accent: 330 75% 45%;
     --accent-foreground: 20 20% 96%;
+    --accent-emphasis: 330 75% 60%;
 
     /* Teal CTA */
     --cta: 167 60% 28%;
@@ -134,6 +139,7 @@
 
     --destructive: 0 62% 45%;
     --destructive-foreground: 20 20% 96%;
+    --destructive-emphasis: 0 72% 60%;
 
     --success: 167 60% 28%;
     --success-foreground: 20 20% 96%;

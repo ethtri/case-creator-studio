@@ -127,7 +127,7 @@ const KexiaozhanCheckout = () => {
         <div className="max-w-4xl mx-auto grid min-w-0 lg:grid-cols-[minmax(0,1fr)_360px] gap-8">
           <section className="min-w-0 bg-card rounded-2xl p-6 shadow-soft">
             <div className="flex items-start gap-3 mb-6">
-              <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+              <div className="h-10 w-10 rounded-full bg-primary/10 text-primary-emphasis flex items-center justify-center">
                 <ShieldCheck className="h-5 w-5" />
               </div>
               <div>
@@ -142,7 +142,7 @@ const KexiaozhanCheckout = () => {
             </div>
 
             {!hasRequiredParams && (
-              <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive flex gap-3">
+              <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive-emphasis flex gap-3">
                 <AlertCircle className="h-5 w-5 shrink-0" />
                 <div>
                   <p className="font-medium">This checkout link is incomplete.</p>
@@ -170,7 +170,7 @@ const KexiaozhanCheckout = () => {
               </div>
 
               {submitError && (
-                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive-emphasis">
                   {submitError}
                 </div>
               )}
