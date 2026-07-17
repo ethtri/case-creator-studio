@@ -10,6 +10,9 @@ const NOINDEX_TITLES: [RegExp, string][] = [
   [/^\/orders$/, "My Orders | Snapcase"],
   [/^\/designs$/, "My Designs | Snapcase"],
   [/^\/auth(?:\/|$)/, "Sign In | Snapcase"],
+  [/^\/terms$/, "Terms of Service | Snapcase"],
+  [/^\/privacy$/, "Privacy Policy | Snapcase"],
+  [/^\/contact$/, "Contact Snapcase | Snapcase"],
   [/^\/operations$/, "Operations | Snapcase"],
   [/^\/kexiaozhan\/checkout$/, "Secure Checkout | Snapcase"],
 ];

@@ -8,6 +8,7 @@ import {
 import {
   mergeMarketingAttribution,
   sanitizeMarketingPayload,
+  setAnalyticsConsent,
 } from "../src/lib/marketing.ts";
 import {
   getMarketingPageLocation,
@@ -219,4 +220,52 @@ test("claims an event before sending and skips duplicate or in-flight claims", a
     },
   });
   assert.equal(duplicate.status, "duplicate_or_inflight");
+});
+
+test("applies one consent update before loading Google Analytics", () => {
+  const previousWindow = globalThis.window;
+  const previousDocument = globalThis.document;
+  const previousCustomEvent = globalThis.CustomEvent;
+  const storage = new Map();
+  const scripts = [];
+
+  globalThis.CustomEvent = class {
+    constructor(type, init) {
+      this.type = type;
+      this.detail = init?.detail;
+    }
+  };
+  globalThis.window = {
+    location: { hostname: "www.snapcase.ai" },
+    localStorage: {
+      getItem: (key) => storage.get(key) ?? null,
+      setItem: (key, value) => storage.set(key, value),
+      removeItem: (key) => storage.delete(key),
+    },
+    dispatchEvent() {},
+  };
+  globalThis.document = {
+    createElement: () => ({}),
+    head: {
+      appendChild: (script) => scripts.push(script),
+    },
+  };
+
+  try {
+    setAnalyticsConsent("granted");
+    const consentCommands = globalThis.window.dataLayer.filter(
+      (entry) => entry[0] === "consent",
+    );
+
+    assert.equal(consentCommands.length, 2);
+    assert.equal(consentCommands[0][1], "default");
+    assert.equal(consentCommands[0][2].analytics_storage, "denied");
+    assert.equal(consentCommands[1][1], "update");
+    assert.equal(consentCommands[1][2].analytics_storage, "granted");
+    assert.equal(scripts.length, 1);
+  } finally {
+    globalThis.window = previousWindow;
+    globalThis.document = previousDocument;
+    globalThis.CustomEvent = previousCustomEvent;
+  }
 });

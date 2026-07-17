@@ -92,6 +92,7 @@ const BLOCKED_PAYLOAD_KEYS = new Set([
 
 let analyticsLoaded = false;
 let consentDefaultsInitialized = false;
+let appliedAnalyticsConsent: Exclude<AnalyticsConsent, "unset"> | null = null;
 
 const isBrowser = () => typeof window !== "undefined" && typeof document !== "undefined";
 
@@ -186,6 +187,20 @@ const ensureGtag = () => {
   }
 };
 
+const applyAnalyticsConsent = (
+  consent: Exclude<AnalyticsConsent, "unset">,
+) => {
+  ensureGtag();
+  if (appliedAnalyticsConsent === consent) return;
+  window.gtag?.("consent", "update", {
+    analytics_storage: consent,
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+  });
+  appliedAnalyticsConsent = consent;
+};
+
 export const getAnalyticsConsent = (): AnalyticsConsent => {
   if (!isBrowser()) return "unset";
   const stored = window.localStorage.getItem(CONSENT_STORAGE_KEY);
@@ -199,13 +214,7 @@ export const setAnalyticsConsent = (consent: Exclude<AnalyticsConsent, "unset">)
     window.localStorage.removeItem(ATTRIBUTION_STORAGE_KEY);
     window.localStorage.removeItem(LEGACY_ATTRIBUTION_STORAGE_KEY);
   }
-  ensureGtag();
-  window.gtag?.("consent", "update", {
-    analytics_storage: consent,
-    ad_storage: "denied",
-    ad_user_data: "denied",
-    ad_personalization: "denied",
-  });
+  applyAnalyticsConsent(consent);
 
   if (consent === "granted") {
     loadGoogleAnalytics();
@@ -233,12 +242,7 @@ export const loadGoogleAnalytics = () => {
   ensureGtag();
   if (getAnalyticsConsent() !== "granted") return;
 
-  window.gtag?.("consent", "update", {
-    analytics_storage: "granted",
-    ad_storage: "denied",
-    ad_user_data: "denied",
-    ad_personalization: "denied",
-  });
+  applyAnalyticsConsent("granted");
   analyticsLoaded = true;
   const script = document.createElement("script");
   script.async = true;
