@@ -1,6 +1,7 @@
 import { phoneVariants } from "@/data/phoneVariants";
 import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
 import samsungCaseFront from "@/assets/mockups/samsung-case-front.png";
+import { normalizeRoutePath } from "@/lib/route-path";
 
 export type SeoRoute = {
   path: string;
@@ -238,7 +239,7 @@ export const seoRoutes: SeoRoute[] = [
 ];
 
 export const getStaticSeoPage = (path: string) =>
-  staticSeoPages.find((page) => page.path === path) ?? staticSeoPages[0];
+  staticSeoPages.find((page) => page.path === normalizeRoutePath(path)) ?? staticSeoPages[0];
 
 export const getSeoRouteByPath = (path: string) =>
-  seoRoutes.find((route) => route.path === (path === "/" ? path : path.replace(/\/$/, "")));
+  seoRoutes.find((route) => route.path === normalizeRoutePath(path));
