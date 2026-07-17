@@ -10,12 +10,26 @@ const INTERNAL_PAGE_VIEW_PARAMS = new Set([
   "utm_source",
   "utm_term",
 ]);
+const SENSITIVE_LOCATION_PARAMS = new Set(["designId", "session_id"]);
 
-export const getMarketingPagePath = (pathname: string, search: string) => {
+const withoutParams = (
+  pathname: string,
+  search: string,
+  excluded: Set<string>,
+) => {
   const params = new URLSearchParams(search);
-  INTERNAL_PAGE_VIEW_PARAMS.forEach((param) => params.delete(param));
+  excluded.forEach((param) => params.delete(param));
   params.sort();
 
   const normalizedSearch = params.toString();
   return normalizedSearch ? `${pathname}?${normalizedSearch}` : pathname;
 };
+
+export const getMarketingPagePath = (pathname: string, search: string) =>
+  withoutParams(pathname, search, INTERNAL_PAGE_VIEW_PARAMS);
+
+export const getMarketingPageLocation = (
+  origin: string,
+  pathname: string,
+  search: string,
+) => `${origin}${withoutParams(pathname, search, SENSITIVE_LOCATION_PARAMS)}`;

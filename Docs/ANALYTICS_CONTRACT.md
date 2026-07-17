@@ -29,8 +29,9 @@ The reporting path excludes:
 - UTM parameters
 - `gclid`, `fbclid`, and `ttclid`
 
-The event `page_location` also uses the normalized path so generated IDs do not
-become high-cardinality dimensions.
+The event `page_location` removes generated design and Checkout Session IDs,
+but retains approved UTM and ad-click parameters so GA4 can perform standard
+campaign attribution.
 
 ## Ecommerce events
 

@@ -10,6 +10,7 @@ import {
   sanitizeMarketingPayload,
 } from "../src/lib/marketing.ts";
 import {
+  getMarketingPageLocation,
   getMarketingPagePath,
 } from "../src/lib/marketing-routing.ts";
 import {
@@ -33,6 +34,14 @@ test("normalizes generated and campaign query values out of page paths", () => {
   assert.equal(
     getMarketingPagePath("/order-success", "?session_id=cs_test_secret"),
     "/order-success",
+  );
+  assert.equal(
+    getMarketingPageLocation(
+      "https://www.snapcase.ai",
+      "/design/iphone-16",
+      "?utm_source=launch&designId=private-uuid",
+    ),
+    "https://www.snapcase.ai/design/iphone-16?utm_source=launch",
   );
 });
 

@@ -542,6 +542,7 @@ const DesignEditorEDM = () => {
   useEffect(() => {
     if (!variant) return;
 
+    firstActionTrackedRef.current = false;
     const items = asMarketingItems(
       [buildAnalyticsItem({ variant })].filter(Boolean),
     );
