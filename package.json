@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/prerender.mjs && node scripts/performance-budget.mjs",
+    "build": "vite build && node scripts/prerender.mjs && npm run merchant:check && node scripts/performance-budget.mjs",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -25,10 +25,11 @@
     "seo:check": "node scripts/validate-seo.mjs",
     "claims:check": "node scripts/validate-claim-safety.mjs",
     "growth:check": "node scripts/validate-growth-reporting.mjs",
+    "merchant:check": "node --experimental-strip-types scripts/validate-merchant-catalog.mjs",
     "validate:printful": "node scripts/validate-printful-variants.mjs",
     "kexiaozhan:preflight": "node scripts/kexiaozhan-test-preflight.mjs",
     "kexiaozhan:staging": "node scripts/kexiaozhan-staging-mode.mjs",
-    "test": "node --experimental-strip-types --test scripts/analytics-contract.test.mjs scripts/claim-safety-contract.test.mjs scripts/growth-reporting-contract.test.mjs scripts/kexiaozhan-test-preflight.test.mjs scripts/route-path-contract.test.mjs",
+    "test": "node --experimental-strip-types --test scripts/analytics-contract.test.mjs scripts/claim-safety-contract.test.mjs scripts/growth-reporting-contract.test.mjs scripts/kexiaozhan-test-preflight.test.mjs scripts/merchant-catalog-contract.test.mjs scripts/route-path-contract.test.mjs",
     "test:a11y": "node scripts/accessibility-smoke.mjs"
   },
   "dependencies": {

@@ -1,7 +1,15 @@
-import { useEffect } from "react";
+import { Fragment, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ChevronRight, Package, Palette, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
 import { getVariantById, phoneVariants } from "@/data/phoneVariants";
@@ -43,6 +51,11 @@ const PhoneCaseSeo = () => {
     .slice(0, 3);
   const productName = `${variant.model} Custom Phone Case`;
   const productUrl = `${SITE_URL}/phone-cases/${variant.id}`;
+  const breadcrumbs = [
+    { name: "Home", url: `${SITE_URL}/` },
+    { name: "Phone cases", url: `${SITE_URL}/catalog` },
+    { name: `${variant.model} custom case`, url: productUrl },
+  ];
   const mockup = variant.brand === "Apple" ? iphoneCaseFront : samsungCaseFront;
   const designIdeas =
     variant.brand === "Apple"
@@ -63,6 +76,7 @@ const PhoneCaseSeo = () => {
         value={{
           "@context": "https://schema.org",
           "@type": "Product",
+          productID: variant.id,
           name: productName,
           description: `Design a personalized ${variant.model} phone case with your own photo, text, or artwork.`,
           url: productUrl,
@@ -76,9 +90,20 @@ const PhoneCaseSeo = () => {
             url: productUrl,
             priceCurrency: variant.currency,
             price: variant.price.toFixed(2),
-            availability: "https://schema.org/InStock",
             itemCondition: "https://schema.org/NewCondition",
           },
+        }}
+      />
+      <JsonLd
+        value={{
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          itemListElement: breadcrumbs.map((breadcrumb, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            name: breadcrumb.name,
+            item: breadcrumb.url,
+          })),
         }}
       />
 
@@ -96,55 +121,82 @@ const PhoneCaseSeo = () => {
 
       <main>
         <section className="pt-28 pb-16 bg-surface-sunken">
-          <div className="container mx-auto px-6 grid lg:grid-cols-[1fr_360px] gap-12 items-center">
-            <div>
-              <p className="text-sm font-semibold text-cta-emphasis mb-4">{variant.brand} custom case</p>
-              <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
-                Design your own {variant.model} phone case.
-              </h1>
-              <p className="text-lg text-muted-foreground mb-8 max-w-2xl">
-                Personalize a {variant.model} case with a photo, artwork, text, or gift message.
-                Preview your design before checkout and keep the order tied to the exact model.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button asChild size="lg" className="bg-cta hover:bg-cta/90 text-cta-foreground">
-                  <Link
-                    to={`/design/${variant.id}`}
-                    onClick={() => {
-                      const items = asMarketingItems(
-                        [buildAnalyticsItem({ variant })].filter(Boolean),
-                      );
-                      trackMarketingEvent("select_item", {
-                        item_list_id: "model_seo_page",
-                        item_list_name: "Model SEO page",
-                        placement: "model_seo_page",
-                        items,
-                      });
-                      trackMarketingEvent("primary_cta_click", {
-                        placement: "model_seo_page",
-                        destination: `/design/${variant.id}`,
-                        label: "Start designing",
-                      });
-                    }}
-                  >
-                    Start designing
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </Link>
-                </Button>
-                <Button asChild size="lg" variant="outline">
-                  <Link to="/catalog">
-                    Change phone model
-                  </Link>
-                </Button>
-              </div>
-            </div>
+          <div className="container mx-auto px-6">
+            <Breadcrumb className="mb-8" data-product-breadcrumb>
+              <BreadcrumbList>
+                {breadcrumbs.map((breadcrumb, index) => {
+                  const isCurrentPage = index === breadcrumbs.length - 1;
 
-            <div className="hidden lg:flex justify-center">
-              <img
-                src={mockup}
-                alt={`${variant.model} custom phone case mockup`}
-                className="w-72 drop-shadow-2xl"
-              />
+                  return (
+                    <Fragment key={breadcrumb.url}>
+                      {index > 0 && <BreadcrumbSeparator />}
+                      <BreadcrumbItem data-breadcrumb-position={index + 1}>
+                        {isCurrentPage ? (
+                          <BreadcrumbPage>{breadcrumb.name}</BreadcrumbPage>
+                        ) : (
+                          <BreadcrumbLink asChild>
+                            <Link to={new URL(breadcrumb.url).pathname}>
+                              {breadcrumb.name}
+                            </Link>
+                          </BreadcrumbLink>
+                        )}
+                      </BreadcrumbItem>
+                    </Fragment>
+                  );
+                })}
+              </BreadcrumbList>
+            </Breadcrumb>
+
+            <div className="grid lg:grid-cols-[1fr_360px] gap-12 items-center">
+              <div>
+                <p className="text-sm font-semibold text-cta-emphasis mb-4">{variant.brand} custom case</p>
+                <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
+                  Design your own {variant.model} phone case.
+                </h1>
+                <p className="text-lg text-muted-foreground mb-8 max-w-2xl">
+                  Personalize a {variant.model} case with a photo, artwork, text, or gift message.
+                  Preview your design before checkout and keep the order tied to the exact model.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button asChild size="lg" className="bg-cta hover:bg-cta/90 text-cta-foreground">
+                    <Link
+                      to={`/design/${variant.id}`}
+                      onClick={() => {
+                        const items = asMarketingItems(
+                          [buildAnalyticsItem({ variant })].filter(Boolean),
+                        );
+                        trackMarketingEvent("select_item", {
+                          item_list_id: "model_seo_page",
+                          item_list_name: "Model SEO page",
+                          placement: "model_seo_page",
+                          items,
+                        });
+                        trackMarketingEvent("primary_cta_click", {
+                          placement: "model_seo_page",
+                          destination: `/design/${variant.id}`,
+                          label: "Start designing",
+                        });
+                      }}
+                    >
+                      Start designing
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Link>
+                  </Button>
+                  <Button asChild size="lg" variant="outline">
+                    <Link to="/catalog">
+                      Change phone model
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="hidden lg:flex justify-center">
+                <img
+                  src={mockup}
+                  alt={`${variant.model} custom phone case mockup`}
+                  className="w-72 drop-shadow-2xl"
+                />
+              </div>
             </div>
           </div>
         </section>
