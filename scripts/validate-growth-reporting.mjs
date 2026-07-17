@@ -187,10 +187,24 @@ export const validateReportingContract = (contract) => {
     ) {
       findings.push(finding("experiment_guardrails_invalid", `Experiment '${experiment.id}' needs valid guardrail metrics.`, `${location}.guardrailMetrics`));
     }
+    if (
+      !isObject(experiment.scores) ||
+      !["impact", "confidence", "effort"].every((score) =>
+        Number.isInteger(experiment.scores[score]) &&
+        experiment.scores[score] >= 1 &&
+        experiment.scores[score] <= 5
+      )
+    ) {
+      findings.push(finding(
+        "experiment_scores_invalid",
+        `Experiment '${experiment.id}' needs 1-5 impact, confidence, and effort scores.`,
+        `${location}.scores`,
+      ));
+    }
     if (experiment.baseline?.status !== "pending" || experiment.baseline?.value !== null) {
       findings.push(finding("experiment_baseline_unproven", `Experiment '${experiment.id}' must not claim a baseline before production evidence exists.`, `${location}.baseline`));
     }
-    if (experiment.result?.status !== "not_started" || experiment.result?.winner !== null) {
+    if (experiment.result?.status !== "pending" || experiment.result?.winner !== null) {
       findings.push(finding("experiment_result_unproven", `Experiment '${experiment.id}' must not claim a result or winner.`, `${location}.result`));
     }
   });

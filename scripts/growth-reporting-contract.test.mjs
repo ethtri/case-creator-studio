@@ -24,6 +24,7 @@ test("defines a complete contract without invented baselines, owners, or winners
   assert.equal(contract.experiments.length, 5);
   assert.deepEqual(contract.experiments.map((experiment) => experiment.rank), [1, 2, 3, 4, 5]);
   assert.ok(contract.experiments.every((experiment) => experiment.baseline.status === "pending"));
+  assert.ok(contract.experiments.every((experiment) => experiment.result.status === "pending"));
   assert.ok(contract.experiments.every((experiment) => experiment.result.winner === null));
   assert.equal(contract.cadence.ownerStatus, "pending_human_assignment");
   assert.equal(contract.dashboard.baseline.status, "pending");

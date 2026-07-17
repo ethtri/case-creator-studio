@@ -343,7 +343,7 @@
         "window": null
       },
       "result": {
-        "status": "not_started",
+        "status": "pending",
         "winner": null,
         "evidenceUrl": null
       },
@@ -381,7 +381,7 @@
       "minimumRunRule": "Pre-register effect size and required sample from the production baseline; run at least 14 complete days/two weekly cycles and the calculated sample, otherwise use a labeled observational release.",
       "stopCriteria": "Stop for misleading/unsubstantiated copy, accessibility regression, performance regression, or material purchase/error guardrail harm.",
       "baseline": {"status": "pending", "value": null, "window": null},
-      "result": {"status": "not_started", "winner": null, "evidenceUrl": null}
+      "result": {"status": "pending", "winner": null, "evidenceUrl": null}
     },
     {
       "rank": 3,
@@ -400,7 +400,7 @@
       "minimumRunRule": "Do not start without approved real photography and a production baseline; then pre-register sample size and run at least 14 complete days/two weekly cycles.",
       "stopCriteria": "Stop if imagery is synthetic or unrepresentative, lacks rights/provenance, regresses LCP/CLS or accessibility, or materially harms design starts/errors.",
       "baseline": {"status": "pending", "value": null, "window": null},
-      "result": {"status": "not_started", "winner": null, "evidenceUrl": null}
+      "result": {"status": "pending", "winner": null, "evidenceUrl": null}
     },
     {
       "rank": 4,
@@ -419,7 +419,7 @@
       "minimumRunRule": "Do not start before operations approves the estimate and exceptions; pre-register sample size and run at least 14 complete days/two weekly cycles.",
       "stopCriteria": "Stop for missed or misleading promises, geography mismatch, accessibility defects, support complaints, or purchase/error guardrail harm.",
       "baseline": {"status": "pending", "value": null, "window": null},
-      "result": {"status": "not_started", "winner": null, "evidenceUrl": null}
+      "result": {"status": "pending", "winner": null, "evidenceUrl": null}
     },
     {
       "rank": 5,
@@ -438,7 +438,7 @@
       "minimumRunRule": "Do not start without approved assets and a production baseline; pre-register sample size and run at least 14 complete days/two weekly cycles.",
       "stopCriteria": "Stop for inaccessible controls, misleading imagery, mobile interaction defects, LCP/CLS regression, or purchase/error guardrail harm.",
       "baseline": {"status": "pending", "value": null, "window": null},
-      "result": {"status": "not_started", "winner": null, "evidenceUrl": null}
+      "result": {"status": "pending", "winner": null, "evidenceUrl": null}
     }
   ]
 }
