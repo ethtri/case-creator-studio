@@ -1,32 +1,44 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Routes, Route, useParams } from "react-router-dom";
+import {
+  loadAuth,
+  loadAuthCallback,
+  loadCatalog,
+  loadCheckout,
+  loadContact,
+  loadDesignEditorEDM,
+  loadDesigns,
+  loadIndex,
+  loadKexiaozhanCheckout,
+  loadNotFound,
+  loadOperations,
+  loadOrders,
+  loadOrderSuccess,
+  loadPhoneCaseSeo,
+  loadPreview,
+  loadPrivacy,
+  loadSeoLanding,
+  loadTerms,
+} from "./route-loaders";
 
-const Index = lazy(() => import("./pages/Index"));
-const Catalog = lazy(() => import("./pages/Catalog"));
-const SeoLanding = lazy(() => import("./pages/SeoLanding"));
-const PhoneCaseSeo = lazy(() => import("./pages/PhoneCaseSeo"));
-const Preview = lazy(() => import("./pages/Preview"));
-const Checkout = lazy(() => import("./pages/Checkout"));
-const OrderSuccess = lazy(() => import("./pages/OrderSuccess"));
-const Orders = lazy(() => import("./pages/Orders"));
-const Designs = lazy(() => import("./pages/Designs"));
-const Auth = lazy(() => import("./pages/Auth"));
-const AuthCallback = lazy(() => import("./pages/AuthCallback"));
-const Operations = lazy(() => import("./pages/Operations"));
-const KexiaozhanCheckout = lazy(() => import("./pages/KexiaozhanCheckout"));
-const Terms = lazy(() => import("./pages/Terms"));
-const Privacy = lazy(() => import("./pages/Privacy"));
-const Contact = lazy(() => import("./pages/Contact"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const DesignEditorEDM = lazy(async () => {
-  const [editorModule, fontModule] = await Promise.all([
-    import("./pages/DesignEditorEDM"),
-    import("./lib/editor-fonts"),
-  ]);
-
-  fontModule.loadEditorFonts();
-  return editorModule;
-});
+const Index = lazy(loadIndex);
+const Catalog = lazy(loadCatalog);
+const SeoLanding = lazy(loadSeoLanding);
+const PhoneCaseSeo = lazy(loadPhoneCaseSeo);
+const Preview = lazy(loadPreview);
+const Checkout = lazy(loadCheckout);
+const OrderSuccess = lazy(loadOrderSuccess);
+const Orders = lazy(loadOrders);
+const Designs = lazy(loadDesigns);
+const Auth = lazy(loadAuth);
+const AuthCallback = lazy(loadAuthCallback);
+const Operations = lazy(loadOperations);
+const KexiaozhanCheckout = lazy(loadKexiaozhanCheckout);
+const Terms = lazy(loadTerms);
+const Privacy = lazy(loadPrivacy);
+const Contact = lazy(loadContact);
+const NotFound = lazy(loadNotFound);
+const DesignEditorEDM = lazy(loadDesignEditorEDM);
 
 const LegacyCanvasRedirect = () => {
   const { variantId } = useParams();
