@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Smartphone, Palette, Package, ChevronRight, Truck, RotateCcw, BadgeCheck, Clock } from "lucide-react";
+import { Bell, ChevronRight, CreditCard, Eye, Smartphone } from "lucide-react";
 import heroWide960Avif from "@/assets/hero-wide-960.avif";
 import heroWide1536Avif from "@/assets/hero-wide-1536.avif";
 import heroWide960Webp from "@/assets/hero-wide-960.webp";
@@ -32,8 +32,8 @@ const steps = [
   },
   {
     number: "03",
-    title: "Checkout & ship",
-    description: "We print your case and ship to U.S. addresses.",
+    title: "Review and checkout",
+    description: "Confirm your order, then continue to Stripe for payment and shipping details.",
   },
 ];
 
@@ -41,24 +41,24 @@ const popularModels = phoneVariants.slice(0, 4);
 
 const faqs = [
   {
-    icon: Truck,
-    title: "U.S. Shipping",
-    description: "Standard U.S. shipping is confirmed at checkout.",
+    icon: Eye,
+    title: "Preview first",
+    description: "Review your artwork on the selected case before adding it to your cart.",
   },
   {
-    icon: RotateCcw,
-    title: "Defect Support",
-    description: "If a case arrives damaged or misprinted, contact us within 30 days.",
+    icon: Smartphone,
+    title: "Choose the exact model",
+    description: "Start with a supported iPhone or Samsung model so your order stays specific.",
   },
   {
-    icon: BadgeCheck,
-    title: "Premium Quality",
-    description: "Durable polycarbonate with matte or glossy finish options.",
+    icon: CreditCard,
+    title: "Secure checkout",
+    description: "Review the price before the editor, then pay through Stripe checkout.",
   },
   {
-    icon: Clock,
-    title: "Fast Turnaround",
-    description: "Orders are printed and prepared for shipment within 2-5 business days.",
+    icon: Bell,
+    title: "Order updates",
+    description: "Check your order status online and see tracking when it becomes available.",
   },
 ];
 
@@ -141,7 +141,7 @@ const Index = () => {
             </h1>
 
             <p className="text-lg md:text-xl text-muted-foreground max-w-md mb-10">
-              Design your own phone case in minutes. We print and ship in the U.S.
+              Choose your phone, create the design, and review a preview before checkout.
             </p>
 
             <div className="flex flex-col sm:flex-row items-start gap-4">
@@ -262,7 +262,7 @@ const Index = () => {
               Why Snapcase?
             </h2>
             <p className="text-muted-foreground max-w-lg mx-auto">
-              Clear previews, U.S. shipping, and support for damaged or misprinted cases
+              A clear path from phone model to preview and secure checkout
             </p>
           </div>
 

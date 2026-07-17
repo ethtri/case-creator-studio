@@ -107,9 +107,9 @@ const Privacy = () => {
             <div>
               <h2 className="text-xl font-semibold text-foreground mb-3">Sharing</h2>
               <p>
-                We share necessary order details with our production and shipping partners in
-                order to make and deliver your case. These partners are only allowed to use the
-                data to provide the service.
+                We share necessary order details with service providers to process payment,
+                fulfill the order, and provide order-related support. These providers may use the
+                data only for those services.
               </p>
             </div>
 
@@ -117,7 +117,7 @@ const Privacy = () => {
               <h2 className="text-xl font-semibold text-foreground mb-3">Data retention</h2>
               <p>
                 We retain order data for record keeping and support. Design assets are stored to
-                fulfill your order and for limited reprint support.
+                fulfill your order and support order-related requests.
               </p>
             </div>
 

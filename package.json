@@ -23,11 +23,12 @@
     "sync:status": "node scripts/sync-current-status.mjs",
     "prerender": "node scripts/prerender.mjs",
     "seo:check": "node scripts/validate-seo.mjs",
+    "claims:check": "node scripts/validate-claim-safety.mjs",
     "growth:check": "node scripts/validate-growth-reporting.mjs",
     "validate:printful": "node scripts/validate-printful-variants.mjs",
     "kexiaozhan:preflight": "node scripts/kexiaozhan-test-preflight.mjs",
     "kexiaozhan:staging": "node scripts/kexiaozhan-staging-mode.mjs",
-    "test": "node --experimental-strip-types --test scripts/analytics-contract.test.mjs scripts/growth-reporting-contract.test.mjs scripts/kexiaozhan-test-preflight.test.mjs"
+    "test": "node --experimental-strip-types --test scripts/analytics-contract.test.mjs scripts/claim-safety-contract.test.mjs scripts/growth-reporting-contract.test.mjs scripts/kexiaozhan-test-preflight.test.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

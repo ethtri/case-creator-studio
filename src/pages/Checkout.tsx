@@ -398,7 +398,7 @@ const Checkout = () => {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground flex items-center gap-1">
                       <Package className="w-3 h-3" />
-                      Standard shipping (2-4 business days)
+                      Shipping
                     </span>
                     <span>${SHIPPING_COST.toFixed(2)}</span>
                   </div>

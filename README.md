@@ -51,6 +51,7 @@ npm run lint         # Check code quality
 npm run lint:fix     # Auto-fix linting issues
 npm run type-check   # Check TypeScript types
 npm run check        # Run all quality checks
+npm run claims:check # Block unapproved public origin, delivery, material, and remedy claims
 npm run audit        # Check for security vulnerabilities
 ```
 
