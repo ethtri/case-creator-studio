@@ -30,15 +30,15 @@ interface Order {
 }
 
 const statusColors: Record<string, string> = {
-  pending: "bg-warning/10 text-warning",
-  paid: "bg-accent/10 text-accent",
-  submitted: "bg-primary/10 text-primary",
-  processing: "bg-primary/10 text-primary",
-  fulfilling: "bg-primary/10 text-primary",
-  shipped: "bg-success/10 text-success",
-  delivered: "bg-success/10 text-success",
-  canceled: "bg-destructive/10 text-destructive",
-  failed: "bg-destructive/10 text-destructive",
+  pending: "bg-warning/10 text-warning-emphasis",
+  paid: "bg-accent/10 text-accent-emphasis",
+  submitted: "bg-primary/10 text-primary-emphasis",
+  processing: "bg-primary/10 text-primary-emphasis",
+  fulfilling: "bg-primary/10 text-primary-emphasis",
+  shipped: "bg-success/10 text-success-emphasis",
+  delivered: "bg-success/10 text-success-emphasis",
+  canceled: "bg-destructive/10 text-destructive-emphasis",
+  failed: "bg-destructive/10 text-destructive-emphasis",
 };
 
 const OrdersContent = () => {
@@ -119,7 +119,7 @@ const OrdersContent = () => {
     <div className="min-h-screen bg-background">
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/30">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="-ml-2 inline-flex min-h-11 items-center gap-2 px-2">
             <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
           </Link>
           <div className="flex items-center gap-3">
@@ -129,7 +129,7 @@ const OrdersContent = () => {
         </div>
       </nav>
 
-      <div className="container mx-auto px-6 pt-28 pb-12">
+      <main className="container mx-auto px-6 pt-28 pb-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -142,18 +142,18 @@ const OrdersContent = () => {
                 Track your purchases and reorder your favorites.
               </p>
             </div>
-            <Link to="/catalog">
-              <Button className="bg-cta hover:bg-cta/90 text-cta-foreground">
+            <Button asChild className="bg-cta hover:bg-cta/90 text-cta-foreground">
+              <Link to="/catalog">
                 <Plus className="w-4 h-4 mr-1" />
                 New Design
-              </Button>
-            </Link>
+              </Link>
+            </Button>
           </div>
 
           <div className="bg-card rounded-2xl p-6 shadow-soft mb-8">
             <div className="flex items-start gap-4">
               <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
-                <ClipboardCheck className="w-5 h-5 text-accent" />
+                <ClipboardCheck className="w-5 h-5 text-accent-emphasis" />
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-semibold mb-1">Claim past orders</h2>
@@ -196,11 +196,11 @@ const OrdersContent = () => {
               <p className="text-muted-foreground mb-6">
                 Once you purchase a case, it will appear here.
               </p>
-              <Link to="/catalog">
-                <Button className="bg-cta hover:bg-cta/90 text-cta-foreground">
+              <Button asChild className="bg-cta hover:bg-cta/90 text-cta-foreground">
+                <Link to="/catalog">
                   Start Designing
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </div>
           ) : (
             <div className="space-y-4">
@@ -256,7 +256,7 @@ const OrdersContent = () => {
             </div>
           )}
         </motion.div>
-      </div>
+      </main>
     </div>
   );
 };

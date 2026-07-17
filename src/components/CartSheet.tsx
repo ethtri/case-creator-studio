@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -19,6 +20,10 @@ export function CartSheet() {
     (item) =>
       typeof item.edmTemplateId !== "number" || !isPreviewUrl(item.designPreview)
   );
+  const cartLabel =
+    totalItems === 0
+      ? "Open cart, empty"
+      : `Open cart, ${totalItems} ${totalItems === 1 ? "item" : "items"}`;
 
   const handleCheckout = () => {
     if (hasInvalidItems) {
@@ -31,22 +36,35 @@ export function CartSheet() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative h-9 w-9">
-          <ShoppingCart className="h-4 w-4" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          aria-label={cartLabel}
+        >
+          <ShoppingCart className="h-4 w-4" aria-hidden="true" />
           {totalItems > 0 && (
-            <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-cta text-cta-foreground text-xs flex items-center justify-center">
+            <span
+              className="absolute -top-1 -right-1 h-5 min-w-5 rounded-full bg-cta px-1 text-cta-foreground text-xs flex items-center justify-center"
+              aria-hidden="true"
+            >
               {totalItems}
             </span>
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent className="w-full sm:max-w-md">
+      <SheetContent className="flex w-full flex-col overflow-hidden sm:max-w-md">
         <SheetHeader>
-          <SheetTitle>Your Cart ({totalItems})</SheetTitle>
+          <SheetTitle>
+            Your Cart ({totalItems} {totalItems === 1 ? "item" : "items"})
+          </SheetTitle>
+          <SheetDescription className="sr-only">
+            Review your custom phone cases, update quantities, or continue to checkout.
+          </SheetDescription>
         </SheetHeader>
         
-        <div className="flex flex-col h-full">
-          <div className="flex-1 overflow-y-auto py-4">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 overflow-y-auto py-4">
             {items.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">
                 <ShoppingCart className="h-12 w-12 mb-4 opacity-50" />
@@ -60,26 +78,22 @@ export function CartSheet() {
                 </Button>
               </div>
             ) : (
-              <div className="space-y-4">
+              <ul className="space-y-4" aria-label="Cart items">
                 {items.map((item) => (
-                  <div
+                  <li
                     key={item.id}
                     className="flex gap-4 p-3 rounded-lg bg-card border border-border"
                   >
-                    {/* Design preview thumbnail */}
-                    <div
-                      className="w-16 h-24 rounded-lg bg-muted flex-shrink-0"
-                      style={{
-                        backgroundImage: `url(${item.designPreview})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }}
+                    <img
+                      src={item.designPreview}
+                      alt={`${item.variant.brand} ${item.variant.model} custom case preview`}
+                      className="w-16 h-24 rounded-lg bg-muted flex-shrink-0 object-cover"
                     />
                     
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-sm truncate">
+                      <h3 className="font-medium text-sm truncate">
                         {item.variant.brand} {item.variant.model}
-                      </h4>
+                      </h3>
                       <p className="text-xs text-muted-foreground mb-2">
                         Custom Design
                       </p>
@@ -89,31 +103,37 @@ export function CartSheet() {
                           <Button
                             variant="outline"
                             size="icon"
-                            className="h-7 w-7"
                             onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            aria-label={`Decrease quantity for ${item.variant.brand} ${item.variant.model}, currently ${item.quantity}`}
                           >
-                            <Minus className="h-3 w-3" />
+                            <Minus className="h-3 w-3" aria-hidden="true" />
                           </Button>
-                          <span className="w-8 text-center text-sm">
-                            {item.quantity}
+                          <span
+                            className="w-8 text-center text-sm"
+                            aria-live="polite"
+                            aria-atomic="true"
+                          >
+                            <span aria-hidden="true">{item.quantity}</span>
+                            <span className="sr-only">{item.quantity} in cart</span>
                           </span>
                           <Button
                             variant="outline"
                             size="icon"
-                            className="h-7 w-7"
                             onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            aria-label={`Increase quantity for ${item.variant.brand} ${item.variant.model}, currently ${item.quantity}`}
                           >
-                            <Plus className="h-3 w-3" />
+                            <Plus className="h-3 w-3" aria-hidden="true" />
                           </Button>
                         </div>
                         
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-7 w-7 text-destructive"
+                          className="shrink-0 text-destructive-emphasis"
                           onClick={() => removeFromCart(item.id)}
+                          aria-label={`Remove ${item.variant.brand} ${item.variant.model} from cart`}
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-3 w-3" aria-hidden="true" />
                         </Button>
                       </div>
                     </div>
@@ -123,9 +143,9 @@ export function CartSheet() {
                         ${(item.variant.price * item.quantity).toFixed(2)}
                       </span>
                     </div>
-                  </div>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </div>
           
@@ -140,9 +160,19 @@ export function CartSheet() {
                 size="lg"
                 onClick={handleCheckout}
                 disabled={hasInvalidItems}
+                aria-describedby={hasInvalidItems ? "cart-checkout-help" : undefined}
               >
                 Checkout
               </Button>
+              {hasInvalidItems && (
+                <p
+                  id="cart-checkout-help"
+                  className="text-sm text-muted-foreground"
+                  role="status"
+                >
+                  Checkout becomes available after every design preview finishes saving.
+                </p>
+              )}
             </div>
           )}
         </div>

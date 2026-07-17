@@ -32,8 +32,8 @@ export const SiteMenu = ({ showBrowse = true }: SiteMenuProps) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="h-9 gap-2 px-3" aria-label="Open menu">
-          <Menu className="h-4 w-4" />
+        <Button variant="outline" size="sm" className="min-w-11 gap-2 px-3" aria-label="Open site menu">
+          <Menu className="h-4 w-4" aria-hidden="true" />
           <span className="hidden sm:inline">Menu</span>
         </Button>
       </DropdownMenuTrigger>

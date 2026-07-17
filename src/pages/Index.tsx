@@ -70,7 +70,7 @@ const Index = () => {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/30">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="-ml-2 inline-flex min-h-11 items-center gap-2 px-2">
             <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
           </Link>
           <div className="flex items-center gap-3">
@@ -80,6 +80,7 @@ const Index = () => {
         </div>
       </nav>
 
+      <main>
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* The picture sources let the browser request one viewport-appropriate hero. */}
@@ -145,21 +146,25 @@ const Index = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row items-start gap-4">
-              <Link
-                to="/catalog"
-                onClick={() =>
-                  trackMarketingEvent("primary_cta_click", {
-                    placement: "home_hero",
-                    destination: "/catalog",
-                    label: "Start designing",
-                  })
-                }
+              <Button
+                asChild
+                size="lg"
+                className="bg-cta hover:bg-cta/90 text-cta-foreground font-semibold px-8 py-6 text-base shadow-glow"
               >
-                <Button size="lg" className="bg-cta hover:bg-cta/90 text-cta-foreground font-semibold px-8 py-6 text-base shadow-glow">
+                <Link
+                  to="/catalog"
+                  onClick={() =>
+                    trackMarketingEvent("primary_cta_click", {
+                      placement: "home_hero",
+                      destination: "/catalog",
+                      label: "Start designing",
+                    })
+                  }
+                >
                   Start designing
-                  <ChevronRight className="w-5 h-5 ml-1" />
-                </Button>
-              </Link>
+                  <ChevronRight className="w-5 h-5 ml-1" aria-hidden="true" />
+                </Link>
+              </Button>
             </div>
           </div>
         </div>
@@ -181,7 +186,9 @@ const Index = () => {
             {steps.map((step) => (
               <div key={step.number} className="text-center">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-cta/10 border border-cta/30 mb-6">
-                  <span className="font-display font-bold text-cta text-lg">{step.number}</span>
+                  <span className="font-display font-bold text-cta-emphasis text-lg" aria-hidden="true">
+                    {step.number}
+                  </span>
                 </div>
                 <h3 className="font-display text-xl font-semibold text-foreground mb-3">{step.title}</h3>
                 <p className="text-muted-foreground text-sm">{step.description}</p>
@@ -201,12 +208,12 @@ const Index = () => {
               </h2>
               <p className="text-muted-foreground">Start with the most popular devices</p>
             </div>
-            <Link to="/catalog" className="hidden md:block">
-              <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
+            <Button asChild variant="ghost" className="hidden text-muted-foreground hover:text-foreground md:inline-flex">
+              <Link to="/catalog">
                 View all
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            </Link>
+                <ChevronRight className="w-4 h-4 ml-1" aria-hidden="true" />
+              </Link>
+            </Button>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -232,8 +239,8 @@ const Index = () => {
                     <h3 className="font-semibold text-foreground mb-1">{variant.model}</h3>
                     <p className="text-sm text-muted-foreground mb-3">{variant.brand}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-cta font-semibold">${variant.price}</span>
-                      <span className="text-xs text-muted-foreground group-hover:text-accent transition-colors">
+                      <span className="text-cta-emphasis font-semibold">${variant.price}</span>
+                      <span className="text-xs text-muted-foreground group-hover:text-accent-emphasis transition-colors">
                         Design now →
                       </span>
                     </div>
@@ -244,12 +251,12 @@ const Index = () => {
           </div>
 
           <div className="mt-8 text-center md:hidden">
-            <Link to="/catalog">
-              <Button variant="outline" className="border-border text-foreground">
+            <Button asChild variant="outline" className="border-border text-foreground">
+              <Link to="/catalog">
                 View all models
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            </Link>
+                <ChevronRight className="w-4 h-4 ml-1" aria-hidden="true" />
+              </Link>
+            </Button>
           </div>
         </div>
       </section>
@@ -273,7 +280,7 @@ const Index = () => {
                 className="bg-card rounded-2xl p-6 border border-border/50"
               >
                 <div className="w-12 h-12 rounded-xl bg-cta/10 flex items-center justify-center mb-4">
-                  <faq.icon className="w-6 h-6 text-cta" />
+                  <faq.icon className="w-6 h-6 text-cta-emphasis" aria-hidden="true" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">{faq.title}</h3>
                 <p className="text-sm text-muted-foreground">{faq.description}</p>
@@ -282,6 +289,7 @@ const Index = () => {
           </div>
         </div>
       </section>
+      </main>
 
       {/* Footer */}
       <footer className="py-12 border-t border-border/30">

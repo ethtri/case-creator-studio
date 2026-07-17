@@ -233,10 +233,10 @@ const Checkout = () => {
 
   if (items.length === 0 && !variant) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+      <main className="min-h-screen flex flex-col items-center justify-center gap-4">
         <p className="text-muted-foreground">Your cart is empty</p>
         <Button onClick={() => navigate("/catalog")}>Browse Cases</Button>
-      </div>
+      </main>
     );
   }
 
@@ -246,7 +246,7 @@ const Checkout = () => {
       <nav className="bg-card border-b border-border">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/" className="-ml-2 inline-flex min-h-11 items-center gap-2 px-2">
               <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
             </Link>
           </div>
@@ -263,7 +263,7 @@ const Checkout = () => {
         </div>
       </nav>
 
-      <div className="container mx-auto px-6 py-12">
+      <main className="container mx-auto px-6 py-12">
         <div className="max-w-5xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -300,9 +300,10 @@ const Checkout = () => {
                       placeholder="you@example.com"
                       className="mt-1"
                       disabled={isProcessing || !!user?.email}
+                      aria-describedby="checkout-email-help"
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground mt-3">
+                  <p id="checkout-email-help" className="text-xs text-muted-foreground mt-3">
                     Shipping details will be collected securely in Stripe checkout.
                   </p>
                 </div>
@@ -325,6 +326,9 @@ const Checkout = () => {
                   size="xl"
                   className="w-full bg-cta hover:bg-cta/90 text-cta-foreground"
                   disabled={isProcessing || items.length === 0 || hasInvalidItems}
+                  aria-describedby={
+                    items.length === 0 || hasInvalidItems ? "checkout-payment-help" : undefined
+                  }
                 >
                   {isProcessing ? (
                     <>
@@ -338,6 +342,17 @@ const Checkout = () => {
                     </>
                   )}
                 </Button>
+                {(items.length === 0 || hasInvalidItems) && (
+                  <p
+                    id="checkout-payment-help"
+                    className="text-sm text-muted-foreground"
+                    role="status"
+                  >
+                    {items.length === 0
+                      ? "Add a completed design to your cart before paying."
+                      : "Payment becomes available after every design preview finishes saving."}
+                  </p>
+                )}
 
                 <p className="text-xs text-center text-muted-foreground">
                   Your payment information is secured with SSL encryption
@@ -359,13 +374,10 @@ const Checkout = () => {
                 <div className="space-y-4 pb-4 border-b border-border max-h-64 overflow-y-auto">
                   {items.map((item) => (
                     <div key={item.id} className="flex gap-3">
-                      <div
-                        className="w-12 h-18 rounded-lg flex-shrink-0 overflow-hidden bg-muted"
-                        style={{
-                          backgroundImage: `url(${item.designPreview})`,
-                          backgroundSize: "cover",
-                          backgroundPosition: "center",
-                        }}
+                      <img
+                        src={item.designPreview}
+                        alt={`${item.variant.brand} ${item.variant.model} custom case preview`}
+                        className="w-12 h-18 rounded-lg flex-shrink-0 bg-muted object-cover"
                       />
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-sm truncate">
@@ -379,10 +391,12 @@ const Checkout = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-6 w-6 text-destructive"
+                          className="shrink-0 text-destructive-emphasis"
+                          type="button"
                           onClick={() => removeFromCart(item.id)}
+                          aria-label={`Remove ${item.variant.brand} ${item.variant.model} from order`}
                         >
-                          <Trash2 className="h-3 w-3" />
+                          <Trash2 className="h-3 w-3" aria-hidden="true" />
                         </Button>
                       </div>
                     </div>
@@ -403,7 +417,7 @@ const Checkout = () => {
                     <span>${SHIPPING_COST.toFixed(2)}</span>
                   </div>
                   {appliedPromo && (
-                    <div className="flex justify-between text-sm text-success">
+                    <div className="flex justify-between text-sm text-success-emphasis">
                       <span className="flex items-center gap-1">
                         <Tag className="w-3 h-3" />
                         Promo ({appliedPromo.code})
@@ -427,6 +441,8 @@ const Checkout = () => {
                       onChange={(e) => setPromoCode(e.target.value)}
                       placeholder="Enter code"
                       disabled={promoLoading || isProcessing}
+                      aria-invalid={Boolean(promoError)}
+                      aria-describedby={promoError ? "promo-error promo-help" : "promo-help"}
                     />
                     <Button
                       type="button"
@@ -437,16 +453,24 @@ const Checkout = () => {
                       {promoLoading ? "Applying..." : "Apply"}
                     </Button>
                   </div>
-                  {promoError && <p className="text-xs text-destructive">{promoError}</p>}
+                  {promoError && (
+                    <p id="promo-error" className="text-xs text-destructive-emphasis" role="alert">
+                      {promoError}
+                    </p>
+                  )}
                   {appliedPromo && (
-                    <div className="flex items-center justify-between text-xs text-success">
+                    <div
+                      className="flex items-center justify-between text-xs text-success-emphasis"
+                      role="status"
+                      aria-live="polite"
+                    >
                       <span>Applied {appliedPromo.code}</span>
                       <Button type="button" variant="ghost" size="sm" onClick={handleRemovePromo}>
                         Remove
                       </Button>
                     </div>
                   )}
-                  <p className="text-xs text-muted-foreground">
+                  <p id="promo-help" className="text-xs text-muted-foreground">
                     Final total is confirmed in Stripe at checkout.
                   </p>
                 </div>
@@ -454,7 +478,7 @@ const Checkout = () => {
             </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

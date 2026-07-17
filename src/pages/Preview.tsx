@@ -637,12 +637,12 @@ const Preview = () => {
 
   if (!variant) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
+      <main className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center" role="status" aria-live="polite">
           <div className="animate-spin w-8 h-8 border-2 border-cta border-t-transparent rounded-full mx-auto mb-4" />
           <p className="text-muted-foreground">Loading preview...</p>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -662,7 +662,7 @@ const Preview = () => {
       <nav className="bg-card border-b border-border">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/" className="-ml-2 inline-flex min-h-11 items-center gap-2 px-2">
               <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
             </Link>
           </div>
@@ -671,17 +671,19 @@ const Preview = () => {
             <SiteMenu showBrowse={false} />
             <Button
               variant="outline"
+              className="min-w-11 px-3 sm:px-4"
               onClick={() => navigate(editorPath)}
               disabled={!variantId}
+              aria-label="Back to editor"
             >
-              <ChevronLeft className="w-4 h-4 mr-1" />
-              Back to Editor
+              <ChevronLeft className="w-4 h-4 sm:mr-1" aria-hidden="true" />
+              <span className="hidden sm:inline">Back to Editor</span>
             </Button>
           </div>
         </div>
       </nav>
 
-      <div className="container mx-auto px-6 py-10 lg:py-12">
+      <main className="container mx-auto px-6 py-10 lg:py-12">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-start">
           {/* Mockup Preview */}
           <div className="lg:sticky lg:top-6">
@@ -693,7 +695,10 @@ const Preview = () => {
               transition={{ duration: 0.5 }}
             >
               {showMissingTemplateBadge && (
-                <div className="absolute top-4 left-4 rounded-full border border-border bg-card/80 px-3 py-1 text-xs text-muted-foreground shadow-sm">
+                <div
+                  className="absolute top-4 left-4 rounded-full border border-border bg-card/80 px-3 py-1 text-xs text-muted-foreground shadow-sm"
+                  role="status"
+                >
                   Template missing: preview limited
                 </div>
               )}
@@ -724,7 +729,7 @@ const Preview = () => {
                     <div className="relative">
                       <img
                         src={baseImageSrc}
-                        alt={`${variant.brand} ${variant.model} case`}
+                        alt={`${variant.brand} ${variant.model} custom case ${resolvedActiveView} preview`}
                         className="w-full h-auto drop-shadow-2xl relative z-10"
                         draggable={false}
                       />
@@ -749,7 +754,7 @@ const Preview = () => {
                         >
                           <img
                             src={designPreview}
-                            alt="Your custom design"
+                            alt=""
                             className="w-full h-full object-cover"
                           />
                         </div>
@@ -760,7 +765,11 @@ const Preview = () => {
               </AnimatePresence>
 
               {showPreviewLoader && (
-                <div className="absolute inset-0 z-20 flex items-center justify-center">
+                <div
+                  className="absolute inset-0 z-20 flex items-center justify-center"
+                  role="status"
+                  aria-live="polite"
+                >
                   <div className="rounded-2xl bg-card/90 px-6 py-5 shadow-lg backdrop-blur-sm border border-border">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-full border-2 border-cta border-t-transparent animate-spin" />
@@ -807,8 +816,9 @@ const Preview = () => {
                         <button
                           key={item.view}
                           onClick={() => setActiveView(item.view)}
+                          aria-pressed={activeView === item.view}
                           className={`
-                            relative flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200
+                            relative flex min-h-11 items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-200
                             ${activeView === item.view
                               ? "bg-card text-foreground shadow-sm" 
                               : "text-muted-foreground"
@@ -835,6 +845,8 @@ const Preview = () => {
                       <button
                         key={`thumb-${item.view}`}
                         onClick={() => setActiveView(item.view)}
+                        aria-label={`Show ${item.name.toLowerCase()} preview`}
+                        aria-pressed={activeView === item.view}
                         className={`
                           relative w-16 h-20 rounded-xl overflow-hidden transition-all duration-200 bg-muted
                           ${activeView === item.view
@@ -845,7 +857,7 @@ const Preview = () => {
                       >
                         <img
                           src={thumbnailSrc}
-                          alt={item.name}
+                          alt=""
                           className="w-full h-full object-cover"
                         />
                       </button>
@@ -866,7 +878,7 @@ const Preview = () => {
             >
               {/* Product title */}
               <div>
-                <span className="inline-block px-3 py-1 rounded-full bg-cta/10 text-cta text-xs font-medium mb-3">
+                <span className="inline-block px-3 py-1 rounded-full bg-cta/10 text-cta-emphasis text-xs font-medium mb-3">
                   Custom Design
                 </span>
                 <h1 className="text-3xl lg:text-4xl font-bold mb-2">
@@ -887,10 +899,10 @@ const Preview = () => {
               <div className="grid gap-4">
                 <div className="flex items-start gap-4 p-4 rounded-xl bg-card border border-border">
                   <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cta/20 to-cta/10 flex items-center justify-center shrink-0">
-                    <Eye className="w-5 h-5 text-cta" />
+                    <Eye className="w-5 h-5 text-cta-emphasis" aria-hidden="true" />
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-1">Preview ready</h4>
+                    <h2 className="font-semibold mb-1">Preview ready</h2>
                     <p className="text-sm text-muted-foreground">
                       Review your artwork on the selected {variant.model} case before adding it to your cart.
                     </p>
@@ -898,10 +910,10 @@ const Preview = () => {
                 </div>
                 <div className="flex items-start gap-4 p-4 rounded-xl bg-card border border-border">
                   <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cta/20 to-cta/10 flex items-center justify-center shrink-0">
-                    <CreditCard className="w-5 h-5 text-cta" />
+                    <CreditCard className="w-5 h-5 text-cta-emphasis" aria-hidden="true" />
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-1">Checkout details</h4>
+                    <h2 className="font-semibold mb-1">Checkout details</h2>
                     <p className="text-sm text-muted-foreground">
                       Confirm shipping details and the final order total during secure Stripe checkout.
                     </p>
@@ -920,6 +932,7 @@ const Preview = () => {
                   } text-cta-foreground shadow-lg shadow-cta/25`}
                   onClick={handleAddToCart}
                   disabled={addedToCart || !currentDesignReady}
+                  aria-describedby={!currentDesignReady ? "preview-cart-help" : undefined}
                 >
                   {addedToCart ? (
                     <>
@@ -933,6 +946,15 @@ const Preview = () => {
                     </>
                   )}
                 </Button>
+                {!currentDesignReady && (
+                  <p
+                    id="preview-cart-help"
+                    className="text-sm text-muted-foreground"
+                    role="status"
+                  >
+                    Add to Cart becomes available after your preview finishes and is saved to this phone model.
+                  </p>
+                )}
                 
                 <Button
                   size="lg"
@@ -951,9 +973,21 @@ const Preview = () => {
                   className="w-full h-12"
                   onClick={handleProceedToCheckout}
                   disabled={!canProceedToCheckout}
+                  aria-describedby={!canProceedToCheckout ? "preview-checkout-help" : undefined}
                 >
                   Proceed to Checkout
                 </Button>
+                {!canProceedToCheckout && (
+                  <p
+                    id="preview-checkout-help"
+                    className="text-sm text-muted-foreground"
+                    role="status"
+                  >
+                    {items.length === 0
+                      ? "Add this design to your cart before proceeding to checkout."
+                      : "Checkout becomes available after every design preview finishes saving."}
+                  </p>
+                )}
                 
                 <div className="grid grid-cols-2 gap-3">
                   <Button
@@ -984,7 +1018,7 @@ const Preview = () => {
             </motion.div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

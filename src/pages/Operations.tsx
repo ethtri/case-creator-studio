@@ -90,12 +90,12 @@ const statusLabels: Record<ProductionJobStatus, string> = {
 };
 
 const statusClasses: Record<ProductionJobStatus, string> = {
-  queued: "bg-warning/10 text-warning border-warning/20",
-  artwork_ready: "bg-accent/10 text-accent border-accent/20",
-  printed: "bg-primary/10 text-primary border-primary/20",
-  packed: "bg-primary/10 text-primary border-primary/20",
-  shipped: "bg-success/10 text-success border-success/20",
-  failed: "bg-destructive/10 text-destructive border-destructive/20",
+  queued: "bg-warning/10 text-warning-emphasis border-warning/20",
+  artwork_ready: "bg-accent/10 text-accent-emphasis border-accent/20",
+  printed: "bg-primary/10 text-primary-emphasis border-primary/20",
+  packed: "bg-primary/10 text-primary-emphasis border-primary/20",
+  shipped: "bg-success/10 text-success-emphasis border-success/20",
+  failed: "bg-destructive/10 text-destructive-emphasis border-destructive/20",
 };
 
 const buildDraft = (job: ProductionJob): DraftUpdate => ({
@@ -241,7 +241,7 @@ const OperationsContent = () => {
     <div className="min-h-screen bg-surface-sunken">
       <nav className="bg-card border-b border-border">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="-ml-2 inline-flex min-h-11 items-center gap-2 px-2">
             <span className="font-display font-bold text-lg text-foreground">
               Snapcase
             </span>

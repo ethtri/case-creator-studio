@@ -115,7 +115,7 @@ const KexiaozhanCheckout = () => {
         <div className="w-full px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link
             to="/"
-            className="font-display font-bold text-lg text-foreground"
+            className="-ml-2 inline-flex min-h-11 items-center px-2 font-display font-bold text-lg text-foreground"
           >
             Snapcase
           </Link>
@@ -127,7 +127,7 @@ const KexiaozhanCheckout = () => {
         <div className="max-w-4xl mx-auto grid min-w-0 lg:grid-cols-[minmax(0,1fr)_360px] gap-8">
           <section className="min-w-0 bg-card rounded-2xl p-6 shadow-soft">
             <div className="flex items-start gap-3 mb-6">
-              <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
+              <div className="h-10 w-10 rounded-full bg-primary/10 text-primary-emphasis flex items-center justify-center">
                 <ShieldCheck className="h-5 w-5" />
               </div>
               <div>
@@ -142,8 +142,8 @@ const KexiaozhanCheckout = () => {
             </div>
 
             {!hasRequiredParams && (
-              <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive flex gap-3">
-                <AlertCircle className="h-5 w-5 shrink-0" />
+              <div className="mb-6 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive-emphasis flex gap-3" role="alert">
+                <AlertCircle className="h-5 w-5 shrink-0" aria-hidden="true" />
                 <div>
                   <p className="font-medium">This checkout link is incomplete.</p>
                   <p className="mt-1">Missing: {missingFields.join(", ")}</p>
@@ -163,14 +163,15 @@ const KexiaozhanCheckout = () => {
                   disabled={isProcessing || Boolean(user?.email)}
                   placeholder="you@example.com"
                   className="mt-1"
+                  aria-describedby="kexiaozhan-email-help"
                 />
-                <p className="text-xs text-muted-foreground mt-2">
+                <p id="kexiaozhan-email-help" className="text-xs text-muted-foreground mt-2">
                   Shipping details are collected securely in Stripe Checkout.
                 </p>
               </div>
 
               {submitError && (
-                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive-emphasis" role="alert">
                   {submitError}
                 </div>
               )}

@@ -22,7 +22,7 @@ const Privacy = () => {
     <div className="min-h-screen bg-background">
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/30">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="-ml-2 inline-flex min-h-11 items-center gap-2 px-2">
             <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
           </Link>
           <div className="flex items-center gap-3">
@@ -32,7 +32,8 @@ const Privacy = () => {
         </div>
       </nav>
 
-      <section className="pt-28 pb-16">
+      <main>
+        <section className="pt-28 pb-16">
         <div className="container mx-auto px-6">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -47,9 +48,9 @@ const Privacy = () => {
             </p>
           </motion.div>
         </div>
-      </section>
+        </section>
 
-      <section className="pb-24">
+        <section className="pb-24">
         <div className="container mx-auto px-6">
           <div className="max-w-3xl space-y-10 text-muted-foreground">
             <div>
@@ -133,7 +134,8 @@ const Privacy = () => {
             </div>
           </div>
         </div>
-      </section>
+        </section>
+      </main>
     </div>
   );
 };

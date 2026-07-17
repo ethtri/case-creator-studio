@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
+import { MotionConfig } from "framer-motion";
 import { CartProvider } from "./contexts/CartContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import type { ReactNode } from "react";
@@ -22,7 +23,7 @@ export const AppShell = ({ children }: { children: ReactNode }) => (
           <TooltipProvider>
             <Toaster />
             <Sonner />
-            {children}
+            <MotionConfig reducedMotion="user">{children}</MotionConfig>
           </TooltipProvider>
         </CartProvider>
       </AuthProvider>

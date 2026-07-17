@@ -81,21 +81,21 @@ const OrderSuccess = () => {
 
   if (isVerifying) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-accent mx-auto mb-4" />
+      <main className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center" role="status" aria-live="polite">
+          <Loader2 className="w-12 h-12 animate-spin text-accent-emphasis mx-auto mb-4" aria-hidden="true" />
           <p className="text-muted-foreground">Verifying your payment...</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center max-w-md">
+      <main className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center max-w-md" role="alert">
           <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
-            <span className="text-destructive text-2xl">!</span>
+            <span className="text-destructive-emphasis text-2xl">!</span>
           </div>
           <h1 className="text-2xl font-bold mb-2">Something went wrong</h1>
           <p className="text-muted-foreground mb-6">{error}</p>
@@ -103,7 +103,7 @@ const OrderSuccess = () => {
             Return to Shop
           </Button>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -112,7 +112,7 @@ const OrderSuccess = () => {
       {/* Navigation */}
       <nav className="bg-card border-b border-border">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="-ml-2 inline-flex min-h-11 items-center gap-2 px-2">
             <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
           </Link>
           <div className="flex items-center gap-3">
@@ -122,7 +122,7 @@ const OrderSuccess = () => {
         </div>
       </nav>
 
-      <div className="container mx-auto px-6 py-16">
+      <main className="container mx-auto px-6 py-16">
         <motion.div
           className="max-w-2xl mx-auto text-center"
           initial={{ opacity: 0, y: 20 }}
@@ -135,7 +135,7 @@ const OrderSuccess = () => {
             animate={{ scale: 1 }}
             transition={{ type: "spring", stiffness: 200, delay: 0.2 }}
           >
-            <CheckCircle className="w-10 h-10 text-success" />
+            <CheckCircle className="w-10 h-10 text-success-emphasis" />
           </motion.div>
 
           <h1 className="text-3xl md:text-4xl font-bold mb-4">
@@ -182,15 +182,15 @@ const OrderSuccess = () => {
             <h3 className="font-medium mb-2">What happens next?</h3>
             <ol className="text-sm text-muted-foreground space-y-2 text-left max-w-sm mx-auto">
               <li className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-accent/20 text-accent text-xs flex items-center justify-center shrink-0 mt-0.5">1</span>
+                <span className="w-5 h-5 rounded-full bg-accent/20 text-accent-emphasis text-xs flex items-center justify-center shrink-0 mt-0.5">1</span>
                 {orderProgressCopy.steps[0]}
               </li>
               <li className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-accent/20 text-accent text-xs flex items-center justify-center shrink-0 mt-0.5">2</span>
+                <span className="w-5 h-5 rounded-full bg-accent/20 text-accent-emphasis text-xs flex items-center justify-center shrink-0 mt-0.5">2</span>
                 {orderProgressCopy.steps[1]}
               </li>
               <li className="flex items-start gap-2">
-                <span className="w-5 h-5 rounded-full bg-accent/20 text-accent text-xs flex items-center justify-center shrink-0 mt-0.5">3</span>
+                <span className="w-5 h-5 rounded-full bg-accent/20 text-accent-emphasis text-xs flex items-center justify-center shrink-0 mt-0.5">3</span>
                 {orderProgressCopy.steps[2]}
               </li>
             </ol>
@@ -214,7 +214,7 @@ const OrderSuccess = () => {
             </Button>
           </div>
         </motion.div>
-      </div>
+      </main>
     </div>
   );
 };
