@@ -239,6 +239,63 @@ Required dashboard filters are date, source, medium, campaign, device, browser,
 phone family, and phone model. Filters apply only where the source supports
 them; for example, CrUX field data supports date/device but not campaign.
 
+### GA4 reporting-dimension map
+
+`dashboard.reportingDimensions` is the authoritative report-builder map. GA4
+Data API names and scopes are intentional:
+
+| Report use | GA4 source | Scope | Storefront parameter |
+| --- | --- | --- | --- |
+| Date | `date` | event | built in |
+| Source / medium / campaign | `sessionSource`, `sessionMedium`, `sessionCampaignName` | session | built in |
+| Device / browser | `deviceCategory`, `browser` | user | built in |
+| Phone family on editor/preview/error events | `customEvent:brand` | event | `brand` |
+| Phone model on editor/preview/error events | `customEvent:model` | event | `model` |
+| Phone family/model in ecommerce item reports | `itemBrand`, `itemVariant` | item | `item_brand`, `item_variant` |
+| CTA placement | `customEvent:placement` | event | `placement` |
+| Phone variant | `customEvent:variant_id` | event | `variant_id` |
+| Error code/stage | `customEvent:error_code`, `customEvent:stage` | event | `error_code`, `stage` |
+| Contract version | `customEvent:analytics_contract_version` | event | `analytics_contract_version` |
+
+The seven `customEvent:*` sources above are registered as event-scoped custom
+dimensions. Do not substitute `itemBrand`/`itemVariant` for custom event
+parameters: the standard ecommerce dimensions are item-scoped and answer a
+different question. Never register transaction, session, client, user, order,
+artwork/design, contact, address, or free-text values as custom dimensions.
+
+Newly registered custom dimensions need Google's normal processing time before
+they are available consistently in reports, and their registration does not
+retroactively populate historical events. Keep a dependent report or filter
+pending until the dimension is observable. Never backfill a missing historical
+dimension with an invented baseline.
+
+Build or refresh the reporting surface in this order:
+
+1. confirm the seven custom definitions and their event scope in GA4 Admin;
+2. wait until each `customEvent:*` dimension is selectable in the report;
+3. add built-in acquisition/device dimensions, then custom event dimensions;
+4. add standard ecommerce item dimensions in item-scoped report sections;
+5. apply the consented-only label and suppress segments below 10 sessions;
+6. validate complete T+1 windows, then reconcile purchases, paid orders,
+   currency, items, and product revenue before recording evidence.
+
+### Evidence lifecycle
+
+The checked-in contract remains
+`repository_ready_external_evidence_pending`. The validator also accepts
+`partially_evidenced` and `evidence_backed_completed` when the state proves
+itself. Report creation, baseline capture, cadence assignment, reconciliation,
+and each experiment baseline/result transition require a named owner, ISO
+timestamp, non-placeholder HTTPS evidence reference, meaningful notes, and,
+where data is evaluated, a complete T+1 window. Experiment results additionally
+require control/variant values and a decision whose winner is internally
+consistent. Reconciliation must satisfy the configured count and revenue
+tolerance.
+
+The lifecycle examples under `scripts/fixtures/` exist only to test the
+validator. They are not production evidence and must never be copied into the
+live contract as baselines, experiment results, or owner assignments.
+
 ### Automated data-quality gate
 
 Run `npm run growth:check` against the included synthetic export, or pass a
@@ -255,8 +312,9 @@ count/revenue/item mismatch. Aggregate product revenue may differ by at most
 the greater of $0.01 or 0.1%; anything larger requires investigation before a
 dashboard or experiment decision is trusted.
 
-The checked-in fixture is synthetic. Its single matching purchase and paid
-order prove the validator, not production collection or dashboard accuracy.
+The checked-in export fixture is synthetic. Its single matching purchase and
+paid order prove the validator, not production collection or dashboard
+accuracy.
 
 ## Growth review and experiments
 
@@ -265,7 +323,8 @@ audience, primary metric, guardrails, effort, minimum-run rule, and stop
 criteria. The first CTA-copy experiment also includes implementation and
 analysis plans plus accessibility and performance guardrails.
 
-No baseline, owner, result, or winner is claimed. Before the first experiment:
+The current pending contract claims no baseline, owner, result, or winner.
+Before the first experiment:
 
 1. complete the #66 production analytics rollout and order/refund
    reconciliation evidence;

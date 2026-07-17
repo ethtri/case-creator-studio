@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
 
 import {
@@ -9,12 +10,66 @@ import {
   validateReportingContract,
 } from "./validate-growth-reporting.mjs";
 
+const LIFECYCLE_FIXTURE_PATH = path.join(
+  import.meta.dirname,
+  "fixtures",
+  "growth-reporting-lifecycle-states.json",
+);
+
 const loadFixture = async () => {
   const [contract, report] = await Promise.all([
     loadJson(DEFAULT_CONTRACT_PATH),
     loadJson(DEFAULT_EXPORT_PATH),
   ]);
   return { contract, report };
+};
+
+const applyLifecycleState = (contract, state) => {
+  contract.status = state.status;
+  if (state.dashboard) {
+    contract.dashboard = {
+      ...contract.dashboard,
+      ...state.dashboard,
+      baseline: {
+        ...contract.dashboard.baseline,
+        ...(state.dashboard.baseline ?? {}),
+      },
+      reconciliation: {
+        ...contract.dashboard.reconciliation,
+        ...(state.dashboard.reconciliation ?? {}),
+      },
+    };
+  }
+  if (state.cadence) {
+    contract.cadence = {
+      ...contract.cadence,
+      ...state.cadence,
+    };
+  }
+  for (const experimentState of state.experiments ?? []) {
+    const experiment = contract.experiments.find(
+      (candidate) => candidate.id === experimentState.id,
+    );
+    assert.ok(experiment, `Lifecycle fixture references ${experimentState.id}`);
+    experiment.baseline = {
+      ...experiment.baseline,
+      ...(experimentState.baseline ?? {}),
+    };
+    experiment.result = {
+      ...experiment.result,
+      ...(experimentState.result ?? {}),
+    };
+  }
+  return contract;
+};
+
+const loadLifecycleContract = async (stateName) => {
+  const [contract, states] = await Promise.all([
+    loadJson(DEFAULT_CONTRACT_PATH),
+    loadJson(LIFECYCLE_FIXTURE_PATH),
+  ]);
+  assert.equal(states.fixtureOnly, true);
+  return applyLifecycleState(contract, states[stateName]);
 };
 
 test("defines a complete contract without invented baselines, owners, or winners", async () => {
@@ -28,6 +83,167 @@ test("defines a complete contract without invented baselines, owners, or winners
   assert.ok(contract.experiments.every((experiment) => experiment.result.winner === null));
   assert.equal(contract.cadence.ownerStatus, "pending_human_assignment");
   assert.equal(contract.dashboard.baseline.status, "pending");
+});
+
+test("maps every filter and registered custom dimension to the correct GA4 scope", async () => {
+  const { contract } = await loadFixture();
+  const dimensions = new Map(
+    contract.dashboard.reportingDimensions.map((dimension) => [
+      dimension.id,
+      dimension,
+    ]),
+  );
+
+  for (const filter of contract.dashboard.requiredFilters) {
+    assert.ok(dimensions.get(filter.id)?.usage.includes("filter"), filter.id);
+  }
+  assert.ok(dimensions.get("device").sources.some((source) =>
+    source.apiName === "deviceCategory" && source.scope === "user"
+  ));
+  assert.ok(dimensions.get("browser").sources.some((source) =>
+    source.apiName === "browser" && source.scope === "user"
+  ));
+  assert.ok(dimensions.get("phone_family").sources.some((source) =>
+    source.apiName === "customEvent:brand" &&
+    source.scope === "event" &&
+    source.parameter === "brand"
+  ));
+  assert.ok(dimensions.get("phone_family").sources.some((source) =>
+    source.apiName === "itemBrand" &&
+    source.scope === "item" &&
+    source.parameter === "item_brand"
+  ));
+  assert.ok(dimensions.get("phone_model").sources.some((source) =>
+    source.apiName === "customEvent:model" &&
+    source.scope === "event" &&
+    source.parameter === "model"
+  ));
+  assert.ok(dimensions.get("phone_model").sources.some((source) =>
+    source.apiName === "itemVariant" &&
+    source.scope === "item" &&
+    source.parameter === "item_variant"
+  ));
+
+  const customParameters = Array.from(dimensions.values())
+    .flatMap((dimension) => dimension.sources)
+    .filter((source) => source.sourceType === "ga4_custom_event")
+    .map((source) => source.parameter)
+    .sort();
+  assert.deepEqual(customParameters, [
+    "analytics_contract_version",
+    "brand",
+    "error_code",
+    "model",
+    "placement",
+    "stage",
+    "variant_id",
+  ]);
+});
+
+test("accepts an evidence-backed partial lifecycle", async () => {
+  const contract = await loadLifecycleContract("partial");
+
+  assert.deepEqual(validateReportingContract(contract), []);
+  assert.equal(contract.status, "partially_evidenced");
+  assert.equal(contract.dashboard.status, "created");
+  assert.equal(contract.dashboard.baseline.status, "captured");
+  assert.equal(contract.dashboard.reconciliation.status, "pending");
+  assert.equal(contract.experiments[0].baseline.status, "captured");
+  assert.equal(contract.experiments[0].result.status, "pending");
+});
+
+test("accepts an evidence-backed completed lifecycle", async () => {
+  const contract = await loadLifecycleContract("completed");
+
+  assert.deepEqual(validateReportingContract(contract), []);
+  assert.equal(contract.status, "evidence_backed_completed");
+  assert.equal(contract.dashboard.reconciliation.decision, "within_tolerance");
+  assert.ok(contract.experiments.every((experiment) =>
+    experiment.baseline.status === "captured" &&
+    experiment.result.status === "recorded"
+  ));
+});
+
+test("rejects a completed dashboard without evidence", async () => {
+  const contract = await loadLifecycleContract("partial");
+  contract.dashboard.evidenceUrl = null;
+
+  const codes = validateReportingContract(contract).map((item) => item.code);
+  assert.ok(codes.includes("lifecycle_evidence_missing"));
+});
+
+test("validates baseline and result transitions independently", async () => {
+  const partial = await loadLifecycleContract("partial");
+  partial.experiments[0].baseline.ownerName = null;
+  const baselineFindings = validateReportingContract(partial);
+  assert.ok(baselineFindings.some((item) =>
+    item.code === "lifecycle_owner_missing" &&
+    item.location === "$.experiments[0].baseline.ownerName"
+  ));
+
+  const completed = await loadLifecycleContract("completed");
+  completed.experiments[0].result.decision = null;
+  const resultFindings = validateReportingContract(completed);
+  assert.ok(resultFindings.some((item) =>
+    item.code === "experiment_result_decision_invalid" &&
+    item.location === "$.experiments[0].result"
+  ));
+});
+
+test("rejects placeholder evidence and invalid evidence windows", async () => {
+  const contract = await loadLifecycleContract("partial");
+  contract.dashboard.baseline.evidenceUrl =
+    "https://example.invalid/synthetic-baseline";
+  contract.dashboard.baseline.window.end = "not-a-date";
+
+  const codes = validateReportingContract(contract).map((item) => item.code);
+  assert.ok(codes.includes("lifecycle_evidence_missing"));
+  assert.ok(codes.includes("lifecycle_window_invalid"));
+});
+
+test("rejects results without a baseline and stale T+1 evidence", async () => {
+  const contract = await loadLifecycleContract("completed");
+  const experiment = contract.experiments[0];
+  experiment.baseline = {
+    status: "pending",
+    value: null,
+    window: null,
+    capturedAt: null,
+    ownerName: null,
+    evidenceUrl: null,
+    notes: null,
+  };
+  experiment.result.recordedAt = "2026-07-20T08:00:00.000Z";
+
+  const codes = validateReportingContract(contract).map((item) => item.code);
+  assert.ok(codes.includes("experiment_result_without_baseline"));
+  assert.ok(codes.includes("lifecycle_freshness_invalid"));
+});
+
+test("keeps consent, suppression, T+1, tolerance, and no-PII guardrails enforceable", async () => {
+  const contract = await loadLifecycleContract("completed");
+  contract.privacy.consentedRateLabel = "All traffic";
+  contract.privacy.minimumCellSize = 5;
+  contract.dashboard.decisionFreshness.maximumLagHours = 72;
+  contract.dashboard.reconciliation.purchaseRevenue = 340;
+  contract.dashboard.reportingDimensions.push({
+    id: "session_identifier",
+    label: "Session identifier",
+    usage: ["breakdown"],
+    sources: [{
+      sourceType: "ga4_custom_event",
+      apiName: "customEvent:session_id",
+      scope: "event",
+      parameter: "session_id",
+    }],
+  });
+
+  const codes = validateReportingContract(contract).map((item) => item.code);
+  assert.ok(codes.includes("consented_rate_label_missing"));
+  assert.ok(codes.includes("minimum_cell_size_invalid"));
+  assert.ok(codes.includes("decision_freshness_invalid"));
+  assert.ok(codes.includes("reconciliation_tolerance_failed"));
+  assert.ok(codes.includes("custom_dimension_invalid"));
 });
 
 test("reconciles one known-good synthetic purchase to one paid order", async () => {

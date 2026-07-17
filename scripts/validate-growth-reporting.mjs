@@ -35,11 +35,155 @@ const REQUIRED_METRICS = new Set([
   "purchase_reconciliation_rate",
 ]);
 
+const REQUIRED_FILTER_IDS = [
+  "date",
+  "source",
+  "medium",
+  "campaign",
+  "device",
+  "browser",
+  "phone_family",
+  "phone_model",
+];
+
+const REQUIRED_DIMENSION_SOURCES = {
+  date: [{ sourceType: "ga4_builtin", apiName: "date", scope: "event" }],
+  source: [{ sourceType: "ga4_builtin", apiName: "sessionSource", scope: "session" }],
+  medium: [{ sourceType: "ga4_builtin", apiName: "sessionMedium", scope: "session" }],
+  campaign: [{ sourceType: "ga4_builtin", apiName: "sessionCampaignName", scope: "session" }],
+  device: [{ sourceType: "ga4_builtin", apiName: "deviceCategory", scope: "user" }],
+  browser: [{ sourceType: "ga4_builtin", apiName: "browser", scope: "user" }],
+  phone_family: [
+    {
+      sourceType: "ga4_custom_event",
+      apiName: "customEvent:brand",
+      scope: "event",
+      parameter: "brand",
+    },
+    {
+      sourceType: "ga4_builtin",
+      apiName: "itemBrand",
+      scope: "item",
+      parameter: "item_brand",
+    },
+  ],
+  phone_model: [
+    {
+      sourceType: "ga4_custom_event",
+      apiName: "customEvent:model",
+      scope: "event",
+      parameter: "model",
+    },
+    {
+      sourceType: "ga4_builtin",
+      apiName: "itemVariant",
+      scope: "item",
+      parameter: "item_variant",
+    },
+  ],
+  cta_placement: [{
+    sourceType: "ga4_custom_event",
+    apiName: "customEvent:placement",
+    scope: "event",
+    parameter: "placement",
+  }],
+  phone_variant: [{
+    sourceType: "ga4_custom_event",
+    apiName: "customEvent:variant_id",
+    scope: "event",
+    parameter: "variant_id",
+  }],
+  error_code: [{
+    sourceType: "ga4_custom_event",
+    apiName: "customEvent:error_code",
+    scope: "event",
+    parameter: "error_code",
+  }],
+  error_stage: [{
+    sourceType: "ga4_custom_event",
+    apiName: "customEvent:stage",
+    scope: "event",
+    parameter: "stage",
+  }],
+  analytics_contract_version: [{
+    sourceType: "ga4_custom_event",
+    apiName: "customEvent:analytics_contract_version",
+    scope: "event",
+    parameter: "analytics_contract_version",
+  }],
+};
+
+const RATE_METRICS_WITH_CONSENTED_POPULATION = new Set([
+  "homepage_cta_rate",
+  "catalog_model_selection_rate",
+  "editor_first_action_rate",
+  "preview_success_rate",
+  "preview_failure_rate",
+  "add_to_cart_rate",
+  "checkout_start_rate",
+  "purchase_rate",
+  "checkout_completion_rate",
+  "experience_error_rate",
+  "purchase_reconciliation_rate",
+]);
+
+const PLACEHOLDER_PATTERN =
+  /\b(?:example|fake|placeholder|synthetic|tbd|todo|unverified)\b/i;
+
+const PROHIBITED_CUSTOM_DIMENSION_PARAMETERS = new Set([
+  "address",
+  "artwork",
+  "artwork_id",
+  "client_id",
+  "contact",
+  "customer_email",
+  "customer_id",
+  "customer_name",
+  "design_id",
+  "edm_template_id",
+  "email",
+  "free_text",
+  "name",
+  "order_id",
+  "preview_url",
+  "session_id",
+  "shipping_address",
+  "transaction_id",
+  "user_id",
+]);
+
 const isObject = (value) =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 const isNonEmptyString = (value) =>
   typeof value === "string" && value.trim().length > 0;
+
+const isIsoTimestamp = (value) =>
+  isNonEmptyString(value) &&
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value) &&
+  Number.isFinite(Date.parse(value));
+
+const isNamedOwner = (value) =>
+  isNonEmptyString(value) &&
+  value.trim().length >= 2 &&
+  !PLACEHOLDER_PATTERN.test(value) &&
+  !/\b(?:human assignment|owner role|pending|unassigned)\b/i.test(value);
+
+const isEvidenceText = (value) =>
+  isNonEmptyString(value) &&
+  value.trim().length >= 10 &&
+  !PLACEHOLDER_PATTERN.test(value);
+
+const isEvidenceReference = (value) => {
+  if (!isNonEmptyString(value) || PLACEHOLDER_PATTERN.test(value)) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" &&
+      !/(?:^|\.)example\.(?:com|org|net|invalid)$/i.test(url.hostname);
+  } catch {
+    return false;
+  }
+};
 
 const finding = (code, message, location, severity = "error") => ({
   code,
@@ -92,6 +236,102 @@ const collectForbiddenFields = (value, prohibited, location = "$", found = []) =
   return found;
 };
 
+const dimensionSourceMatches = (source, expected) =>
+  Object.entries(expected).every(([key, value]) => source?.[key] === value);
+
+const validateDataWindow = (
+  window,
+  reportingTimezone,
+  location,
+  findings,
+) => {
+  if (
+    !isObject(window) ||
+    !isIsoTimestamp(window.start) ||
+    !isIsoTimestamp(window.end) ||
+    Date.parse(window.start) >= Date.parse(window.end) ||
+    window.timezone !== reportingTimezone ||
+    window.dataStatus !== "complete_t_plus_1"
+  ) {
+    findings.push(finding(
+      "lifecycle_window_invalid",
+      "Evidence-backed lifecycle windows require valid ascending ISO timestamps, the reporting timezone, and complete_t_plus_1 data status.",
+      location,
+    ));
+    return false;
+  }
+  return true;
+};
+
+const validateEvidenceRecord = ({
+  record,
+  status,
+  completedStatus,
+  timestampField,
+  location,
+  reportingTimezone,
+  maximumLagHours,
+  findings,
+  requireWindow = false,
+}) => {
+  if (status !== completedStatus) return false;
+
+  if (!isIsoTimestamp(record?.[timestampField])) {
+    findings.push(finding(
+      "lifecycle_timestamp_missing",
+      `Status '${completedStatus}' requires a valid ${timestampField} ISO timestamp.`,
+      `${location}.${timestampField}`,
+    ));
+  }
+  if (!isNamedOwner(record?.ownerName)) {
+    findings.push(finding(
+      "lifecycle_owner_missing",
+      `Status '${completedStatus}' requires a named human owner.`,
+      `${location}.ownerName`,
+    ));
+  }
+  if (!isEvidenceReference(record?.evidenceUrl)) {
+    findings.push(finding(
+      "lifecycle_evidence_missing",
+      `Status '${completedStatus}' requires a non-placeholder HTTPS evidence reference.`,
+      `${location}.evidenceUrl`,
+    ));
+  }
+  if (!isEvidenceText(record?.notes)) {
+    findings.push(finding(
+      "lifecycle_notes_missing",
+      `Status '${completedStatus}' requires evidence notes without placeholder or synthetic claims.`,
+      `${location}.notes`,
+    ));
+  }
+
+  if (requireWindow) {
+    const validWindow = validateDataWindow(
+      record?.window,
+      reportingTimezone,
+      `${location}.window`,
+      findings,
+    );
+    if (validWindow && isIsoTimestamp(record?.[timestampField])) {
+      const lagHours =
+        (Date.parse(record[timestampField]) - Date.parse(record.window.end)) /
+        3_600_000;
+      if (lagHours < 0 || lagHours > maximumLagHours) {
+        findings.push(finding(
+          "lifecycle_freshness_invalid",
+          `Evidence must be recorded after the complete data window and within ${maximumLagHours} hours.`,
+          `${location}.${timestampField}`,
+        ));
+      }
+    }
+  }
+
+  return true;
+};
+
+const hasUnexpectedPendingEvidence = (record, fields) =>
+  fields.some((field) => record?.[field] !== null && record?.[field] !== undefined);
+
 export const loadJson = async (filePath) =>
   JSON.parse(await readFile(filePath, "utf8"));
 
@@ -108,21 +348,134 @@ export const validateReportingContract = (contract) => {
     ? contract.dashboard.requiredFilters
     : [];
   const filterIds = new Set(filters.map((filter) => filter.id));
-  for (const requiredFilter of [
-    "date",
-    "source",
-    "medium",
-    "campaign",
-    "device",
-    "browser",
-    "phone_family",
-    "phone_model",
-  ]) {
+  for (const requiredFilter of REQUIRED_FILTER_IDS) {
     if (!filterIds.has(requiredFilter)) {
       findings.push(finding(
         "required_filter_missing",
         `Required dashboard filter '${requiredFilter}' is missing.`,
         "$.dashboard.requiredFilters",
+      ));
+    }
+  }
+
+  const prohibitedFields = new Set(
+    Array.isArray(contract?.privacy?.prohibitedFields)
+      ? contract.privacy.prohibitedFields.map((field) => field.toLowerCase())
+      : [],
+  );
+  if (
+    !isNonEmptyString(contract?.privacy?.consentedRateLabel) ||
+    !/\bconsented\b/i.test(contract.privacy.consentedRateLabel)
+  ) {
+    findings.push(finding(
+      "consented_rate_label_missing",
+      "The contract must provide an explicit consented-only rate label.",
+      "$.privacy.consentedRateLabel",
+    ));
+  }
+  if (
+    !Number.isInteger(contract?.privacy?.minimumCellSize) ||
+    contract.privacy.minimumCellSize < 10
+  ) {
+    findings.push(finding(
+      "minimum_cell_size_invalid",
+      "Segmented reports must suppress cells with fewer than 10 sessions.",
+      "$.privacy.minimumCellSize",
+    ));
+  }
+
+  const freshness = contract?.dashboard?.decisionFreshness;
+  if (
+    freshness?.dataStatus !== "complete_t_plus_1" ||
+    freshness?.timezone !== contract?.reportingTimezone ||
+    !Number.isFinite(freshness?.maximumLagHours) ||
+    freshness.maximumLagHours <= 0 ||
+    freshness.maximumLagHours > 48
+  ) {
+    findings.push(finding(
+      "decision_freshness_invalid",
+      "Decision reporting must require complete T+1 data in the reporting timezone with a maximum lag of 48 hours.",
+      "$.dashboard.decisionFreshness",
+    ));
+  }
+  const maximumLagHours = Number(freshness?.maximumLagHours || 0);
+
+  const reportingDimensions = Array.isArray(contract?.dashboard?.reportingDimensions)
+    ? contract.dashboard.reportingDimensions
+    : [];
+  const dimensionIds = new Set();
+  reportingDimensions.forEach((dimension, index) => {
+    const location = `$.dashboard.reportingDimensions[${index}]`;
+    if (!isNonEmptyString(dimension?.id) || dimensionIds.has(dimension.id)) {
+      findings.push(finding(
+        "reporting_dimension_id_invalid",
+        "Reporting dimension IDs must be present and unique.",
+        `${location}.id`,
+      ));
+    }
+    dimensionIds.add(dimension?.id);
+    if (
+      !isNonEmptyString(dimension?.label) ||
+      !Array.isArray(dimension?.usage) ||
+      dimension.usage.length === 0 ||
+      !Array.isArray(dimension?.sources) ||
+      dimension.sources.length === 0
+    ) {
+      findings.push(finding(
+        "reporting_dimension_definition_incomplete",
+        `Reporting dimension '${dimension?.id ?? index}' requires a label, usage, and source mapping.`,
+        location,
+      ));
+    }
+    for (const [sourceIndex, source] of (dimension?.sources ?? []).entries()) {
+      if (
+        source?.sourceType === "ga4_custom_event" &&
+        (
+          source.scope !== "event" ||
+          !isNonEmptyString(source.parameter) ||
+          source.apiName !== `customEvent:${source.parameter}` ||
+          prohibitedFields.has(source.parameter.toLowerCase()) ||
+          PROHIBITED_CUSTOM_DIMENSION_PARAMETERS.has(
+            source.parameter.toLowerCase(),
+          )
+        )
+      ) {
+        findings.push(finding(
+          "custom_dimension_invalid",
+          "Custom GA4 reporting dimensions must be event-scoped, use customEvent:<parameter>, and exclude prohibited fields.",
+          `${location}.sources[${sourceIndex}]`,
+        ));
+      }
+    }
+  });
+
+  for (const [dimensionId, expectedSources] of Object.entries(REQUIRED_DIMENSION_SOURCES)) {
+    const dimension = reportingDimensions.find((entry) => entry.id === dimensionId);
+    if (!dimension) {
+      findings.push(finding(
+        "required_dimension_mapping_missing",
+        `Required reporting dimension '${dimensionId}' is missing.`,
+        "$.dashboard.reportingDimensions",
+      ));
+      continue;
+    }
+    for (const expected of expectedSources) {
+      if (!(dimension.sources ?? []).some((source) => dimensionSourceMatches(source, expected))) {
+        findings.push(finding(
+          "required_dimension_source_missing",
+          `Reporting dimension '${dimensionId}' is missing its ${expected.scope}-scoped ${expected.apiName} source.`,
+          `$.dashboard.reportingDimensions[${reportingDimensions.indexOf(dimension)}].sources`,
+        ));
+      }
+    }
+    if (
+      REQUIRED_FILTER_IDS.includes(dimensionId) &&
+      !(dimension.usage ?? []).includes("filter")
+    ) {
+      findings.push(finding(
+        "required_filter_mapping_invalid",
+        `Reporting dimension '${dimensionId}' must be available as a dashboard filter.`,
+        `$.dashboard.reportingDimensions[${reportingDimensions.indexOf(dimension)}].usage`,
       ));
     }
   }
@@ -149,6 +502,16 @@ export const validateReportingContract = (contract) => {
     }
     if (!Array.isArray(metric.filters) || metric.filters.some((id) => !filterIds.has(id))) {
       findings.push(finding("metric_filter_invalid", `Metric '${metric.id}' references an undefined filter.`, `${location}.filters`));
+    }
+    if (
+      RATE_METRICS_WITH_CONSENTED_POPULATION.has(metric.id) &&
+      !["consented_ga4_sessions", "consented_paid_orders"].includes(metric.populationScope)
+    ) {
+      findings.push(finding(
+        "metric_consent_scope_missing",
+        `Rate metric '${metric.id}' must declare its consented population scope.`,
+        `${location}.populationScope`,
+      ));
     }
   });
 
@@ -201,11 +564,144 @@ export const validateReportingContract = (contract) => {
         `${location}.scores`,
       ));
     }
-    if (experiment.baseline?.status !== "pending" || experiment.baseline?.value !== null) {
-      findings.push(finding("experiment_baseline_unproven", `Experiment '${experiment.id}' must not claim a baseline before production evidence exists.`, `${location}.baseline`));
+    const baseline = experiment.baseline;
+    if (!["pending", "captured"].includes(baseline?.status)) {
+      findings.push(finding(
+        "experiment_baseline_status_invalid",
+        `Experiment '${experiment.id}' baseline status must be pending or captured.`,
+        `${location}.baseline.status`,
+      ));
+    } else if (baseline.status === "pending") {
+      if (
+        baseline.value !== null ||
+        hasUnexpectedPendingEvidence(baseline, [
+          "capturedAt",
+          "ownerName",
+          "evidenceUrl",
+          "window",
+          "notes",
+        ])
+      ) {
+        findings.push(finding(
+          "experiment_baseline_pending_has_evidence",
+          `Experiment '${experiment.id}' cannot carry baseline evidence while pending.`,
+          `${location}.baseline`,
+        ));
+      }
+    } else {
+      validateEvidenceRecord({
+        record: baseline,
+        status: baseline.status,
+        completedStatus: "captured",
+        timestampField: "capturedAt",
+        location: `${location}.baseline`,
+        reportingTimezone: contract.reportingTimezone,
+        maximumLagHours,
+        findings,
+        requireWindow: true,
+      });
+      if (
+        !Number.isFinite(baseline.value) ||
+        baseline.value < 0 ||
+        baseline.value > 1
+      ) {
+        findings.push(finding(
+          "experiment_baseline_value_invalid",
+          `Experiment '${experiment.id}' requires a finite 0-1 baseline rate.`,
+          `${location}.baseline.value`,
+        ));
+      }
     }
-    if (experiment.result?.status !== "pending" || experiment.result?.winner !== null) {
-      findings.push(finding("experiment_result_unproven", `Experiment '${experiment.id}' must not claim a result or winner.`, `${location}.result`));
+
+    const result = experiment.result;
+    if (!["pending", "recorded"].includes(result?.status)) {
+      findings.push(finding(
+        "experiment_result_status_invalid",
+        `Experiment '${experiment.id}' result status must be pending or recorded.`,
+        `${location}.result.status`,
+      ));
+    } else if (result.status === "pending") {
+      if (
+        result.winner !== null ||
+        hasUnexpectedPendingEvidence(result, [
+          "recordedAt",
+          "ownerName",
+          "evidenceUrl",
+          "window",
+          "controlValue",
+          "variantValue",
+          "decision",
+          "notes",
+        ])
+      ) {
+        findings.push(finding(
+          "experiment_result_pending_has_evidence",
+          `Experiment '${experiment.id}' cannot carry result evidence while pending.`,
+          `${location}.result`,
+        ));
+      }
+    } else {
+      validateEvidenceRecord({
+        record: result,
+        status: result.status,
+        completedStatus: "recorded",
+        timestampField: "recordedAt",
+        location: `${location}.result`,
+        reportingTimezone: contract.reportingTimezone,
+        maximumLagHours,
+        findings,
+        requireWindow: true,
+      });
+      if (baseline?.status !== "captured") {
+        findings.push(finding(
+          "experiment_result_without_baseline",
+          `Experiment '${experiment.id}' cannot record a result before its baseline is captured.`,
+          `${location}.result`,
+        ));
+      }
+      if (
+        !Number.isFinite(result.controlValue) ||
+        result.controlValue < 0 ||
+        result.controlValue > 1 ||
+        !Number.isFinite(result.variantValue) ||
+        result.variantValue < 0 ||
+        result.variantValue > 1
+      ) {
+        findings.push(finding(
+          "experiment_result_values_invalid",
+          `Experiment '${experiment.id}' requires finite 0-1 control and variant rates.`,
+          `${location}.result`,
+        ));
+      }
+      const decisionWinnerPairs = {
+        roll_out_variant: "variant",
+        keep_control: "control",
+        inconclusive: null,
+      };
+      if (
+        !Object.hasOwn(decisionWinnerPairs, result.decision) ||
+        result.winner !== decisionWinnerPairs[result.decision]
+      ) {
+        findings.push(finding(
+          "experiment_result_decision_invalid",
+          `Experiment '${experiment.id}' requires a supported decision with a matching winner.`,
+          `${location}.result`,
+        ));
+      }
+      if (
+        baseline?.status === "captured" &&
+        isObject(baseline.window) &&
+        isObject(result.window) &&
+        isIsoTimestamp(baseline.window.end) &&
+        isIsoTimestamp(result.window.start) &&
+        Date.parse(result.window.start) < Date.parse(baseline.window.end)
+      ) {
+        findings.push(finding(
+          "experiment_result_window_overlaps_baseline",
+          `Experiment '${experiment.id}' result window cannot start before its baseline window ends.`,
+          `${location}.result.window`,
+        ));
+      }
     }
   });
 
@@ -225,25 +721,224 @@ export const validateReportingContract = (contract) => {
     ));
   }
 
-  if (
-    contract?.dashboard?.baseline?.status !== "pending" ||
-    contract?.dashboard?.baseline?.capturedAt !== null ||
-    contract?.dashboard?.baseline?.evidenceUrl !== null
-  ) {
+  const dashboard = contract?.dashboard;
+  if (!["pending_external_ga4_access", "created"].includes(dashboard?.status)) {
     findings.push(finding(
-      "dashboard_baseline_unproven",
-      "The dashboard baseline must remain pending until production evidence is attached.",
-      "$.dashboard.baseline",
+      "dashboard_status_invalid",
+      "Dashboard status must be pending_external_ga4_access or created.",
+      "$.dashboard.status",
     ));
+  } else if (dashboard.status === "pending_external_ga4_access") {
+    if (
+      hasUnexpectedPendingEvidence(dashboard, [
+        "createdAt",
+        "ownerName",
+        "evidenceUrl",
+        "notes",
+      ])
+    ) {
+      findings.push(finding(
+        "dashboard_pending_has_evidence",
+        "A pending dashboard cannot carry creation evidence.",
+        "$.dashboard",
+      ));
+    }
+  } else {
+    validateEvidenceRecord({
+      record: dashboard,
+      status: dashboard.status,
+      completedStatus: "created",
+      timestampField: "createdAt",
+      location: "$.dashboard",
+      reportingTimezone: contract.reportingTimezone,
+      maximumLagHours,
+      findings,
+    });
   }
-  if (
-    contract?.cadence?.ownerStatus !== "pending_human_assignment" ||
-    contract?.cadence?.ownerName !== null
-  ) {
+
+  const dashboardBaseline = dashboard?.baseline;
+  if (!["pending", "captured"].includes(dashboardBaseline?.status)) {
     findings.push(finding(
-      "cadence_owner_unverified",
-      "The cadence owner must remain explicitly unassigned until a human accepts it.",
-      "$.cadence",
+      "dashboard_baseline_status_invalid",
+      "Dashboard baseline status must be pending or captured.",
+      "$.dashboard.baseline.status",
+    ));
+  } else if (dashboardBaseline.status === "pending") {
+    if (
+      hasUnexpectedPendingEvidence(dashboardBaseline, [
+        "capturedAt",
+        "ownerName",
+        "evidenceUrl",
+        "window",
+        "notes",
+      ])
+    ) {
+      findings.push(finding(
+        "dashboard_baseline_pending_has_evidence",
+        "A pending dashboard baseline cannot carry evidence.",
+        "$.dashboard.baseline",
+      ));
+    }
+  } else {
+    validateEvidenceRecord({
+      record: dashboardBaseline,
+      status: dashboardBaseline.status,
+      completedStatus: "captured",
+      timestampField: "capturedAt",
+      location: "$.dashboard.baseline",
+      reportingTimezone: contract.reportingTimezone,
+      maximumLagHours,
+      findings,
+      requireWindow: true,
+    });
+    if (dashboard?.status !== "created") {
+      findings.push(finding(
+        "dashboard_baseline_without_dashboard",
+        "A dashboard baseline cannot be captured before the report is created.",
+        "$.dashboard.baseline",
+      ));
+    }
+  }
+
+  const reconciliation = dashboard?.reconciliation;
+  if (!["pending", "completed"].includes(reconciliation?.status)) {
+    findings.push(finding(
+      "reconciliation_status_invalid",
+      "Reconciliation status must be pending or completed.",
+      "$.dashboard.reconciliation.status",
+    ));
+  } else if (reconciliation.status === "pending") {
+    if (
+      hasUnexpectedPendingEvidence(reconciliation, [
+        "completedAt",
+        "ownerName",
+        "evidenceUrl",
+        "window",
+        "purchaseCount",
+        "paidOrderCount",
+        "purchaseRevenue",
+        "paidOrderProductRevenue",
+        "decision",
+        "notes",
+      ])
+    ) {
+      findings.push(finding(
+        "reconciliation_pending_has_evidence",
+        "A pending reconciliation cannot carry completion evidence.",
+        "$.dashboard.reconciliation",
+      ));
+    }
+  } else {
+    validateEvidenceRecord({
+      record: reconciliation,
+      status: reconciliation.status,
+      completedStatus: "completed",
+      timestampField: "completedAt",
+      location: "$.dashboard.reconciliation",
+      reportingTimezone: contract.reportingTimezone,
+      maximumLagHours,
+      findings,
+      requireWindow: true,
+    });
+    if (
+      !Number.isInteger(reconciliation.purchaseCount) ||
+      reconciliation.purchaseCount < 0 ||
+      !Number.isInteger(reconciliation.paidOrderCount) ||
+      reconciliation.paidOrderCount < 0 ||
+      reconciliation.purchaseCount !== reconciliation.paidOrderCount
+    ) {
+      findings.push(finding(
+        "reconciliation_counts_invalid",
+        "Completed reconciliation requires equal non-negative purchase and paid-order counts.",
+        "$.dashboard.reconciliation",
+      ));
+    }
+    if (
+      reconciliation.decision !== "within_tolerance" ||
+      exceedsTolerance(
+        Number(reconciliation.purchaseRevenue),
+        Number(reconciliation.paidOrderProductRevenue),
+        contract.dataQuality.revenueTolerance,
+      )
+    ) {
+      findings.push(finding(
+        "reconciliation_tolerance_failed",
+        "Completed reconciliation must document matching revenue within the configured tolerance.",
+        "$.dashboard.reconciliation",
+      ));
+    }
+    if (dashboard?.status !== "created") {
+      findings.push(finding(
+        "reconciliation_without_dashboard",
+        "Reconciliation cannot complete before the report is created.",
+        "$.dashboard.reconciliation",
+      ));
+    }
+  }
+
+  const cadence = contract?.cadence;
+  if (!["pending_human_assignment", "assigned"].includes(cadence?.ownerStatus)) {
+    findings.push(finding(
+      "cadence_owner_status_invalid",
+      "Cadence owner status must be pending_human_assignment or assigned.",
+      "$.cadence.ownerStatus",
+    ));
+  } else if (cadence.ownerStatus === "pending_human_assignment") {
+    if (
+      cadence.ownerName !== null ||
+      hasUnexpectedPendingEvidence(cadence, ["assignedAt", "evidenceUrl", "notes"])
+    ) {
+      findings.push(finding(
+        "cadence_pending_has_evidence",
+        "An unassigned cadence cannot carry owner evidence.",
+        "$.cadence",
+      ));
+    }
+  } else {
+    validateEvidenceRecord({
+      record: cadence,
+      status: cadence.ownerStatus,
+      completedStatus: "assigned",
+      timestampField: "assignedAt",
+      location: "$.cadence",
+      reportingTimezone: contract.reportingTimezone,
+      maximumLagHours,
+      findings,
+    });
+    if (
+      !isEvidenceText(cadence.schedule) ||
+      !isEvidenceReference(cadence.decisionLog)
+    ) {
+      findings.push(finding(
+        "cadence_details_invalid",
+        "An assigned cadence requires a concrete schedule and HTTPS decision-log location.",
+        "$.cadence",
+      ));
+    }
+  }
+
+  const evidenceStates = [
+    dashboard?.status === "created",
+    dashboardBaseline?.status === "captured",
+    reconciliation?.status === "completed",
+    cadence?.ownerStatus === "assigned",
+    ...experiments.flatMap((experiment) => [
+      experiment.baseline?.status === "captured",
+      experiment.result?.status === "recorded",
+    ]),
+  ];
+  const hasEvidence = evidenceStates.some(Boolean);
+  const allEvidenceComplete = evidenceStates.every(Boolean);
+  const expectedContractStatus = allEvidenceComplete
+    ? "evidence_backed_completed"
+    : hasEvidence
+      ? "partially_evidenced"
+      : "repository_ready_external_evidence_pending";
+  if (contract?.status !== expectedContractStatus) {
+    findings.push(finding(
+      "contract_lifecycle_status_mismatch",
+      `Contract status must be '${expectedContractStatus}' for its current evidence states.`,
+      "$.status",
     ));
   }
 

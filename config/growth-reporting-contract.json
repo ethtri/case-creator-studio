@@ -1,11 +1,12 @@
 {
-  "contractVersion": "1.0.0",
+  "contractVersion": "1.1.0",
   "analyticsContractVersion": "1.0.0",
   "reportingTimezone": "America/Los_Angeles",
   "currency": "USD",
   "status": "repository_ready_external_evidence_pending",
   "privacy": {
     "consentScope": "Only consented GA4 sessions and events are observable; this must be stated beside every rate or trend.",
+    "consentedRateLabel": "Consented traffic only — GA4 rates exclude visitors who decline analytics.",
     "prohibitedFields": [
       "address",
       "artwork",
@@ -23,6 +24,10 @@
   },
   "dashboard": {
     "status": "pending_external_ga4_access",
+    "createdAt": null,
+    "ownerName": null,
+    "evidenceUrl": null,
+    "notes": null,
     "requiredFilters": [
       {
         "id": "date",
@@ -73,11 +78,216 @@
         "required": true
       }
     ],
+    "reportingDimensions": [
+      {
+        "id": "date",
+        "label": "Date",
+        "usage": ["filter", "breakdown"],
+        "sources": [
+          {
+            "sourceType": "ga4_builtin",
+            "apiName": "date",
+            "scope": "event"
+          }
+        ]
+      },
+      {
+        "id": "source",
+        "label": "Session source",
+        "usage": ["filter", "breakdown"],
+        "sources": [
+          {
+            "sourceType": "ga4_builtin",
+            "apiName": "sessionSource",
+            "scope": "session"
+          }
+        ]
+      },
+      {
+        "id": "medium",
+        "label": "Session medium",
+        "usage": ["filter", "breakdown"],
+        "sources": [
+          {
+            "sourceType": "ga4_builtin",
+            "apiName": "sessionMedium",
+            "scope": "session"
+          }
+        ]
+      },
+      {
+        "id": "campaign",
+        "label": "Session campaign",
+        "usage": ["filter", "breakdown"],
+        "sources": [
+          {
+            "sourceType": "ga4_builtin",
+            "apiName": "sessionCampaignName",
+            "scope": "session"
+          }
+        ]
+      },
+      {
+        "id": "device",
+        "label": "Device category",
+        "usage": ["filter", "breakdown"],
+        "sources": [
+          {
+            "sourceType": "ga4_builtin",
+            "apiName": "deviceCategory",
+            "scope": "user"
+          }
+        ]
+      },
+      {
+        "id": "browser",
+        "label": "Browser",
+        "usage": ["filter", "breakdown"],
+        "sources": [
+          {
+            "sourceType": "ga4_builtin",
+            "apiName": "browser",
+            "scope": "user"
+          }
+        ]
+      },
+      {
+        "id": "phone_family",
+        "label": "Phone family",
+        "usage": ["filter", "breakdown"],
+        "sources": [
+          {
+            "sourceType": "ga4_custom_event",
+            "apiName": "customEvent:brand",
+            "scope": "event",
+            "parameter": "brand",
+            "registeredDisplayName": "Phone family"
+          },
+          {
+            "sourceType": "ga4_builtin",
+            "apiName": "itemBrand",
+            "scope": "item",
+            "parameter": "item_brand"
+          }
+        ]
+      },
+      {
+        "id": "phone_model",
+        "label": "Phone model",
+        "usage": ["filter", "breakdown"],
+        "sources": [
+          {
+            "sourceType": "ga4_custom_event",
+            "apiName": "customEvent:model",
+            "scope": "event",
+            "parameter": "model",
+            "registeredDisplayName": "Phone model"
+          },
+          {
+            "sourceType": "ga4_builtin",
+            "apiName": "itemVariant",
+            "scope": "item",
+            "parameter": "item_variant"
+          }
+        ]
+      },
+      {
+        "id": "cta_placement",
+        "label": "CTA placement",
+        "usage": ["breakdown"],
+        "sources": [
+          {
+            "sourceType": "ga4_custom_event",
+            "apiName": "customEvent:placement",
+            "scope": "event",
+            "parameter": "placement",
+            "registeredDisplayName": "CTA placement"
+          }
+        ]
+      },
+      {
+        "id": "phone_variant",
+        "label": "Phone variant",
+        "usage": ["breakdown"],
+        "sources": [
+          {
+            "sourceType": "ga4_custom_event",
+            "apiName": "customEvent:variant_id",
+            "scope": "event",
+            "parameter": "variant_id",
+            "registeredDisplayName": "Phone variant"
+          }
+        ]
+      },
+      {
+        "id": "error_code",
+        "label": "Error code",
+        "usage": ["breakdown"],
+        "sources": [
+          {
+            "sourceType": "ga4_custom_event",
+            "apiName": "customEvent:error_code",
+            "scope": "event",
+            "parameter": "error_code",
+            "registeredDisplayName": "Error code"
+          }
+        ]
+      },
+      {
+        "id": "error_stage",
+        "label": "Error stage",
+        "usage": ["breakdown"],
+        "sources": [
+          {
+            "sourceType": "ga4_custom_event",
+            "apiName": "customEvent:stage",
+            "scope": "event",
+            "parameter": "stage",
+            "registeredDisplayName": "Error stage"
+          }
+        ]
+      },
+      {
+        "id": "analytics_contract_version",
+        "label": "Analytics contract version",
+        "usage": ["breakdown", "data_quality"],
+        "sources": [
+          {
+            "sourceType": "ga4_custom_event",
+            "apiName": "customEvent:analytics_contract_version",
+            "scope": "event",
+            "parameter": "analytics_contract_version",
+            "registeredDisplayName": "Analytics contract version"
+          }
+        ]
+      }
+    ],
     "freshnessExpectation": "GA4 events: intraday for operational checks and T+1 for decision reporting; orders and Stripe: near real time; Core Web Vitals field data: trailing 28 days.",
+    "decisionFreshness": {
+      "dataStatus": "complete_t_plus_1",
+      "timezone": "America/Los_Angeles",
+      "maximumLagHours": 48
+    },
     "baseline": {
       "status": "pending",
       "capturedAt": null,
-      "evidenceUrl": null
+      "ownerName": null,
+      "evidenceUrl": null,
+      "window": null,
+      "notes": null
+    },
+    "reconciliation": {
+      "status": "pending",
+      "completedAt": null,
+      "ownerName": null,
+      "evidenceUrl": null,
+      "window": null,
+      "purchaseCount": null,
+      "paidOrderCount": null,
+      "purchaseRevenue": null,
+      "paidOrderProductRevenue": null,
+      "decision": null,
+      "notes": null
     }
   },
   "metrics": [
@@ -112,6 +322,7 @@
       "freshness": "T+1",
       "timezone": "America/Los_Angeles",
       "ownerRole": "Growth review owner (human assignment pending)",
+      "populationScope": "consented_ga4_sessions",
       "filters": ["date", "source", "medium", "campaign", "device", "browser"]
     },
     {
@@ -123,6 +334,7 @@
       "freshness": "T+1",
       "timezone": "America/Los_Angeles",
       "ownerRole": "Growth review owner (human assignment pending)",
+      "populationScope": "consented_ga4_sessions",
       "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
     },
     {
@@ -134,6 +346,7 @@
       "freshness": "T+1",
       "timezone": "America/Los_Angeles",
       "ownerRole": "Product/growth review owner (human assignment pending)",
+      "populationScope": "consented_ga4_sessions",
       "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
     },
     {
@@ -145,6 +358,7 @@
       "freshness": "T+1",
       "timezone": "America/Los_Angeles",
       "ownerRole": "Product/growth review owner (human assignment pending)",
+      "populationScope": "consented_ga4_sessions",
       "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
     },
     {
@@ -156,6 +370,7 @@
       "freshness": "T+1",
       "timezone": "America/Los_Angeles",
       "ownerRole": "Product/growth review owner (human assignment pending)",
+      "populationScope": "consented_ga4_sessions",
       "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
     },
     {
@@ -167,6 +382,7 @@
       "freshness": "T+1",
       "timezone": "America/Los_Angeles",
       "ownerRole": "Growth review owner (human assignment pending)",
+      "populationScope": "consented_ga4_sessions",
       "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
     },
     {
@@ -178,6 +394,7 @@
       "freshness": "T+1",
       "timezone": "America/Los_Angeles",
       "ownerRole": "Growth review owner (human assignment pending)",
+      "populationScope": "consented_ga4_sessions",
       "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
     },
     {
@@ -189,6 +406,7 @@
       "freshness": "T+1 after outbox health and order reconciliation pass",
       "timezone": "America/Los_Angeles",
       "ownerRole": "Growth review owner (human assignment pending)",
+      "populationScope": "consented_ga4_sessions",
       "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
     },
     {
@@ -200,6 +418,7 @@
       "freshness": "T+1 after order reconciliation",
       "timezone": "America/Los_Angeles",
       "ownerRole": "Growth review owner (human assignment pending)",
+      "populationScope": "consented_ga4_sessions",
       "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
     },
     {
@@ -233,6 +452,7 @@
       "freshness": "Intraday for alerts; T+1 for decisions",
       "timezone": "America/Los_Angeles",
       "ownerRole": "Engineering/product review owner (human assignment pending)",
+      "populationScope": "consented_ga4_sessions",
       "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
     },
     {
@@ -255,6 +475,7 @@
       "freshness": "Daily before the growth review",
       "timezone": "America/Los_Angeles",
       "ownerRole": "Analytics/operations review owner (human assignment pending)",
+      "populationScope": "consented_paid_orders",
       "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
     }
   ],
@@ -305,6 +526,9 @@
     "ownerRole": "Growth review owner",
     "ownerName": null,
     "ownerStatus": "pending_human_assignment",
+    "assignedAt": null,
+    "evidenceUrl": null,
+    "notes": null,
     "schedule": "Weekly during launch hardening; day and time pending owner assignment",
     "decisionLog": "Use the relevant GitHub experiment issue created from `.github/ISSUE_TEMPLATE/experiment.yml`; record the evidence window, decision, guardrails, and follow-up in that issue.",
     "requiredInputs": [
@@ -340,12 +564,23 @@
       "baseline": {
         "status": "pending",
         "value": null,
-        "window": null
+        "window": null,
+        "capturedAt": null,
+        "ownerName": null,
+        "evidenceUrl": null,
+        "notes": null
       },
       "result": {
         "status": "pending",
         "winner": null,
-        "evidenceUrl": null
+        "evidenceUrl": null,
+        "recordedAt": null,
+        "ownerName": null,
+        "window": null,
+        "controlValue": null,
+        "variantValue": null,
+        "decision": null,
+        "notes": null
       },
       "implementationPlan": [
         "Open a dedicated experiment issue and record approved control/variant copy before implementation.",
@@ -380,8 +615,27 @@
       "effort": "Medium copy/layout treatment; every production, delivery, and quality claim must be substantiated first.",
       "minimumRunRule": "Pre-register effect size and required sample from the production baseline; run at least 14 complete days/two weekly cycles and the calculated sample, otherwise use a labeled observational release.",
       "stopCriteria": "Stop for misleading/unsubstantiated copy, accessibility regression, performance regression, or material purchase/error guardrail harm.",
-      "baseline": {"status": "pending", "value": null, "window": null},
-      "result": {"status": "pending", "winner": null, "evidenceUrl": null}
+      "baseline": {
+        "status": "pending",
+        "value": null,
+        "window": null,
+        "capturedAt": null,
+        "ownerName": null,
+        "evidenceUrl": null,
+        "notes": null
+      },
+      "result": {
+        "status": "pending",
+        "winner": null,
+        "evidenceUrl": null,
+        "recordedAt": null,
+        "ownerName": null,
+        "window": null,
+        "controlValue": null,
+        "variantValue": null,
+        "decision": null,
+        "notes": null
+      }
     },
     {
       "rank": 3,
@@ -399,8 +653,27 @@
       "effort": "Medium asset production, responsive art direction, compression, and provenance review.",
       "minimumRunRule": "Do not start without approved real photography and a production baseline; then pre-register sample size and run at least 14 complete days/two weekly cycles.",
       "stopCriteria": "Stop if imagery is synthetic or unrepresentative, lacks rights/provenance, regresses LCP/CLS or accessibility, or materially harms design starts/errors.",
-      "baseline": {"status": "pending", "value": null, "window": null},
-      "result": {"status": "pending", "winner": null, "evidenceUrl": null}
+      "baseline": {
+        "status": "pending",
+        "value": null,
+        "window": null,
+        "capturedAt": null,
+        "ownerName": null,
+        "evidenceUrl": null,
+        "notes": null
+      },
+      "result": {
+        "status": "pending",
+        "winner": null,
+        "evidenceUrl": null,
+        "recordedAt": null,
+        "ownerName": null,
+        "window": null,
+        "controlValue": null,
+        "variantValue": null,
+        "decision": null,
+        "notes": null
+      }
     },
     {
       "rank": 4,
@@ -418,8 +691,27 @@
       "effort": "Medium operational verification plus conditional UI/copy.",
       "minimumRunRule": "Do not start before operations approves the estimate and exceptions; pre-register sample size and run at least 14 complete days/two weekly cycles.",
       "stopCriteria": "Stop for missed or misleading promises, geography mismatch, accessibility defects, support complaints, or purchase/error guardrail harm.",
-      "baseline": {"status": "pending", "value": null, "window": null},
-      "result": {"status": "pending", "winner": null, "evidenceUrl": null}
+      "baseline": {
+        "status": "pending",
+        "value": null,
+        "window": null,
+        "capturedAt": null,
+        "ownerName": null,
+        "evidenceUrl": null,
+        "notes": null
+      },
+      "result": {
+        "status": "pending",
+        "winner": null,
+        "evidenceUrl": null,
+        "recordedAt": null,
+        "ownerName": null,
+        "window": null,
+        "controlValue": null,
+        "variantValue": null,
+        "decision": null,
+        "notes": null
+      }
     },
     {
       "rank": 5,
@@ -437,8 +729,27 @@
       "effort": "Large asset, interaction, responsive, and performance treatment.",
       "minimumRunRule": "Do not start without approved assets and a production baseline; pre-register sample size and run at least 14 complete days/two weekly cycles.",
       "stopCriteria": "Stop for inaccessible controls, misleading imagery, mobile interaction defects, LCP/CLS regression, or purchase/error guardrail harm.",
-      "baseline": {"status": "pending", "value": null, "window": null},
-      "result": {"status": "pending", "winner": null, "evidenceUrl": null}
+      "baseline": {
+        "status": "pending",
+        "value": null,
+        "window": null,
+        "capturedAt": null,
+        "ownerName": null,
+        "evidenceUrl": null,
+        "notes": null
+      },
+      "result": {
+        "status": "pending",
+        "winner": null,
+        "evidenceUrl": null,
+        "recordedAt": null,
+        "ownerName": null,
+        "window": null,
+        "controlValue": null,
+        "variantValue": null,
+        "decision": null,
+        "notes": null
+      }
     }
   ]
 }
