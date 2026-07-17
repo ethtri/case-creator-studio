@@ -1,3 +1,5 @@
+import { normalizeRoutePath } from "./lib/route-path";
+
 export const loadIndex = () => import("./pages/Index");
 export const loadCatalog = () => import("./pages/Catalog");
 export const loadSeoLanding = () => import("./pages/SeoLanding");
@@ -39,7 +41,7 @@ const seoLandingPaths = new Set([
  * the matching chunk before providers can publish client-only state updates.
  */
 export const preloadInitialRoute = (pathname: string): Promise<unknown> => {
-  const routePath = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  const routePath = normalizeRoutePath(pathname);
 
   if (routePath === "/") return loadIndex();
   if (routePath === "/catalog") return loadCatalog();
