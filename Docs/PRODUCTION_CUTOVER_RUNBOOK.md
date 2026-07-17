@@ -26,7 +26,7 @@ Configure these only after dry-run and TTL/print-mode gates are accepted. Do not
 | Fulfillment safety | `ALLOW_ONSHORE_MANUAL=true` |
 | Operators | `OPERATOR_EMAILS=<Snapcase administrator email(s)>` |
 | Stripe | `STRIPE_MODE=live`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
-| Analytics | `GA4_MEASUREMENT_ID`, `GA4_API_SECRET` (server-only Measurement Protocol credential) |
+| Analytics | `GA4_MEASUREMENT_ID`, `GA4_API_SECRET` (server-only Measurement Protocol credential), `GA4_OUTBOX_DRAIN_AUTH_SECRET` |
 | Kexiaozhan API | `KEXIAOZHAN_API_BASE_URL=https://kxzus.kexiaozhan.com` |
 | Kexiaozhan auth | `KEXIAOZHAN_MACHINE_KEY`, `KEXIAOZHAN_ALLOWED_MACHINE_SN` |
 | Checkout pricing | `KEXIAOZHAN_CHECKOUT_UNIT_AMOUNT_CENTS`, `KEXIAOZHAN_CHECKOUT_SHIPPING_CENTS`, `KEXIAOZHAN_CHECKOUT_CURRENCY` |
@@ -53,6 +53,7 @@ Deploy or confirm these Supabase Edge Functions in production before the pilot:
 - `kexiaozhan-checkout-redirect`
 - `kexiaozhan-checkout-expirer`
 - `stripe-webhook`
+- `ga4-outbox-drain`
 - `verify-payment`
 - `route-fulfillment-order`
 - `production-jobs`
@@ -61,13 +62,21 @@ Deploy or confirm these Supabase Edge Functions in production before the pilot:
 - `submit-printful-order`
 
 Apply all repository migrations, including
-`20260717090000_add_analytics_event_outbox`.
+`20260717090000_add_analytics_event_outbox`,
+`20260717160000_harden_analytics_event_outbox`, and
+`20260717161000_schedule_analytics_outbox_drain`. Apply the hardening migration,
+deploy the updated Stripe webhook and `ga4-outbox-drain`, then apply the schedule
+migration.
 
 Confirm Supabase Vault contains:
 
 - `project_url`
+- `ga4_outbox_drain_auth_secret`
 - `kexiaozhan_checkout_expirer_auth_secret`
 
+The Vault `ga4_outbox_drain_auth_secret` value must match the Edge Function env
+`GA4_OUTBOX_DRAIN_AUTH_SECRET`. The worker uses this dedicated cron credential
+instead of placing the Supabase service-role key in the scheduled request.
 The Vault `kexiaozhan_checkout_expirer_auth_secret` value must match the Edge Function env `KEXIAOZHAN_CHECKOUT_EXPIRER_AUTH_SECRET`. This avoids storing the service-role key in the expirer cron header.
 
 ## Stripe Webhook

@@ -279,7 +279,12 @@ export const getAnalyticsClientId = async (
 
     window.gtag?.("get", measurementId, "client_id", (value: unknown) => {
       window.clearTimeout(timeout);
-      finish(typeof value === "string" && value.trim() ? value.slice(0, 200) : null);
+      const normalized = typeof value === "string" ? value.trim() : "";
+      finish(
+        /^\d{1,20}\.\d{1,20}$/.test(normalized)
+          ? normalized
+          : null,
+      );
     });
   });
 };

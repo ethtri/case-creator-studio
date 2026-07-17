@@ -3,6 +3,7 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { getCorsHeaders, requireAllowedOrigin } from "../_shared/cors.ts";
+import { GA4_BROWSER_CLIENT_ID_PATTERN } from "../_shared/ga4-client-id.ts";
 import { getStripeSecretKey } from "../_shared/stripe-config.ts";
 
 const FULFILLMENT_PROVIDERS = new Set(["printful", "onshore_manual"]);
@@ -139,7 +140,12 @@ const checkoutRequestSchema = z.object({
   customerEmail: z.string().email().max(255),
   promoCode: promoCodeSchema.optional(),
   marketingAttribution: marketingAttributionSchema,
-  analyticsClientId: z.string().max(200).nullable().optional(),
+  analyticsClientId: z.string()
+    .trim()
+    .regex(GA4_BROWSER_CLIENT_ID_PATTERN, "Invalid analytics client ID")
+    .max(41)
+    .nullable()
+    .optional(),
   analyticsConsent: z.enum(["granted", "denied", "unset"]).optional(),
 });
 
