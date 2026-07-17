@@ -2,7 +2,7 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-07-16
+**Last updated:** 2026-07-17
 **Last updated by:** Codex
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
@@ -39,6 +39,9 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - Run `Docs/QA_SMOKE_TEST_CHECKLIST.md` before go-live.
 - QA smoke test: PASS (live-mode order; test-mode run skipped per owner).
 - SEO: pre-rendered `/` and `/catalog` with indexable HTML; app routes use noindex fallback.
+- Marketing analytics: the production GA4 command queue uses Google's canonical
+  `arguments` shape so consented browser page views reach GA4; opt-out remains
+  the default and advertising storage stays denied (#96).
 - Promo codes: pre-checkout apply with Stripe validation; enforce eligibility at checkout.
 - UAT: cart persists after Stripe cancel; My Orders thumbnails restored.
 - UAT: multi-item checkout metadata limit handled.

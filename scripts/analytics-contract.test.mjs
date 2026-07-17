@@ -9,6 +9,7 @@ import {
   mergeMarketingAttribution,
   sanitizeMarketingPayload,
   setAnalyticsConsent,
+  trackMarketingEvent,
 } from "../src/lib/marketing.ts";
 import {
   getMarketingPageLocation,
@@ -265,15 +266,26 @@ test("applies one consent update before loading Google Analytics", () => {
 
   try {
     setAnalyticsConsent("granted");
+    trackMarketingEvent("page_view", { page_path: "/" });
+    const commands = globalThis.window.dataLayer.filter(
+      (entry) => typeof entry?.[0] === "string",
+    );
     const consentCommands = globalThis.window.dataLayer.filter(
       (entry) => entry[0] === "consent",
     );
 
+    assert.equal(commands.length, 5);
+    for (const command of commands) {
+      assert.equal(Object.prototype.toString.call(command), "[object Arguments]");
+      assert.equal(Array.isArray(command), false);
+    }
     assert.equal(consentCommands.length, 2);
     assert.equal(consentCommands[0][1], "default");
     assert.equal(consentCommands[0][2].analytics_storage, "denied");
     assert.equal(consentCommands[1][1], "update");
     assert.equal(consentCommands[1][2].analytics_storage, "granted");
+    assert.equal(commands.at(-1)[0], "event");
+    assert.equal(commands.at(-1)[1], "page_view");
     assert.equal(scripts.length, 1);
   } finally {
     globalThis.window = previousWindow;

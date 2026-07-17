@@ -171,8 +171,10 @@ const ensureGtag = () => {
   window.dataLayer = window.dataLayer ?? [];
   window.gtag =
     window.gtag ??
-    function gtag(...args: unknown[]) {
-      window.dataLayer?.push(args);
+    function gtag() {
+      // Google gtag requires the function's Arguments object, not a rest array.
+      // eslint-disable-next-line prefer-rest-params
+      window.dataLayer?.push(arguments);
     };
 
   if (!consentDefaultsInitialized) {
