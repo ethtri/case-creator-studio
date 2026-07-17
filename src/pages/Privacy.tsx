@@ -1,9 +1,23 @@
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
+import { Button } from "@/components/ui/button";
+import {
+  getAnalyticsConsent,
+  setAnalyticsConsent,
+  subscribeToAnalyticsConsent,
+  type AnalyticsConsent,
+} from "@/lib/marketing";
 
 const Privacy = () => {
+  const [analyticsConsent, setConsentState] = useState<AnalyticsConsent>(
+    getAnalyticsConsent,
+  );
+
+  useEffect(() => subscribeToAnalyticsConsent(setConsentState), []);
+
   return (
     <div className="min-h-screen bg-background">
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/30">
@@ -53,6 +67,41 @@ const Privacy = () => {
                 We use your data to process payments, fulfill orders, provide support, and improve
                 the product. We do not sell your personal information.
               </p>
+            </div>
+
+            <div>
+              <h2 className="text-xl font-semibold text-foreground mb-3">
+                Analytics and your choices
+              </h2>
+              <p>
+                We use Google Analytics only after you allow analytics. It helps us understand
+                which pages and phone models lead to completed purchases. We send product,
+                campaign, and order totals, but not uploaded artwork, contact information, or
+                shipping addresses. Advertising storage and ad personalization remain disabled.
+              </p>
+              <p className="mt-3">
+                Your current analytics preference is{" "}
+                <strong className="text-foreground">
+                  {analyticsConsent === "unset" ? "not selected" : analyticsConsent}
+                </strong>
+                . You can change it at any time on this device.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setAnalyticsConsent("denied")}
+                >
+                  Decline analytics
+                </Button>
+                <Button
+                  type="button"
+                  className="bg-cta text-cta-foreground hover:bg-cta/90"
+                  onClick={() => setAnalyticsConsent("granted")}
+                >
+                  Allow analytics
+                </Button>
+              </div>
             </div>
 
             <div>

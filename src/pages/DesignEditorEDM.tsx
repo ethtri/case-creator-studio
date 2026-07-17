@@ -9,6 +9,7 @@ import { Loader2, AlertCircle, ExternalLink, ArrowLeft, ArrowRight, Maximize2, M
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { trackMarketingEvent } from "@/lib/marketing";
+import { asMarketingItems, buildAnalyticsItem } from "@/lib/analytics-commerce";
 
 // Printful product IDs for snap cases
 const PRINTFUL_PRODUCT_IDS = {
@@ -131,6 +132,7 @@ const DesignEditorEDM = () => {
   const designerContainerRef = useRef<HTMLDivElement | null>(null);
   const [designerHeight, setDesignerHeight] = useState<number | null>(null);
   const resizeIntervalRef = useRef<number | null>(null);
+  const firstActionTrackedRef = useRef(false);
 
   const buildDesignKey = useCallback((id: string, suffix: string) => `edmDesign:${id}:${suffix}`, []);
 
@@ -270,6 +272,10 @@ const DesignEditorEDM = () => {
       scriptLoadedRef.current = true;
     };
     script.onerror = () => {
+      trackMarketingEvent("editor_error", {
+        error_code: "designer_script_load_failed",
+        variant_id: variantId ?? null,
+      });
       setError('Failed to load the design editor script');
       setLoading(false);
     };
@@ -278,7 +284,7 @@ const DesignEditorEDM = () => {
     return () => {
       // Don't remove script on cleanup - it might be needed
     };
-  }, []);
+  }, [variantId]);
 
   // Initialize the design maker
   const initializeDesignMaker = useCallback(async () => {
@@ -427,6 +433,14 @@ const DesignEditorEDM = () => {
           }
           if (hasChanges) {
             clearPreviewCache(true);
+            if (!firstActionTrackedRef.current) {
+              firstActionTrackedRef.current = true;
+              trackMarketingEvent("editor_first_action", {
+                variant_id: variant.id,
+                brand: variant.brand,
+                model: variant.model,
+              });
+            }
           }
           designValidRef.current = isValid;
           hasSeenStatusRef.current = true;
@@ -454,6 +468,12 @@ const DesignEditorEDM = () => {
         },
         onError: (err) => {
           debugLog('EDM error:', err);
+          trackMarketingEvent("editor_error", {
+            error_code: "designer_runtime_error",
+            variant_id: variant.id,
+            brand: variant.brand,
+            model: variant.model,
+          });
           setError('An error occurred in the design maker');
           setLoading(false);
         },
@@ -462,6 +482,12 @@ const DesignEditorEDM = () => {
 
     } catch (err) {
       debugLog('Error initializing EDM:', err);
+      trackMarketingEvent("editor_error", {
+        error_code: "designer_initialization_failed",
+        variant_id: variant.id,
+        brand: variant.brand,
+        model: variant.model,
+      });
       setError(err instanceof Error ? err.message : 'Failed to initialize design maker');
       setLoading(false);
     }
@@ -516,7 +542,16 @@ const DesignEditorEDM = () => {
   useEffect(() => {
     if (!variant) return;
 
-    trackMarketingEvent("begin_design", {
+    firstActionTrackedRef.current = false;
+    const items = asMarketingItems(
+      [buildAnalyticsItem({ variant })].filter(Boolean),
+    );
+    trackMarketingEvent("view_item", {
+      currency: variant.currency,
+      value: variant.price,
+      items,
+    });
+    trackMarketingEvent("design_start", {
       variant_id: variant.id,
       brand: variant.brand,
       model: variant.model,

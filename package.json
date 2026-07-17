@@ -25,7 +25,7 @@
     "validate:printful": "node scripts/validate-printful-variants.mjs",
     "kexiaozhan:preflight": "node scripts/kexiaozhan-test-preflight.mjs",
     "kexiaozhan:staging": "node scripts/kexiaozhan-staging-mode.mjs",
-    "test": "node --test scripts/kexiaozhan-test-preflight.test.mjs"
+    "test": "node --experimental-strip-types --test scripts/analytics-contract.test.mjs scripts/kexiaozhan-test-preflight.test.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

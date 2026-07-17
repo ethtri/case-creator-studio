@@ -112,7 +112,7 @@ const promoCodeSchema = z.object({
   code: z.string().min(1).max(50),
 });
 
-const marketingAttributionSchema = z.object({
+const marketingTouchSchema = z.object({
   utm_source: z.string().max(500).optional(),
   utm_medium: z.string().max(500).optional(),
   utm_campaign: z.string().max(500).optional(),
@@ -124,13 +124,23 @@ const marketingAttributionSchema = z.object({
   referrer: z.string().max(500).optional(),
   landingPath: z.string().max(500),
   capturedAt: z.string().max(100),
-}).nullable().optional();
+});
+
+const marketingAttributionSchema = z.union([
+  marketingTouchSchema,
+  z.object({
+    firstTouch: marketingTouchSchema,
+    lastTouch: marketingTouchSchema,
+  }),
+]).nullable().optional();
 
 const checkoutRequestSchema = z.object({
   items: z.array(itemSchema).min(1).max(50),
   customerEmail: z.string().email().max(255),
   promoCode: promoCodeSchema.optional(),
   marketingAttribution: marketingAttributionSchema,
+  analyticsClientId: z.string().max(200).nullable().optional(),
+  analyticsConsent: z.enum(["granted", "denied", "unset"]).optional(),
 });
 
 // Server-side pricing - single source of truth
@@ -288,6 +298,8 @@ serve(async (req) => {
       customerEmail,
       promoCode,
       marketingAttribution,
+      analyticsClientId,
+      analyticsConsent,
     } = validationResult.data;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
@@ -445,6 +457,8 @@ serve(async (req) => {
       promotion_code_id: promo?.promotionCodeId ?? null,
       coupon_id: promo?.couponId ?? null,
       marketing_attribution: marketingAttribution ?? null,
+      analytics_client_id: analyticsClientId ?? null,
+      analytics_consent: analyticsConsent ?? "unset",
       total: total,
       status: "pending",
       fulfillment_provider: getFulfillmentProvider(),

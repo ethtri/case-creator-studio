@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { isPreviewUrl } from "@/utils/preview";
 import { trackMarketingEvent } from "@/lib/marketing";
+import { asMarketingItems, buildAnalyticsItem } from "@/lib/analytics-commerce";
 
 // Import mockup images
 import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
@@ -382,7 +383,7 @@ const Preview = () => {
               setDesignPreviewAngled(mockupUrlAngled);
             }
             setPreviewKind("mockup");
-            trackMarketingEvent("preview_generated", {
+            trackMarketingEvent("preview_success", {
               variant_id: variant.id,
               brand: variant.brand,
               model: variant.model,
@@ -446,6 +447,12 @@ const Preview = () => {
         }
         autoRetryRef.current.count = 0;
         autoRetryInFlightRef.current = false;
+        trackMarketingEvent("preview_failure", {
+          variant_id: variant.id,
+          brand: variant.brand,
+          model: variant.model,
+          error_code: isRateLimit ? "preview_rate_limited" : "preview_generation_failed",
+        });
         setEdmPreviewError(message);
         previewErrorTimerRef.current = window.setTimeout(() => {
           setShowPreviewError(true);
@@ -503,11 +510,11 @@ const Preview = () => {
     }
     addToCart(variant, designPreview, edmTemplateId, designId, externalProductId);
     trackMarketingEvent("add_to_cart", {
-      variant_id: variant.id,
-      brand: variant.brand,
-      model: variant.model,
       value: variant.price,
       currency: variant.currency,
+      items: asMarketingItems(
+        [buildAnalyticsItem({ variant, quantity: 1 })].filter(Boolean),
+      ),
     });
     setAddedToCart(true);
     toast.success("Added to cart!");
@@ -560,7 +567,7 @@ const Preview = () => {
     if (error) {
       toast.error("Unable to save design. Please try again.");
     } else {
-      trackMarketingEvent("save_design", {
+      trackMarketingEvent("design_save", {
         variant_id: variant.id,
         brand: variant.brand,
         model: variant.model,

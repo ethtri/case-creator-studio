@@ -9,6 +9,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import type { ReactNode } from "react";
 import AppRoutes from "./AppRoutes";
 import { MarketingRuntime } from "./components/MarketingRuntime";
+import { AnalyticsConsentBanner } from "./components/AnalyticsConsentBanner";
 import { SeoRuntime } from "./components/SeoRuntime";
 
 const queryClient = new QueryClient();
@@ -35,6 +36,7 @@ const App = () => (
       <SeoRuntime />
       <MarketingRuntime />
       <AppRoutes />
+      <AnalyticsConsentBanner />
     </BrowserRouter>
   </AppShell>
 );

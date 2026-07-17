@@ -12,7 +12,13 @@ import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { isPreviewUrl } from "@/utils/preview";
-import { getMarketingAttribution, trackMarketingEvent } from "@/lib/marketing";
+import {
+  getAnalyticsClientId,
+  getAnalyticsConsent,
+  getMarketingAttribution,
+  trackMarketingEvent,
+} from "@/lib/marketing";
+import { asMarketingItems, buildAnalyticsItems } from "@/lib/analytics-commerce";
 
 const SHIPPING_COST = 4.99;
 
@@ -154,12 +160,24 @@ const Checkout = () => {
         externalProductId: item.externalProductId ?? null,
       }));
       const marketingAttribution = getMarketingAttribution();
+      const analyticsConsent = getAnalyticsConsent();
+      const analyticsClientId = await getAnalyticsClientId();
+      const analyticsItems = buildAnalyticsItems(
+        items.map((item) => ({
+          variant: item.variant,
+          quantity: item.quantity,
+          discount: item.quantity > 0
+            ? discountTotal / items.reduce((sum, cartItem) => sum + cartItem.quantity, 0)
+            : 0,
+        })),
+      );
 
       trackMarketingEvent("begin_checkout", {
-        item_count: cartItems.length,
-        value: total,
+        value: Math.max(0, total - SHIPPING_COST),
         currency: "USD",
-        has_promo: Boolean(appliedPromo),
+        shipping: SHIPPING_COST,
+        items: asMarketingItems(analyticsItems),
+        ...(appliedPromo ? { coupon: appliedPromo.code } : {}),
       });
 
       const { data, error } = await supabase.functions.invoke("create-checkout", {
@@ -168,6 +186,8 @@ const Checkout = () => {
           customerEmail: user?.email ?? email,
           promoCode: appliedPromo ? { code: appliedPromo.code } : undefined,
           marketingAttribution,
+          analyticsConsent,
+          analyticsClientId,
         },
       });
 
@@ -196,6 +216,12 @@ const Checkout = () => {
     } catch (error) {
       console.error("Checkout error:", error);
       const message = error instanceof Error ? error.message : "Failed to start checkout.";
+      trackMarketingEvent("checkout_error", {
+        error_code: message.toLowerCase().includes("promo")
+          ? "promotion_rejected"
+          : "checkout_start_failed",
+        stage: "create_checkout",
+      });
       if (message.toLowerCase().includes("promo")) {
         setAppliedPromo(null);
         setPromoError(message);
