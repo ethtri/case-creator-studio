@@ -1,3 +1,5 @@
+import { normalizeRoutePath } from "./route-path.ts";
+
 const INTERNAL_PAGE_VIEW_PARAMS = new Set([
   "designId",
   "session_id",
@@ -21,8 +23,11 @@ const withoutParams = (
   excluded.forEach((param) => params.delete(param));
   params.sort();
 
+  const normalizedPathname = normalizeRoutePath(pathname);
   const normalizedSearch = params.toString();
-  return normalizedSearch ? `${pathname}?${normalizedSearch}` : pathname;
+  return normalizedSearch
+    ? `${normalizedPathname}?${normalizedSearch}`
+    : normalizedPathname;
 };
 
 export const getMarketingPagePath = (pathname: string, search: string) =>
