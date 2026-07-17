@@ -21,6 +21,7 @@
     "outreach:check": "node scripts/validate-outreach.mjs",
     "sync:status": "node scripts/sync-current-status.mjs",
     "prerender": "node scripts/prerender.mjs",
+    "seo:check": "node scripts/validate-seo.mjs",
     "validate:printful": "node scripts/validate-printful-variants.mjs",
     "kexiaozhan:preflight": "node scripts/kexiaozhan-test-preflight.mjs",
     "kexiaozhan:staging": "node scripts/kexiaozhan-staging-mode.mjs",

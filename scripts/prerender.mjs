@@ -2,42 +2,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { createServer } from "vite";
 
-const baseRoutes = [
-  {
-    path: "/",
-    title: "Snapcase | Design Custom Phone Cases",
-    description:
-      "Design a custom phone case in minutes. Personalized iPhone and Samsung cases printed for U.S. shipping.",
-    canonical: "https://snapcase.ai/",
-    ogTitle: "Snapcase | Print Your Story",
-    ogDescription:
-      "Design a personalized phone case in minutes and send a custom gift they will actually use.",
-    ogUrl: "https://snapcase.ai/",
-    ogImage: "https://snapcase.ai/og-image.png",
-    twitterTitle: "Snapcase | Print Your Story",
-    twitterDescription: "Design a personalized phone case in minutes.",
-    twitterImage: "https://snapcase.ai/og-image.png",
-    robots: "index,follow",
-  },
-  {
-    path: "/catalog",
-    title: "Phone Case Catalog | Snapcase",
-    description:
-      "Browse iPhone and Samsung phone cases to start your custom Snapcase design.",
-    canonical: "https://snapcase.ai/catalog",
-    ogTitle: "Phone Case Catalog | Snapcase",
-    ogDescription:
-      "Browse iPhone and Samsung phone cases to start your custom Snapcase design.",
-    ogUrl: "https://snapcase.ai/catalog",
-    ogImage: "https://snapcase.ai/og-image.png",
-    twitterTitle: "Phone Case Catalog | Snapcase",
-    twitterDescription:
-      "Browse iPhone and Samsung phone cases to start your custom Snapcase design.",
-    twitterImage: "https://snapcase.ai/og-image.png",
-    robots: "index,follow",
-  },
-];
-
 const templatePath = path.resolve("dist", "index.html");
 const spaFallbackPath = path.resolve("dist", "app.html");
 const assetsDir = path.resolve("dist", "assets");
@@ -180,7 +144,11 @@ ${entries}
 
 const renderRoutes = async () => {
   const template = await fs.readFile(templatePath, "utf8");
-  await fs.writeFile(spaFallbackPath, template, "utf8");
+  const spaFallback = template.replace(
+    /\s*<link\s+rel="canonical"\s+href="[^"]*"\s*\/?>/,
+    ""
+  );
+  await fs.writeFile(spaFallbackPath, spaFallback, "utf8");
   const assetMap = {
     "/src/assets/hero-wide.png": await resolveAsset("hero-wide"),
     "/src/assets/hero-narrow.png": await resolveAsset("hero-narrow"),
@@ -200,7 +168,7 @@ const renderRoutes = async () => {
   try {
     const { render } = await vite.ssrLoadModule("/src/entry-server.tsx");
     const { seoRoutes } = await vite.ssrLoadModule("/src/data/seoRoutes.ts");
-    const routes = [...baseRoutes, ...seoRoutes];
+    const routes = seoRoutes;
 
     for (const route of routes) {
       const { appHtml } = await render(route.path);
