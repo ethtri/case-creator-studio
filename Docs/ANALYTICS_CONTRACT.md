@@ -358,7 +358,8 @@ identifiers, versions, and timestamps use their strict bounded formats so
 numeric GA session IDs, numeric SKUs, and UUID transaction IDs remain valid.
 Null collection entries fail as schema findings instead of crashing validation.
 Session IDs must be unique, and every event must reference exactly one exported
-session. Event-specific
+session. Event transaction IDs are required and bounded on purchase and refund
+events and rejected on every other event name. Event-specific
 parameters keep the report dimensions executable: CTA events require placement,
 design/editor/preview events require their emitted phone context, diagnostic
 events require their applicable error code/stage, and supported optional emitter

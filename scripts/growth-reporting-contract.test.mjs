@@ -1066,10 +1066,74 @@ test("allows schema-valid numeric and UUID system identifiers", async () => {
   report.orders[0].items.forEach((item) => {
     item.item_id = itemId;
   });
+  const refund = structuredClone(
+    report.events.find((event) => event.event_name === "purchase"),
+  );
+  refund.event_id = "synthetic-event-refund";
+  refund.event_name = "refund";
+  report.events.push(refund);
 
   const result = analyzeReportingExport(report, contract);
   assert.equal(result.ok, true);
   assert.deepEqual(result.findings, []);
+});
+
+test("requires transaction IDs on purchase and refund events", async (t) => {
+  for (const eventName of ["purchase", "refund"]) {
+    await t.test(eventName, async () => {
+      const { contract, report } = await loadFixture();
+      const event = eventName === "purchase"
+        ? report.events.find((candidate) => candidate.event_name === "purchase")
+        : structuredClone(
+          report.events.find((candidate) => candidate.event_name === "purchase"),
+        );
+      event.event_id = `synthetic-event-${eventName}-missing-transaction`;
+      event.event_name = eventName;
+      delete event.transaction_id;
+      if (eventName === "refund") report.events.push(event);
+
+      const codes = analyzeReportingExport(report, contract).findings
+        .map((item) => item.code);
+      assert.ok(codes.includes("missing_transaction_id"));
+    });
+  }
+});
+
+test("rejects transaction IDs on all other event names", async (t) => {
+  const cases = [
+    {
+      name: "oversized identifier",
+      value: "a".repeat(200),
+      alsoRequiresFormatFailure: true,
+    },
+    {
+      name: "script-like identifier",
+      value: "<script>",
+      alsoRequiresFormatFailure: true,
+    },
+    {
+      name: "phone-like identifier",
+      value: "5555555555",
+      alsoRequiresFormatFailure: false,
+    },
+  ];
+
+  for (const transactionCase of cases) {
+    await t.test(transactionCase.name, async () => {
+      const { contract, report } = await loadFixture();
+      report.events.find(
+        (event) => event.event_name === "page_view",
+      ).transaction_id = transactionCase.value;
+
+      const codes = analyzeReportingExport(report, contract).findings
+        .map((item) => item.code);
+      assert.ok(codes.includes("event_transaction_id_not_allowed"));
+      assert.equal(
+        codes.includes("export_string_format_invalid"),
+        transactionCase.alsoRequiresFormatFailure,
+      );
+    });
+  }
 });
 
 test("rejects PII-like values even when their keys are allowlisted", async (t) => {

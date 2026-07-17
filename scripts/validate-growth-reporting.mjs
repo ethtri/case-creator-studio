@@ -382,6 +382,7 @@ const EVENT_REQUIRED_PARAMETERS = new Map([
   ["editor_error", ["variant_id", "error_code"]],
   ["checkout_error", ["error_code", "stage"]],
 ]);
+const EVENTS_WITH_TRANSACTION_ID = new Set(["purchase", "refund"]);
 
 const isObject = (value) =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -2384,6 +2385,40 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
         ));
       }
     }
+    const hasTransactionId = Object.hasOwn(event, "transaction_id");
+    if (
+      EVENTS_WITH_TRANSACTION_ID.has(event.event_name) &&
+      !isNonEmptyString(event.transaction_id)
+    ) {
+      findings.push(finding(
+        "missing_transaction_id",
+        `Event '${event.event_name}' requires a transaction ID.`,
+        `${location}.transaction_id`,
+      ));
+    } else if (
+      !EVENTS_WITH_TRANSACTION_ID.has(event.event_name) &&
+      hasTransactionId
+    ) {
+      findings.push(finding(
+        "event_transaction_id_not_allowed",
+        "Event transaction_id is allowed only on purchase and refund events.",
+        `${location}.transaction_id`,
+      ));
+    }
+    if (
+      hasTransactionId &&
+      !isBoundedString(
+        event.transaction_id,
+        128,
+        SAFE_IDENTIFIER_PATTERN,
+      )
+    ) {
+      findings.push(finding(
+        "export_string_format_invalid",
+        "Event transaction_id exceeds its bound or contains unsupported characters.",
+        `${location}.transaction_id`,
+      ));
+    }
     for (const field of [
       "placement",
       "label",
@@ -2395,9 +2430,7 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
       "stage",
       "code",
       "item_list_id",
-      "transaction_id",
       "item_list_name",
-      "transaction_id",
       "currency",
       "coupon",
     ]) {
@@ -2530,8 +2563,13 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
         `${location}.currency`,
       ));
     }
-    if (!isNonEmptyString(event.transaction_id)) {
-      findings.push(finding("missing_transaction_id", "Purchase requires a transaction ID.", `${location}.transaction_id`));
+    if (
+      !isBoundedString(
+        event.transaction_id,
+        128,
+        SAFE_IDENTIFIER_PATTERN,
+      )
+    ) {
       return;
     }
     purchaseIds.set(event.transaction_id, (purchaseIds.get(event.transaction_id) ?? 0) + 1);
