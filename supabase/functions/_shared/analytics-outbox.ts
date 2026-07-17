@@ -149,6 +149,13 @@ const persistedParams = (
 };
 
 const readSourceAmount = (claim: AnalyticsOutboxClaim) => {
+  if (
+    claim.source_amount === null ||
+    (typeof claim.source_amount === "string" &&
+      claim.source_amount.trim() === "")
+  ) {
+    throw new Error("Outbox source amount is missing or invalid");
+  }
   const amount = Number(claim.source_amount);
   if (!Number.isFinite(amount) || amount < 0) {
     throw new Error("Outbox source amount is missing or invalid");

@@ -48,10 +48,18 @@ WHERE source_amount IS NULL
 
 UPDATE public.analytics_events
 SET
-  next_attempt_at = COALESCE(next_attempt_at, created_at),
+  next_attempt_at = CASE
+    WHEN status IN ('pending', 'failed')
+      THEN COALESCE(next_attempt_at, created_at)
+    ELSE next_attempt_at
+  END,
   lease_expires_at = CASE
     WHEN status = 'sending'
-      THEN COALESCE(lease_expires_at, claimed_at + INTERVAL '5 minutes')
+      THEN COALESCE(
+        lease_expires_at,
+        claimed_at + INTERVAL '5 minutes',
+        created_at + INTERVAL '5 minutes'
+      )
     ELSE lease_expires_at
   END;
 
@@ -144,10 +152,7 @@ BEGIN
       status IN ('pending', 'failed') OR
       (
         status = 'sending' AND
-        COALESCE(
-          lease_expires_at,
-          claimed_at + INTERVAL '5 minutes'
-        ) <= v_now
+        lease_expires_at <= v_now
       )
     );
 
@@ -168,14 +173,11 @@ BEGIN
     AND (
       (
         status IN ('pending', 'failed') AND
-        COALESCE(next_attempt_at, created_at) <= v_now
+        next_attempt_at <= v_now
       ) OR
       (
         status = 'sending' AND
-        COALESCE(
-          lease_expires_at,
-          claimed_at + INTERVAL '5 minutes'
-        ) <= v_now
+        lease_expires_at <= v_now
       )
     )
   RETURNING *;
@@ -216,10 +218,7 @@ BEGIN
       status IN ('pending', 'failed') OR
       (
         status = 'sending' AND
-        COALESCE(
-          lease_expires_at,
-          claimed_at + INTERVAL '5 minutes'
-        ) <= p_now
+        lease_expires_at <= p_now
       )
     );
 
@@ -231,14 +230,11 @@ BEGIN
       AND (
         (
           event.status IN ('pending', 'failed') AND
-          COALESCE(event.next_attempt_at, event.created_at) <= p_now
+          event.next_attempt_at <= p_now
         ) OR
         (
           event.status = 'sending' AND
-          COALESCE(
-            event.lease_expires_at,
-            event.claimed_at + INTERVAL '5 minutes'
-          ) <= p_now
+          event.lease_expires_at <= p_now
         )
       )
     ORDER BY

@@ -1,5 +1,6 @@
 import {
   analyticsOutboxBackoffSeconds,
+  buildGa4RetryPayload,
   drainAnalyticsOutbox,
   isAnalyticsOutboxRetryEligible,
   type AnalyticsOutboxClaim,
@@ -94,6 +95,24 @@ Deno.test("analytics outbox retries once with a reconstructed safe payload", asy
   assertEquals(summary.sent, 1);
   assert(body.includes("iphone-16"), "safe merchandise data should be present");
   assert(!body.includes("email"), "contact fields must not be present");
+});
+
+Deno.test("refund retry requires an authoritative stored amount", () => {
+  let rejected = false;
+  try {
+    buildGa4RetryPayload(
+      claim({
+        event_key: "refund:re_test_missing",
+        event_name: "refund",
+        source_amount: null,
+      }),
+      order(),
+    );
+  } catch (error) {
+    rejected = error instanceof Error &&
+      error.message.includes("source amount is missing or invalid");
+  }
+  assert(rejected, "missing refund amount should fail closed");
 });
 
 Deno.test("concurrent drains cannot send the same atomic claim", async () => {

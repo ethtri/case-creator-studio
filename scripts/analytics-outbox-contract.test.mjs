@@ -206,6 +206,21 @@ test("refund retries preserve the stored cents-to-dollars amount", () => {
   assert.equal(retryPayload.events[0].params.value, 29.99);
 });
 
+test("a refund without an authoritative stored amount fails closed", () => {
+  assert.throws(
+    () =>
+      buildGa4RetryPayload(
+        claim({
+          event_key: "refund:re_test_missing",
+          event_name: "refund",
+          source_amount: null,
+        }),
+        order(),
+      ),
+    /source amount is missing or invalid/,
+  );
+});
+
 test("GA HTTP failures remain retryable and never use an unmocked network", async () => {
   let recorded = null;
   const result = await drainAnalyticsOutbox(dependencies({
