@@ -7,6 +7,7 @@ import {
   DEFAULT_EXPORT_PATH,
   analyzeReportingExport,
   loadJson,
+  validateGrowthReportingData,
   validateReportingContract,
 } from "./validate-growth-reporting.mjs";
 
@@ -70,6 +71,29 @@ const loadLifecycleContract = async (stateName) => {
   ]);
   assert.equal(states.fixtureOnly, true);
   return applyLifecycleState(contract, states[stateName]);
+};
+
+const bindCompletedReconciliationToReport = (contract, report) => {
+  report.synthetic = false;
+  report.sourceSystem = "privacy reviewed GA4 and paid-order export";
+  report.evidenceId = "production-growth-export-2026-07-17";
+  report.evidenceUrl =
+    "https://github.com/ethtri/case-creator-studio/issues/99";
+
+  const reportResult = analyzeReportingExport(report, contract);
+  const reconciliation = contract.dashboard.reconciliation;
+  reconciliation.completedAt = report.generatedAt;
+  reconciliation.window = structuredClone(report.window);
+  reconciliation.purchaseCount = reportResult.summary.purchases;
+  reconciliation.paidOrderCount = reportResult.summary.paidOrders;
+  reconciliation.purchaseRevenue = reportResult.summary.purchaseRevenue;
+  reconciliation.paidOrderProductRevenue =
+    reportResult.summary.paidOrderProductRevenue;
+  reconciliation.exportEvidenceId = report.evidenceId;
+  reconciliation.exportGeneratedAt = report.generatedAt;
+  reconciliation.exportSource = report.sourceSystem;
+  reconciliation.evidenceUrl = report.evidenceUrl;
+  return { contract, report };
 };
 
 test("defines a complete contract without invented baselines, owners, or winners", async () => {
@@ -141,6 +165,132 @@ test("maps every filter and registered custom dimension to the correct GA4 scope
     "stage",
     "variant_id",
   ]);
+
+  const expectedBindings = {
+    catalog_model_selection_rate: ["itemBrand", "itemVariant"],
+    editor_first_action_rate: ["customEvent:brand", "customEvent:model"],
+    preview_success_rate: ["customEvent:brand", "customEvent:model"],
+    preview_failure_rate: ["customEvent:brand", "customEvent:model"],
+    add_to_cart_rate: ["itemBrand", "itemVariant"],
+    checkout_start_rate: ["itemBrand", "itemVariant"],
+    purchase_rate: ["itemBrand", "itemVariant"],
+    checkout_completion_rate: ["itemBrand", "itemVariant"],
+    revenue: ["itemBrand", "itemVariant"],
+    revenue_per_session: ["itemBrand", "itemVariant"],
+    experience_error_rate: ["customEvent:brand", "customEvent:model"],
+    purchase_reconciliation_rate: ["itemBrand", "itemVariant"],
+  };
+  for (const [metricId, [family, model]] of Object.entries(expectedBindings)) {
+    const metric = contract.metrics.find((candidate) => candidate.id === metricId);
+    assert.equal(metric.dimensionBindings.phone_family, family, metricId);
+    assert.equal(metric.dimensionBindings.phone_model, model, metricId);
+  }
+});
+
+test("rejects malformed, unsupported, and invented reporting sources", async (t) => {
+  const cases = [
+    {
+      name: "null source",
+      source: null,
+    },
+    {
+      name: "unsupported source type",
+      source: {
+        sourceType: "warehouse_column",
+        apiName: "date",
+        scope: "event",
+      },
+    },
+    {
+      name: "unknown built-in API",
+      source: {
+        sourceType: "ga4_builtin",
+        apiName: "inventedDimension",
+        scope: "event",
+      },
+    },
+    {
+      name: "wrong built-in scope",
+      source: {
+        sourceType: "ga4_builtin",
+        apiName: "date",
+        scope: "session",
+      },
+    },
+    {
+      name: "allowlisted source on the wrong dimension",
+      source: {
+        sourceType: "ga4_builtin",
+        apiName: "itemBrand",
+        scope: "item",
+        parameter: "item_brand",
+      },
+    },
+    {
+      name: "custom item source",
+      source: {
+        sourceType: "ga4_custom_item",
+        apiName: "customItem:brand",
+        scope: "item",
+        parameter: "brand",
+        registeredDisplayName: "Phone family",
+      },
+    },
+  ];
+
+  for (const sourceCase of cases) {
+    await t.test(sourceCase.name, async () => {
+      const { contract } = await loadFixture();
+      contract.dashboard.reportingDimensions[0].sources.push(sourceCase.source);
+      const codes = validateReportingContract(contract).map((item) => item.code);
+      assert.ok(codes.includes("reporting_dimension_source_invalid"));
+    });
+  }
+});
+
+test("rejects unregistered phone identifiers as custom dimensions", async () => {
+  const { contract } = await loadFixture();
+  contract.dashboard.reportingDimensions.push({
+    id: "phone_identifier",
+    label: "Phone identifier",
+    usage: ["breakdown"],
+    sources: [{
+      sourceType: "ga4_custom_event",
+      apiName: "customEvent:phone_number",
+      scope: "event",
+      parameter: "phone_number",
+      registeredDisplayName: "Phone number",
+    }],
+  });
+
+  const codes = validateReportingContract(contract).map((item) => item.code);
+  assert.ok(codes.includes("reporting_dimension_source_invalid"));
+});
+
+test("requires every configured dashboard filter to map to a reporting dimension", async () => {
+  const { contract } = await loadFixture();
+  contract.dashboard.requiredFilters.push({
+    id: "unmapped_filter",
+    label: "Unmapped",
+    sourceFields: ["invented"],
+    required: true,
+  });
+  contract.metrics[0].filters.push("unmapped_filter");
+
+  const codes = validateReportingContract(contract).map((item) => item.code);
+  assert.ok(codes.includes("required_filter_mapping_missing"));
+});
+
+test("rejects metric phone filters bound to the wrong GA4 scope", async () => {
+  const { contract } = await loadFixture();
+  const metric = contract.metrics.find(
+    (candidate) => candidate.id === "editor_first_action_rate",
+  );
+  metric.dimensionBindings.phone_family = "itemBrand";
+  metric.dimensionBindings.phone_model = "itemVariant";
+
+  const codes = validateReportingContract(contract).map((item) => item.code);
+  assert.ok(codes.includes("metric_dimension_binding_invalid"));
 });
 
 test("accepts an evidence-backed partial lifecycle", async () => {
@@ -211,6 +361,32 @@ test("validates baseline and result transitions independently", async () => {
   ));
 });
 
+test("rejects experiment decisions that contradict their observed values", async () => {
+  const variantContract = await loadLifecycleContract("completed");
+  variantContract.experiments[0].result.controlValue = 0.5;
+  variantContract.experiments[0].result.variantValue = 0.4;
+  assert.ok(validateReportingContract(variantContract).some(
+    (item) => item.code === "experiment_result_value_decision_mismatch",
+  ));
+
+  const controlContract = await loadLifecycleContract("completed");
+  controlContract.experiments[1].result.controlValue = 0.4;
+  controlContract.experiments[1].result.variantValue = 0.5;
+  assert.ok(validateReportingContract(controlContract).some(
+    (item) => item.code === "experiment_result_value_decision_mismatch",
+  ));
+});
+
+test("rejects a winner declared from a one-minute experiment window", async () => {
+  const contract = await loadLifecycleContract("completed");
+  const result = contract.experiments[0].result;
+  result.window.end = "2026-06-02T07:01:00.000Z";
+  result.recordedAt = "2026-06-03T07:00:00.000Z";
+
+  const codes = validateReportingContract(contract).map((item) => item.code);
+  assert.ok(codes.includes("experiment_minimum_run_invalid"));
+});
+
 test("rejects placeholder evidence and invalid evidence windows", async () => {
   const contract = await loadLifecycleContract("partial");
   contract.dashboard.baseline.evidenceUrl =
@@ -262,6 +438,144 @@ test("rejects experiment results before commerce reconciliation", async () => {
   assert.ok(codes.includes("experiment_result_without_reconciliation"));
 });
 
+test("rejects completed reconciliation with null revenue", async () => {
+  const contract = await loadLifecycleContract("completed");
+  contract.dashboard.reconciliation.purchaseRevenue = null;
+  contract.dashboard.reconciliation.paidOrderProductRevenue = null;
+
+  const findings = validateReportingContract(contract);
+  assert.ok(findings.some((item) =>
+    item.code === "reconciliation_revenue_invalid" &&
+    item.location === "$.dashboard.reconciliation"
+  ));
+});
+
+test("accepts completed reconciliation bound to the analyzed production export", async () => {
+  const [contract, { report }] = await Promise.all([
+    loadLifecycleContract("completed"),
+    loadFixture(),
+  ]);
+  bindCompletedReconciliationToReport(contract, report);
+
+  const result = validateGrowthReportingData(contract, report);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.contractFindings, []);
+  assert.deepEqual(result.reportResult.findings, []);
+  assert.deepEqual(result.lifecycleExportFindings, []);
+});
+
+test("rejects completed reconciliation against the synthetic fixture export", async () => {
+  const [contract, { report }] = await Promise.all([
+    loadLifecycleContract("completed"),
+    loadFixture(),
+  ]);
+
+  const result = validateGrowthReportingData(contract, report);
+  const codes = result.lifecycleExportFindings.map((item) => item.code);
+  assert.equal(result.ok, false);
+  assert.ok(codes.includes("completed_reconciliation_uses_synthetic_export"));
+  assert.ok(codes.includes("reconciliation_export_counts_mismatch"));
+  assert.ok(codes.includes("reconciliation_export_revenue_mismatch"));
+  assert.ok(codes.includes("reconciliation_export_window_mismatch"));
+  assert.ok(codes.includes("reconciliation_export_identity_mismatch"));
+});
+
+test("rejects completed reconciliation for a different export window and totals", async () => {
+  const [contract, { report }] = await Promise.all([
+    loadLifecycleContract("completed"),
+    loadFixture(),
+  ]);
+  bindCompletedReconciliationToReport(contract, report);
+  contract.dashboard.reconciliation.purchaseCount = 2;
+  contract.dashboard.reconciliation.paidOrderCount = 2;
+  contract.dashboard.reconciliation.purchaseRevenue = 59.98;
+  contract.dashboard.reconciliation.paidOrderProductRevenue = 59.98;
+  contract.dashboard.reconciliation.window.start =
+    "2026-07-15T07:00:00.000Z";
+
+  const codes = validateGrowthReportingData(
+    contract,
+    report,
+  ).lifecycleExportFindings.map((item) => item.code);
+  assert.ok(codes.includes("reconciliation_export_counts_mismatch"));
+  assert.ok(codes.includes("reconciliation_export_revenue_mismatch"));
+  assert.ok(codes.includes("reconciliation_export_window_mismatch"));
+});
+
+test("rejects completed reconciliation bound to a different evidence export", async () => {
+  const [contract, { report }] = await Promise.all([
+    loadLifecycleContract("completed"),
+    loadFixture(),
+  ]);
+  bindCompletedReconciliationToReport(contract, report);
+  report.evidenceId = "production-growth-export-other";
+
+  const codes = validateGrowthReportingData(
+    contract,
+    report,
+  ).lifecycleExportFindings.map((item) => item.code);
+  assert.ok(codes.includes("reconciliation_export_identity_mismatch"));
+});
+
+test("rejects a completed reconciliation backed by an empty export", async () => {
+  const [contract, { report }] = await Promise.all([
+    loadLifecycleContract("completed"),
+    loadFixture(),
+  ]);
+  report.sessions = [];
+  report.events = [];
+  report.orders = [];
+  bindCompletedReconciliationToReport(contract, report);
+
+  const result = validateGrowthReportingData(contract, report);
+  assert.ok(result.reportResult.findings.some(
+    (item) => item.code === "export_empty",
+  ));
+  assert.ok(result.lifecycleExportFindings.some(
+    (item) => item.code === "reconciliation_export_empty",
+  ));
+});
+
+test("rejects a completed reconciliation from a partial-day export window", async () => {
+  const [contract, { report }] = await Promise.all([
+    loadLifecycleContract("completed"),
+    loadFixture(),
+  ]);
+  report.window.end = "2026-07-16T08:00:00.000Z";
+  report.generatedAt = "2026-07-17T07:00:00.000Z";
+  bindCompletedReconciliationToReport(contract, report);
+
+  const codes = validateGrowthReportingData(
+    contract,
+    report,
+  ).lifecycleExportFindings.map((item) => item.code);
+  assert.ok(codes.includes("reconciliation_export_window_incomplete"));
+});
+
+test("rejects future lifecycle evidence and export timestamps deterministically", async () => {
+  const [contract, { report }] = await Promise.all([
+    loadLifecycleContract("completed"),
+    loadFixture(),
+  ]);
+  contract.dashboard.createdAt = "2026-07-18T07:00:00.000Z";
+  contract.dashboard.baseline.window.start = "2026-07-18T07:00:00.000Z";
+  contract.dashboard.baseline.window.end = "2026-07-19T07:00:00.000Z";
+  contract.dashboard.baseline.capturedAt = "2026-07-20T07:00:00.000Z";
+  report.generatedAt = "2026-07-18T07:00:00.000Z";
+
+  const options = {
+    validationTime: "2026-07-17T20:00:00.000Z",
+    futureSkewMs: 0,
+  };
+  const contractCodes = validateReportingContract(contract, options)
+    .map((item) => item.code);
+  const exportCodes = analyzeReportingExport(report, contract, options)
+    .findings.map((item) => item.code);
+  assert.ok(contractCodes.includes("lifecycle_timestamp_in_future"));
+  assert.ok(contractCodes.includes("lifecycle_window_in_future"));
+  assert.ok(exportCodes.includes("export_timestamp_in_future"));
+});
+
 test("keeps consent, suppression, T+1, tolerance, and no-PII guardrails enforceable", async () => {
   const contract = await loadLifecycleContract("completed");
   contract.privacy.consentedRateLabel = "All traffic";
@@ -288,7 +602,7 @@ test("keeps consent, suppression, T+1, tolerance, and no-PII guardrails enforcea
   assert.ok(codes.includes("decision_freshness_invalid"));
   assert.ok(codes.includes("reconciliation_counts_invalid"));
   assert.ok(codes.includes("reconciliation_tolerance_failed"));
-  assert.ok(codes.includes("custom_dimension_invalid"));
+  assert.ok(codes.includes("reporting_dimension_source_invalid"));
 });
 
 test("reconciles one known-good synthetic purchase to one paid order", async () => {
@@ -373,6 +687,22 @@ test("surfaces dashboard-to-order revenue mismatches", async () => {
   assert.ok(codes.includes("dashboard_order_revenue_mismatch"));
 });
 
+test("rejects an export whose purchases and orders use a non-contract currency", async () => {
+  const { contract, report } = await loadFixture();
+  report.events.find((event) => event.event_name === "purchase").currency = "EUR";
+  report.orders[0].currency = "EUR";
+
+  const findings = analyzeReportingExport(report, contract).findings;
+  assert.ok(findings.some((item) =>
+    item.code === "export_currency_mismatch" &&
+    item.location.includes("$.events")
+  ));
+  assert.ok(findings.some((item) =>
+    item.code === "export_currency_mismatch" &&
+    item.location.includes("$.orders")
+  ));
+});
+
 test("rejects prohibited reporting fields", async () => {
   const { contract, report } = await loadFixture();
   report.sessions[0].email = "synthetic@example.invalid";
@@ -382,4 +712,28 @@ test("rejects prohibited reporting fields", async () => {
     item.code === "prohibited_field" &&
     item.location === "$.sessions[0].email"
   ));
+});
+
+test("keeps the mandatory privacy floor when configuration is emptied", async () => {
+  const { contract, report } = await loadFixture();
+  contract.privacy.prohibitedFields = [];
+  report.sessions[0].email = "privacy-floor@example.invalid";
+
+  const contractCodes = validateReportingContract(contract)
+    .map((item) => item.code);
+  const reportFindings = analyzeReportingExport(report, contract).findings;
+  assert.ok(contractCodes.includes("mandatory_prohibited_field_missing"));
+  assert.ok(reportFindings.some((item) =>
+    item.code === "prohibited_field" &&
+    item.location === "$.sessions[0].email"
+  ));
+});
+
+test("reconciles the complete ecommerce item identity", async () => {
+  const { contract, report } = await loadFixture();
+  report.orders[0].items[0].item_variant = "iPhone 16 Pro";
+
+  const codes = analyzeReportingExport(report, contract).findings
+    .map((item) => item.code);
+  assert.ok(codes.includes("purchase_items_mismatch"));
 });

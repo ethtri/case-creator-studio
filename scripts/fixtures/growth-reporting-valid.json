@@ -1,10 +1,14 @@
 {
   "exportVersion": "1.0.0",
   "generatedAt": "2026-07-17T16:00:00.000Z",
+  "sourceSystem": "repository validator fixture export",
+  "evidenceId": "growth-reporting-contract-fixture-v1",
+  "evidenceUrl": "https://github.com/ethtri/case-creator-studio/issues/99",
   "window": {
     "start": "2026-07-16T07:00:00.000Z",
     "end": "2026-07-17T07:00:00.000Z",
-    "timezone": "America/Los_Angeles"
+    "timezone": "America/Los_Angeles",
+    "dataStatus": "complete_t_plus_1"
   },
   "synthetic": true,
   "sessions": [

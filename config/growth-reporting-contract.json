@@ -10,14 +10,29 @@
     "prohibitedFields": [
       "address",
       "artwork",
+      "artwork_id",
+      "client_id",
+      "contact",
+      "contact_email",
+      "contact_name",
       "customer_email",
+      "customer_id",
       "customer_name",
+      "design_id",
       "design_preview",
+      "edm_template_id",
       "email",
+      "first_name",
       "free_text",
+      "full_name",
+      "last_name",
       "name",
+      "phone",
+      "phone_number",
       "preview_url",
-      "shipping_address"
+      "shipping_address",
+      "street_address",
+      "user_id"
     ],
     "minimumCellSize": 10,
     "notes": "Do not expose customer-level rows, uploaded artwork, contact details, or tiny segments. Suppress segmented cells with fewer than 10 sessions."
@@ -287,6 +302,9 @@
       "purchaseRevenue": null,
       "paidOrderProductRevenue": null,
       "decision": null,
+      "exportEvidenceId": null,
+      "exportGeneratedAt": null,
+      "exportSource": null,
       "notes": null
     }
   },
@@ -335,7 +353,11 @@
       "timezone": "America/Los_Angeles",
       "ownerRole": "Growth review owner (human assignment pending)",
       "populationScope": "consented_ga4_sessions",
-      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"],
+      "dimensionBindings": {
+        "phone_family": "itemBrand",
+        "phone_model": "itemVariant"
+      }
     },
     {
       "id": "editor_first_action_rate",
@@ -347,7 +369,11 @@
       "timezone": "America/Los_Angeles",
       "ownerRole": "Product/growth review owner (human assignment pending)",
       "populationScope": "consented_ga4_sessions",
-      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"],
+      "dimensionBindings": {
+        "phone_family": "customEvent:brand",
+        "phone_model": "customEvent:model"
+      }
     },
     {
       "id": "preview_success_rate",
@@ -359,7 +385,11 @@
       "timezone": "America/Los_Angeles",
       "ownerRole": "Product/growth review owner (human assignment pending)",
       "populationScope": "consented_ga4_sessions",
-      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"],
+      "dimensionBindings": {
+        "phone_family": "customEvent:brand",
+        "phone_model": "customEvent:model"
+      }
     },
     {
       "id": "preview_failure_rate",
@@ -371,7 +401,11 @@
       "timezone": "America/Los_Angeles",
       "ownerRole": "Product/growth review owner (human assignment pending)",
       "populationScope": "consented_ga4_sessions",
-      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"],
+      "dimensionBindings": {
+        "phone_family": "customEvent:brand",
+        "phone_model": "customEvent:model"
+      }
     },
     {
       "id": "add_to_cart_rate",
@@ -383,7 +417,11 @@
       "timezone": "America/Los_Angeles",
       "ownerRole": "Growth review owner (human assignment pending)",
       "populationScope": "consented_ga4_sessions",
-      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"],
+      "dimensionBindings": {
+        "phone_family": "itemBrand",
+        "phone_model": "itemVariant"
+      }
     },
     {
       "id": "checkout_start_rate",
@@ -395,7 +433,11 @@
       "timezone": "America/Los_Angeles",
       "ownerRole": "Growth review owner (human assignment pending)",
       "populationScope": "consented_ga4_sessions",
-      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"],
+      "dimensionBindings": {
+        "phone_family": "itemBrand",
+        "phone_model": "itemVariant"
+      }
     },
     {
       "id": "purchase_rate",
@@ -407,7 +449,11 @@
       "timezone": "America/Los_Angeles",
       "ownerRole": "Growth review owner (human assignment pending)",
       "populationScope": "consented_ga4_sessions",
-      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"],
+      "dimensionBindings": {
+        "phone_family": "itemBrand",
+        "phone_model": "itemVariant"
+      }
     },
     {
       "id": "checkout_completion_rate",
@@ -419,7 +465,11 @@
       "timezone": "America/Los_Angeles",
       "ownerRole": "Growth review owner (human assignment pending)",
       "populationScope": "consented_ga4_sessions",
-      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"],
+      "dimensionBindings": {
+        "phone_family": "itemBrand",
+        "phone_model": "itemVariant"
+      }
     },
     {
       "id": "revenue",
@@ -430,7 +480,11 @@
       "freshness": "T+1 after order reconciliation",
       "timezone": "America/Los_Angeles",
       "ownerRole": "Growth review owner (human assignment pending)",
-      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"],
+      "dimensionBindings": {
+        "phone_family": "itemBrand",
+        "phone_model": "itemVariant"
+      }
     },
     {
       "id": "revenue_per_session",
@@ -441,7 +495,11 @@
       "freshness": "T+1 after order reconciliation",
       "timezone": "America/Los_Angeles",
       "ownerRole": "Growth review owner (human assignment pending)",
-      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"],
+      "dimensionBindings": {
+        "phone_family": "itemBrand",
+        "phone_model": "itemVariant"
+      }
     },
     {
       "id": "experience_error_rate",
@@ -453,7 +511,11 @@
       "timezone": "America/Los_Angeles",
       "ownerRole": "Engineering/product review owner (human assignment pending)",
       "populationScope": "consented_ga4_sessions",
-      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"],
+      "dimensionBindings": {
+        "phone_family": "customEvent:brand",
+        "phone_model": "customEvent:model"
+      }
     },
     {
       "id": "core_web_vitals_good_rate",
@@ -476,7 +538,11 @@
       "timezone": "America/Los_Angeles",
       "ownerRole": "Analytics/operations review owner (human assignment pending)",
       "populationScope": "consented_paid_orders",
-      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"]
+      "filters": ["date", "source", "medium", "campaign", "device", "browser", "phone_family", "phone_model"],
+      "dimensionBindings": {
+        "phone_family": "itemBrand",
+        "phone_model": "itemVariant"
+      }
     }
   ],
   "dataQuality": {
@@ -491,7 +557,7 @@
       "normalizedPathMaximumUniqueValues": 100
     },
     "requiredSessionDimensions": ["source", "medium", "device", "browser"],
-    "requiredItemDimensions": ["item_id", "item_name", "item_brand", "item_variant"],
+    "requiredItemDimensions": ["item_id", "item_name", "item_brand", "item_category", "item_variant"],
     "ecommerceEventsRequiringItems": [
       "view_item_list",
       "select_item",
@@ -580,6 +646,14 @@
         "controlValue": null,
         "variantValue": null,
         "decision": null,
+        "analysisType": null,
+        "minimumRunStatus": null,
+        "guardrailStatus": null,
+        "eligibleSessions": null,
+        "requiredSessions": null,
+        "minimumDays": null,
+        "minimumCycles": null,
+        "completedCycles": null,
         "notes": null
       },
       "implementationPlan": [
@@ -634,6 +708,14 @@
         "controlValue": null,
         "variantValue": null,
         "decision": null,
+        "analysisType": null,
+        "minimumRunStatus": null,
+        "guardrailStatus": null,
+        "eligibleSessions": null,
+        "requiredSessions": null,
+        "minimumDays": null,
+        "minimumCycles": null,
+        "completedCycles": null,
         "notes": null
       }
     },
@@ -672,6 +754,14 @@
         "controlValue": null,
         "variantValue": null,
         "decision": null,
+        "analysisType": null,
+        "minimumRunStatus": null,
+        "guardrailStatus": null,
+        "eligibleSessions": null,
+        "requiredSessions": null,
+        "minimumDays": null,
+        "minimumCycles": null,
+        "completedCycles": null,
         "notes": null
       }
     },
@@ -710,6 +800,14 @@
         "controlValue": null,
         "variantValue": null,
         "decision": null,
+        "analysisType": null,
+        "minimumRunStatus": null,
+        "guardrailStatus": null,
+        "eligibleSessions": null,
+        "requiredSessions": null,
+        "minimumDays": null,
+        "minimumCycles": null,
+        "completedCycles": null,
         "notes": null
       }
     },
@@ -748,6 +846,14 @@
         "controlValue": null,
         "variantValue": null,
         "decision": null,
+        "analysisType": null,
+        "minimumRunStatus": null,
+        "guardrailStatus": null,
+        "eligibleSessions": null,
+        "requiredSessions": null,
+        "minimumDays": null,
+        "minimumCycles": null,
+        "completedCycles": null,
         "notes": null
       }
     }

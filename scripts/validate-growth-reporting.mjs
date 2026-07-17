@@ -137,30 +137,121 @@ const RATE_METRICS_WITH_CONSENTED_POPULATION = new Set([
 const PLACEHOLDER_PATTERN =
   /\b(?:example|fake|placeholder|synthetic|tbd|todo|unverified)\b/i;
 
-const PROHIBITED_CUSTOM_DIMENSION_PARAMETERS = new Set([
+const MANDATORY_EXPORT_PROHIBITED_FIELDS = new Set([
   "address",
   "artwork",
   "artwork_id",
   "client_id",
   "contact",
+  "contact_email",
+  "contact_name",
   "customer_email",
   "customer_id",
   "customer_name",
   "design_id",
+  "design_preview",
   "edm_template_id",
   "email",
+  "first_name",
   "free_text",
+  "full_name",
+  "last_name",
   "name",
-  "order_id",
+  "phone",
+  "phone_number",
   "preview_url",
-  "session_id",
   "shipping_address",
-  "transaction_id",
+  "street_address",
   "user_id",
 ]);
 
+const PROHIBITED_CUSTOM_DIMENSION_PARAMETERS = new Set([
+  ...MANDATORY_EXPORT_PROHIBITED_FIELDS,
+  "order_id",
+  "session_id",
+  "transaction_id",
+]);
+
+const ALLOWED_BUILTIN_DIMENSION_SOURCES = new Map([
+  ["date", { scope: "event" }],
+  ["sessionSource", { scope: "session" }],
+  ["sessionMedium", { scope: "session" }],
+  ["sessionCampaignName", { scope: "session" }],
+  ["deviceCategory", { scope: "user" }],
+  ["browser", { scope: "user" }],
+  ["itemBrand", { scope: "item", parameter: "item_brand" }],
+  ["itemVariant", { scope: "item", parameter: "item_variant" }],
+]);
+
+const ALLOWED_CUSTOM_EVENT_DIMENSION_SOURCES = new Map([
+  ["brand", "Phone family"],
+  ["model", "Phone model"],
+  ["placement", "CTA placement"],
+  ["variant_id", "Phone variant"],
+  ["error_code", "Error code"],
+  ["stage", "Error stage"],
+  ["analytics_contract_version", "Analytics contract version"],
+]);
+
+const METRIC_PHONE_DIMENSION_BINDINGS = {
+  catalog_model_selection_rate: {
+    phone_family: "itemBrand",
+    phone_model: "itemVariant",
+  },
+  editor_first_action_rate: {
+    phone_family: "customEvent:brand",
+    phone_model: "customEvent:model",
+  },
+  preview_success_rate: {
+    phone_family: "customEvent:brand",
+    phone_model: "customEvent:model",
+  },
+  preview_failure_rate: {
+    phone_family: "customEvent:brand",
+    phone_model: "customEvent:model",
+  },
+  add_to_cart_rate: {
+    phone_family: "itemBrand",
+    phone_model: "itemVariant",
+  },
+  checkout_start_rate: {
+    phone_family: "itemBrand",
+    phone_model: "itemVariant",
+  },
+  purchase_rate: {
+    phone_family: "itemBrand",
+    phone_model: "itemVariant",
+  },
+  checkout_completion_rate: {
+    phone_family: "itemBrand",
+    phone_model: "itemVariant",
+  },
+  revenue: {
+    phone_family: "itemBrand",
+    phone_model: "itemVariant",
+  },
+  revenue_per_session: {
+    phone_family: "itemBrand",
+    phone_model: "itemVariant",
+  },
+  experience_error_rate: {
+    phone_family: "customEvent:brand",
+    phone_model: "customEvent:model",
+  },
+  purchase_reconciliation_rate: {
+    phone_family: "itemBrand",
+    phone_model: "itemVariant",
+  },
+};
+
 const isObject = (value) =>
   typeof value === "object" && value !== null && !Array.isArray(value);
+
+const DEFAULT_FUTURE_SKEW_MS = 5 * 60 * 1000;
+
+const hasExactKeys = (value, keys) =>
+  isObject(value) &&
+  Object.keys(value).sort().join(",") === [...keys].sort().join(",");
 
 const isNonEmptyString = (value) =>
   typeof value === "string" && value.trim().length > 0;
@@ -192,6 +283,13 @@ const isEvidenceReference = (value) => {
   }
 };
 
+const isEvidenceId = (value) =>
+  isNonEmptyString(value) &&
+  value.length >= 8 &&
+  value.length <= 128 &&
+  /^[a-z0-9][a-z0-9._:-]+$/i.test(value) &&
+  !PLACEHOLDER_PATTERN.test(value);
+
 const finding = (code, message, location, severity = "error") => ({
   code,
   message,
@@ -210,13 +308,41 @@ const exceedsTolerance = (actual, expected, tolerance) => {
     relativeDifference(actual, expected) > tolerance.relative;
 };
 
+const normalizeFieldName = (field) =>
+  String(field)
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/[\s-]+/g, "_")
+    .toLowerCase();
+
+const resolveValidationClock = (options = {}) => {
+  const nowMs = options.validationTime === undefined
+    ? Date.now()
+    : Date.parse(options.validationTime);
+  const futureSkewMs = options.futureSkewMs ?? DEFAULT_FUTURE_SKEW_MS;
+  return {
+    nowMs: Number.isFinite(nowMs) ? nowMs : Date.now(),
+    futureSkewMs:
+      Number.isFinite(futureSkewMs) && futureSkewMs >= 0
+        ? futureSkewMs
+        : DEFAULT_FUTURE_SKEW_MS,
+  };
+};
+
+const isFutureTimestamp = (value, clock) =>
+  isIsoTimestamp(value) &&
+  Date.parse(value) > clock.nowMs + clock.futureSkewMs;
+
 const itemKey = (item) =>
-  [
-    item.item_id,
-    Number(item.price).toFixed(2),
-    Number(item.quantity),
-    Number(item.discount ?? 0).toFixed(2),
-  ].join("|");
+  JSON.stringify({
+    item_id: item.item_id,
+    item_name: item.item_name,
+    item_brand: item.item_brand,
+    item_category: item.item_category,
+    item_variant: item.item_variant,
+    price: Number(item.price).toFixed(2),
+    quantity: Number(item.quantity),
+    discount: Number(item.discount ?? 0).toFixed(2),
+  });
 
 const itemsMatch = (eventItems, orderItems) => {
   if (!Array.isArray(eventItems) || !Array.isArray(orderItems)) return false;
@@ -235,7 +361,7 @@ const collectForbiddenFields = (value, prohibited, location = "$", found = []) =
 
   Object.entries(value).forEach(([key, nested]) => {
     const nestedLocation = `${location}.${key}`;
-    if (prohibited.has(key.toLowerCase())) {
+    if (prohibited.has(normalizeFieldName(key))) {
       found.push(nestedLocation);
     }
     collectForbiddenFields(nested, prohibited, nestedLocation, found);
@@ -251,6 +377,7 @@ const validateDataWindow = (
   reportingTimezone,
   location,
   findings,
+  clock,
 ) => {
   if (
     !isObject(window) ||
@@ -263,6 +390,17 @@ const validateDataWindow = (
     findings.push(finding(
       "lifecycle_window_invalid",
       "Evidence-backed lifecycle windows require valid ascending ISO timestamps, the reporting timezone, and complete_t_plus_1 data status.",
+      location,
+    ));
+    return false;
+  }
+  if (
+    isFutureTimestamp(window.start, clock) ||
+    isFutureTimestamp(window.end, clock)
+  ) {
+    findings.push(finding(
+      "lifecycle_window_in_future",
+      "Evidence-backed lifecycle windows cannot extend beyond the validation time plus the allowed clock skew.",
       location,
     ));
     return false;
@@ -280,6 +418,7 @@ const validateEvidenceRecord = ({
   maximumLagHours,
   findings,
   requireWindow = false,
+  clock,
 }) => {
   if (status !== completedStatus) return false;
 
@@ -287,6 +426,12 @@ const validateEvidenceRecord = ({
     findings.push(finding(
       "lifecycle_timestamp_missing",
       `Status '${completedStatus}' requires a valid ${timestampField} ISO timestamp.`,
+      `${location}.${timestampField}`,
+    ));
+  } else if (isFutureTimestamp(record[timestampField], clock)) {
+    findings.push(finding(
+      "lifecycle_timestamp_in_future",
+      `Status '${completedStatus}' cannot use a future ${timestampField} timestamp.`,
       `${location}.${timestampField}`,
     ));
   }
@@ -318,6 +463,7 @@ const validateEvidenceRecord = ({
       reportingTimezone,
       `${location}.window`,
       findings,
+      clock,
     );
     if (validWindow && isIsoTimestamp(record?.[timestampField])) {
       const lagHours =
@@ -342,8 +488,9 @@ const hasUnexpectedPendingEvidence = (record, fields) =>
 export const loadJson = async (filePath) =>
   JSON.parse(await readFile(filePath, "utf8"));
 
-export const validateReportingContract = (contract) => {
+export const validateReportingContract = (contract, options = {}) => {
   const findings = [];
+  const clock = resolveValidationClock(options);
   if (!isNonEmptyString(contract?.contractVersion)) {
     findings.push(finding("contract_version_missing", "Contract version is required.", "$.contractVersion"));
   }
@@ -365,11 +512,20 @@ export const validateReportingContract = (contract) => {
     }
   }
 
-  const prohibitedFields = new Set(
+  const configuredProhibitedFields = new Set(
     Array.isArray(contract?.privacy?.prohibitedFields)
-      ? contract.privacy.prohibitedFields.map((field) => field.toLowerCase())
+      ? contract.privacy.prohibitedFields.map(normalizeFieldName)
       : [],
   );
+  for (const mandatoryField of MANDATORY_EXPORT_PROHIBITED_FIELDS) {
+    if (!configuredProhibitedFields.has(mandatoryField)) {
+      findings.push(finding(
+        "mandatory_prohibited_field_missing",
+        `Privacy configuration must prohibit '${mandatoryField}'.`,
+        "$.privacy.prohibitedFields",
+      ));
+    }
+  }
   if (
     !isNonEmptyString(contract?.privacy?.consentedRateLabel) ||
     !/\bconsented\b/i.test(contract.privacy.consentedRateLabel)
@@ -422,6 +578,13 @@ export const validateReportingContract = (contract) => {
       ));
     }
     dimensionIds.add(dimension?.id);
+    if (!Object.hasOwn(REQUIRED_DIMENSION_SOURCES, dimension?.id)) {
+      findings.push(finding(
+        "reporting_dimension_unexpected",
+        `Reporting dimension '${dimension?.id ?? index}' is not part of the authoritative dimension map.`,
+        `${location}.id`,
+      ));
+    }
     if (
       !isNonEmptyString(dimension?.label) ||
       !Array.isArray(dimension?.usage) ||
@@ -435,30 +598,68 @@ export const validateReportingContract = (contract) => {
       ));
     }
     for (const [sourceIndex, source] of sources.entries()) {
-      if (
-        source?.sourceType === "ga4_custom_event" &&
-        (
-          source.scope !== "event" ||
-          !isNonEmptyString(source.parameter) ||
-          !isNonEmptyString(source.registeredDisplayName) ||
-          source.apiName !== `customEvent:${source.parameter}` ||
-          prohibitedFields.has(source.parameter.toLowerCase()) ||
-          PROHIBITED_CUSTOM_DIMENSION_PARAMETERS.has(
-            source.parameter.toLowerCase(),
-          )
-        )
-      ) {
+      const sourceLocation = `${location}.sources[${sourceIndex}]`;
+      let validSource = false;
+      if (isObject(source) && source.sourceType === "ga4_builtin") {
+        const allowed = ALLOWED_BUILTIN_DIMENSION_SOURCES.get(source.apiName);
+        const expectedKeys = allowed?.parameter === undefined
+          ? ["sourceType", "apiName", "scope"]
+          : ["sourceType", "apiName", "scope", "parameter"];
+        validSource = hasExactKeys(source, expectedKeys) &&
+          Boolean(allowed) &&
+          source.scope === allowed.scope &&
+          (
+            allowed.parameter === undefined
+              ? source.parameter === undefined
+              : source.parameter === allowed.parameter
+          );
+      } else if (isObject(source) && source.sourceType === "ga4_custom_event") {
+        const expectedDisplayName =
+          ALLOWED_CUSTOM_EVENT_DIMENSION_SOURCES.get(source.parameter);
+        validSource = hasExactKeys(source, [
+          "sourceType",
+          "apiName",
+          "scope",
+          "parameter",
+          "registeredDisplayName",
+        ]) &&
+          Boolean(expectedDisplayName) &&
+          source.scope === "event" &&
+          source.apiName === `customEvent:${source.parameter}` &&
+          source.registeredDisplayName === expectedDisplayName &&
+          !configuredProhibitedFields.has(normalizeFieldName(source.parameter)) &&
+          !PROHIBITED_CUSTOM_DIMENSION_PARAMETERS.has(
+            normalizeFieldName(source.parameter),
+          );
+      }
+      if (!validSource) {
         findings.push(finding(
-          "custom_dimension_invalid",
-          "Custom GA4 reporting dimensions must include their registered display name, be event-scoped, use customEvent:<parameter>, and exclude prohibited fields.",
-          `${location}.sources[${sourceIndex}]`,
+          "reporting_dimension_source_invalid",
+          "Reporting sources must be an allowlisted GA4 built-in mapping or one of the seven registered event-scoped custom dimensions.",
+          sourceLocation,
         ));
       }
     }
   });
 
+  filters.forEach((filter, index) => {
+    const mappedDimension = reportingDimensions.find(
+      (dimension) =>
+        dimension?.id === filter?.id &&
+        Array.isArray(dimension.usage) &&
+        dimension.usage.includes("filter"),
+    );
+    if (!mappedDimension) {
+      findings.push(finding(
+        "required_filter_mapping_missing",
+        `Dashboard filter '${filter?.id ?? index}' must map to a reporting dimension with filter usage.`,
+        `$.dashboard.requiredFilters[${index}]`,
+      ));
+    }
+  });
+
   for (const [dimensionId, expectedSources] of Object.entries(REQUIRED_DIMENSION_SOURCES)) {
-    const dimension = reportingDimensions.find((entry) => entry.id === dimensionId);
+    const dimension = reportingDimensions.find((entry) => entry?.id === dimensionId);
     if (!dimension) {
       findings.push(finding(
         "required_dimension_mapping_missing",
@@ -468,6 +669,21 @@ export const validateReportingContract = (contract) => {
       continue;
     }
     const sources = Array.isArray(dimension.sources) ? dimension.sources : [];
+    if (
+      sources.length !== expectedSources.length ||
+      sources.some(
+        (source) =>
+          !expectedSources.some((expected) =>
+            dimensionSourceMatches(source, expected)
+          ),
+      )
+    ) {
+      findings.push(finding(
+        "reporting_dimension_source_invalid",
+        `Reporting dimension '${dimensionId}' may contain only its authoritative source mapping(s).`,
+        `$.dashboard.reportingDimensions[${reportingDimensions.indexOf(dimension)}].sources`,
+      ));
+    }
     for (const expected of expectedSources) {
       if (!sources.some((source) => dimensionSourceMatches(source, expected))) {
         findings.push(finding(
@@ -518,6 +734,29 @@ export const validateReportingContract = (contract) => {
     }
     if (!Array.isArray(metric.filters) || metric.filters.some((id) => !filterIds.has(id))) {
       findings.push(finding("metric_filter_invalid", `Metric '${metric.id}' references an undefined filter.`, `${location}.filters`));
+    }
+    const expectedPhoneBindings = METRIC_PHONE_DIMENSION_BINDINGS[metric.id];
+    if (expectedPhoneBindings) {
+      for (const [filterId, expectedApiName] of Object.entries(expectedPhoneBindings)) {
+        const mappedDimension = reportingDimensions.find(
+          (dimension) => dimension?.id === filterId,
+        );
+        const sourceExists =
+          Array.isArray(mappedDimension?.sources) &&
+          mappedDimension.sources.some(
+            (source) => source?.apiName === expectedApiName,
+          );
+        if (
+          metric.dimensionBindings?.[filterId] !== expectedApiName ||
+          !sourceExists
+        ) {
+          findings.push(finding(
+            "metric_dimension_binding_invalid",
+            `Metric '${metric.id}' must bind '${filterId}' to '${expectedApiName}'.`,
+            `${location}.dimensionBindings.${filterId}`,
+          ));
+        }
+      }
     }
     if (
       RATE_METRICS_WITH_CONSENTED_POPULATION.has(metric.id) &&
@@ -615,6 +854,7 @@ export const validateReportingContract = (contract) => {
         maximumLagHours,
         findings,
         requireWindow: true,
+        clock,
       });
       if (
         !Number.isFinite(baseline.value) ||
@@ -654,6 +894,14 @@ export const validateReportingContract = (contract) => {
           "controlValue",
           "variantValue",
           "decision",
+          "analysisType",
+          "minimumRunStatus",
+          "guardrailStatus",
+          "eligibleSessions",
+          "requiredSessions",
+          "minimumDays",
+          "minimumCycles",
+          "completedCycles",
           "notes",
         ])
       ) {
@@ -674,6 +922,7 @@ export const validateReportingContract = (contract) => {
         maximumLagHours,
         findings,
         requireWindow: true,
+        clock,
       });
       if (baseline?.status !== "captured") {
         findings.push(finding(
@@ -715,6 +964,75 @@ export const validateReportingContract = (contract) => {
         findings.push(finding(
           "experiment_result_decision_invalid",
           `Experiment '${experiment.id}' requires a supported decision with a matching winner.`,
+          `${location}.result`,
+        ));
+      }
+      if (
+        (
+          result.decision === "roll_out_variant" &&
+          Number.isFinite(result.controlValue) &&
+          Number.isFinite(result.variantValue) &&
+          result.variantValue <= result.controlValue
+        ) ||
+        (
+          result.decision === "keep_control" &&
+          Number.isFinite(result.controlValue) &&
+          Number.isFinite(result.variantValue) &&
+          result.controlValue < result.variantValue
+        )
+      ) {
+        findings.push(finding(
+          "experiment_result_value_decision_mismatch",
+          `Experiment '${experiment.id}' decision contradicts its control and variant values.`,
+          `${location}.result`,
+        ));
+      }
+
+      const integerMinimumRunFields = [
+        "eligibleSessions",
+        "requiredSessions",
+        "minimumDays",
+        "minimumCycles",
+        "completedCycles",
+      ];
+      const structuredMinimumRunValuesAreValid =
+        integerMinimumRunFields.every(
+          (field) =>
+            Number.isInteger(result[field]) &&
+            result[field] >= (field === "eligibleSessions" ? 0 : 1),
+        );
+      const resultWindowDurationDays =
+        isIsoTimestamp(result.window?.start) &&
+          isIsoTimestamp(result.window?.end)
+          ? (
+            Date.parse(result.window.end) - Date.parse(result.window.start)
+          ) / 86_400_000
+          : 0;
+      const preRegisteredMinimumRunPassed =
+        result.analysisType === "pre_registered_experiment" &&
+        result.minimumRunStatus === "met" &&
+        result.guardrailStatus === "passed" &&
+        structuredMinimumRunValuesAreValid &&
+        result.requiredSessions > 0 &&
+        result.eligibleSessions >= result.requiredSessions &&
+        result.minimumDays >= 14 &&
+        result.minimumCycles >= 2 &&
+        result.completedCycles >= result.minimumCycles &&
+        resultWindowDurationDays >= result.minimumDays;
+      const observationalReleaseIsValid =
+        result.analysisType === "observational_release" &&
+        result.minimumRunStatus === "not_met" &&
+        result.guardrailStatus === "passed" &&
+        structuredMinimumRunValuesAreValid &&
+        result.decision === "inconclusive" &&
+        result.winner === null;
+      if (
+        !preRegisteredMinimumRunPassed &&
+        !observationalReleaseIsValid
+      ) {
+        findings.push(finding(
+          "experiment_minimum_run_invalid",
+          `Experiment '${experiment.id}' requires structured sample, duration, cycle, and guardrail evidence; winners require a passing pre-registered run.`,
           `${location}.result`,
         ));
       }
@@ -783,6 +1101,7 @@ export const validateReportingContract = (contract) => {
       reportingTimezone: contract.reportingTimezone,
       maximumLagHours,
       findings,
+      clock,
     });
   }
 
@@ -820,6 +1139,7 @@ export const validateReportingContract = (contract) => {
       maximumLagHours,
       findings,
       requireWindow: true,
+      clock,
     });
     if (dashboard?.status !== "created") {
       findings.push(finding(
@@ -849,6 +1169,9 @@ export const validateReportingContract = (contract) => {
         "purchaseRevenue",
         "paidOrderProductRevenue",
         "decision",
+        "exportEvidenceId",
+        "exportGeneratedAt",
+        "exportSource",
         "notes",
       ])
     ) {
@@ -869,6 +1192,7 @@ export const validateReportingContract = (contract) => {
       maximumLagHours,
       findings,
       requireWindow: true,
+      clock,
     });
     if (
       !Number.isInteger(reconciliation.purchaseCount) ||
@@ -883,12 +1207,47 @@ export const validateReportingContract = (contract) => {
         "$.dashboard.reconciliation",
       ));
     }
+    const reconciliationRevenueIsValid = [
+      reconciliation.purchaseRevenue,
+      reconciliation.paidOrderProductRevenue,
+    ].every((value) =>
+      typeof value === "number" &&
+      Number.isFinite(value) &&
+      value >= 0
+    );
+    if (!reconciliationRevenueIsValid) {
+      findings.push(finding(
+        "reconciliation_revenue_invalid",
+        "Completed reconciliation requires finite non-negative numeric purchase and paid-order revenue.",
+        "$.dashboard.reconciliation",
+      ));
+    }
+    if (
+      !isEvidenceId(reconciliation.exportEvidenceId) ||
+      !isIsoTimestamp(reconciliation.exportGeneratedAt) ||
+      !isEvidenceText(reconciliation.exportSource)
+    ) {
+      findings.push(finding(
+        "reconciliation_export_identity_invalid",
+        "Completed reconciliation requires a non-placeholder export evidence ID, generated timestamp, and source.",
+        "$.dashboard.reconciliation",
+      ));
+    } else if (isFutureTimestamp(reconciliation.exportGeneratedAt, clock)) {
+      findings.push(finding(
+        "lifecycle_timestamp_in_future",
+        "Completed reconciliation cannot identify an export generated in the future.",
+        "$.dashboard.reconciliation.exportGeneratedAt",
+      ));
+    }
     if (
       reconciliation.decision !== "within_tolerance" ||
-      exceedsTolerance(
+      (
+        reconciliationRevenueIsValid &&
+        exceedsTolerance(
         Number(reconciliation.purchaseRevenue),
         Number(reconciliation.paidOrderProductRevenue),
         contract.dataQuality.revenueTolerance,
+        )
       )
     ) {
       findings.push(finding(
@@ -934,6 +1293,7 @@ export const validateReportingContract = (contract) => {
       reportingTimezone: contract.reportingTimezone,
       maximumLagHours,
       findings,
+      clock,
     });
     if (
       !isEvidenceText(cadence.schedule) ||
@@ -980,13 +1340,21 @@ export const validateReportingContract = (contract) => {
   return findings;
 };
 
-export const analyzeReportingExport = (report, contract) => {
+export const analyzeReportingExport = (report, contract, options = {}) => {
   const findings = [];
+  const clock = resolveValidationClock(options);
   const sessions = Array.isArray(report?.sessions) ? report.sessions : [];
   const events = Array.isArray(report?.events) ? report.events : [];
   const orders = Array.isArray(report?.orders) ? report.orders : [];
   const quality = contract.dataQuality;
 
+  if (sessions.length === 0 || events.length === 0) {
+    findings.push(finding(
+      "export_empty",
+      "A reporting export requires at least one consented session and one event.",
+      "$",
+    ));
+  }
   if (report?.window?.timezone !== contract.reportingTimezone) {
     findings.push(finding(
       "export_timezone_mismatch",
@@ -994,8 +1362,39 @@ export const analyzeReportingExport = (report, contract) => {
       "$.window.timezone",
     ));
   }
+  if (
+    !isIsoTimestamp(report?.window?.start) ||
+    !isIsoTimestamp(report?.window?.end) ||
+    Date.parse(report.window.start) >= Date.parse(report.window.end) ||
+    report?.window?.dataStatus !== "complete_t_plus_1"
+  ) {
+    findings.push(finding(
+      "export_window_invalid",
+      "Export window requires valid ascending ISO start and end timestamps and complete_t_plus_1 data status.",
+      "$.window",
+    ));
+  }
+  if (
+    isFutureTimestamp(report?.window?.start, clock) ||
+    isFutureTimestamp(report?.window?.end, clock) ||
+    !isIsoTimestamp(report?.generatedAt) ||
+    isFutureTimestamp(report?.generatedAt, clock)
+  ) {
+    findings.push(finding(
+      "export_timestamp_in_future",
+      "Export windows and generation timestamps must be valid and cannot be in the future.",
+      "$",
+    ));
+  }
 
-  const prohibited = new Set(contract.privacy.prohibitedFields.map((field) => field.toLowerCase()));
+  const prohibited = new Set([
+    ...MANDATORY_EXPORT_PROHIBITED_FIELDS,
+    ...(
+      Array.isArray(contract?.privacy?.prohibitedFields)
+        ? contract.privacy.prohibitedFields.map(normalizeFieldName)
+        : []
+    ),
+  ]);
   for (const location of collectForbiddenFields(report, prohibited)) {
     findings.push(finding("prohibited_field", "Reporting export contains a prohibited field.", location));
   }
@@ -1076,6 +1475,13 @@ export const analyzeReportingExport = (report, contract) => {
   const purchases = events.filter((event) => event.event_name === "purchase");
   const purchaseIds = new Map();
   purchases.forEach((event, index) => {
+    if (event.currency !== contract.currency) {
+      findings.push(finding(
+        "export_currency_mismatch",
+        `Purchase currency must match contract currency ${contract.currency}.`,
+        `$.events[purchase:${index}].currency`,
+      ));
+    }
     if (!isNonEmptyString(event.transaction_id)) {
       findings.push(finding("missing_transaction_id", "Purchase requires a transaction ID.", `$.events[purchase:${index}].transaction_id`));
       return;
@@ -1093,6 +1499,15 @@ export const analyzeReportingExport = (report, contract) => {
   }
 
   const paidOrders = orders.filter((order) => order.status === "paid");
+  paidOrders.forEach((order, index) => {
+    if (order.currency !== contract.currency) {
+      findings.push(finding(
+        "export_currency_mismatch",
+        `Paid-order currency must match contract currency ${contract.currency}.`,
+        `$.orders[paid:${index}].currency`,
+      ));
+    }
+  });
   const ordersById = new Map(paidOrders.map((order) => [order.transaction_id, order]));
   const purchaseById = new Map(purchases.map((event) => [event.transaction_id, event]));
   for (const order of paidOrders) {
@@ -1179,22 +1594,138 @@ export const analyzeReportingExport = (report, contract) => {
   };
 };
 
+export const validateCompletedReconciliationAgainstExport = (
+  contract,
+  report,
+  reportResult,
+) => {
+  const reconciliation = contract?.dashboard?.reconciliation;
+  if (reconciliation?.status !== "completed") return [];
+
+  const findings = [];
+  const summary = reportResult.summary;
+  if (report?.synthetic !== false) {
+    findings.push(finding(
+      "completed_reconciliation_uses_synthetic_export",
+      "Completed production reconciliation cannot be validated by a synthetic or unlabeled export.",
+      "$.synthetic",
+    ));
+  }
+  if (
+    reconciliation.purchaseCount !== summary.purchases ||
+    reconciliation.paidOrderCount !== summary.paidOrders
+  ) {
+    findings.push(finding(
+      "reconciliation_export_counts_mismatch",
+      "Completed reconciliation counts must equal the analyzed export purchase and paid-order counts.",
+      "$.dashboard.reconciliation",
+    ));
+  }
+  const reportWindowDurationHours =
+    isIsoTimestamp(report?.window?.start) && isIsoTimestamp(report?.window?.end)
+      ? (
+        Date.parse(report.window.end) - Date.parse(report.window.start)
+      ) / 3_600_000
+      : 0;
+  if (
+    summary.sessions <= 0 ||
+    summary.events <= 0 ||
+    summary.purchases <= 0 ||
+    summary.paidOrders <= 0
+  ) {
+    findings.push(finding(
+      "reconciliation_export_empty",
+      "Completed reconciliation requires a non-empty export with sessions, events, purchases, and paid orders.",
+      "$",
+    ));
+  }
+  if (
+    report?.window?.dataStatus !== "complete_t_plus_1" ||
+    reportWindowDurationHours < 24
+  ) {
+    findings.push(finding(
+      "reconciliation_export_window_incomplete",
+      "Completed reconciliation requires at least one full 24-hour complete_t_plus_1 export window.",
+      "$.window",
+    ));
+  }
+  if (
+    exceedsTolerance(
+      reconciliation.purchaseRevenue,
+      summary.purchaseRevenue,
+      contract.dataQuality.revenueTolerance,
+    ) ||
+    exceedsTolerance(
+      reconciliation.paidOrderProductRevenue,
+      summary.paidOrderProductRevenue,
+      contract.dataQuality.revenueTolerance,
+    )
+  ) {
+    findings.push(finding(
+      "reconciliation_export_revenue_mismatch",
+      "Completed reconciliation revenue must equal the analyzed export revenue within the configured tolerance.",
+      "$.dashboard.reconciliation",
+    ));
+  }
+  if (
+    reconciliation.window?.start !== report?.window?.start ||
+    reconciliation.window?.end !== report?.window?.end ||
+    reconciliation.window?.timezone !== report?.window?.timezone ||
+    reconciliation.window?.dataStatus !== report?.window?.dataStatus
+  ) {
+    findings.push(finding(
+      "reconciliation_export_window_mismatch",
+      "Completed reconciliation must use the exact analyzed export start, end, timezone, and data status.",
+      "$.dashboard.reconciliation.window",
+    ));
+  }
+  if (
+    reconciliation.exportEvidenceId !== report?.evidenceId ||
+    reconciliation.exportGeneratedAt !== report?.generatedAt ||
+    reconciliation.exportSource !== report?.sourceSystem ||
+    reconciliation.evidenceUrl !== report?.evidenceUrl
+  ) {
+    findings.push(finding(
+      "reconciliation_export_identity_mismatch",
+      "Completed reconciliation evidence ID, generated timestamp, source, and URL must identify the analyzed export.",
+      "$.dashboard.reconciliation",
+    ));
+  }
+
+  return findings;
+};
+
+export const validateGrowthReportingData = (contract, report, options = {}) => {
+  const contractFindings = validateReportingContract(contract, options);
+  const reportResult = analyzeReportingExport(report, contract, options);
+  const lifecycleExportFindings =
+    validateCompletedReconciliationAgainstExport(contract, report, reportResult);
+  return {
+    ok:
+      contractFindings.length === 0 &&
+      reportResult.ok &&
+      lifecycleExportFindings.length === 0,
+    contract,
+    contractFindings,
+    reportResult,
+    lifecycleExportFindings,
+  };
+};
+
 export const validateGrowthReporting = async ({
   contractPath = DEFAULT_CONTRACT_PATH,
   exportPath = DEFAULT_EXPORT_PATH,
+  validationTime,
+  futureSkewMs,
 } = {}) => {
   const [contract, report] = await Promise.all([
     loadJson(contractPath),
     loadJson(exportPath),
   ]);
-  const contractFindings = validateReportingContract(contract);
-  const reportResult = analyzeReportingExport(report, contract);
-  return {
-    ok: contractFindings.length === 0 && reportResult.ok,
-    contract,
-    contractFindings,
-    reportResult,
-  };
+  return validateGrowthReportingData(contract, report, {
+    validationTime,
+    futureSkewMs,
+  });
 };
 
 const runCli = async () => {
@@ -1204,7 +1735,11 @@ const runCli = async () => {
   const result = await validateGrowthReporting({ exportPath });
 
   if (!result.ok) {
-    for (const item of [...result.contractFindings, ...result.reportResult.findings]) {
+    for (const item of [
+      ...result.contractFindings,
+      ...result.reportResult.findings,
+      ...result.lifecycleExportFindings,
+    ]) {
       console.error(`[${item.severity}] ${item.code} at ${item.location}: ${item.message}`);
     }
     process.exitCode = 1;

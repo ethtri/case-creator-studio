@@ -233,7 +233,8 @@ timezone, owner role, and supported filters:
 Product revenue follows the GA4 purchase payload: item revenue after item
 discounts, excluding shipping and tax. A purchase reconciles only when one
 unique purchase transaction matches one paid order in transaction ID, currency,
-product revenue, and item ID/price/quantity/discount.
+product revenue, and the complete item identity: ID, name, brand, category,
+variant, price, quantity, and discount.
 
 Required dashboard filters are date, source, medium, campaign, device, browser,
 phone family, and phone model. Filters apply only where the source supports
@@ -260,8 +261,16 @@ Data API names and scopes are intentional:
 The seven `customEvent:*` sources above are registered as event-scoped custom
 dimensions. Do not substitute `itemBrand`/`itemVariant` for custom event
 parameters: the standard ecommerce dimensions are item-scoped and answer a
-different question. Never register transaction, session, client, user, order,
-artwork/design, contact, address, or free-text values as custom dimensions.
+different question. Metrics with phone filters therefore declare
+`dimensionBindings`: editor, preview, and error metrics bind to the event
+dimensions, while ecommerce, revenue, and reconciliation metrics bind to the
+item dimensions. The validator rejects missing, swapped, invented, malformed,
+or differently scoped sources.
+
+Never register transaction, session, client, user, order, artwork/design,
+contact, address, phone, email, or free-text values as custom dimensions. This
+privacy floor is enforced independently of the configurable prohibited-field
+list, so removing a configuration entry cannot make that field reportable.
 
 Newly registered custom dimensions need Google's normal processing time before
 they are available consistently in reports, and their registration does not
@@ -289,8 +298,19 @@ and each experiment baseline/result transition require a named owner, ISO
 timestamp, non-placeholder HTTPS evidence reference, meaningful notes, and,
 where data is evaluated, a complete T+1 window. Experiment results additionally
 require control/variant values and a decision whose winner is internally
-consistent. Reconciliation must satisfy the configured count and revenue
-tolerance.
+consistent. A winner also requires structured evidence that the
+pre-registered sample, at least 14 complete days, at least two weekly cycles,
+and guardrails all passed. An underpowered release may be recorded only as an
+inconclusive observational result.
+
+Reconciliation must satisfy the configured count and revenue tolerance. A
+completed reconciliation is valid only when the combined validator binds its
+positive counts, numeric revenue, exact window, evidence ID/URL, generated
+timestamp, and source to the analyzed export. The export must be explicitly
+non-synthetic, contain sessions, events, at least one purchase and paid order,
+cover at least one full 24-hour complete T+1 window, and use the contract
+currency. Evidence timestamps and windows cannot be in the future beyond the
+small validation clock-skew allowance.
 
 `evidence_backed_completed` means the reporting foundation, baseline,
 reconciliation, and named review cadence are complete. Ranked experiments keep
@@ -313,9 +333,9 @@ node scripts/validate-growth-reporting.mjs path/to/export.json
 The gate fails on duplicate purchase transactions, missing ecommerce item IDs,
 unexpected `(not set)` values in required dimensions, unnormalized or
 high-cardinality paths, unknown event names, prohibited fields, and purchase
-count/revenue/item mismatch. Aggregate product revenue may differ by at most
-the greater of $0.01 or 0.1%; anything larger requires investigation before a
-dashboard or experiment decision is trusted.
+count/revenue/full-item-identity mismatch. Aggregate product revenue may differ
+by at most the greater of $0.01 or 0.1%; anything larger requires investigation
+before a dashboard or experiment decision is trusted.
 
 The checked-in export fixture is synthetic. Its single matching purchase and
 paid order prove the validator, not production collection or dashboard
