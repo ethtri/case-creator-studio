@@ -195,6 +195,10 @@ export const getAnalyticsConsent = (): AnalyticsConsent => {
 export const setAnalyticsConsent = (consent: Exclude<AnalyticsConsent, "unset">) => {
   if (!isBrowser()) return;
   window.localStorage.setItem(CONSENT_STORAGE_KEY, consent);
+  if (consent === "denied") {
+    window.localStorage.removeItem(ATTRIBUTION_STORAGE_KEY);
+    window.localStorage.removeItem(LEGACY_ATTRIBUTION_STORAGE_KEY);
+  }
   ensureGtag();
   window.gtag?.("consent", "update", {
     analytics_storage: consent,
@@ -328,7 +332,7 @@ export const mergeMarketingAttribution = (
 });
 
 export const captureMarketingAttribution = () => {
-  if (!isBrowser()) return null;
+  if (!isBrowser() || getAnalyticsConsent() !== "granted") return null;
 
   const params = new URLSearchParams(window.location.search);
   const hasTrackingParam = TRACKING_PARAMS.some((param) => params.has(param));
@@ -368,7 +372,7 @@ export const captureMarketingAttribution = () => {
 };
 
 export const getMarketingAttribution = (): MarketingAttribution | null => {
-  if (!isBrowser()) return null;
+  if (!isBrowser() || getAnalyticsConsent() !== "granted") return null;
 
   try {
     const raw = window.localStorage.getItem(ATTRIBUTION_STORAGE_KEY) ??

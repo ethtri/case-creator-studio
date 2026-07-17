@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS public.analytics_events (
   payload JSONB NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending',
   attempts INTEGER NOT NULL DEFAULT 0,
+  claimed_at TIMESTAMPTZ,
   last_error TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   sent_at TIMESTAMPTZ,
@@ -51,9 +52,16 @@ BEGIN
   SET
     status = 'sending',
     attempts = attempts + 1,
+    claimed_at = now(),
     last_error = NULL
   WHERE event_key = p_event_key
-    AND status IN ('pending', 'failed')
+    AND (
+      status IN ('pending', 'failed') OR
+      (
+        status = 'sending' AND
+        claimed_at < now() - interval '5 minutes'
+      )
+    )
   RETURNING *;
 END;
 $$;

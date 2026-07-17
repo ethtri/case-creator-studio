@@ -100,19 +100,24 @@ export const buildGa4OrderItems = (
   });
 };
 
-export const buildGa4PurchaseParams = (order: Ga4Order): Ga4EventParams => ({
-  transaction_id: order.id,
-  currency: "USD",
-  value: Math.max(
-    0,
-    toFiniteNumber(order.total) - toFiniteNumber(order.shipping_cost),
-  ),
-  tax: 0,
-  shipping: toFiniteNumber(order.shipping_cost),
-  coupon: order.promotion_code ?? null,
-  items: buildGa4OrderItems(order.items, order.discount_total ?? 0),
-  analytics_contract_version: ANALYTICS_CONTRACT_VERSION,
-});
+export const buildGa4PurchaseParams = (order: Ga4Order): Ga4EventParams => {
+  const params: Ga4EventParams = {
+    transaction_id: order.id,
+    currency: "USD",
+    value: Math.max(
+      0,
+      toFiniteNumber(order.total) - toFiniteNumber(order.shipping_cost),
+    ),
+    tax: 0,
+    shipping: toFiniteNumber(order.shipping_cost),
+    items: buildGa4OrderItems(order.items, order.discount_total ?? 0),
+    analytics_contract_version: ANALYTICS_CONTRACT_VERSION,
+  };
+  if (order.promotion_code) {
+    params.coupon = order.promotion_code;
+  }
+  return params;
+};
 
 export const buildGa4RefundParams = (
   order: Ga4Order,

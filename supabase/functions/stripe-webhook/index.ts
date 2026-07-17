@@ -153,6 +153,8 @@ serve(async (req) => {
   );
   const ga4MeasurementId = Deno.env.get("GA4_MEASUREMENT_ID");
   const ga4ApiSecret = Deno.env.get("GA4_API_SECRET");
+  const hasGa4ServerConfig = Boolean(ga4MeasurementId && ga4ApiSecret);
+  let analyticsDeliveryFailed = false;
 
   if (event.type === "refund.created") {
     const refund = event.data.object as Stripe.Refund;
@@ -187,9 +189,7 @@ serve(async (req) => {
     }
 
     if (
-      refundOrder.analytics_consent === "granted" &&
-      ga4MeasurementId &&
-      ga4ApiSecret
+      refundOrder.analytics_consent === "granted"
     ) {
       try {
         await sendGa4Refund(
@@ -202,6 +202,9 @@ serve(async (req) => {
         );
       } catch (error) {
         console.error("[STRIPE-WEBHOOK] GA4 refund event failed:", error);
+        if (hasGa4ServerConfig) {
+          return new Response("Analytics delivery failed", { status: 500 });
+        }
       }
     }
 
@@ -237,9 +240,7 @@ serve(async (req) => {
     }
 
     if (
-      checkoutOrder.analytics_consent === "granted" &&
-      ga4MeasurementId &&
-      ga4ApiSecret
+      checkoutOrder.analytics_consent === "granted"
     ) {
       const eventName = event.type === "checkout.session.expired"
         ? "checkout_abandoned"
@@ -262,6 +263,9 @@ serve(async (req) => {
           "[STRIPE-WEBHOOK] GA4 checkout signal failed:",
           error,
         );
+        if (hasGa4ServerConfig) {
+          return new Response("Analytics delivery failed", { status: 500 });
+        }
       }
     }
 
@@ -429,9 +433,7 @@ serve(async (req) => {
   }
 
   if (
-    order.analytics_consent === "granted" &&
-    ga4MeasurementId &&
-    ga4ApiSecret
+    order.analytics_consent === "granted"
   ) {
     try {
       await sendGa4Purchase(
@@ -442,6 +444,7 @@ serve(async (req) => {
       );
     } catch (error) {
       console.error("[STRIPE-WEBHOOK] GA4 purchase event failed:", error);
+      analyticsDeliveryFailed = hasGa4ServerConfig;
     }
   }
 
@@ -565,7 +568,9 @@ serve(async (req) => {
       console.warn(
         "[STRIPE-WEBHOOK] Missing shipping address; skipping fulfillment routing.",
       );
-      return new Response("OK", { status: 200 });
+      return analyticsDeliveryFailed
+        ? new Response("Analytics delivery failed", { status: 500 })
+        : new Response("OK", { status: 200 });
     }
 
     try {
@@ -591,5 +596,7 @@ serve(async (req) => {
     }
   }
 
-  return new Response("OK", { status: 200 });
+  return analyticsDeliveryFailed
+    ? new Response("Analytics delivery failed", { status: 500 })
+    : new Response("OK", { status: 200 });
 });

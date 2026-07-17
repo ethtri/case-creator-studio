@@ -74,7 +74,8 @@ All events include `analytics_contract_version`.
 
 ## Attribution
 
-The browser stores approved first-touch and last-touch values separately:
+After analytics consent is granted, the browser stores approved first-touch
+and last-touch values separately:
 
 - UTM source, medium, campaign, term, and content
 - `gclid`, `fbclid`, and `ttclid`
@@ -83,7 +84,8 @@ The browser stores approved first-touch and last-touch values separately:
 
 The first touch is immutable. A later visit with campaign parameters updates
 only the last touch. Attribution is attached to the order request and stored in
-the existing `orders.marketing_attribution` JSON field.
+the existing `orders.marketing_attribution` JSON field. Declining analytics
+removes browser attribution storage and sends no attribution with checkout.
 
 ## Server reconciliation
 
@@ -98,7 +100,8 @@ the source of truth for consented server events:
 The `analytics_events` outbox uses a unique event key and an atomic database
 claim. Duplicate webhook delivery cannot claim or send the same purchase or
 refund concurrently. Failed sends remain visible and can be reclaimed by a
-later duplicate/retry.
+later duplicate/retry; a five-minute lease also makes an interrupted send
+reclaimable.
 
 The server payload is built from the stored order and includes transaction ID,
 currency, value, shipping, coupon, tax, and safe line-item fields. Browser

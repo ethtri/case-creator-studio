@@ -175,9 +175,9 @@ const Checkout = () => {
       trackMarketingEvent("begin_checkout", {
         value: Math.max(0, total - SHIPPING_COST),
         currency: "USD",
-        coupon: appliedPromo?.code ?? null,
         shipping: SHIPPING_COST,
         items: asMarketingItems(analyticsItems),
+        ...(appliedPromo ? { coupon: appliedPromo.code } : {}),
       });
 
       const { data, error } = await supabase.functions.invoke("create-checkout", {

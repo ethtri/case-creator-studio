@@ -26,6 +26,7 @@ Configure these only after dry-run and TTL/print-mode gates are accepted. Do not
 | Fulfillment safety | `ALLOW_ONSHORE_MANUAL=true` |
 | Operators | `OPERATOR_EMAILS=<Snapcase administrator email(s)>` |
 | Stripe | `STRIPE_MODE=live`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
+| Analytics | `GA4_MEASUREMENT_ID`, `GA4_API_SECRET` (server-only Measurement Protocol credential) |
 | Kexiaozhan API | `KEXIAOZHAN_API_BASE_URL=https://kxzus.kexiaozhan.com` |
 | Kexiaozhan auth | `KEXIAOZHAN_MACHINE_KEY`, `KEXIAOZHAN_ALLOWED_MACHINE_SN` |
 | Checkout pricing | `KEXIAOZHAN_CHECKOUT_UNIT_AMOUNT_CENTS`, `KEXIAOZHAN_CHECKOUT_SHIPPING_CENTS`, `KEXIAOZHAN_CHECKOUT_CURRENCY` |
@@ -59,7 +60,8 @@ Deploy or confirm these Supabase Edge Functions in production before the pilot:
 - `printful-retry`
 - `submit-printful-order`
 
-Apply migrations through `20260617183024_secure_kexiaozhan_checkout_expirer_schedule`.
+Apply all repository migrations, including
+`20260717090000_add_analytics_event_outbox`.
 
 Confirm Supabase Vault contains:
 
@@ -75,6 +77,9 @@ The Vault `kexiaozhan_checkout_expirer_auth_secret` value must match the Edge Fu
 - Required events:
   - `checkout.session.completed`
   - `checkout.session.async_payment_succeeded`
+  - `checkout.session.async_payment_failed`
+  - `checkout.session.expired`
+  - `refund.created`
 - Confirm the live webhook signing secret is in production as `STRIPE_WEBHOOK_SECRET`.
 
 ## Cutover Sequence
