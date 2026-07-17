@@ -48,6 +48,9 @@ verify_jwt = false
 [functions.stripe-webhook]
 verify_jwt = false
 
+[functions.ga4-outbox-drain]
+verify_jwt = false
+
 [functions.resend-webhook]
 verify_jwt = false
 

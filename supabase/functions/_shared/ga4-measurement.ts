@@ -29,21 +29,14 @@ export interface Ga4EventParams {
 
 type AnalyticsEventClaim = {
   id: string;
+  claim_token: string;
 };
 
-type AnalyticsStore = {
+export type AnalyticsStore = {
   rpc: (
     name: string,
     params: Record<string, unknown>,
   ) => PromiseLike<{ data: unknown; error: { message?: string } | null }>;
-  from: (table: string) => {
-    update: (values: Record<string, unknown>) => {
-      eq: (
-        column: string,
-        value: string,
-      ) => PromiseLike<{ error: { message?: string } | null }>;
-    };
-  };
 };
 
 type SendGa4EventOptions = {
@@ -56,6 +49,38 @@ type SendGa4EventOptions = {
   measurementId?: string;
   store: AnalyticsStore;
 };
+
+export type Ga4MeasurementPayload = {
+  client_id: string;
+  events: Array<{
+    name: string;
+    params: Ga4EventParams;
+  }>;
+};
+
+type PostGa4MeasurementOptions = {
+  apiSecret?: string;
+  fetchImpl?: typeof fetch;
+  measurementId?: string;
+  payload: Ga4MeasurementPayload;
+  signal?: AbortSignal;
+};
+
+export class Ga4DeliveryError extends Error {
+  failureKind: "credentials" | "http" | "network";
+  httpStatus: number | null;
+
+  constructor(
+    message: string,
+    failureKind: "credentials" | "http" | "network",
+    httpStatus: number | null = null,
+  ) {
+    super(message);
+    this.name = "Ga4DeliveryError";
+    this.failureKind = failureKind;
+    this.httpStatus = httpStatus;
+  }
+}
 
 const ANALYTICS_CONTRACT_VERSION = "1.0.0";
 
@@ -133,9 +158,74 @@ export const buildGa4RefundParams = (
 const firstClaim = (data: unknown): AnalyticsEventClaim | null => {
   if (!Array.isArray(data) || data.length === 0) return null;
   const value = data[0];
-  return value && typeof value === "object" && typeof value.id === "string"
+  return value &&
+      typeof value === "object" &&
+      typeof value.id === "string" &&
+      typeof value.claim_token === "string"
     ? value as AnalyticsEventClaim
     : null;
+};
+
+const rpcSucceeded = (data: unknown) => data === true;
+
+const failureDetails = (error: unknown) => {
+  if (error instanceof Ga4DeliveryError) {
+    return {
+      failureKind: error.failureKind,
+      httpStatus: error.httpStatus,
+      message: error.message,
+    };
+  }
+  return {
+    failureKind: "network",
+    httpStatus: null,
+    message: error instanceof Error ? error.message : String(error),
+  };
+};
+
+export const postGa4Measurement = async ({
+  apiSecret,
+  fetchImpl = fetch,
+  measurementId,
+  payload,
+  signal,
+}: PostGa4MeasurementOptions) => {
+  if (!measurementId || !apiSecret) {
+    throw new Ga4DeliveryError(
+      "GA4 server credentials are not configured",
+      "credentials",
+    );
+  }
+
+  let response: Response;
+  try {
+    response = await fetchImpl(
+      `https://www.google-analytics.com/mp/collect?measurement_id=${
+        encodeURIComponent(measurementId)
+      }&api_secret=${encodeURIComponent(apiSecret)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal,
+      },
+    );
+  } catch (error) {
+    throw new Ga4DeliveryError(
+      error instanceof Error ? error.message : String(error),
+      "network",
+    );
+  }
+
+  if (!response.ok) {
+    throw new Ga4DeliveryError(
+      `GA4 Measurement Protocol returned ${response.status}`,
+      "http",
+      response.status,
+    );
+  }
+
+  return { httpStatus: response.status };
 };
 
 export const sendGa4Event = async ({
@@ -148,7 +238,7 @@ export const sendGa4Event = async ({
   measurementId,
   store,
 }: SendGa4EventOptions) => {
-  const payload = {
+  const payload: Ga4MeasurementPayload = {
     client_id: clientId,
     events: [{ name: eventName, params: eventParams }],
   };
@@ -167,56 +257,73 @@ export const sendGa4Event = async ({
     return { status: "duplicate_or_inflight" as const };
   }
 
+  let delivery: { httpStatus: number };
   try {
-    if (!measurementId || !apiSecret) {
-      throw new Error("GA4 server credentials are not configured");
-    }
-
-    const response = await fetchImpl(
-      `https://www.google-analytics.com/mp/collect?measurement_id=${
-        encodeURIComponent(measurementId)
-      }&api_secret=${encodeURIComponent(apiSecret)}`,
+    delivery = await postGa4Measurement({
+      apiSecret,
+      fetchImpl,
+      measurementId,
+      payload,
+    });
+  } catch (error) {
+    const failure = failureDetails(error);
+    const { data: failed, error: failError } = await store.rpc(
+      "fail_analytics_event",
       {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        p_claim_token: claim.claim_token,
+        p_error: failure.message,
+        p_event_id: claim.id,
+        p_failure_kind: failure.failureKind,
+        p_http_status: failure.httpStatus,
+        p_now: new Date().toISOString(),
       },
     );
-
-    if (!response.ok) {
-      throw new Error(`GA4 Measurement Protocol returned ${response.status}`);
-    }
-
-    const { error: updateError } = await store
-      .from("analytics_events")
-      .update({
-        status: "sent",
-        sent_at: new Date().toISOString(),
-        last_error: null,
-      })
-      .eq("id", claim.id);
-    if (updateError) {
-      throw new Error(updateError.message || "Unable to mark analytics event sent");
-    }
-
-    return { status: "sent" as const };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const { error: updateError } = await store
-      .from("analytics_events")
-      .update({
-        status: "failed",
-        last_error: message.slice(0, 500),
-      })
-      .eq("id", claim.id);
-    if (updateError) {
+    if (failError || !Array.isArray(failed) || failed.length !== 1) {
       console.error(
         "[GA4] Unable to mark analytics event failed:",
-        updateError,
+        failError ?? "claim ownership was lost",
       );
     }
     throw error;
   }
+
+  const completionTime = new Date().toISOString();
+  const { data: completed, error: completionError } = await store.rpc(
+    "complete_analytics_event",
+    {
+      p_claim_token: claim.claim_token,
+      p_event_id: claim.id,
+      p_http_status: delivery.httpStatus,
+      p_now: completionTime,
+    },
+  );
+  if (!completionError && rpcSucceeded(completed)) {
+    return { status: "sent" as const };
+  }
+
+  const diagnostic =
+    "GA accepted the event but the sent-state update was not confirmed";
+  const { data: markedAmbiguous, error: ambiguousError } = await store.rpc(
+    "mark_analytics_event_ambiguous",
+    {
+      p_claim_token: claim.claim_token,
+      p_error: completionError?.message
+        ? `${diagnostic}: ${completionError.message}`
+        : diagnostic,
+      p_event_id: claim.id,
+      p_http_status: delivery.httpStatus,
+      p_now: completionTime,
+    },
+  );
+  if (ambiguousError || !rpcSucceeded(markedAmbiguous)) {
+    console.error("[GA4] Split-brain state could not be persisted", {
+      ambiguousError,
+      claimId: claim.id,
+      eventKey,
+    });
+  }
+
+  throw new Error(`${diagnostic}; event_key=${eventKey}`);
 };
 
 export const sendGa4Purchase = (

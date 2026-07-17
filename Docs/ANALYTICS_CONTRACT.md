@@ -100,19 +100,90 @@ the source of truth for consented server events:
 
 The `analytics_events` outbox uses a unique event key and an atomic database
 claim. Duplicate webhook delivery cannot claim or send the same purchase or
-refund concurrently. Failed sends remain visible and can be reclaimed by a
-later duplicate/retry; a five-minute lease also makes an interrupted send
-reclaimable.
+refund concurrently. A server-only worker drains eligible `pending`, `failed`,
+and stale `sending` rows every minute. Claims use a five-minute lease and
+`FOR UPDATE SKIP LOCKED`, so concurrent workers do not wait on or deliver the
+same claimed row.
+
+Retries are bounded to five attempts with deterministic delays of 1, 5, 15,
+and 60 minutes after attempts 1-4. Exhausted rows become `dead_letter`.
+Consent that is denied or unset becomes `suppressed` without a GA request.
+The worker rebuilds the payload from the authoritative order and the outbox's
+fixed refund amount rather than replaying the stored JSON body.
+
+GA4 Measurement Protocol does not provide this integration with a receiver-side
+idempotency guarantee. If GA accepts a request but the local `sent` transition
+fails, the worker records an `ambiguous` terminal row and does not retry it
+automatically. If the database outage also prevents that ambiguous transition,
+the stale lease can cause a duplicate GA send; the five-attempt cap prevents an
+infinite replay, and the worker reports
+`splitBrainPersistenceFailures` for alerting. Reconcile the GA transaction ID
+and order before manually requeueing any ambiguous row.
 
 The server payload is built from the stored order and includes transaction ID,
 currency, value, shipping, coupon, tax, and safe line-item fields. Browser
 artwork and contact details are never copied into it.
 
-Deployment requires `GA4_MEASUREMENT_ID` and `GA4_API_SECRET` in the Stripe
-webhook environment. They must be configured outside source control. Before
+Deployment requires `GA4_MEASUREMENT_ID` and `GA4_API_SECRET` in both the
+Stripe webhook and `ga4-outbox-drain` environments. The worker also requires a
+dedicated `GA4_OUTBOX_DRAIN_AUTH_SECRET`; its matching value is stored in
+Supabase Vault as `ga4_outbox_drain_auth_secret` for the cron request. These
+values must be configured outside source control. Before
 closing issue #66, attach GA4 DebugView (or equivalent) evidence for a completed
 test order and refund, and record owner/counsel approval of the selling-region
 consent policy.
+
+### Outbox operations
+
+Deploy the hardening migration before the updated Stripe webhook and worker,
+then deploy `ga4-outbox-drain` before applying the cron migration. Do not apply
+this chain until the production migration backlog and required secrets have
+been reviewed. A manual drain is:
+
+```text
+POST https://<project-ref>.supabase.co/functions/v1/ga4-outbox-drain
+Authorization: Bearer <GA4_OUTBOX_DRAIN_AUTH_SECRET>
+apikey: <GA4_OUTBOX_DRAIN_AUTH_SECRET>
+Content-Type: application/json
+
+{"limit":25}
+```
+
+Inspect queue health with aggregate, non-customer-level queries:
+
+```sql
+select status, count(*) as events, min(created_at) as oldest
+from public.analytics_events
+group by status
+order by status;
+
+select event_key, event_name, attempts, max_attempts, last_failure_kind,
+       last_http_status, next_attempt_at, lease_expires_at, ambiguous_at,
+       terminal_at, left(last_error, 200) as last_error
+from public.analytics_events
+where status in ('failed', 'ambiguous', 'dead_letter')
+order by created_at;
+```
+
+Alert when a drain returns `transitionErrors` or
+`splitBrainPersistenceFailures` above zero, when any `ambiguous` or
+`dead_letter` row appears, or when an eligible `pending`/`failed` row remains
+past its retry time for more than five minutes. Reconcile ambiguous rows before
+manual retry. A service-role operator can requeue a reconciled row:
+
+```sql
+select *
+from public.requeue_analytics_event(
+  'purchase:<order-uuid>',
+  'Reconciled against GA transaction and paid order; safe to retry',
+  true
+);
+```
+
+Pass `true` when requeueing an exhausted row so its attempt budget resets.
+Rollback by unscheduling `ga4-outbox-drain-1m`; leave rows intact for
+inspection, and redeploy the previous Stripe webhook only after confirming no
+row is actively `sending`. Never delete or bulk-reset ambiguous rows.
 
 ## Launch reporting contract
 

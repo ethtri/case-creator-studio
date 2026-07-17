@@ -170,20 +170,18 @@ test("claims an event before sending and skips duplicate or in-flight claims", a
   const updates = [];
   let request = null;
   const store = {
-    async rpc() {
-      return { data: [{ id: "event-1" }], error: null };
-    },
-    from() {
-      return {
-        update(values) {
-          return {
-            async eq() {
-              updates.push(values);
-              return { error: null };
-            },
-          };
-        },
-      };
+    async rpc(name, values) {
+      updates.push({ name, values });
+      if (name === "claim_analytics_event") {
+        return {
+          data: [{ id: "event-1", claim_token: "claim-1" }],
+          error: null,
+        };
+      }
+      if (name === "complete_analytics_event") {
+        return { data: true, error: null };
+      }
+      throw new Error(`Unexpected RPC: ${name}`);
     },
   };
 
@@ -210,14 +208,13 @@ test("claims an event before sending and skips duplicate or in-flight claims", a
       params: { transaction_id: "order-123", value: 29.99 },
     }],
   });
-  assert.equal(updates.at(-1).status, "sent");
+  assert.equal(updates.at(-1).name, "complete_analytics_event");
+  assert.equal(updates.at(-1).values.p_claim_token, "claim-1");
 
   const duplicateStore = {
-    async rpc() {
+    async rpc(name) {
+      assert.equal(name, "claim_analytics_event");
       return { data: [], error: null };
-    },
-    from() {
-      throw new Error("duplicate claims must not update");
     },
   };
   const duplicate = await sendGa4Event({
@@ -233,6 +230,95 @@ test("claims an event before sending and skips duplicate or in-flight claims", a
     },
   });
   assert.equal(duplicate.status, "duplicate_or_inflight");
+});
+
+test("records a bounded failure without making a production GA request when credentials are missing", async () => {
+  const calls = [];
+  let fetchCalls = 0;
+  const store = {
+    async rpc(name, values) {
+      calls.push({ name, values });
+      if (name === "claim_analytics_event") {
+        return {
+          data: [{ id: "event-1", claim_token: "claim-1" }],
+          error: null,
+        };
+      }
+      if (name === "fail_analytics_event") {
+        return { data: [{ status: "failed" }], error: null };
+      }
+      throw new Error(`Unexpected RPC: ${name}`);
+    },
+  };
+
+  await assert.rejects(
+    sendGa4Event({
+      store,
+      clientId: "client.1",
+      eventKey: "purchase:order-123",
+      eventName: "purchase",
+      eventParams: { transaction_id: "order-123", value: 29.99 },
+      async fetchImpl() {
+        fetchCalls += 1;
+        throw new Error("must not fetch");
+      },
+    }),
+    /credentials are not configured/,
+  );
+
+  assert.equal(fetchCalls, 0);
+  assert.equal(calls.at(-1).name, "fail_analytics_event");
+  assert.equal(calls.at(-1).values.p_failure_kind, "credentials");
+});
+
+test("marks a post-send state failure ambiguous instead of scheduling a silent replay", async () => {
+  const calls = [];
+  const store = {
+    async rpc(name, values) {
+      calls.push({ name, values });
+      if (name === "claim_analytics_event") {
+        return {
+          data: [{ id: "event-1", claim_token: "claim-1" }],
+          error: null,
+        };
+      }
+      if (name === "complete_analytics_event") {
+        return {
+          data: null,
+          error: { message: "database unavailable" },
+        };
+      }
+      if (name === "mark_analytics_event_ambiguous") {
+        return { data: true, error: null };
+      }
+      throw new Error(`Unexpected RPC: ${name}`);
+    },
+  };
+
+  await assert.rejects(
+    sendGa4Event({
+      store,
+      measurementId: "G-TEST",
+      apiSecret: "secret",
+      clientId: "client.1",
+      eventKey: "refund:re_test",
+      eventName: "refund",
+      eventParams: { transaction_id: "order-123", value: 29.99 },
+      async fetchImpl() {
+        return new Response(null, { status: 204 });
+      },
+    }),
+    /sent-state update was not confirmed/,
+  );
+
+  assert.deepEqual(
+    calls.map((call) => call.name),
+    [
+      "claim_analytics_event",
+      "complete_analytics_event",
+      "mark_analytics_event_ambiguous",
+    ],
+  );
 });
 
 test("applies one consent update before loading Google Analytics", () => {
