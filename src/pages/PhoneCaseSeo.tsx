@@ -48,7 +48,7 @@ const PhoneCaseSeo = () => {
     variant.brand === "Apple"
       ? [
           "Use one favorite photo, initials, or a short line so the iPhone case still feels clean in daily use.",
-          "If this is a gift, confirm the exact iPhone model before designing; similar model names can have different camera layouts.",
+          "If this is a gift, confirm the exact supported iPhone model before designing so the order stays tied to the selected device.",
           "For birthdays, holidays, or just-because gifts, a simple memory usually reads better than a dense collage.",
         ]
       : [
@@ -161,7 +161,7 @@ const PhoneCaseSeo = () => {
             </article>
             <article className="rounded-lg border border-border bg-card p-6">
               <Package className="w-6 h-6 text-cta mb-4" />
-              <h2 className="text-xl font-semibold mb-3">Model-specific fit</h2>
+              <h2 className="text-xl font-semibold mb-3">Model-specific order</h2>
               <p className="text-sm text-muted-foreground">
                 This page starts with the {variant.model}, so the case order stays connected to the selected phone.
                 That matters when buying for someone else because device names can sound similar.

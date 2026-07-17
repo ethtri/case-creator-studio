@@ -41,9 +41,8 @@ const Terms = () => {
             <div>
               <h2 className="text-xl font-semibold text-foreground mb-3">Orders and production</h2>
               <p>
-                Custom products are made to order. Please review your design and device model
-                before checkout. We begin production quickly and cannot guarantee changes or
-                cancellations once an order is in progress.
+                Please review your design, device model, item count, and price before checkout.
+                Contact support as soon as possible if an order detail appears incorrect.
               </p>
             </div>
 
@@ -58,17 +57,16 @@ const Terms = () => {
             <div>
               <h2 className="text-xl font-semibold text-foreground mb-3">Shipping and delivery</h2>
               <p>
-                Delivery timelines are estimates and may vary by destination. We are not
-                responsible for delays caused by carriers, customs, or incorrect shipping details.
+                Confirm your shipping details during checkout. Order status and tracking
+                information appear in My Orders when they become available.
               </p>
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold text-foreground mb-3">Returns and replacements</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">Order problems</h2>
               <p>
-                If your order arrives damaged or with a manufacturing defect, contact us within
-                30 days and we will make it right. Because items are custom, we do not accept
-                returns for buyer remorse.
+                Contact support with your order number and a description of the problem.
+                Photos can help the support team review the order details and available next steps.
               </p>
             </div>
 

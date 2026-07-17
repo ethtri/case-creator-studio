@@ -71,7 +71,7 @@ const baseSeoRoutes = [
   makeRoute(
     "/",
     "Snapcase | Design Custom Phone Cases",
-    "Design a custom phone case in minutes. Personalized iPhone and Samsung cases printed for U.S. shipping.",
+    "Choose an iPhone or Samsung model, create a custom phone case, and review your preview before secure checkout.",
     "1.0"
   ),
   makeRoute(
@@ -104,7 +104,7 @@ export const staticSeoPages: StaticSeoPage[] = [
       {
         title: "Built around current devices",
         body:
-          "The catalog includes recent iPhone models and Samsung Galaxy options, with U.S. checkout and shipping details confirmed before purchase.",
+          "The catalog includes supported iPhone and Samsung Galaxy models, with checkout and shipping details confirmed before purchase.",
       },
     ],
     giftAngles: [
@@ -139,7 +139,7 @@ export const staticSeoPages: StaticSeoPage[] = [
       },
     ],
     giftAngles: [
-      "For newer iPhone models, choose the model first so the case order stays tied to the right camera layout and device size.",
+      "For newer iPhone models, choose the model first so the design and order stay tied to the selected device.",
       "A clean photo, initials, a phrase, or a small collage can make an iPhone case feel personal without making the design crowded.",
       "If you are buying for someone else, save the phone model and gift idea before you start designing so checkout stays focused.",
     ],
@@ -156,7 +156,7 @@ export const staticSeoPages: StaticSeoPage[] = [
       {
         title: "Designed around Galaxy models",
         body:
-          "Start with the exact Galaxy device so the case and camera layout match the model selected.",
+          "Start with the exact supported Galaxy device so the design and order stay tied to the model selected.",
       },
       {
         title: "Simple gift workflow",

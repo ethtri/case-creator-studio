@@ -17,29 +17,17 @@ interface OrderDetails {
   discount_total?: number | null;
   promotion_code?: string | null;
   status: string;
-  fulfillment_provider?: string | null;
 }
 
-const getOrderProgressCopy = (isManualProduction: boolean) =>
-  isManualProduction
-    ? {
-        summary:
-          "Your order is confirmed and queued for printing. Our production team will release it when the equipment is ready.",
-        steps: [
-          "Your order is added to the production queue",
-          "Our production team releases your case for printing",
-          "Your finished case ships within 2-4 business days",
-        ],
-      }
-    : {
-        summary:
-          "We've received your order and will start producing your custom case right away.",
-        steps: [
-          "Your custom design is sent to production",
-          "Your case is printed with high-quality UV printing",
-          "Ships within 2-4 business days",
-        ],
-      };
+const orderProgressCopy = {
+  summary:
+    "Your payment is confirmed. Check My Orders for status updates and tracking when it becomes available.",
+  steps: [
+    "Payment is confirmed and your order is recorded",
+    "Order status changes appear in My Orders",
+    "Tracking is added when it becomes available",
+  ],
+};
 
 const OrderSuccess = () => {
   const [searchParams] = useSearchParams();
@@ -119,10 +107,6 @@ const OrderSuccess = () => {
     );
   }
 
-  const progressCopy = getOrderProgressCopy(
-    orderDetails?.fulfillment_provider === "onshore_manual",
-  );
-
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -158,7 +142,7 @@ const OrderSuccess = () => {
             Thank you for your order!
           </h1>
           <p className="text-lg text-muted-foreground mb-8">
-            {progressCopy.summary}
+            {orderProgressCopy.summary}
           </p>
 
           {orderDetails && (
@@ -199,15 +183,15 @@ const OrderSuccess = () => {
             <ol className="text-sm text-muted-foreground space-y-2 text-left max-w-sm mx-auto">
               <li className="flex items-start gap-2">
                 <span className="w-5 h-5 rounded-full bg-accent/20 text-accent text-xs flex items-center justify-center shrink-0 mt-0.5">1</span>
-                {progressCopy.steps[0]}
+                {orderProgressCopy.steps[0]}
               </li>
               <li className="flex items-start gap-2">
                 <span className="w-5 h-5 rounded-full bg-accent/20 text-accent text-xs flex items-center justify-center shrink-0 mt-0.5">2</span>
-                {progressCopy.steps[1]}
+                {orderProgressCopy.steps[1]}
               </li>
               <li className="flex items-start gap-2">
                 <span className="w-5 h-5 rounded-full bg-accent/20 text-accent text-xs flex items-center justify-center shrink-0 mt-0.5">3</span>
-                {progressCopy.steps[2]}
+                {orderProgressCopy.steps[2]}
               </li>
             </ol>
           </div>

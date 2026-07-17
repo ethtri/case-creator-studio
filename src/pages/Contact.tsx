@@ -44,15 +44,15 @@ const Contact = () => {
                 <a href="mailto:support@snapcase.ai" className="text-foreground underline">
                   support@snapcase.ai
                 </a>
-                . Include your order number for the fastest response.
+                . Include your order number so the support team can locate the order.
               </p>
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold text-foreground mb-3">Response time</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">What to include</h2>
               <p>
-                We typically respond within 1 to 2 business days. During peak seasons, response
-                times may be slightly longer.
+                Include your order number, the email used at checkout, and a short description of
+                the issue. Add photos when they help explain an order problem.
               </p>
             </div>
 

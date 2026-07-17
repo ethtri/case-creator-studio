@@ -37,5 +37,8 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Validate public claims
+        run: npm run claims:check
+
       - name: Test
         run: npm test --if-present

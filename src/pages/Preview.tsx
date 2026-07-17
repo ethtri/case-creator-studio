@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
-import { ChevronLeft, ShoppingCart, BadgeCheck, Truck, Check, Smartphone, Eye, Bookmark } from "lucide-react";
+import { ChevronLeft, ShoppingCart, CreditCard, Check, Smartphone, Eye, Bookmark } from "lucide-react";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
 import { useCart } from "@/contexts/CartContext";
@@ -873,7 +873,7 @@ const Preview = () => {
                   {variant.brand} {variant.model}
                 </h1>
                 <p className="text-lg text-muted-foreground">
-                  Snap Case • Premium Polycarbonate
+                  Snap Case • Your custom design
                 </p>
               </div>
 
@@ -887,23 +887,23 @@ const Preview = () => {
               <div className="grid gap-4">
                 <div className="flex items-start gap-4 p-4 rounded-xl bg-card border border-border">
                   <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cta/20 to-cta/10 flex items-center justify-center shrink-0">
-                    <BadgeCheck className="w-5 h-5 text-cta" />
+                    <Eye className="w-5 h-5 text-cta" />
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-1">Premium Quality</h4>
+                    <h4 className="font-semibold mb-1">Preview ready</h4>
                     <p className="text-sm text-muted-foreground">
-                      Impact-resistant polycarbonate with precise cutouts for all ports and cameras
+                      Review your artwork on the selected {variant.model} case before adding it to your cart.
                     </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-4 p-4 rounded-xl bg-card border border-border">
                   <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cta/20 to-cta/10 flex items-center justify-center shrink-0">
-                    <Truck className="w-5 h-5 text-cta" />
+                    <CreditCard className="w-5 h-5 text-cta" />
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-1">U.S. Shipping</h4>
+                    <h4 className="font-semibold mb-1">Checkout details</h4>
                     <p className="text-sm text-muted-foreground">
-                      Printed and prepared for U.S. shipment in 2-4 business days
+                      Confirm shipping details and the final order total during secure Stripe checkout.
                     </p>
                   </div>
                 </div>
@@ -978,7 +978,7 @@ const Preview = () => {
               {/* Trust badge */}
               <div className="pt-4 border-t border-border">
                 <p className="text-sm text-muted-foreground text-center">
-                  🎨 Printed with high-quality UV technology for vibrant, long-lasting colors
+                  Review the model, artwork, and price before continuing to checkout.
                 </p>
               </div>
             </motion.div>
