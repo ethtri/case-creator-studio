@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { phoneVariants, getPhoneModels, getBrands } from "@/data/phoneVariants";
 import { Filter, Search } from "lucide-react";
 import { CartSheet } from "@/components/CartSheet";
@@ -46,13 +47,14 @@ const Catalog = () => {
     
     return filtered;
   }, [phoneModels, selectedBrand, searchQuery]);
+  const visibleVariants = filteredModels.flatMap(([, variants]) => variants);
 
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/30">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="-ml-2 inline-flex min-h-11 items-center gap-2 px-2">
             <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
           </Link>
           <div className="flex items-center gap-3">
@@ -62,6 +64,7 @@ const Catalog = () => {
         </div>
       </nav>
 
+      <main>
       {/* Header */}
       <section className="pt-28 pb-12">
         <div className="container mx-auto px-6">
@@ -77,8 +80,13 @@ const Catalog = () => {
           {/* Search & Brand Filter */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-8">
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Label htmlFor="phone-search" className="sr-only">Search phone models</Label>
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
+                aria-hidden="true"
+              />
               <Input
+                id="phone-search"
                 type="text"
                 placeholder="Search phones..."
                 value={searchQuery}
@@ -87,12 +95,13 @@ const Catalog = () => {
               />
             </div>
             
-            <div className="flex items-center gap-2 flex-wrap">
-              <Filter className="w-4 h-4 text-muted-foreground" />
+            <div className="flex items-center gap-2 flex-wrap" role="group" aria-label="Filter by brand">
+              <Filter className="w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <Button
                 variant={selectedBrand === null ? "default" : "outline"}
                 size="sm"
                 onClick={() => setSelectedBrand(null)}
+                aria-pressed={selectedBrand === null}
               >
                 All
               </Button>
@@ -102,11 +111,15 @@ const Catalog = () => {
                   variant={selectedBrand === brand ? "default" : "outline"}
                   size="sm"
                   onClick={() => setSelectedBrand(brand)}
+                  aria-pressed={selectedBrand === brand}
                 >
                   {brand}
                 </Button>
               ))}
             </div>
+            <p className="sr-only" role="status" aria-live="polite">
+              {visibleVariants.length} phone {visibleVariants.length === 1 ? "model" : "models"} shown.
+            </p>
           </div>
         </div>
       </section>
@@ -115,7 +128,7 @@ const Catalog = () => {
       <section className="pb-24">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {filteredModels.flatMap(([, variants]) => variants).map((variant) => (
+            {visibleVariants.map((variant) => (
               <div key={variant.id}>
                 <Link
                   to={`/design/${variant.id}`}
@@ -142,7 +155,7 @@ const Catalog = () => {
                     <div className="text-center">
                       <p className="text-xs text-muted-foreground mb-0.5">{variant.brand}</p>
                       <p className="text-sm font-medium leading-tight mb-2">{variant.model}</p>
-                      <p className="text-sm font-semibold text-accent">${variant.price.toFixed(2)}</p>
+                      <p className="text-sm font-semibold text-accent-emphasis">${variant.price.toFixed(2)}</p>
                     </div>
 
                     {/* Hover ring */}
@@ -152,8 +165,14 @@ const Catalog = () => {
               </div>
             ))}
           </div>
+          {visibleVariants.length === 0 && (
+            <p className="py-12 text-center text-muted-foreground">
+              No phone models match your search. Try another model or brand.
+            </p>
+          )}
         </div>
       </section>
+      </main>
 
       {/* Footer */}
       <footer className="py-12 border-t border-border/30">

@@ -662,7 +662,7 @@ const Preview = () => {
       <nav className="bg-card border-b border-border">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/" className="-ml-2 inline-flex min-h-11 items-center gap-2 px-2">
               <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
             </Link>
           </div>
@@ -902,7 +902,7 @@ const Preview = () => {
                     <Eye className="w-5 h-5 text-cta-emphasis" aria-hidden="true" />
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-1">Preview ready</h4>
+                    <h2 className="font-semibold mb-1">Preview ready</h2>
                     <p className="text-sm text-muted-foreground">
                       Review your artwork on the selected {variant.model} case before adding it to your cart.
                     </p>
@@ -913,7 +913,7 @@ const Preview = () => {
                     <CreditCard className="w-5 h-5 text-cta-emphasis" aria-hidden="true" />
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-1">Checkout details</h4>
+                    <h2 className="font-semibold mb-1">Checkout details</h2>
                     <p className="text-sm text-muted-foreground">
                       Confirm shipping details and the final order total during secure Stripe checkout.
                     </p>
@@ -932,6 +932,7 @@ const Preview = () => {
                   } text-cta-foreground shadow-lg shadow-cta/25`}
                   onClick={handleAddToCart}
                   disabled={addedToCart || !currentDesignReady}
+                  aria-describedby={!currentDesignReady ? "preview-cart-help" : undefined}
                 >
                   {addedToCart ? (
                     <>
@@ -945,6 +946,15 @@ const Preview = () => {
                     </>
                   )}
                 </Button>
+                {!currentDesignReady && (
+                  <p
+                    id="preview-cart-help"
+                    className="text-sm text-muted-foreground"
+                    role="status"
+                  >
+                    Add to Cart becomes available after your preview finishes and is saved to this phone model.
+                  </p>
+                )}
                 
                 <Button
                   size="lg"
@@ -963,9 +973,21 @@ const Preview = () => {
                   className="w-full h-12"
                   onClick={handleProceedToCheckout}
                   disabled={!canProceedToCheckout}
+                  aria-describedby={!canProceedToCheckout ? "preview-checkout-help" : undefined}
                 >
                   Proceed to Checkout
                 </Button>
+                {!canProceedToCheckout && (
+                  <p
+                    id="preview-checkout-help"
+                    className="text-sm text-muted-foreground"
+                    role="status"
+                  >
+                    {items.length === 0
+                      ? "Add this design to your cart before proceeding to checkout."
+                      : "Checkout becomes available after every design preview finishes saving."}
+                  </p>
+                )}
                 
                 <div className="grid grid-cols-2 gap-3">
                   <Button

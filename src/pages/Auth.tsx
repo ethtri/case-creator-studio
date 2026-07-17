@@ -98,7 +98,7 @@ const Auth = () => {
     <div className="min-h-screen bg-background">
       <nav className="bg-card border-b border-border">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="-ml-2 inline-flex min-h-11 items-center gap-2 px-2">
             <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
           </Link>
           <div className="flex items-center gap-3">

@@ -63,7 +63,7 @@ const waitForServer = async () => {
   throw new Error(`Accessibility test server did not start.\n${serverLog}`);
 };
 
-const installAppState = async (context, theme) => {
+const installAppState = async (context, theme, storedCartItem = cartItem) => {
   await context.addInitScript(
     ({ expectedOrigin, storedCartItem, storedPreviewUrl, selectedTheme }) => {
       if (window.location.origin !== expectedOrigin) return;
@@ -77,7 +77,7 @@ const installAppState = async (context, theme) => {
     },
     {
       expectedOrigin: origin,
-      storedCartItem: cartItem,
+      storedCartItem,
       storedPreviewUrl: previewUrl,
       selectedTheme: theme,
     },
@@ -85,6 +85,8 @@ const installAppState = async (context, theme) => {
 };
 
 const mockExternalServices = async (context) => {
+  let mockupStatusCalls = 0;
+
   await context.route(
     "https://files.cdn.printful.com/embed/embed.js",
     async (route) => {
@@ -94,14 +96,26 @@ const mockExternalServices = async (context) => {
         body: `
           window.PFDesignMaker = class {
             constructor(config) {
+              this.config = config;
               const host = document.getElementById(config.elemId);
               const frame = document.createElement("iframe");
               frame.title = "Design editor for Apple iPhone 17 Pro Max";
               frame.srcdoc = "<!doctype html><html lang='en'><head><title>Mock design editor</title></head><body><main aria-label='Mock design canvas'></main></body></html>";
               host.appendChild(frame);
-              setTimeout(() => config.onIframeLoaded?.(), 0);
+              setTimeout(() => {
+                config.onIframeLoaded?.();
+                config.onDesignStatusUpdate?.({
+                  hasDesign: true,
+                  designValid: true,
+                  designChange: true,
+                });
+              }, 0);
             }
-            sendMessage() {}
+            sendMessage(message) {
+              if (message?.event === "saveDesign") {
+                setTimeout(() => this.config.onTemplateSaved?.(12345), 0);
+              }
+            }
           };
         `,
       });
@@ -141,6 +155,30 @@ const mockExternalServices = async (context) => {
         return;
       }
 
+      if (request.url().endsWith("/edm-mockup")) {
+        const payload = request.postDataJSON();
+        if (payload?.action === "create") {
+          await route.fulfill({
+            status: 200,
+            headers,
+            body: JSON.stringify({ taskId: "accessibility-mockup-task" }),
+          });
+          return;
+        }
+
+        mockupStatusCalls += 1;
+        await route.fulfill({
+          status: 200,
+          headers,
+          body: JSON.stringify(
+            mockupStatusCalls <= 3
+              ? { status: "pending" }
+              : { status: "completed", mockupUrl: previewUrl },
+          ),
+        });
+        return;
+      }
+
       await route.fulfill({
         status: 200,
         headers,
@@ -152,7 +190,7 @@ const mockExternalServices = async (context) => {
 
 const waitForStableUi = async (page) => {
   await page.waitForLoadState("domcontentloaded");
-  await page.waitForTimeout(150);
+  await page.waitForTimeout(650);
 };
 
 const assertNoSeriousAxeViolations = async (page, label) => {
@@ -166,7 +204,12 @@ const assertNoSeriousAxeViolations = async (page, label) => {
     blocking.length,
     0,
     `${label} has critical/serious axe violations:\n${blocking
-      .map((violation) => `${violation.id}: ${violation.help}`)
+      .map(
+        (violation) =>
+          `${violation.id}: ${violation.help}\n${violation.nodes
+            .map((node) => `  ${node.target.join(" ")}: ${node.failureSummary ?? node.html}`)
+            .join("\n")}`,
+      )
       .join("\n")}`,
   );
   return {
@@ -192,14 +235,32 @@ const assertTargetSize = async (locator, label) => {
 const assertTextContrast = async (locator, label) => {
   const contrast = await locator.evaluate((element) => {
     const parseRgb = (value) => {
-      const channels = value.match(/[\d.]+/g)?.slice(0, 3).map(Number);
-      if (!channels || channels.length !== 3) {
+      const channels = value.match(/[\d.]+/g)?.map(Number);
+      if (!channels || channels.length < 3) {
         throw new Error(`Unable to parse color: ${value}`);
       }
-      return channels.map((channel) => channel / 255);
+      return {
+        rgb: channels.slice(0, 3),
+        alpha: channels[3] ?? 1,
+      };
+    };
+    const composite = (foreground, background) =>
+      foreground.rgb.map(
+        (channel, index) =>
+          channel * foreground.alpha + background[index] * (1 - foreground.alpha),
+      );
+    const effectiveBackground = () => {
+      const layers = [];
+      for (let current = element; current; current = current.parentElement) {
+        layers.push(parseRgb(getComputedStyle(current).backgroundColor));
+      }
+      return layers
+        .reverse()
+        .reduce((background, layer) => composite(layer, background), [255, 255, 255]);
     };
     const luminance = (channels) =>
       channels
+        .map((channel) => channel / 255)
         .map((channel) =>
           channel <= 0.04045
             ? channel / 12.92
@@ -211,8 +272,10 @@ const assertTextContrast = async (locator, label) => {
           0,
         );
     const style = getComputedStyle(element);
-    const foreground = luminance(parseRgb(style.color));
-    const background = luminance(parseRgb(style.backgroundColor));
+    const backgroundRgb = effectiveBackground();
+    const foregroundRgb = composite(parseRgb(style.color), backgroundRgb);
+    const foreground = luminance(foregroundRgb);
+    const background = luminance(backgroundRgb);
     return (
       (Math.max(foreground, background) + 0.05) /
       (Math.min(foreground, background) + 0.05)
@@ -224,21 +287,29 @@ const assertTextContrast = async (locator, label) => {
   );
 };
 
-const assertFocusIndicator = async (locator, label) => {
+const assertFocusIndicator = async (page, locator, label) => {
   await locator.focus();
+  await page.keyboard.press("Tab");
+  await page.keyboard.press("Shift+Tab");
   const focusStyle = await locator.evaluate((element) => {
     const style = getComputedStyle(element);
     return {
       outlineStyle: style.outlineStyle,
       outlineWidth: Number.parseFloat(style.outlineWidth),
       outlineColor: style.outlineColor,
+      boxShadow: style.boxShadow,
     };
   });
-  assert.ok(
+  const hasOutline =
     focusStyle.outlineStyle !== "none" &&
-      focusStyle.outlineWidth >= 2 &&
-      !focusStyle.outlineColor.endsWith(", 0)"),
-    `${label} does not expose a clear focus outline.`,
+    focusStyle.outlineWidth >= 2 &&
+    !focusStyle.outlineColor.endsWith(", 0)");
+  const hasFocusRing =
+    focusStyle.boxShadow !== "none" &&
+    !focusStyle.boxShadow.includes("rgba(0, 0, 0, 0)");
+  assert.ok(
+    hasOutline || hasFocusRing,
+    `${label} does not expose a clear focus outline or ring.`,
   );
 };
 
@@ -251,6 +322,28 @@ const assertNoHorizontalOverflow = async (page, label) => {
     widths.content <= widths.viewport,
     `${label} overflows horizontally (${widths.content}px content in ${widths.viewport}px viewport).`,
   );
+};
+
+const waitForImage = async (locator, label) => {
+  await locator.waitFor({ state: "visible" });
+  const dimensions = await locator.evaluate(
+    (image) =>
+      new Promise((resolveImage, rejectImage) => {
+        const finish = () =>
+          image.naturalWidth > 0
+            ? resolveImage({ width: image.naturalWidth, height: image.naturalHeight })
+            : rejectImage(new Error("Image loaded without intrinsic dimensions."));
+        if (image.complete) {
+          finish();
+          return;
+        }
+        image.addEventListener("load", finish, { once: true });
+        image.addEventListener("error", () => rejectImage(new Error("Image failed to load.")), {
+          once: true,
+        });
+      }),
+  );
+  assert.ok(dimensions.width > 0 && dimensions.height > 0, `${label} did not load.`);
 };
 
 let browser;
@@ -271,6 +364,8 @@ try {
 
   await page.goto(origin);
   await waitForStableUi(page);
+  await waitForImage(page.locator("picture img").first(), "Desktop hero image");
+  await assertTargetSize(page.getByRole("link", { name: "Snapcase", exact: true }), "Home logo");
   await assertTargetSize(page.getByRole("button", { name: "Open cart, 2 items" }), "Home cart");
   await assertTargetSize(page.getByRole("button", { name: "Open site menu" }), "Home menu");
   await assertTargetSize(page.getByRole("link", { name: /Start designing/ }), "Home primary CTA");
@@ -281,7 +376,7 @@ try {
   await assertTextContrast(homePrimaryCta, "Home primary CTA hover");
   await homePrimaryCta.focus();
   await assertTextContrast(homePrimaryCta, "Home primary CTA focus");
-  await assertFocusIndicator(homePrimaryCta, "Home primary CTA");
+  await assertFocusIndicator(page, homePrimaryCta, "Home primary CTA");
   assert.equal(await page.getByRole("main").count(), 1, "Home must expose one main landmark.");
   auditResults.push(await assertNoSeriousAxeViolations(page, "home-light-desktop"));
   await page.screenshot({
@@ -298,10 +393,18 @@ try {
   await page.getByRole("textbox", { name: "Search phone models" }).waitFor();
   auditResults.push(await assertNoSeriousAxeViolations(page, "catalog-light-desktop"));
 
+  await page.getByRole("button", { name: "Open cart, 2 items" }).click();
+  const seededCartDialog = page.getByRole("dialog", { name: "Your Cart (2 items)" });
+  await seededCartDialog.waitFor();
+  await page.getByRole("button", { name: /Remove Apple iPhone 17 Pro Max/ }).click();
+  await page.getByRole("button", { name: "Close" }).click();
+  await seededCartDialog.waitFor({ state: "hidden" });
+  await page.getByRole("button", { name: "Open cart, empty" }).waitFor();
+
   const modelLink = page.getByRole("link", {
-    name: /iPhone 17 Pro Max.*Apple.*\$29\.99/i,
+    name: /Apple.*iPhone 17 Pro Max.*\$29\.99/i,
   }).first();
-  await assertFocusIndicator(modelLink, "Catalog model link");
+  await assertFocusIndicator(page, modelLink, "Catalog model link");
   await page.keyboard.press("Enter");
   await page.waitForURL(/\/design\/iphone-17-pro-max/);
   await page.getByRole("heading", {
@@ -311,27 +414,75 @@ try {
   await page.locator('iframe[title="Design editor for Apple iPhone 17 Pro Max"]').waitFor();
   auditResults.push(await assertNoSeriousAxeViolations(page, "editor-light-desktop"));
 
-  const cartTrigger = page.getByRole("button", { name: "Open cart, 2 items" });
+  const continueToPreview = page.getByRole("button", { name: "Continue to Preview" });
+  await assertTargetSize(continueToPreview, "Editor continue");
+  await continueToPreview.focus();
+  await page.keyboard.press("Enter");
+  await page.waitForURL(/\/preview\/iphone-17-pro-max/);
+  await page.getByRole("heading", { level: 1, name: "Apple iPhone 17 Pro Max" }).waitFor();
+
+  const addToCart = page.getByRole("button", { name: /Add to Cart/ });
+  await addToCart.waitFor();
+  assert.equal(
+    await addToCart.isDisabled(),
+    true,
+    "Add to Cart must remain disabled while the production preview is not ready.",
+  );
+  assert.equal(
+    await addToCart.getAttribute("aria-describedby"),
+    "preview-cart-help",
+    "The disabled Add to Cart control must reference its persistent explanation.",
+  );
+  await page.getByText(/Add to Cart becomes available after your preview finishes/).waitFor();
+  await page.waitForTimeout(650);
+  auditResults.push(await assertNoSeriousAxeViolations(page, "preview-loading-light-desktop"));
+  await addToCart.click();
+  await page.getByRole("button", { name: /Added to Cart/ }).waitFor();
+  await page.getByRole("button", { name: "Open cart, 1 item" }).waitFor();
+  const previewSecondaryCta = page.getByRole("button", { name: "Proceed to Checkout" });
+  await assertTextContrast(previewSecondaryCta, "Preview secondary CTA default");
+  await previewSecondaryCta.hover();
+  await page.waitForTimeout(20);
+  await assertTextContrast(previewSecondaryCta, "Preview secondary CTA hover");
+  await previewSecondaryCta.focus();
+  await assertTextContrast(previewSecondaryCta, "Preview secondary CTA focus");
+  await assertFocusIndicator(page, previewSecondaryCta, "Preview secondary CTA");
+  auditResults.push(await assertNoSeriousAxeViolations(page, "preview-ready-light-desktop"));
+  await page.screenshot({
+    path: resolve(outputDir, "preview-light-desktop.png"),
+    fullPage: true,
+  });
+
+  const cartTrigger = page.getByRole("button", { name: "Open cart, 1 item" });
   await cartTrigger.focus();
   await page.keyboard.press("Enter");
-  const cartDialog = page.getByRole("dialog", { name: "Your Cart (2 items)" });
+  const cartDialog = page.getByRole("dialog", { name: "Your Cart (1 item)" });
   await cartDialog.waitFor();
-  await page.getByText("Apple iPhone 17 Pro Max", { exact: true }).waitFor();
+  await cartDialog
+    .getByRole("heading", { level: 3, name: "Apple iPhone 17 Pro Max" })
+    .waitFor();
   await assertTargetSize(page.getByRole("button", { name: /Decrease quantity/ }), "Cart decrease");
   await assertTargetSize(page.getByRole("button", { name: /Increase quantity/ }), "Cart increase");
   await assertTargetSize(page.getByRole("button", { name: /Remove Apple iPhone 17 Pro Max/ }), "Cart remove");
   await assertTargetSize(page.getByRole("button", { name: "Close" }), "Cart close");
+  const cartFocusable = cartDialog.locator(
+    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+  );
+  const firstCartControl = cartFocusable.first();
+  const lastCartControl = cartFocusable.last();
+  await lastCartControl.focus();
   await page.keyboard.press("Tab");
   assert.equal(
-    await cartDialog.evaluate((dialog) => dialog.contains(document.activeElement)),
+    await firstCartControl.evaluate((element) => element === document.activeElement),
     true,
-    "Tab focus must remain inside the open cart dialog.",
+    "Tab from the final cart control must wrap to the first control.",
   );
+  await firstCartControl.focus();
   await page.keyboard.press("Shift+Tab");
   assert.equal(
-    await cartDialog.evaluate((dialog) => dialog.contains(document.activeElement)),
+    await lastCartControl.evaluate((element) => element === document.activeElement),
     true,
-    "Reverse-tab focus must remain inside the open cart dialog.",
+    "Shift+Tab from the first cart control must wrap to the final control.",
   );
   auditResults.push(await assertNoSeriousAxeViolations(page, "cart-light-desktop"));
 
@@ -348,6 +499,7 @@ try {
   await checkoutButton.focus();
   await page.keyboard.press("Enter");
   await page.waitForURL(`${origin}/checkout`);
+  await waitForStableUi(page);
   await page.getByRole("heading", { level: 1, name: "Checkout" }).waitFor();
   await page.getByText("Apple iPhone 17 Pro Max", { exact: true }).waitFor();
   await page.getByLabel("Email").waitFor();
@@ -372,6 +524,48 @@ try {
   auditResults.push(await assertNoSeriousAxeViolations(page, "checkout-error-light-desktop"));
   await desktop.close();
 
+  const invalidState = await browser.newContext({
+    viewport: { width: 1024, height: 900 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  await installAppState(invalidState, "light", {
+    ...cartItem,
+    id: "accessibility-invalid-cart-item",
+    edmTemplateId: null,
+  });
+  await mockExternalServices(invalidState);
+  const invalidPage = await invalidState.newPage();
+  await invalidPage.goto(origin);
+  await waitForStableUi(invalidPage);
+  await invalidPage.getByRole("button", { name: "Open cart, 2 items" }).click();
+  const invalidCartCheckout = invalidPage.getByRole("button", { name: "Checkout" });
+  assert.equal(await invalidCartCheckout.isDisabled(), true, "Invalid cart checkout must be disabled.");
+  assert.equal(
+    await invalidCartCheckout.getAttribute("aria-describedby"),
+    "cart-checkout-help",
+    "Disabled cart checkout must reference its explanation.",
+  );
+  await invalidPage
+    .getByText("Checkout becomes available after every design preview finishes saving.")
+    .waitFor();
+  auditResults.push(await assertNoSeriousAxeViolations(invalidPage, "invalid-cart-light-desktop"));
+
+  await invalidPage.goto(`${origin}/checkout`);
+  await waitForStableUi(invalidPage);
+  const invalidPayment = invalidPage.getByRole("button", { name: /Pay .* with Stripe/ });
+  assert.equal(await invalidPayment.isDisabled(), true, "Invalid checkout payment must be disabled.");
+  assert.equal(
+    await invalidPayment.getAttribute("aria-describedby"),
+    "checkout-payment-help",
+    "Disabled payment must reference its explanation.",
+  );
+  await invalidPage
+    .getByText("Payment becomes available after every design preview finishes saving.")
+    .waitFor();
+  auditResults.push(await assertNoSeriousAxeViolations(invalidPage, "invalid-checkout-light-desktop"));
+  await invalidState.close();
+
   const mobile = await browser.newContext({
     viewport: { width: 390, height: 844 },
     reducedMotion: "reduce",
@@ -383,7 +577,12 @@ try {
 
   await mobilePage.goto(origin);
   await waitForStableUi(mobilePage);
+  await waitForImage(mobilePage.locator("picture img").first(), "Mobile hero image");
   await assertNoHorizontalOverflow(mobilePage, "Mobile home");
+  await assertTargetSize(
+    mobilePage.getByRole("link", { name: "Snapcase", exact: true }),
+    "Mobile home logo",
+  );
   await assertTargetSize(
     mobilePage.getByRole("button", { name: "Open cart, 2 items" }),
     "Mobile home cart",
@@ -413,10 +612,43 @@ try {
 
   await mobilePage.getByRole("button", { name: "Open cart, 2 items" }).click();
   await mobilePage.getByRole("dialog", { name: "Your Cart (2 items)" }).waitFor();
+  await assertTargetSize(
+    mobilePage.getByRole("button", { name: /Decrease quantity/ }),
+    "Mobile cart decrease",
+  );
+  await assertTargetSize(
+    mobilePage.getByRole("button", { name: /Increase quantity/ }),
+    "Mobile cart increase",
+  );
+  await assertTargetSize(
+    mobilePage.getByRole("button", { name: /Remove Apple iPhone 17 Pro Max/ }),
+    "Mobile cart remove",
+  );
+  await assertTargetSize(mobilePage.getByRole("button", { name: "Checkout" }), "Mobile cart checkout");
+  await assertTargetSize(mobilePage.getByRole("button", { name: "Close" }), "Mobile cart close");
   await assertNoHorizontalOverflow(mobilePage, "Mobile cart");
   auditResults.push(await assertNoSeriousAxeViolations(mobilePage, "cart-dark-mobile"));
   await mobilePage.screenshot({
     path: resolve(outputDir, "cart-dark-mobile.png"),
+    fullPage: false,
+  });
+
+  await mobilePage.getByRole("button", { name: "Checkout" }).click();
+  await mobilePage.waitForURL(`${origin}/checkout`);
+  await waitForStableUi(mobilePage);
+  await mobilePage.getByRole("heading", { level: 1, name: "Checkout" }).waitFor();
+  await assertNoHorizontalOverflow(mobilePage, "Mobile checkout");
+  await assertTargetSize(
+    mobilePage.getByRole("button", { name: "Remove Apple iPhone 17 Pro Max from order" }),
+    "Mobile checkout remove",
+  );
+  await assertTargetSize(
+    mobilePage.getByRole("button", { name: /Pay .* with Stripe/ }),
+    "Mobile checkout payment",
+  );
+  auditResults.push(await assertNoSeriousAxeViolations(mobilePage, "checkout-dark-mobile"));
+  await mobilePage.screenshot({
+    path: resolve(outputDir, "checkout-dark-mobile.png"),
     fullPage: true,
   });
   await mobile.close();
@@ -428,16 +660,21 @@ try {
         audited: auditResults,
         evidence: [
           "output/playwright/home-light-desktop.png",
+          "output/playwright/preview-light-desktop.png",
           "output/playwright/checkout-light-desktop.png",
           "output/playwright/home-dark-mobile.png",
           "output/playwright/catalog-dark-mobile.png",
           "output/playwright/cart-dark-mobile.png",
+          "output/playwright/checkout-dark-mobile.png",
         ],
       },
       null,
       2,
     ),
   );
+} catch (error) {
+  console.error(error);
+  process.exitCode = 1;
 } finally {
   await browser?.close();
   server.kill();

@@ -81,19 +81,19 @@ const OrderSuccess = () => {
 
   if (isVerifying) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-accent-emphasis mx-auto mb-4" />
+      <main className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center" role="status" aria-live="polite">
+          <Loader2 className="w-12 h-12 animate-spin text-accent-emphasis mx-auto mb-4" aria-hidden="true" />
           <p className="text-muted-foreground">Verifying your payment...</p>
         </div>
-      </div>
+      </main>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center max-w-md">
+      <main className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center max-w-md" role="alert">
           <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-4">
             <span className="text-destructive-emphasis text-2xl">!</span>
           </div>
@@ -103,7 +103,7 @@ const OrderSuccess = () => {
             Return to Shop
           </Button>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -112,7 +112,7 @@ const OrderSuccess = () => {
       {/* Navigation */}
       <nav className="bg-card border-b border-border">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="-ml-2 inline-flex min-h-11 items-center gap-2 px-2">
             <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
           </Link>
           <div className="flex items-center gap-3">

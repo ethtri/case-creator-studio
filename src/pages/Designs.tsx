@@ -89,7 +89,7 @@ const DesignsContent = () => {
     <div className="min-h-screen bg-background">
       <nav className="bg-card border-b border-border">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="-ml-2 inline-flex min-h-11 items-center gap-2 px-2">
             <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
           </Link>
           <div className="flex items-center gap-3">
@@ -131,7 +131,7 @@ const DesignsContent = () => {
           ) : designs.length === 0 ? (
             <div className="text-center py-16 bg-card rounded-2xl shadow-soft">
               <Palette className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium mb-2">No designs saved yet</h3>
+              <h2 className="text-lg font-medium mb-2">No designs saved yet</h2>
               <p className="text-muted-foreground mb-6">
                 Save a design from the preview screen to access it anytime.
               </p>
@@ -159,9 +159,9 @@ const DesignsContent = () => {
                       className="h-48 w-full rounded-xl bg-muted mb-4 object-cover"
                     />
                     <div className="space-y-2 mb-4">
-                      <h3 className="font-semibold">
+                      <h2 className="font-semibold">
                         {variant ? `${variant.brand} ${variant.model}` : "Custom Phone Case"}
-                      </h3>
+                      </h2>
                       <p className="text-xs text-muted-foreground">
                         Updated {new Date(design.updatedAt).toLocaleDateString()}
                       </p>

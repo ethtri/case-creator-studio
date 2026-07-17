@@ -246,7 +246,7 @@ const Checkout = () => {
       <nav className="bg-card border-b border-border">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/" className="-ml-2 inline-flex min-h-11 items-center gap-2 px-2">
               <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
             </Link>
           </div>
@@ -326,6 +326,9 @@ const Checkout = () => {
                   size="xl"
                   className="w-full bg-cta hover:bg-cta/90 text-cta-foreground"
                   disabled={isProcessing || items.length === 0 || hasInvalidItems}
+                  aria-describedby={
+                    items.length === 0 || hasInvalidItems ? "checkout-payment-help" : undefined
+                  }
                 >
                   {isProcessing ? (
                     <>
@@ -339,6 +342,17 @@ const Checkout = () => {
                     </>
                   )}
                 </Button>
+                {(items.length === 0 || hasInvalidItems) && (
+                  <p
+                    id="checkout-payment-help"
+                    className="text-sm text-muted-foreground"
+                    role="status"
+                  >
+                    {items.length === 0
+                      ? "Add a completed design to your cart before paying."
+                      : "Payment becomes available after every design preview finishes saving."}
+                  </p>
+                )}
 
                 <p className="text-xs text-center text-muted-foreground">
                   Your payment information is secured with SSL encryption
@@ -377,7 +391,7 @@ const Checkout = () => {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-destructive-emphasis"
+                          className="shrink-0 text-destructive-emphasis"
                           type="button"
                           onClick={() => removeFromCart(item.id)}
                           aria-label={`Remove ${item.variant.brand} ${item.variant.model} from order`}

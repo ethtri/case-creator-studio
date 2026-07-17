@@ -4,6 +4,12 @@ import { Button } from "@/components/ui/button";
 import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { CartSheet } from "@/components/CartSheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Loader2, AlertCircle, ExternalLink, ArrowLeft, ArrowRight, Maximize2, Minimize2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -127,6 +133,7 @@ const DesignEditorEDM = () => {
   const hasUnsavedChangesRef = useRef(false);
   const designValidRef = useRef(false);
   const scriptLoadedRef = useRef(false);
+  const retryEditorButtonRef = useRef<HTMLButtonElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
   const footerRef = useRef<HTMLDivElement | null>(null);
   const designerContainerRef = useRef<HTMLDivElement | null>(null);
@@ -818,12 +825,12 @@ const DesignEditorEDM = () => {
 
   if (!variant) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin w-8 h-8 border-2 border-cta border-t-transparent rounded-full mx-auto mb-4" />
+      <main className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center" role="status" aria-live="polite">
+          <div className="animate-spin w-8 h-8 border-2 border-cta border-t-transparent rounded-full mx-auto mb-4" aria-hidden="true" />
           <p className="text-muted-foreground">Loading editor...</p>
         </div>
-      </div>
+      </main>
     );
   }
 
@@ -879,7 +886,7 @@ const DesignEditorEDM = () => {
           className="h-14 bg-card border-b border-border flex items-center px-6 z-40 shrink-0"
         >
           <div className="flex items-center gap-4">
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/" className="-ml-2 inline-flex min-h-11 items-center gap-2 px-2">
               <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
             </Link>
             <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary-emphasis font-medium">
@@ -907,21 +914,31 @@ const DesignEditorEDM = () => {
           Design a case for {variant.brand} {variant.model}
         </h1>
         {/* Error State */}
-        {error && (
-          <div
-            className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-50"
-            role="alert"
-            aria-live="assertive"
-          >
-            <div className="max-w-md p-6 bg-card border border-border rounded-xl text-center space-y-4">
+        <Dialog
+          open={Boolean(error)}
+          onOpenChange={(open) => {
+            if (!open && error) {
+              navigate("/catalog");
+            }
+          }}
+        >
+          {error && (
+            <DialogContent
+              role="alertdialog"
+              className="max-w-md text-center"
+              onOpenAutoFocus={(event) => {
+                event.preventDefault();
+                retryEditorButtonRef.current?.focus();
+              }}
+            >
               <AlertCircle className="w-12 h-12 text-destructive-emphasis mx-auto" aria-hidden="true" />
-              <h3 className="text-lg font-semibold">Unable to Load Design Maker</h3>
-              <p className="text-sm text-muted-foreground">{error}</p>
+              <DialogTitle>Unable to Load Design Maker</DialogTitle>
+              <DialogDescription>{error}</DialogDescription>
               <div className="flex gap-3 justify-center">
                 <Button variant="outline" onClick={() => navigate('/catalog')}>
                   Back to Catalog
                 </Button>
-                <Button onClick={handleRetryEditor}>
+                <Button ref={retryEditorButtonRef} onClick={handleRetryEditor}>
                   Retry
                 </Button>
               </div>
@@ -933,12 +950,12 @@ const DesignEditorEDM = () => {
                   rel="noopener noreferrer"
                   className="text-primary-emphasis hover:underline inline-flex items-center gap-1 ml-1"
                 >
-                  Learn more <ExternalLink className="w-3 h-3" />
+                  Learn more <ExternalLink className="w-3 h-3" aria-hidden="true" />
                 </a>
               </p>
-            </div>
-          </div>
-        )}
+            </DialogContent>
+          )}
+        </Dialog>
 
         {/* Loading State */}
         {loading && !error && (

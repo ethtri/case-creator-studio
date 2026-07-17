@@ -16,9 +16,12 @@ export const RequireAuth = ({ children }: { children: ReactNode }) => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin w-8 h-8 border-2 border-cta border-t-transparent rounded-full" />
-      </div>
+      <main className="min-h-screen flex items-center justify-center bg-background">
+        <div role="status" aria-live="polite">
+          <div className="animate-spin w-8 h-8 border-2 border-cta border-t-transparent rounded-full" aria-hidden="true" />
+          <span className="sr-only">Checking your account...</span>
+        </div>
+      </main>
     );
   }
 
@@ -44,7 +47,7 @@ export const RequireAuth = ({ children }: { children: ReactNode }) => {
     };
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <main className="min-h-screen flex items-center justify-center bg-background">
         <div className="max-w-md w-full px-6">
           <div className="bg-card border border-border rounded-2xl p-6 shadow-soft text-center space-y-4">
             <h1 className="text-xl font-semibold">Verify your email to continue</h1>
@@ -64,7 +67,7 @@ export const RequireAuth = ({ children }: { children: ReactNode }) => {
             </Button>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 

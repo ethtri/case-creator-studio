@@ -30,7 +30,7 @@ interface Order {
 }
 
 const statusColors: Record<string, string> = {
-  pending: "bg-warning/10 text-warning",
+  pending: "bg-warning/10 text-warning-emphasis",
   paid: "bg-accent/10 text-accent-emphasis",
   submitted: "bg-primary/10 text-primary-emphasis",
   processing: "bg-primary/10 text-primary-emphasis",
@@ -119,7 +119,7 @@ const OrdersContent = () => {
     <div className="min-h-screen bg-background">
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/30">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="-ml-2 inline-flex min-h-11 items-center gap-2 px-2">
             <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
           </Link>
           <div className="flex items-center gap-3">

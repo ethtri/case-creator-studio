@@ -91,9 +91,9 @@ export function CartSheet() {
                     />
                     
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-sm truncate">
+                      <h3 className="font-medium text-sm truncate">
                         {item.variant.brand} {item.variant.model}
-                      </h4>
+                      </h3>
                       <p className="text-xs text-muted-foreground mb-2">
                         Custom Design
                       </p>
@@ -129,7 +129,7 @@ export function CartSheet() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-destructive-emphasis"
+                          className="shrink-0 text-destructive-emphasis"
                           onClick={() => removeFromCart(item.id)}
                           aria-label={`Remove ${item.variant.brand} ${item.variant.model} from cart`}
                         >
@@ -160,9 +160,19 @@ export function CartSheet() {
                 size="lg"
                 onClick={handleCheckout}
                 disabled={hasInvalidItems}
+                aria-describedby={hasInvalidItems ? "cart-checkout-help" : undefined}
               >
                 Checkout
               </Button>
+              {hasInvalidItems && (
+                <p
+                  id="cart-checkout-help"
+                  className="text-sm text-muted-foreground"
+                  role="status"
+                >
+                  Checkout becomes available after every design preview finishes saving.
+                </p>
+              )}
             </div>
           )}
         </div>

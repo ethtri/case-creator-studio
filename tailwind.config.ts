@@ -51,6 +51,7 @@ export default {
         warning: {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
+          emphasis: "hsl(var(--warning-emphasis))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
