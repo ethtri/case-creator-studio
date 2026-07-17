@@ -244,6 +244,128 @@ const METRIC_PHONE_DIMENSION_BINDINGS = {
   },
 };
 
+const CANONICAL_DATA_QUALITY = {
+  revenueTolerance: {
+    absoluteUsd: 0.01,
+    relative: 0.001,
+  },
+  cardinalityCeilings: {
+    minimumObservations: 50,
+    eventNameMaximumUniqueValues: 25,
+    normalizedPathMaximumUniqueRatio: 0.25,
+    normalizedPathMaximumUniqueValues: 100,
+  },
+  requiredSessionDimensions: ["source", "medium", "device", "browser"],
+  requiredItemDimensions: [
+    "item_id",
+    "item_name",
+    "item_brand",
+    "item_category",
+    "item_variant",
+  ],
+  ecommerceEventsRequiringItems: [
+    "view_item_list",
+    "select_item",
+    "view_item",
+    "add_to_cart",
+    "begin_checkout",
+    "purchase",
+    "refund",
+  ],
+  allowedEventNames: [
+    "page_view",
+    "view_item_list",
+    "select_item",
+    "view_item",
+    "design_start",
+    "editor_first_action",
+    "preview_success",
+    "preview_failure",
+    "design_save",
+    "add_to_cart",
+    "begin_checkout",
+    "purchase",
+    "refund",
+    "checkout_abandoned",
+    "primary_cta_click",
+    "editor_error",
+    "checkout_error",
+    "promo_applied",
+  ],
+};
+
+const EXPORT_SCHEMA = {
+  reportKeys: new Set([
+    "exportVersion",
+    "generatedAt",
+    "sourceSystem",
+    "evidenceId",
+    "evidenceUrl",
+    "window",
+    "synthetic",
+    "sessions",
+    "events",
+    "orders",
+  ]),
+  windowKeys: new Set(["start", "end", "timezone", "dataStatus"]),
+  sessionKeys: new Set([
+    "session_id",
+    "source",
+    "medium",
+    "campaign",
+    "device",
+    "browser",
+  ]),
+  eventKeys: new Set([
+    "event_id",
+    "event_name",
+    "session_id",
+    "normalized_path",
+    "occurred_at",
+    "analytics_contract_version",
+    "placement",
+    "label",
+    "destination",
+    "brand",
+    "model",
+    "variant_id",
+    "error_code",
+    "stage",
+    "code",
+    "discount_amount",
+    "item_list_id",
+    "item_list_name",
+    "transaction_id",
+    "currency",
+    "value",
+    "shipping",
+    "coupon",
+    "tax",
+    "items",
+  ]),
+  orderKeys: new Set([
+    "transaction_id",
+    "status",
+    "created_at",
+    "currency",
+    "product_revenue",
+    "shipping",
+    "tax",
+    "total",
+    "items",
+  ]),
+  itemKeys: new Set([
+    "item_id",
+    "item_name",
+    "item_brand",
+    "item_category",
+    "item_variant",
+    "price",
+    "quantity",
+    "discount",
+  ]),
+};
+
 const isObject = (value) =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -252,6 +374,11 @@ const DEFAULT_FUTURE_SKEW_MS = 5 * 60 * 1000;
 const hasExactKeys = (value, keys) =>
   isObject(value) &&
   Object.keys(value).sort().join(",") === [...keys].sort().join(",");
+
+const arraysHaveSameValues = (actual, expected) =>
+  Array.isArray(actual) &&
+  actual.length === expected.length &&
+  [...actual].sort().join("\n") === [...expected].sort().join("\n");
 
 const isNonEmptyString = (value) =>
   typeof value === "string" && value.trim().length > 0;
@@ -297,6 +424,43 @@ const finding = (code, message, location, severity = "error") => ({
   severity,
 });
 
+const validateAllowedKeys = (
+  value,
+  allowedKeys,
+  requiredKeys,
+  location,
+  entityName,
+  findings,
+) => {
+  if (!isObject(value)) {
+    findings.push(finding(
+      "export_schema_invalid",
+      `${entityName} must be a JSON object.`,
+      location,
+    ));
+    return false;
+  }
+  for (const key of Object.keys(value)) {
+    if (!allowedKeys.has(key)) {
+      findings.push(finding(
+        "export_unknown_field",
+        `${entityName} contains unsupported field '${key}'.`,
+        `${location}.${key}`,
+      ));
+    }
+  }
+  for (const key of requiredKeys) {
+    if (!Object.hasOwn(value, key)) {
+      findings.push(finding(
+        "export_schema_invalid",
+        `${entityName} is missing required field '${key}'.`,
+        `${location}.${key}`,
+      ));
+    }
+  }
+  return true;
+};
+
 const relativeDifference = (actual, expected) => {
   if (expected === 0) return actual === 0 ? 0 : Number.POSITIVE_INFINITY;
   return Math.abs(actual - expected) / Math.abs(expected);
@@ -332,6 +496,205 @@ const isFutureTimestamp = (value, clock) =>
   isIsoTimestamp(value) &&
   Date.parse(value) > clock.nowMs + clock.futureSkewMs;
 
+const isTimestampInsideWindow = (value, window) =>
+  isIsoTimestamp(value) &&
+  isIsoTimestamp(window?.start) &&
+  isIsoTimestamp(window?.end) &&
+  Date.parse(value) >= Date.parse(window.start) &&
+  Date.parse(value) < Date.parse(window.end);
+
+const itemRevenue = (item) => {
+  if (
+    !isObject(item) ||
+    typeof item.price !== "number" ||
+    !Number.isFinite(item.price) ||
+    item.price < 0 ||
+    !Number.isInteger(item.quantity) ||
+    item.quantity <= 0 ||
+    typeof item.discount !== "number" ||
+    !Number.isFinite(item.discount) ||
+    item.discount < 0 ||
+    item.discount > item.price
+  ) {
+    return null;
+  }
+  return (item.price - item.discount) * item.quantity;
+};
+
+const itemsRevenue = (items) => {
+  if (!Array.isArray(items) || items.length === 0) return null;
+  let total = 0;
+  for (const item of items) {
+    const revenue = itemRevenue(item);
+    if (revenue === null) return null;
+    total += revenue;
+  }
+  return total;
+};
+
+const normalCdf = (value) => {
+  const sign = value < 0 ? -1 : 1;
+  const x = Math.abs(value) / Math.sqrt(2);
+  const t = 1 / (1 + 0.3275911 * x);
+  const erf = sign * (
+    1 -
+    (
+      (
+        (
+          (
+            1.061405429 * t -
+            1.453152027
+          ) * t +
+          1.421413741
+        ) * t -
+        0.284496736
+      ) * t +
+      0.254829592
+    ) * t * Math.exp(-x * x)
+  );
+  return 0.5 * (1 + erf);
+};
+
+const inverseNormalCdf = (probability) => {
+  if (!(probability > 0 && probability < 1)) return Number.NaN;
+  const a = [
+    -39.69683028665376,
+    220.9460984245205,
+    -275.9285104469687,
+    138.357751867269,
+    -30.66479806614716,
+    2.506628277459239,
+  ];
+  const b = [
+    -54.47609879822406,
+    161.5858368580409,
+    -155.6989798598866,
+    66.80131188771972,
+    -13.28068155288572,
+  ];
+  const c = [
+    -0.007784894002430293,
+    -0.3223964580411365,
+    -2.400758277161838,
+    -2.549732539343734,
+    4.374664141464968,
+    2.938163982698783,
+  ];
+  const d = [
+    0.007784695709041462,
+    0.3224671290700398,
+    2.445134137142996,
+    3.754408661907416,
+  ];
+  const lower = 0.02425;
+  const upper = 1 - lower;
+  if (probability < lower) {
+    const q = Math.sqrt(-2 * Math.log(probability));
+    return (
+      ((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q +
+      c[5]
+    ) / (
+      (((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q +
+      1
+    );
+  }
+  if (probability > upper) {
+    const q = Math.sqrt(-2 * Math.log(1 - probability));
+    return -(
+      ((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q +
+      c[5]
+    ) / (
+      (((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q +
+      1
+    );
+  }
+  const q = probability - 0.5;
+  const r = q * q;
+  return (
+    (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r +
+      a[5]) * q
+  ) / (
+    ((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r +
+    1
+  );
+};
+
+const requiredTwoProportionSamplePerArm = ({
+  baselineRate,
+  minimumDetectableEffect,
+  alpha,
+  power,
+}) => {
+  if (
+    !Number.isFinite(baselineRate) ||
+    baselineRate < 0 ||
+    baselineRate > 1 ||
+    !Number.isFinite(minimumDetectableEffect) ||
+    minimumDetectableEffect <= 0 ||
+    minimumDetectableEffect >= 1 ||
+    !Number.isFinite(alpha) ||
+    alpha <= 0 ||
+    alpha >= 1 ||
+    !Number.isFinite(power) ||
+    power <= 0.5 ||
+    power >= 1
+  ) {
+    return Number.NaN;
+  }
+  const alternativeRate = baselineRate + minimumDetectableEffect <= 1
+    ? baselineRate + minimumDetectableEffect
+    : baselineRate - minimumDetectableEffect;
+  if (alternativeRate < 0 || alternativeRate > 1) return Number.NaN;
+  const averageRate = (baselineRate + alternativeRate) / 2;
+  const alphaCritical = inverseNormalCdf(1 - alpha / 2);
+  const powerCritical = inverseNormalCdf(power);
+  const numerator =
+    alphaCritical * Math.sqrt(2 * averageRate * (1 - averageRate)) +
+    powerCritical *
+      Math.sqrt(
+        baselineRate * (1 - baselineRate) +
+        alternativeRate * (1 - alternativeRate),
+      );
+  return Math.ceil((numerator * numerator) / (minimumDetectableEffect ** 2));
+};
+
+const computeTwoProportionStats = ({
+  controlSessions,
+  controlConversions,
+  variantSessions,
+  variantConversions,
+  alpha,
+}) => {
+  const controlRate = controlConversions / controlSessions;
+  const variantRate = variantConversions / variantSessions;
+  const difference = variantRate - controlRate;
+  const pooledRate =
+    (controlConversions + variantConversions) /
+    (controlSessions + variantSessions);
+  const pooledStandardError = Math.sqrt(
+    pooledRate *
+      (1 - pooledRate) *
+      (1 / controlSessions + 1 / variantSessions),
+  );
+  const intervalStandardError = Math.sqrt(
+    controlRate * (1 - controlRate) / controlSessions +
+      variantRate * (1 - variantRate) / variantSessions,
+  );
+  const pValue = pooledStandardError === 0
+    ? (difference === 0 ? 1 : 0)
+    : 2 * (1 - normalCdf(Math.abs(difference / pooledStandardError)));
+  const intervalCritical = inverseNormalCdf(1 - alpha / 2);
+  return {
+    controlRate,
+    variantRate,
+    pValue,
+    confidenceIntervalLow:
+      difference - intervalCritical * intervalStandardError,
+    confidenceIntervalHigh:
+      difference + intervalCritical * intervalStandardError,
+  };
+};
+
 const itemKey = (item) =>
   JSON.stringify({
     item_id: item.item_id,
@@ -345,7 +708,14 @@ const itemKey = (item) =>
   });
 
 const itemsMatch = (eventItems, orderItems) => {
-  if (!Array.isArray(eventItems) || !Array.isArray(orderItems)) return false;
+  if (
+    !Array.isArray(eventItems) ||
+    !Array.isArray(orderItems) ||
+    eventItems.some((item) => !isObject(item)) ||
+    orderItems.some((item) => !isObject(item))
+  ) {
+    return false;
+  }
   return [...eventItems].map(itemKey).sort().join("\n") ===
     [...orderItems].map(itemKey).sort().join("\n");
 };
@@ -545,6 +915,54 @@ export const validateReportingContract = (contract, options = {}) => {
       "Segmented reports must suppress cells with fewer than 10 sessions.",
       "$.privacy.minimumCellSize",
     ));
+  }
+
+  const dataQuality = contract?.dataQuality;
+  const tolerance = dataQuality?.revenueTolerance;
+  if (
+    typeof tolerance?.absoluteUsd !== "number" ||
+    !Number.isFinite(tolerance.absoluteUsd) ||
+    tolerance.absoluteUsd < 0 ||
+    tolerance.absoluteUsd > CANONICAL_DATA_QUALITY.revenueTolerance.absoluteUsd ||
+    typeof tolerance?.relative !== "number" ||
+    !Number.isFinite(tolerance.relative) ||
+    tolerance.relative < 0 ||
+    tolerance.relative > CANONICAL_DATA_QUALITY.revenueTolerance.relative
+  ) {
+    findings.push(finding(
+      "data_quality_policy_invalid",
+      "Revenue tolerance cannot exceed $0.01 absolute or 0.001 relative.",
+      "$.dataQuality.revenueTolerance",
+    ));
+  }
+  for (const [field, maximum] of Object.entries(
+    CANONICAL_DATA_QUALITY.cardinalityCeilings,
+  )) {
+    const value = dataQuality?.cardinality?.[field];
+    const validValue = field === "normalizedPathMaximumUniqueRatio"
+      ? typeof value === "number" && Number.isFinite(value) && value > 0
+      : Number.isInteger(value) && value > 0;
+    if (!validValue || value > maximum) {
+      findings.push(finding(
+        "data_quality_policy_invalid",
+        `Cardinality policy '${field}' must be positive and cannot exceed ${maximum}.`,
+        `$.dataQuality.cardinality.${field}`,
+      ));
+    }
+  }
+  for (const field of [
+    "requiredSessionDimensions",
+    "requiredItemDimensions",
+    "ecommerceEventsRequiringItems",
+    "allowedEventNames",
+  ]) {
+    if (!arraysHaveSameValues(dataQuality?.[field], CANONICAL_DATA_QUALITY[field])) {
+      findings.push(finding(
+        "data_quality_policy_invalid",
+        `Data-quality policy '${field}' must match the canonical reporting contract.`,
+        `$.dataQuality.${field}`,
+      ));
+    }
   }
 
   const freshness = contract?.dashboard?.decisionFreshness;
@@ -902,6 +1320,19 @@ export const validateReportingContract = (contract, options = {}) => {
           "minimumDays",
           "minimumCycles",
           "completedCycles",
+          "statisticalMethod",
+          "controlSessions",
+          "controlConversions",
+          "variantSessions",
+          "variantConversions",
+          "minimumDetectableEffect",
+          "alpha",
+          "power",
+          "requiredSamplePerArm",
+          "pValue",
+          "confidenceIntervalLow",
+          "confidenceIntervalHigh",
+          "directionalSignificance",
           "notes",
         ])
       ) {
@@ -988,6 +1419,110 @@ export const validateReportingContract = (contract, options = {}) => {
         ));
       }
 
+      const countFieldsAreValid =
+        Number.isInteger(result.controlSessions) &&
+        result.controlSessions > 0 &&
+        Number.isInteger(result.controlConversions) &&
+        result.controlConversions >= 0 &&
+        result.controlConversions <= result.controlSessions &&
+        Number.isInteger(result.variantSessions) &&
+        result.variantSessions > 0 &&
+        Number.isInteger(result.variantConversions) &&
+        result.variantConversions >= 0 &&
+        result.variantConversions <= result.variantSessions;
+      const preregistrationFieldsAreValid =
+        result.statisticalMethod === "two_proportion_z_test" &&
+        typeof result.minimumDetectableEffect === "number" &&
+        Number.isFinite(result.minimumDetectableEffect) &&
+        result.minimumDetectableEffect > 0 &&
+        result.minimumDetectableEffect < 1 &&
+        typeof result.alpha === "number" &&
+        Number.isFinite(result.alpha) &&
+        result.alpha > 0 &&
+        result.alpha <= 0.05 &&
+        typeof result.power === "number" &&
+        Number.isFinite(result.power) &&
+        result.power >= 0.8 &&
+        result.power < 1 &&
+        Number.isInteger(result.requiredSamplePerArm) &&
+        result.requiredSamplePerArm >= 100;
+      const derivedRequiredSample = preregistrationFieldsAreValid &&
+          baseline?.status === "captured"
+        ? requiredTwoProportionSamplePerArm({
+          baselineRate: baseline.value,
+          minimumDetectableEffect: result.minimumDetectableEffect,
+          alpha: result.alpha,
+          power: result.power,
+        })
+        : Number.NaN;
+      const computedStats = countFieldsAreValid
+        ? computeTwoProportionStats(result)
+        : null;
+      const computedDirection = computedStats &&
+          typeof result.alpha === "number" &&
+          computedStats.pValue < result.alpha &&
+          computedStats.confidenceIntervalLow > 0
+        ? "variant"
+        : computedStats &&
+            typeof result.alpha === "number" &&
+            computedStats.pValue < result.alpha &&
+            computedStats.confidenceIntervalHigh < 0
+          ? "control"
+          : "none";
+      const declaredStatisticsMatch =
+        computedStats !== null &&
+        typeof result.pValue === "number" &&
+        Number.isFinite(result.pValue) &&
+        result.pValue >= 0 &&
+        result.pValue <= 1 &&
+        Math.abs(result.pValue - computedStats.pValue) <= 0.0001 &&
+        typeof result.confidenceIntervalLow === "number" &&
+        Number.isFinite(result.confidenceIntervalLow) &&
+        Math.abs(
+          result.confidenceIntervalLow -
+            computedStats.confidenceIntervalLow,
+        ) <= 0.0001 &&
+        typeof result.confidenceIntervalHigh === "number" &&
+        Number.isFinite(result.confidenceIntervalHigh) &&
+        result.confidenceIntervalLow < result.confidenceIntervalHigh &&
+        Math.abs(
+          result.confidenceIntervalHigh -
+            computedStats.confidenceIntervalHigh,
+        ) <= 0.0001 &&
+        result.directionalSignificance === computedDirection &&
+        Math.abs(result.controlValue - computedStats.controlRate) <= 0.000001 &&
+        Math.abs(result.variantValue - computedStats.variantRate) <= 0.000001;
+      const statisticalEvidenceIsValid =
+        countFieldsAreValid &&
+        preregistrationFieldsAreValid &&
+        Number.isFinite(derivedRequiredSample) &&
+        result.requiredSamplePerArm >= derivedRequiredSample &&
+        result.requiredSessions === result.requiredSamplePerArm * 2 &&
+        result.eligibleSessions ===
+          result.controlSessions + result.variantSessions &&
+        declaredStatisticsMatch;
+      if (!statisticalEvidenceIsValid) {
+        findings.push(finding(
+          "experiment_statistical_evidence_invalid",
+          `Experiment '${experiment.id}' requires count-derived rates, p-value, confidence interval, and a required sample derived from baseline, MDE, alpha, and power.`,
+          `${location}.result`,
+        ));
+      }
+      const winnerStatisticallySupported =
+        statisticalEvidenceIsValid &&
+        result.winner !== null &&
+        result.controlSessions >= result.requiredSamplePerArm &&
+        result.variantSessions >= result.requiredSamplePerArm &&
+        result.pValue < result.alpha &&
+        result.directionalSignificance === result.winner;
+      if (result.winner !== null && !winnerStatisticallySupported) {
+        findings.push(finding(
+          "experiment_winner_not_significant",
+          `Experiment '${experiment.id}' cannot declare a winner without the derived per-arm sample and directional statistical significance.`,
+          `${location}.result`,
+        ));
+      }
+
       const integerMinimumRunFields = [
         "eligibleSessions",
         "requiredSessions",
@@ -1015,6 +1550,9 @@ export const validateReportingContract = (contract, options = {}) => {
         structuredMinimumRunValuesAreValid &&
         result.requiredSessions > 0 &&
         result.eligibleSessions >= result.requiredSessions &&
+        statisticalEvidenceIsValid &&
+        result.controlSessions >= result.requiredSamplePerArm &&
+        result.variantSessions >= result.requiredSamplePerArm &&
         result.minimumDays >= 14 &&
         result.minimumCycles >= 2 &&
         result.completedCycles >= result.minimumCycles &&
@@ -1346,9 +1884,81 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
   const sessions = Array.isArray(report?.sessions) ? report.sessions : [];
   const events = Array.isArray(report?.events) ? report.events : [];
   const orders = Array.isArray(report?.orders) ? report.orders : [];
-  const quality = contract.dataQuality;
+  const configuredTolerance = contract?.dataQuality?.revenueTolerance;
+  const tolerance = {
+    absoluteUsd:
+      typeof configuredTolerance?.absoluteUsd === "number" &&
+        Number.isFinite(configuredTolerance.absoluteUsd) &&
+        configuredTolerance.absoluteUsd >= 0
+        ? Math.min(
+          configuredTolerance.absoluteUsd,
+          CANONICAL_DATA_QUALITY.revenueTolerance.absoluteUsd,
+        )
+        : CANONICAL_DATA_QUALITY.revenueTolerance.absoluteUsd,
+    relative:
+      typeof configuredTolerance?.relative === "number" &&
+        Number.isFinite(configuredTolerance.relative) &&
+        configuredTolerance.relative >= 0
+        ? Math.min(
+          configuredTolerance.relative,
+          CANONICAL_DATA_QUALITY.revenueTolerance.relative,
+        )
+        : CANONICAL_DATA_QUALITY.revenueTolerance.relative,
+  };
+  const configuredCardinality = contract?.dataQuality?.cardinality;
+  const cardinality = Object.fromEntries(
+    Object.entries(CANONICAL_DATA_QUALITY.cardinalityCeilings).map(
+      ([field, maximum]) => {
+        const configured = configuredCardinality?.[field];
+        return [
+          field,
+          typeof configured === "number" &&
+              Number.isFinite(configured) &&
+              configured > 0
+            ? Math.min(configured, maximum)
+            : maximum,
+        ];
+      },
+    ),
+  );
 
-  if (sessions.length === 0 || events.length === 0) {
+  validateAllowedKeys(
+    report,
+    EXPORT_SCHEMA.reportKeys,
+    EXPORT_SCHEMA.reportKeys,
+    "$",
+    "Reporting export",
+    findings,
+  );
+  validateAllowedKeys(
+    report?.window,
+    EXPORT_SCHEMA.windowKeys,
+    EXPORT_SCHEMA.windowKeys,
+    "$.window",
+    "Export window",
+    findings,
+  );
+  if (
+    !isNonEmptyString(report?.exportVersion) ||
+    !isNonEmptyString(report?.sourceSystem) ||
+    !isEvidenceId(report?.evidenceId) ||
+    !isEvidenceReference(report?.evidenceUrl) ||
+    typeof report?.synthetic !== "boolean" ||
+    !Array.isArray(report?.sessions) ||
+    !Array.isArray(report?.events) ||
+    !Array.isArray(report?.orders)
+  ) {
+    findings.push(finding(
+      "export_schema_invalid",
+      "Reporting export metadata and session/event/order collections must match the positive export schema.",
+      "$",
+    ));
+  }
+
+  if (
+    !sessions.some(isObject) ||
+    !events.some(isObject)
+  ) {
     findings.push(finding(
       "export_empty",
       "A reporting export requires at least one consented session and one event.",
@@ -1373,6 +1983,26 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
       "Export window requires valid ascending ISO start and end timestamps and complete_t_plus_1 data status.",
       "$.window",
     ));
+  }
+  const maximumLagHours =
+    Number.isFinite(contract?.dashboard?.decisionFreshness?.maximumLagHours) &&
+      contract.dashboard.decisionFreshness.maximumLagHours > 0
+      ? Math.min(contract.dashboard.decisionFreshness.maximumLagHours, 48)
+      : 48;
+  if (
+    isIsoTimestamp(report?.generatedAt) &&
+    isIsoTimestamp(report?.window?.end)
+  ) {
+    const generationLagHours =
+      (Date.parse(report.generatedAt) - Date.parse(report.window.end)) /
+      3_600_000;
+    if (generationLagHours < 0 || generationLagHours > maximumLagHours) {
+      findings.push(finding(
+        "export_freshness_invalid",
+        `Export generation must occur after the window and within ${maximumLagHours} hours.`,
+        "$.generatedAt",
+      ));
+    }
   }
   if (
     isFutureTimestamp(report?.window?.start, clock) ||
@@ -1400,32 +2030,185 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
   }
 
   sessions.forEach((session, index) => {
-    for (const dimension of quality.requiredSessionDimensions) {
+    const location = `$.sessions[${index}]`;
+    if (!validateAllowedKeys(
+      session,
+      EXPORT_SCHEMA.sessionKeys,
+      EXPORT_SCHEMA.sessionKeys,
+      location,
+      "Session",
+      findings,
+    )) {
+      return;
+    }
+    if (!isNonEmptyString(session.session_id)) {
+      findings.push(finding(
+        "export_schema_invalid",
+        "Session requires a non-empty session_id.",
+        `${location}.session_id`,
+      ));
+    }
+    for (const dimension of CANONICAL_DATA_QUALITY.requiredSessionDimensions) {
       const value = session[dimension];
       if (!isNonEmptyString(value) || value.trim().toLowerCase() === "(not set)") {
         findings.push(finding(
           "unexpected_not_set",
           `Required session dimension '${dimension}' is missing or '(not set)'.`,
-          `$.sessions[${index}].${dimension}`,
+          `${location}.${dimension}`,
           "warning",
         ));
       }
     }
+    if (!isNonEmptyString(session.campaign)) {
+      findings.push(finding(
+        "export_schema_invalid",
+        "Session campaign must be a non-empty string.",
+        `${location}.campaign`,
+      ));
+    }
   });
 
-  const allowedEvents = new Set(quality.allowedEventNames);
-  const ecommerceEvents = new Set(quality.ecommerceEventsRequiringItems);
+  const allowedEvents = new Set(CANONICAL_DATA_QUALITY.allowedEventNames);
+  const ecommerceEvents = new Set(
+    CANONICAL_DATA_QUALITY.ecommerceEventsRequiringItems,
+  );
   const eventIds = new Set();
+  const validateItems = (items, location) => {
+    if (!Array.isArray(items) || items.length === 0) return null;
+    let total = 0;
+    let allValid = true;
+    items.forEach((item, itemIndex) => {
+      const itemLocation = `${location}[${itemIndex}]`;
+      if (!validateAllowedKeys(
+        item,
+        EXPORT_SCHEMA.itemKeys,
+        EXPORT_SCHEMA.itemKeys,
+        itemLocation,
+        "Ecommerce item",
+        findings,
+      )) {
+        allValid = false;
+        return;
+      }
+      for (const dimension of CANONICAL_DATA_QUALITY.requiredItemDimensions) {
+        const value = item[dimension];
+        if (!isNonEmptyString(value) || value.trim().toLowerCase() === "(not set)") {
+          findings.push(finding(
+            dimension === "item_id" ? "missing_item_id" : "unexpected_not_set",
+            `Required item dimension '${dimension}' is missing or '(not set)'.`,
+            `${itemLocation}.${dimension}`,
+            dimension === "item_id" ? "error" : "warning",
+          ));
+          allValid = false;
+        }
+      }
+      const revenue = itemRevenue(item);
+      if (revenue === null) {
+        findings.push(finding(
+          "invalid_item_value",
+          "Ecommerce items require numeric non-negative price/discount values, discount no greater than price, and a positive integer quantity.",
+          itemLocation,
+        ));
+        allValid = false;
+      } else {
+        total += revenue;
+      }
+    });
+    return allValid ? total : null;
+  };
+
   events.forEach((event, eventIndex) => {
     const location = `$.events[${eventIndex}]`;
+    if (!validateAllowedKeys(
+      event,
+      EXPORT_SCHEMA.eventKeys,
+      [
+        "event_id",
+        "event_name",
+        "session_id",
+        "normalized_path",
+        "occurred_at",
+        "analytics_contract_version",
+      ],
+      location,
+      "Event",
+      findings,
+    )) {
+      return;
+    }
     if (!allowedEvents.has(event.event_name)) {
       findings.push(finding("unexpected_event_name", `Unexpected event name '${event.event_name}'.`, `${location}.event_name`, "warning"));
     }
-    if (isNonEmptyString(event.event_id)) {
+    if (!isNonEmptyString(event.event_id)) {
+      findings.push(finding(
+        "export_schema_invalid",
+        "Event requires a non-empty event_id.",
+        `${location}.event_id`,
+      ));
+    } else {
       if (eventIds.has(event.event_id)) {
         findings.push(finding("duplicate_event_id", `Duplicate event ID '${event.event_id}'.`, `${location}.event_id`));
       }
       eventIds.add(event.event_id);
+    }
+    if (
+      !isNonEmptyString(event.event_name) ||
+      !isNonEmptyString(event.session_id) ||
+      !isNonEmptyString(event.normalized_path) ||
+      event.analytics_contract_version !== contract.analyticsContractVersion
+    ) {
+      findings.push(finding(
+        "export_schema_invalid",
+        "Event name, session, normalized path, and analytics contract version are required.",
+        location,
+      ));
+    }
+    for (const field of [
+      "placement",
+      "label",
+      "destination",
+      "brand",
+      "model",
+      "variant_id",
+      "error_code",
+      "stage",
+      "code",
+      "item_list_id",
+      "item_list_name",
+      "transaction_id",
+      "currency",
+      "coupon",
+    ]) {
+      if (Object.hasOwn(event, field) && !isNonEmptyString(event[field])) {
+        findings.push(finding(
+          "export_schema_invalid",
+          `Event field '${field}' must be a non-empty string when present.`,
+          `${location}.${field}`,
+        ));
+      }
+    }
+    for (const field of ["discount_amount", "value", "shipping", "tax"]) {
+      if (
+        Object.hasOwn(event, field) &&
+        (
+          typeof event[field] !== "number" ||
+          !Number.isFinite(event[field]) ||
+          event[field] < 0
+        )
+      ) {
+        findings.push(finding(
+          "export_schema_invalid",
+          `Event field '${field}' must be a finite non-negative number when present.`,
+          `${location}.${field}`,
+        ));
+      }
+    }
+    if (!isTimestampInsideWindow(event.occurred_at, report?.window)) {
+      findings.push(finding(
+        "export_record_outside_window",
+        "Event occurred_at must be a valid timestamp inside the half-open export window.",
+        `${location}.occurred_at`,
+      ));
     }
     if (
       isNonEmptyString(event.normalized_path) &&
@@ -1443,50 +2226,51 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
       if (!Array.isArray(event.items) || event.items.length === 0) {
         findings.push(finding("missing_items", `Event '${event.event_name}' requires items.`, `${location}.items`));
       } else {
-        event.items.forEach((item, itemIndex) => {
-          for (const dimension of quality.requiredItemDimensions) {
-            const value = item[dimension];
-            if (!isNonEmptyString(value) || value.trim().toLowerCase() === "(not set)") {
-              findings.push(finding(
-                dimension === "item_id" ? "missing_item_id" : "unexpected_not_set",
-                `Required item dimension '${dimension}' is missing or '(not set)'.`,
-                `${location}.items[${itemIndex}].${dimension}`,
-                dimension === "item_id" ? "error" : "warning",
-              ));
-            }
-          }
-          if (
-            !Number.isFinite(Number(item.price)) ||
-            !Number.isFinite(Number(item.quantity)) ||
-            Number(item.quantity) <= 0 ||
-            !Number.isFinite(Number(item.discount ?? 0))
-          ) {
-            findings.push(finding(
-              "invalid_item_value",
-              "Ecommerce items require finite price/discount values and a positive quantity.",
-              `${location}.items[${itemIndex}]`,
-            ));
-          }
-        });
+        validateItems(event.items, `${location}.items`);
       }
+    } else if (Object.hasOwn(event, "items")) {
+      validateItems(event.items, `${location}.items`);
     }
   });
 
-  const purchases = events.filter((event) => event.event_name === "purchase");
+  const purchases = events.filter(
+    (event) => isObject(event) && event.event_name === "purchase",
+  );
   const purchaseIds = new Map();
   purchases.forEach((event, index) => {
+    const location = `$.events[purchase:${index}]`;
     if (event.currency !== contract.currency) {
       findings.push(finding(
         "export_currency_mismatch",
         `Purchase currency must match contract currency ${contract.currency}.`,
-        `$.events[purchase:${index}].currency`,
+        `${location}.currency`,
       ));
     }
     if (!isNonEmptyString(event.transaction_id)) {
-      findings.push(finding("missing_transaction_id", "Purchase requires a transaction ID.", `$.events[purchase:${index}].transaction_id`));
+      findings.push(finding("missing_transaction_id", "Purchase requires a transaction ID.", `${location}.transaction_id`));
       return;
     }
     purchaseIds.set(event.transaction_id, (purchaseIds.get(event.transaction_id) ?? 0) + 1);
+    if (
+      typeof event.value !== "number" ||
+      !Number.isFinite(event.value) ||
+      event.value < 0
+    ) {
+      findings.push(finding(
+        "invalid_purchase_value",
+        "Purchase value must be a present finite non-negative number.",
+        `${location}.value`,
+      ));
+    } else {
+      const itemTotal = itemsRevenue(event.items);
+      if (itemTotal === null || exceedsTolerance(event.value, itemTotal, tolerance)) {
+        findings.push(finding(
+          "purchase_item_revenue_mismatch",
+          "Purchase value must reconcile to its strict item revenue total.",
+          location,
+        ));
+      }
+    }
   });
   for (const [transactionId, count] of purchaseIds) {
     if (count > 1) {
@@ -1498,14 +2282,91 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
     }
   }
 
-  const paidOrders = orders.filter((order) => order.status === "paid");
+  orders.forEach((order, index) => {
+    const location = `$.orders[${index}]`;
+    if (!validateAllowedKeys(
+      order,
+      EXPORT_SCHEMA.orderKeys,
+      EXPORT_SCHEMA.orderKeys,
+      location,
+      "Order",
+      findings,
+    )) {
+      return;
+    }
+    for (const field of ["transaction_id", "status", "currency"]) {
+      if (!isNonEmptyString(order[field])) {
+        findings.push(finding(
+          "export_schema_invalid",
+          `Order requires a non-empty ${field}.`,
+          `${location}.${field}`,
+        ));
+      }
+    }
+    for (const field of ["shipping", "tax", "total"]) {
+      if (
+        typeof order[field] !== "number" ||
+        !Number.isFinite(order[field]) ||
+        order[field] < 0
+      ) {
+        findings.push(finding(
+          "export_schema_invalid",
+          `Order ${field} must be a finite non-negative number.`,
+          `${location}.${field}`,
+        ));
+      }
+    }
+    if (!Array.isArray(order.items) || order.items.length === 0) {
+      findings.push(finding(
+        "missing_items",
+        "Order requires at least one item.",
+        `${location}.items`,
+      ));
+    } else {
+      validateItems(order.items, `${location}.items`);
+    }
+  });
+  const paidOrders = orders.filter(
+    (order) => isObject(order) && order.status === "paid",
+  );
   paidOrders.forEach((order, index) => {
+    const location = `$.orders[paid:${index}]`;
     if (order.currency !== contract.currency) {
       findings.push(finding(
         "export_currency_mismatch",
         `Paid-order currency must match contract currency ${contract.currency}.`,
-        `$.orders[paid:${index}].currency`,
+        `${location}.currency`,
       ));
+    }
+    if (!isTimestampInsideWindow(order.created_at, report?.window)) {
+      findings.push(finding(
+        "export_record_outside_window",
+        "Paid-order created_at must be a valid timestamp inside the half-open export window.",
+        `${location}.created_at`,
+      ));
+    }
+    if (
+      typeof order.product_revenue !== "number" ||
+      !Number.isFinite(order.product_revenue) ||
+      order.product_revenue < 0
+    ) {
+      findings.push(finding(
+        "invalid_paid_order_revenue",
+        "Paid-order product_revenue must be a present finite non-negative number.",
+        `${location}.product_revenue`,
+      ));
+    } else {
+      const itemTotal = itemsRevenue(order.items);
+      if (
+        itemTotal === null ||
+        exceedsTolerance(order.product_revenue, itemTotal, tolerance)
+      ) {
+        findings.push(finding(
+          "paid_order_item_revenue_mismatch",
+          "Paid-order product_revenue must reconcile to its strict item revenue total.",
+          location,
+        ));
+      }
     }
   });
   const ordersById = new Map(paidOrders.map((order) => [order.transaction_id, order]));
@@ -1519,7 +2380,13 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
     if (event.currency !== order.currency) {
       findings.push(finding("purchase_currency_mismatch", `Transaction '${order.transaction_id}' has mismatched currency.`, "$.events"));
     }
-    if (exceedsTolerance(Number(event.value), Number(order.product_revenue), quality.revenueTolerance)) {
+    if (
+      typeof event.value === "number" &&
+      Number.isFinite(event.value) &&
+      typeof order.product_revenue === "number" &&
+      Number.isFinite(order.product_revenue) &&
+      exceedsTolerance(event.value, order.product_revenue, tolerance)
+    ) {
       findings.push(finding("purchase_revenue_mismatch", `Transaction '${order.transaction_id}' product revenue does not match its paid order.`, "$.events"));
     }
     if (!itemsMatch(event.items, order.items)) {
@@ -1532,8 +2399,28 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
     }
   }
 
-  const purchaseRevenue = purchases.reduce((sum, event) => sum + Number(event.value || 0), 0);
-  const orderRevenue = paidOrders.reduce((sum, order) => sum + Number(order.product_revenue || 0), 0);
+  const purchaseRevenue = purchases.reduce(
+    (sum, event) =>
+      sum + (
+        typeof event.value === "number" &&
+          Number.isFinite(event.value) &&
+          event.value >= 0
+          ? event.value
+          : 0
+      ),
+    0,
+  );
+  const orderRevenue = paidOrders.reduce(
+    (sum, order) =>
+      sum + (
+        typeof order.product_revenue === "number" &&
+          Number.isFinite(order.product_revenue) &&
+          order.product_revenue >= 0
+          ? order.product_revenue
+          : 0
+      ),
+    0,
+  );
   if (purchases.length !== paidOrders.length) {
     findings.push(finding(
       "purchase_order_count_mismatch",
@@ -1541,7 +2428,7 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
       "$",
     ));
   }
-  if (exceedsTolerance(purchaseRevenue, orderRevenue, quality.revenueTolerance)) {
+  if (exceedsTolerance(purchaseRevenue, orderRevenue, tolerance)) {
     findings.push(finding(
       "dashboard_order_revenue_mismatch",
       `Purchase revenue ${purchaseRevenue.toFixed(2)} does not match paid-order product revenue ${orderRevenue.toFixed(2)}.`,
@@ -1549,14 +2436,19 @@ export const analyzeReportingExport = (report, contract, options = {}) => {
     ));
   }
 
-  const pageViews = events.filter((event) => event.event_name === "page_view" && isNonEmptyString(event.normalized_path));
+  const pageViews = events.filter(
+    (event) =>
+      isObject(event) &&
+      event.event_name === "page_view" &&
+      isNonEmptyString(event.normalized_path),
+  );
   const uniquePaths = new Set(pageViews.map((event) => event.normalized_path));
   const uniqueEventNames = new Set(
     events
+      .filter(isObject)
       .map((event) => event.event_name)
       .filter(isNonEmptyString),
   );
-  const cardinality = quality.cardinality;
   if (
     pageViews.length >= cardinality.minimumObservations &&
     (uniquePaths.size > cardinality.normalizedPathMaximumUniqueValues ||

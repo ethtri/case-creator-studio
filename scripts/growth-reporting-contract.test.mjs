@@ -387,6 +387,34 @@ test("rejects a winner declared from a one-minute experiment window", async () =
   assert.ok(codes.includes("experiment_minimum_run_invalid"));
 });
 
+test("rejects tiny winner samples and rates not derived from arm counts", async () => {
+  const contract = await loadLifecycleContract("completed");
+  const result = contract.experiments[0].result;
+  result.eligibleSessions = 1;
+  result.requiredSessions = 1;
+  result.requiredSamplePerArm = 1;
+  result.controlSessions = 1;
+  result.controlConversions = 0;
+  result.variantSessions = 1;
+  result.variantConversions = 1;
+
+  const codes = validateReportingContract(contract).map((item) => item.code);
+  assert.ok(codes.includes("experiment_statistical_evidence_invalid"));
+  assert.ok(codes.includes("experiment_winner_not_significant"));
+});
+
+test("rejects an understated sample requirement for the declared MDE and power", async () => {
+  const contract = await loadLifecycleContract("completed");
+  const result = contract.experiments[0].result;
+  result.minimumDetectableEffect = 0.001;
+  result.power = 0.99;
+  result.requiredSamplePerArm = 100;
+  result.requiredSessions = 200;
+
+  const codes = validateReportingContract(contract).map((item) => item.code);
+  assert.ok(codes.includes("experiment_statistical_evidence_invalid"));
+});
+
 test("rejects placeholder evidence and invalid evidence windows", async () => {
   const contract = await loadLifecycleContract("partial");
   contract.dashboard.baseline.evidenceUrl =
@@ -605,6 +633,17 @@ test("keeps consent, suppression, T+1, tolerance, and no-PII guardrails enforcea
   assert.ok(codes.includes("reporting_dimension_source_invalid"));
 });
 
+test("rejects weakened data-quality policy values", async () => {
+  const { contract } = await loadFixture();
+  contract.dataQuality.revenueTolerance.absoluteUsd = 50;
+  contract.dataQuality.revenueTolerance.relative = 0.5;
+  contract.dataQuality.cardinality.minimumObservations = 5000;
+  contract.dataQuality.allowedEventNames = ["purchase"];
+
+  const codes = validateReportingContract(contract).map((item) => item.code);
+  assert.ok(codes.includes("data_quality_policy_invalid"));
+});
+
 test("reconciles one known-good synthetic purchase to one paid order", async () => {
   const { contract, report } = await loadFixture();
   const result = analyzeReportingExport(report, contract);
@@ -687,6 +726,37 @@ test("surfaces dashboard-to-order revenue mismatches", async () => {
   assert.ok(codes.includes("dashboard_order_revenue_mismatch"));
 });
 
+test("requires strict purchase and paid-order revenue numbers", async (t) => {
+  for (const invalidValue of [null, "", -1]) {
+    await t.test(`purchase value ${JSON.stringify(invalidValue)}`, async () => {
+      const { contract, report } = await loadFixture();
+      report.events.find((event) => event.event_name === "purchase").value =
+        invalidValue;
+      const codes = analyzeReportingExport(report, contract).findings
+        .map((item) => item.code);
+      assert.ok(codes.includes("invalid_purchase_value"));
+    });
+    await t.test(`paid-order revenue ${JSON.stringify(invalidValue)}`, async () => {
+      const { contract, report } = await loadFixture();
+      report.orders[0].product_revenue = invalidValue;
+      const codes = analyzeReportingExport(report, contract).findings
+        .map((item) => item.code);
+      assert.ok(codes.includes("invalid_paid_order_revenue"));
+    });
+  }
+});
+
+test("reconciles purchase and paid-order revenue to strict item totals", async () => {
+  const { contract, report } = await loadFixture();
+  report.events.find((event) => event.event_name === "purchase").value = 25;
+  report.orders[0].product_revenue = 25;
+
+  const codes = analyzeReportingExport(report, contract).findings
+    .map((item) => item.code);
+  assert.ok(codes.includes("purchase_item_revenue_mismatch"));
+  assert.ok(codes.includes("paid_order_item_revenue_mismatch"));
+});
+
 test("rejects an export whose purchases and orders use a non-contract currency", async () => {
   const { contract, report } = await loadFixture();
   report.events.find((event) => event.event_name === "purchase").currency = "EUR";
@@ -703,6 +773,54 @@ test("rejects an export whose purchases and orders use a non-contract currency",
   ));
 });
 
+test("requires export generation after the window and within the T+1 lag", async () => {
+  const before = await loadFixture();
+  before.report.generatedAt = "2026-07-17T06:59:59.000Z";
+  assert.ok(analyzeReportingExport(before.report, before.contract).findings.some(
+    (item) => item.code === "export_freshness_invalid",
+  ));
+
+  const late = await loadFixture();
+  late.report.generatedAt = "2026-07-19T08:00:00.000Z";
+  assert.ok(analyzeReportingExport(
+    late.report,
+    late.contract,
+    { validationTime: "2026-07-20T00:00:00.000Z" },
+  ).findings.some((item) => item.code === "export_freshness_invalid"));
+});
+
+test("requires event and paid-order timestamps inside the export window", async (t) => {
+  for (const timestamp of [
+    undefined,
+    "not-a-date",
+    "2026-07-17T07:00:00.000Z",
+  ]) {
+    await t.test(`event ${String(timestamp)}`, async () => {
+      const { contract, report } = await loadFixture();
+      const event = report.events[0];
+      if (timestamp === undefined) {
+        delete event.occurred_at;
+      } else {
+        event.occurred_at = timestamp;
+      }
+      const codes = analyzeReportingExport(report, contract).findings
+        .map((item) => item.code);
+      assert.ok(codes.includes("export_record_outside_window"));
+    });
+    await t.test(`order ${String(timestamp)}`, async () => {
+      const { contract, report } = await loadFixture();
+      if (timestamp === undefined) {
+        delete report.orders[0].created_at;
+      } else {
+        report.orders[0].created_at = timestamp;
+      }
+      const codes = analyzeReportingExport(report, contract).findings
+        .map((item) => item.code);
+      assert.ok(codes.includes("export_record_outside_window"));
+    });
+  }
+});
+
 test("rejects prohibited reporting fields", async () => {
   const { contract, report } = await loadFixture();
   report.sessions[0].email = "synthetic@example.invalid";
@@ -711,6 +829,26 @@ test("rejects prohibited reporting fields", async () => {
   assert.ok(findings.some((item) =>
     item.code === "prohibited_field" &&
     item.location === "$.sessions[0].email"
+  ));
+});
+
+test("rejects unknown export fields and privacy aliases", async () => {
+  const { contract, report } = await loadFixture();
+  report.events[0].mobile_number = "555-0100";
+  report.sessions[0].phoneNumber = "555-0101";
+
+  const findings = analyzeReportingExport(report, contract).findings;
+  assert.ok(findings.some((item) =>
+    item.code === "export_unknown_field" &&
+    item.location === "$.events[0].mobile_number"
+  ));
+  assert.ok(findings.some((item) =>
+    item.code === "export_unknown_field" &&
+    item.location === "$.sessions[0].phoneNumber"
+  ));
+  assert.ok(findings.some((item) =>
+    item.code === "prohibited_field" &&
+    item.location === "$.sessions[0].phoneNumber"
   ));
 });
 
@@ -736,4 +874,23 @@ test("reconciles the complete ecommerce item identity", async () => {
   const codes = analyzeReportingExport(report, contract).findings
     .map((item) => item.code);
   assert.ok(codes.includes("purchase_items_mismatch"));
+});
+
+test("reports null collection entries without throwing", async () => {
+  const { contract, report } = await loadFixture();
+  report.sessions.push(null);
+  report.events.push(null);
+  report.orders.push(null);
+  report.events.find((event) => event?.event_name === "purchase").items[0] = null;
+
+  let result;
+  assert.doesNotThrow(() => {
+    result = analyzeReportingExport(report, contract);
+  });
+  assert.ok(result.findings.some(
+    (item) => item.code === "export_schema_invalid",
+  ));
+  assert.ok(result.findings.some(
+    (item) => item.code === "purchase_items_mismatch",
+  ));
 });

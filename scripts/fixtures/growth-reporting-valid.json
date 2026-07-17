@@ -27,7 +27,8 @@
       "event_name": "page_view",
       "session_id": "synthetic-session-1",
       "normalized_path": "/",
-      "occurred_at": "2026-07-16T18:00:00.000Z"
+      "occurred_at": "2026-07-16T18:00:00.000Z",
+      "analytics_contract_version": "1.0.0"
     },
     {
       "event_id": "synthetic-event-cta",
@@ -35,7 +36,8 @@
       "session_id": "synthetic-session-1",
       "normalized_path": "/",
       "placement": "hero",
-      "occurred_at": "2026-07-16T18:01:00.000Z"
+      "occurred_at": "2026-07-16T18:01:00.000Z",
+      "analytics_contract_version": "1.0.0"
     },
     {
       "event_id": "synthetic-event-select",
@@ -43,6 +45,7 @@
       "session_id": "synthetic-session-1",
       "normalized_path": "/catalog",
       "occurred_at": "2026-07-16T18:02:00.000Z",
+      "analytics_contract_version": "1.0.0",
       "items": [
         {
           "item_id": "iphone-16",
@@ -62,6 +65,7 @@
       "session_id": "synthetic-session-1",
       "normalized_path": "/checkout",
       "occurred_at": "2026-07-16T18:10:00.000Z",
+      "analytics_contract_version": "1.0.0",
       "currency": "USD",
       "value": 29.99,
       "items": [
@@ -83,6 +87,7 @@
       "session_id": "synthetic-session-1",
       "normalized_path": "/order-success",
       "occurred_at": "2026-07-16T18:15:00.000Z",
+      "analytics_contract_version": "1.0.0",
       "transaction_id": "synthetic-order-growth-contract-1",
       "currency": "USD",
       "value": 29.99,
@@ -106,6 +111,7 @@
     {
       "transaction_id": "synthetic-order-growth-contract-1",
       "status": "paid",
+      "created_at": "2026-07-16T18:14:00.000Z",
       "currency": "USD",
       "product_revenue": 29.99,
       "shipping": 4.99,

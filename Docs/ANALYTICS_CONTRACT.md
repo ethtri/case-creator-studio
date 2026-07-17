@@ -300,7 +300,14 @@ where data is evaluated, a complete T+1 window. Experiment results additionally
 require control/variant values and a decision whose winner is internally
 consistent. A winner also requires structured evidence that the
 pre-registered sample, at least 14 complete days, at least two weekly cycles,
-and guardrails all passed. An underpowered release may be recorded only as an
+and guardrails all passed. Every recorded result includes per-arm session and
+conversion counts, an absolute minimum detectable effect, alpha, power, and a
+declared required sample per arm. The validator derives the minimum sample from
+the captured baseline, MDE, alpha, and power; derives both rates, the two-sided
+two-proportion z-test p-value, and confidence interval from the arm counts; and
+requires the declared statistics to match. A winner additionally requires both
+arms to meet the derived sample, `p < alpha`, and a confidence interval wholly
+in the winner's direction. An underpowered release may be recorded only as an
 inconclusive observational result.
 
 Reconciliation must satisfy the configured count and revenue tolerance. A
@@ -310,7 +317,9 @@ timestamp, and source to the analyzed export. The export must be explicitly
 non-synthetic, contain sessions, events, at least one purchase and paid order,
 cover at least one full 24-hour complete T+1 window, and use the contract
 currency. Evidence timestamps and windows cannot be in the future beyond the
-small validation clock-skew allowance.
+small validation clock-skew allowance. Export generation must occur after the
+window and within the configured T+1 lag; every event and paid order must have
+a valid timestamp inside the half-open export window.
 
 `evidence_backed_completed` means the reporting foundation, baseline,
 reconciliation, and named review cadence are complete. Ranked experiments keep
@@ -336,6 +345,16 @@ high-cardinality paths, unknown event names, prohibited fields, and purchase
 count/revenue/full-item-identity mismatch. Aggregate product revenue may differ
 by at most the greater of $0.01 or 0.1%; anything larger requires investigation
 before a dashboard or experiment decision is trusted.
+
+The export format is a positive schema: report, window, session, event, order,
+and item objects accept only documented keys and required types. Unknown
+aliases such as contact or mobile-number fields fail even if they do not appear
+in the configured denylist. Null collection entries fail as schema findings
+instead of crashing validation. Purchase `value` and paid-order
+`product_revenue` must be present finite non-negative numbers, and each must
+reconcile to the sum of strict item price-minus-discount times quantity.
+Data-quality arrays remain canonical and tolerance/cardinality settings may
+become stricter but cannot be weakened beyond the checked-in ceilings.
 
 The checked-in export fixture is synthetic. Its single matching purchase and
 paid order prove the validator, not production collection or dashboard
