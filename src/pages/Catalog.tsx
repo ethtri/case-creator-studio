@@ -8,6 +8,7 @@ import { Filter, Search } from "lucide-react";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
 import { trackMarketingEvent } from "@/lib/marketing";
+import { asMarketingItems, buildAnalyticsItem, buildAnalyticsItems } from "@/lib/analytics-commerce";
 
 const Catalog = () => {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
@@ -17,8 +18,12 @@ const Catalog = () => {
   const currentYear = new Date().getFullYear();
 
   useEffect(() => {
-    trackMarketingEvent("view_catalog", {
-      model_count: phoneVariants.length,
+    trackMarketingEvent("view_item_list", {
+      item_list_id: "phone_models",
+      item_list_name: "Phone models",
+      items: asMarketingItems(
+        buildAnalyticsItems(phoneVariants.map((variant) => ({ variant }))),
+      ),
     });
   }, []);
 
@@ -130,11 +135,13 @@ const Catalog = () => {
                 <Link
                   to={`/design/${variant.id}`}
                   onClick={() =>
-                    trackMarketingEvent("select_model", {
-                      variant_id: variant.id,
-                      brand: variant.brand,
-                      model: variant.model,
-                      surface: "catalog_grid",
+                    trackMarketingEvent("select_item", {
+                      item_list_id: "phone_models",
+                      item_list_name: "Phone models",
+                      placement: "catalog_grid",
+                      items: asMarketingItems(
+                        [buildAnalyticsItem({ variant })].filter(Boolean),
+                      ),
                     })
                   }
                 >

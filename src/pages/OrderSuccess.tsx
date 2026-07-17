@@ -7,13 +7,15 @@ import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
 import { useCart } from "@/contexts/CartContext";
 import { supabase } from "@/integrations/supabase/client";
-import { trackMarketingEvent } from "@/lib/marketing";
 
 interface OrderDetails {
   id: string;
   customer_email: string;
   items: any[];
   total: number;
+  shipping_cost?: number | null;
+  discount_total?: number | null;
+  promotion_code?: string | null;
   status: string;
   fulfillment_provider?: string | null;
 }
@@ -74,16 +76,6 @@ const OrderSuccess = () => {
 
         if (data?.success) {
           setOrderDetails(data.order);
-          const trackingKey = `snapcase_purchase_tracked:${sessionId}`;
-          if (!window.sessionStorage.getItem(trackingKey)) {
-            trackMarketingEvent("purchase", {
-              transaction_id: data.order?.id ?? sessionId,
-              value: Number(data.order?.total ?? 0),
-              currency: "USD",
-              item_count: Array.isArray(data.order?.items) ? data.order.items.length : 0,
-            });
-            window.sessionStorage.setItem(trackingKey, "true");
-          }
           clearCart(); // Clear cart after successful payment
         } else {
           setError(data?.message || "Payment verification failed");

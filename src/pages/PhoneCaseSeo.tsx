@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ChevronRight, Package, Palette, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,8 @@ import { getVariantById, phoneVariants } from "@/data/phoneVariants";
 import NotFound from "@/pages/NotFound";
 import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
 import samsungCaseFront from "@/assets/mockups/samsung-case-front.png";
+import { trackMarketingEvent } from "@/lib/marketing";
+import { asMarketingItems, buildAnalyticsItem } from "@/lib/analytics-commerce";
 
 const JsonLd = ({ value }: { value: Record<string, unknown> }) => (
   <script
@@ -18,6 +21,17 @@ const JsonLd = ({ value }: { value: Record<string, unknown> }) => (
 const PhoneCaseSeo = () => {
   const { variantSlug } = useParams();
   const variant = getVariantById(variantSlug ?? "");
+
+  useEffect(() => {
+    if (!variant) return;
+    trackMarketingEvent("view_item", {
+      currency: variant.currency,
+      value: variant.price,
+      items: asMarketingItems(
+        [buildAnalyticsItem({ variant })].filter(Boolean),
+      ),
+    });
+  }, [variant]);
 
   if (!variant) {
     return <NotFound />;
@@ -90,7 +104,25 @@ const PhoneCaseSeo = () => {
                 Preview your design before checkout and keep the order tied to the exact model.
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
-                <Link to={`/design/${variant.id}`}>
+                <Link
+                  to={`/design/${variant.id}`}
+                  onClick={() => {
+                    const items = asMarketingItems(
+                      [buildAnalyticsItem({ variant })].filter(Boolean),
+                    );
+                    trackMarketingEvent("select_item", {
+                      item_list_id: "model_seo_page",
+                      item_list_name: "Model SEO page",
+                      placement: "model_seo_page",
+                      items,
+                    });
+                    trackMarketingEvent("primary_cta_click", {
+                      placement: "model_seo_page",
+                      destination: `/design/${variant.id}`,
+                      label: "Start designing",
+                    });
+                  }}
+                >
                   <Button size="lg" className="bg-cta hover:bg-cta/90 text-cta-foreground">
                     Start designing
                     <ChevronRight className="w-4 h-4 ml-1" />

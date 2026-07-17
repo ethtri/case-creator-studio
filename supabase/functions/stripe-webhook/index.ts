@@ -19,6 +19,12 @@ import {
 import {
   isStripeCheckoutPaymentFulfilled,
 } from "../_shared/stripe-checkout-payment.ts";
+import {
+  sendGa4Purchase,
+  sendGa4Refund,
+  sendGa4CheckoutSignal,
+  type Ga4Order,
+} from "../_shared/ga4-measurement.ts";
 
 type ShippingDetails = {
   name?: string | null;
@@ -60,6 +66,9 @@ type OrderShippingAddress = {
 const ALLOWED_STRIPE_EVENTS = new Set([
   "checkout.session.completed",
   "checkout.session.async_payment_succeeded",
+  "checkout.session.async_payment_failed",
+  "checkout.session.expired",
+  "refund.created",
 ]);
 
 const extractShippingDetails = (
@@ -138,10 +147,125 @@ serve(async (req) => {
     return new Response("Ignored", { status: 200 });
   }
 
+  const supabaseClient = createClient(
+    Deno.env.get("SUPABASE_URL") ?? "",
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+  );
+  const ga4MeasurementId = Deno.env.get("GA4_MEASUREMENT_ID");
+  const ga4ApiSecret = Deno.env.get("GA4_API_SECRET");
+
+  if (event.type === "refund.created") {
+    const refund = event.data.object as Stripe.Refund;
+    const refundPaymentIntentId = typeof refund.payment_intent === "string"
+      ? refund.payment_intent
+      : refund.payment_intent?.id;
+
+    if (!refund.id || !refundPaymentIntentId) {
+      console.warn("[STRIPE-WEBHOOK] Ignoring refund without payment intent");
+      return new Response("Ignored", { status: 200 });
+    }
+
+    const { data: refundOrder, error: refundOrderError } = await supabaseClient
+      .from("orders")
+      .select("*")
+      .eq("stripe_payment_intent_id", refundPaymentIntentId)
+      .maybeSingle();
+
+    if (refundOrderError) {
+      console.error(
+        "[STRIPE-WEBHOOK] Failed to load refunded order:",
+        refundOrderError,
+      );
+      return new Response("Database lookup failed", { status: 500 });
+    }
+    if (!refundOrder) {
+      console.warn(
+        "[STRIPE-WEBHOOK] Ignoring refund for unrelated payment intent:",
+        refundPaymentIntentId,
+      );
+      return new Response("Ignored", { status: 200 });
+    }
+
+    if (
+      refundOrder.analytics_consent === "granted" &&
+      ga4MeasurementId &&
+      ga4ApiSecret
+    ) {
+      try {
+        await sendGa4Refund(
+          supabaseClient,
+          refundOrder as Ga4Order,
+          refund.id,
+          refund.amount / 100,
+          ga4MeasurementId,
+          ga4ApiSecret,
+        );
+      } catch (error) {
+        console.error("[STRIPE-WEBHOOK] GA4 refund event failed:", error);
+      }
+    }
+
+    return new Response("OK", { status: 200 });
+  }
+
   const session = event.data.object as Stripe.Checkout.Session;
   if (!session?.id) {
     console.error("[STRIPE-WEBHOOK] Missing session ID in event");
     return new Response("Missing session", { status: 400 });
+  }
+
+  if (
+    event.type === "checkout.session.async_payment_failed" ||
+    event.type === "checkout.session.expired"
+  ) {
+    const { data: checkoutOrder, error: checkoutOrderError } =
+      await supabaseClient
+        .from("orders")
+        .select("*")
+        .eq("stripe_session_id", session.id)
+        .maybeSingle();
+
+    if (checkoutOrderError) {
+      console.error(
+        "[STRIPE-WEBHOOK] Failed to load checkout signal order:",
+        checkoutOrderError,
+      );
+      return new Response("Database lookup failed", { status: 500 });
+    }
+    if (!checkoutOrder) {
+      return new Response("Ignored", { status: 200 });
+    }
+
+    if (
+      checkoutOrder.analytics_consent === "granted" &&
+      ga4MeasurementId &&
+      ga4ApiSecret
+    ) {
+      const eventName = event.type === "checkout.session.expired"
+        ? "checkout_abandoned"
+        : "checkout_error";
+      const errorCode = event.type === "checkout.session.expired"
+        ? "checkout_session_expired"
+        : "payment_declined";
+      try {
+        await sendGa4CheckoutSignal(
+          supabaseClient,
+          checkoutOrder as Ga4Order,
+          event.id,
+          eventName,
+          errorCode,
+          ga4MeasurementId,
+          ga4ApiSecret,
+        );
+      } catch (error) {
+        console.error(
+          "[STRIPE-WEBHOOK] GA4 checkout signal failed:",
+          error,
+        );
+      }
+    }
+
+    return new Response("OK", { status: 200 });
   }
 
   if (
@@ -156,11 +280,6 @@ serve(async (req) => {
     );
     return new Response("Payment pending", { status: 200 });
   }
-
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-  );
 
   const paymentIntentId = typeof session.payment_intent === "string"
     ? session.payment_intent
@@ -307,6 +426,23 @@ serve(async (req) => {
   if (updateError) {
     console.error("[STRIPE-WEBHOOK] Failed to update order:", updateError);
     return new Response("Database update failed", { status: 500 });
+  }
+
+  if (
+    order.analytics_consent === "granted" &&
+    ga4MeasurementId &&
+    ga4ApiSecret
+  ) {
+    try {
+      await sendGa4Purchase(
+        supabaseClient,
+        order as Ga4Order,
+        ga4MeasurementId,
+        ga4ApiSecret,
+      );
+    } catch (error) {
+      console.error("[STRIPE-WEBHOOK] GA4 purchase event failed:", error);
+    }
   }
 
   try {

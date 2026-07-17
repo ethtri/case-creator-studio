@@ -8,6 +8,7 @@ import { phoneVariants } from "@/data/phoneVariants";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
 import { trackMarketingEvent } from "@/lib/marketing";
+import { asMarketingItems, buildAnalyticsItem } from "@/lib/analytics-commerce";
 
 const steps = [
   {
@@ -117,7 +118,16 @@ const Index = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.4 }}
             >
-              <Link to="/catalog">
+              <Link
+                to="/catalog"
+                onClick={() =>
+                  trackMarketingEvent("primary_cta_click", {
+                    placement: "home_hero",
+                    destination: "/catalog",
+                    label: "Start designing",
+                  })
+                }
+              >
                 <Button size="lg" className="bg-cta hover:bg-cta/90 text-cta-foreground font-semibold px-8 py-6 text-base shadow-glow">
                   Start designing
                   <ChevronRight className="w-5 h-5 ml-1" />
@@ -203,11 +213,13 @@ const Index = () => {
                 <Link
                   to={`/design/${variant.id}`}
                   onClick={() =>
-                    trackMarketingEvent("select_model", {
-                      variant_id: variant.id,
-                      brand: variant.brand,
-                      model: variant.model,
-                      surface: "home_popular_models",
+                    trackMarketingEvent("select_item", {
+                      item_list_id: "popular_models",
+                      item_list_name: "Popular models",
+                      placement: "home_popular_models",
+                      items: asMarketingItems(
+                        [buildAnalyticsItem({ variant })].filter(Boolean),
+                      ),
                     })
                   }
                 >
