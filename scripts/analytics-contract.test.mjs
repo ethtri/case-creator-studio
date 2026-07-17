@@ -33,6 +33,10 @@ test("normalizes generated and campaign query values out of page paths", () => {
     "/catalog?brand=Apple&sort=popular",
   );
   assert.equal(
+    getMarketingPagePath("/catalog/", "?sort=popular&brand=Apple"),
+    "/catalog?brand=Apple&sort=popular",
+  );
+  assert.equal(
     getMarketingPagePath("/order-success", "?session_id=cs_test_secret"),
     "/order-success",
   );
@@ -43,6 +47,14 @@ test("normalizes generated and campaign query values out of page paths", () => {
       "?utm_source=launch&designId=private-uuid",
     ),
     "https://www.snapcase.ai/design/iphone-16?utm_source=launch",
+  );
+  assert.equal(
+    getMarketingPageLocation(
+      "https://www.snapcase.ai",
+      "/phone-cases/iphone-17-pro-max/",
+      "?utm_source=launch",
+    ),
+    "https://www.snapcase.ai/phone-cases/iphone-17-pro-max?utm_source=launch",
   );
 });
 
