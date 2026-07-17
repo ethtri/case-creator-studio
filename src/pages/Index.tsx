@@ -1,9 +1,18 @@
-import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Smartphone, Palette, Package, ChevronRight, Truck, RotateCcw, BadgeCheck, Clock } from "lucide-react";
-import heroWide from "@/assets/hero-wide.png";
-import heroNarrow from "@/assets/hero-narrow.png";
+import heroWide960Avif from "@/assets/hero-wide-960.avif";
+import heroWide1536Avif from "@/assets/hero-wide-1536.avif";
+import heroWide960Webp from "@/assets/hero-wide-960.webp";
+import heroWide1536Webp from "@/assets/hero-wide-1536.webp";
+import heroWide960Jpeg from "@/assets/hero-wide-960.jpg";
+import heroWide1536Jpeg from "@/assets/hero-wide-1536.jpg";
+import heroNarrow640Avif from "@/assets/hero-narrow-640.avif";
+import heroNarrow1024Avif from "@/assets/hero-narrow-1024.avif";
+import heroNarrow640Webp from "@/assets/hero-narrow-640.webp";
+import heroNarrow1024Webp from "@/assets/hero-narrow-1024.webp";
+import heroNarrow640Jpeg from "@/assets/hero-narrow-640.jpg";
+import heroNarrow1024Jpeg from "@/assets/hero-narrow-1024.jpg";
 import { phoneVariants } from "@/data/phoneVariants";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
@@ -73,18 +82,51 @@ const Index = () => {
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Background Images - Wide for desktop, Narrow for mobile */}
+        {/* The picture sources let the browser request one viewport-appropriate hero. */}
         <div className="absolute inset-0">
-          <img 
-            src={heroWide} 
-            alt="" 
-            className="hidden md:block w-full h-full object-cover"
-          />
-          <img 
-            src={heroNarrow} 
-            alt="" 
-            className="md:hidden w-full h-full object-cover"
-          />
+          <picture className="block h-full w-full">
+            <source
+              media="(min-width: 768px)"
+              type="image/avif"
+              srcSet={`${heroWide960Avif} 960w, ${heroWide1536Avif} 1536w`}
+              sizes="100vw"
+            />
+            <source
+              media="(min-width: 768px)"
+              type="image/webp"
+              srcSet={`${heroWide960Webp} 960w, ${heroWide1536Webp} 1536w`}
+              sizes="100vw"
+            />
+            <source
+              media="(min-width: 768px)"
+              type="image/jpeg"
+              srcSet={`${heroWide960Jpeg} 960w, ${heroWide1536Jpeg} 1536w`}
+              sizes="100vw"
+            />
+            <source
+              type="image/avif"
+              srcSet={`${heroNarrow640Avif} 640w, ${heroNarrow1024Avif} 1024w`}
+              sizes="100vw"
+            />
+            <source
+              type="image/webp"
+              srcSet={`${heroNarrow640Webp} 640w, ${heroNarrow1024Webp} 1024w`}
+              sizes="100vw"
+            />
+            <img
+              src={heroNarrow1024Jpeg}
+              srcSet={`${heroNarrow640Jpeg} 640w, ${heroNarrow1024Jpeg} 1024w`}
+              sizes="100vw"
+              alt=""
+              aria-hidden="true"
+              width="1024"
+              height="1024"
+              {...{ fetchpriority: "high" }}
+              loading="eager"
+              decoding="async"
+              className="h-full w-full object-cover"
+            />
+          </picture>
           {/* Dark gradient overlay for readability */}
           <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-background/50" />
@@ -92,32 +134,17 @@ const Index = () => {
 
         <div className="container relative z-10 mx-auto px-6 pt-24 pb-16">
           <div className="max-w-2xl">
-            <motion.h1
-              className="font-display text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight text-foreground mb-6"
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7 }}
-            >
+            <h1 className="font-display text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight text-foreground mb-6">
               Print your
               <br />
               story.
-            </motion.h1>
+            </h1>
 
-            <motion.p
-              className="text-lg md:text-xl text-muted-foreground max-w-md mb-10"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-            >
+            <p className="text-lg md:text-xl text-muted-foreground max-w-md mb-10">
               Design your own phone case in minutes. We print and ship in the U.S.
-            </motion.p>
+            </p>
 
-            <motion.div
-              className="flex flex-col sm:flex-row items-start gap-4"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-            >
+            <div className="flex flex-col sm:flex-row items-start gap-4">
               <Link
                 to="/catalog"
                 onClick={() =>
@@ -133,7 +160,7 @@ const Index = () => {
                   <ChevronRight className="w-5 h-5 ml-1" />
                 </Button>
               </Link>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
@@ -141,37 +168,24 @@ const Index = () => {
       {/* How it Works Section */}
       <section className="py-24 bg-surface-sunken">
         <div className="container mx-auto px-6">
-          <motion.div
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
+          <div className="text-center mb-16">
             <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
               How it works
             </h2>
             <p className="text-muted-foreground max-w-lg mx-auto">
               Three simple steps to your custom phone case
             </p>
-          </motion.div>
+          </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            {steps.map((step, index) => (
-              <motion.div
-                key={step.number}
-                className="text-center"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: index * 0.15 }}
-              >
+            {steps.map((step) => (
+              <div key={step.number} className="text-center">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-cta/10 border border-cta/30 mb-6">
                   <span className="font-display font-bold text-cta text-lg">{step.number}</span>
                 </div>
                 <h3 className="font-display text-xl font-semibold text-foreground mb-3">{step.title}</h3>
                 <p className="text-muted-foreground text-sm">{step.description}</p>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
@@ -180,13 +194,7 @@ const Index = () => {
       {/* Popular Models Section */}
       <section className="py-24">
         <div className="container mx-auto px-6">
-          <motion.div
-            className="flex items-center justify-between mb-12"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
+          <div className="flex items-center justify-between mb-12">
             <div>
               <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-2">
                 Popular models
@@ -199,17 +207,11 @@ const Index = () => {
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             </Link>
-          </motion.div>
+          </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {popularModels.map((variant, index) => (
-              <motion.div
-                key={variant.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-              >
+            {popularModels.map((variant) => (
+              <div key={variant.id}>
                 <Link
                   to={`/design/${variant.id}`}
                   onClick={() =>
@@ -237,7 +239,7 @@ const Index = () => {
                     </div>
                   </div>
                 </Link>
-              </motion.div>
+              </div>
             ))}
           </div>
 
@@ -255,37 +257,27 @@ const Index = () => {
       {/* Trust/FAQ Section */}
       <section className="py-24 bg-surface-sunken">
         <div className="container mx-auto px-6">
-          <motion.div
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
+          <div className="text-center mb-16">
             <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
               Why Snapcase?
             </h2>
             <p className="text-muted-foreground max-w-lg mx-auto">
               Clear previews, U.S. shipping, and support for damaged or misprinted cases
             </p>
-          </motion.div>
+          </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {faqs.map((faq, index) => (
-              <motion.div
+            {faqs.map((faq) => (
+              <div
                 key={faq.title}
                 className="bg-card rounded-2xl p-6 border border-border/50"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
               >
                 <div className="w-12 h-12 rounded-xl bg-cta/10 flex items-center justify-center mb-4">
                   <faq.icon className="w-6 h-6 text-cta" />
                 </div>
                 <h3 className="font-semibold text-foreground mb-2">{faq.title}</h3>
                 <p className="text-sm text-muted-foreground">{faq.description}</p>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>

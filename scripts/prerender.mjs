@@ -107,11 +107,17 @@ const injectAppHtml = (html, appHtml) =>
     "root markup"
   );
 
-const resolveAsset = async (basename) => {
+const resolveAsset = async (basename, extension) => {
   const files = await fs.readdir(assetsDir);
-  const match = files.find((file) => file.startsWith(`${basename}-`));
+  const match = files.find(
+    (file) =>
+      file.startsWith(`${basename}-`) &&
+      (!extension || file.endsWith(`.${extension}`))
+  );
   if (!match) {
-    throw new Error(`Missing built asset for ${basename}.`);
+    throw new Error(
+      `Missing built asset for ${basename}${extension ? `.${extension}` : ""}.`
+    );
   }
   return `/assets/${match}`;
 };
@@ -150,8 +156,18 @@ const renderRoutes = async () => {
   );
   await fs.writeFile(spaFallbackPath, spaFallback, "utf8");
   const assetMap = {
-    "/src/assets/hero-wide.png": await resolveAsset("hero-wide"),
-    "/src/assets/hero-narrow.png": await resolveAsset("hero-narrow"),
+    "/src/assets/hero-wide-960.avif": await resolveAsset("hero-wide-960", "avif"),
+    "/src/assets/hero-wide-1536.avif": await resolveAsset("hero-wide-1536", "avif"),
+    "/src/assets/hero-wide-960.webp": await resolveAsset("hero-wide-960", "webp"),
+    "/src/assets/hero-wide-1536.webp": await resolveAsset("hero-wide-1536", "webp"),
+    "/src/assets/hero-wide-960.jpg": await resolveAsset("hero-wide-960", "jpg"),
+    "/src/assets/hero-wide-1536.jpg": await resolveAsset("hero-wide-1536", "jpg"),
+    "/src/assets/hero-narrow-640.avif": await resolveAsset("hero-narrow-640", "avif"),
+    "/src/assets/hero-narrow-1024.avif": await resolveAsset("hero-narrow-1024", "avif"),
+    "/src/assets/hero-narrow-640.webp": await resolveAsset("hero-narrow-640", "webp"),
+    "/src/assets/hero-narrow-1024.webp": await resolveAsset("hero-narrow-1024", "webp"),
+    "/src/assets/hero-narrow-640.jpg": await resolveAsset("hero-narrow-640", "jpg"),
+    "/src/assets/hero-narrow-1024.jpg": await resolveAsset("hero-narrow-1024", "jpg"),
     "/src/assets/mockups/iphone-case-front.png": await resolveAsset("iphone-case-front"),
     "/src/assets/mockups/iphone-case-angled.png": await resolveAsset("iphone-case-angled"),
     "/src/assets/mockups/samsung-case-front.png": await resolveAsset("samsung-case-front"),

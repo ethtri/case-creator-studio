@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo } from "react";
-import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,26 +65,17 @@ const Catalog = () => {
       {/* Header */}
       <section className="pt-28 pb-12">
         <div className="container mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
+          <div>
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
               Choose Your Phone
             </h1>
             <p className="text-muted-foreground text-lg max-w-xl">
               Select your phone model to start designing your custom case
             </p>
-          </motion.div>
+          </div>
 
           {/* Search & Brand Filter */}
-          <motion.div
-            className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-8"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-8">
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -117,7 +107,7 @@ const Catalog = () => {
                 </Button>
               ))}
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
@@ -125,13 +115,8 @@ const Catalog = () => {
       <section className="pb-24">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {filteredModels.flatMap(([, variants]) => variants).map((variant, index) => (
-              <motion.div
-                key={variant.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2, delay: index * 0.02 }}
-              >
+            {filteredModels.flatMap(([, variants]) => variants).map((variant) => (
+              <div key={variant.id}>
                 <Link
                   to={`/design/${variant.id}`}
                   onClick={() =>
@@ -164,7 +149,7 @@ const Catalog = () => {
                     <div className="absolute inset-0 rounded-xl ring-2 ring-accent ring-opacity-0 group-hover:ring-opacity-100 transition-all pointer-events-none" />
                   </div>
                 </Link>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
