@@ -6,7 +6,7 @@ import { SiteMenu } from "@/components/SiteMenu";
 import { getStaticSeoPage, SITE_URL } from "@/data/seoRoutes";
 import { phoneVariants } from "@/data/phoneVariants";
 import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
-import samsungCaseAngled from "@/assets/mockups/samsung-case-angled.png";
+import samsungCaseFront from "@/assets/mockups/samsung-case-front.png";
 
 const JsonLd = ({ value }: { value: Record<string, unknown> }) => (
   <script
@@ -75,13 +75,13 @@ const SeoLanding = () => {
             <div className="relative min-h-[420px] hidden lg:block">
               <img
                 src={iphoneCaseFront}
-                alt="Custom iPhone case preview"
+                alt="iPhone case model illustration"
                 className="absolute left-6 top-0 w-64 drop-shadow-2xl"
               />
               <img
-                src={samsungCaseAngled}
-                alt="Custom Samsung case preview"
-                className="absolute right-0 bottom-0 w-64 drop-shadow-2xl"
+                src={samsungCaseFront}
+                alt="Samsung case model illustration"
+                className="absolute right-0 bottom-0 w-60 rotate-3 drop-shadow-2xl"
               />
             </div>
           </div>
