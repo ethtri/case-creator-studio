@@ -74,6 +74,8 @@ parameters where GA4 defines them.
 - `editor_error`: categorical error code only
 - `checkout_error`: categorical error code and stage only
 - `promo_applied`: code and discount amount
+- `order_verification`: bounded verification outcome in `stage` and categorical
+  error code only; emitted at most once per session/outcome in a browser tab
 
 All events include `analytics_contract_version`.
 

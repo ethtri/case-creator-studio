@@ -12,6 +12,7 @@ export type MarketingEventName =
   | "begin_checkout"
   | "purchase"
   | "refund"
+  | "order_verification"
   | "primary_cta_click"
   | "editor_error"
   | "checkout_error"

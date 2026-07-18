@@ -311,6 +311,73 @@ const assertCheckoutReviewLayout = async (
     .waitFor();
 };
 
+const installVerificationState = async (context, theme = "light") => {
+  await context.addInitScript(
+    ({ expectedOrigin, storedCartItem, storedPreviewUrl, selectedTheme }) => {
+      if (window.location.origin !== expectedOrigin) return;
+      window.localStorage.setItem("theme", selectedTheme);
+      window.localStorage.setItem("snapcase_analytics_consent_v1", "granted");
+      window.localStorage.setItem("snapcase_cart_v1", JSON.stringify([storedCartItem]));
+      window.sessionStorage.setItem(
+        `snapcase_cart_preview:${storedCartItem.id}`,
+        storedPreviewUrl,
+      );
+      window.gtag = (...args) => {
+        const key = "snapcase_a11y_analytics_events";
+        const events = JSON.parse(window.sessionStorage.getItem(key) ?? "[]");
+        events.push(args);
+        window.sessionStorage.setItem(key, JSON.stringify(events));
+      };
+    },
+    {
+      expectedOrigin: origin,
+      storedCartItem: cartItem,
+      storedPreviewUrl: previewUrl,
+      selectedTheme: theme,
+    },
+  );
+};
+
+const mockVerificationService = async (context, responses) => {
+  let verificationCalls = 0;
+
+  await context.route("https://www.googletagmanager.com/gtag/js**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/javascript",
+      body: "",
+    });
+  });
+
+  await context.route(
+    "https://placeholder.supabase.co/functions/v1/verify-payment",
+    async (route) => {
+      const headers = {
+        "access-control-allow-origin": "*",
+        "access-control-allow-headers": "*",
+        "content-type": "application/json",
+      };
+      if (route.request().method() === "OPTIONS") {
+        await route.fulfill({ status: 200, headers, body: "{}" });
+        return;
+      }
+
+      const response = responses[Math.min(verificationCalls, responses.length - 1)];
+      verificationCalls += 1;
+      if (response.delay) {
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, response.delay));
+      }
+      await route.fulfill({
+        status: response.status ?? 200,
+        headers,
+        body: JSON.stringify(response.body),
+      });
+    },
+  );
+
+  return () => verificationCalls;
+};
+
 const waitForStableUi = async (page) => {
   await page.waitForLoadState("domcontentloaded");
   await page.waitForTimeout(650);
@@ -1125,7 +1192,271 @@ try {
     .waitFor();
   await emptyCartPage.getByRole("button", { name: "Browse Cases" }).waitFor();
   await emptyCartContext.close();
+  const missingSessionContext = await browser.newContext({
+    viewport: { width: 1024, height: 800 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  await installAppState(missingSessionContext, "light");
+  const missingSessionPage = await missingSessionContext.newPage();
+  await missingSessionPage.goto(`${origin}/order-success`);
+  await waitForStableUi(missingSessionPage);
+  await missingSessionPage
+    .getByRole("heading", { level: 1, name: "We can’t verify this return page" })
+    .waitFor();
+  await missingSessionPage.getByRole("link", { name: "View My Orders" }).waitFor();
+  await missingSessionPage.getByRole("link", { name: "Contact support" }).waitFor();
+  await missingSessionPage.getByRole("link", { name: "Browse cases" }).waitFor();
+  assert.equal(
+    await missingSessionPage.getByRole("button", { name: "Retry verification" }).count(),
+    0,
+    "A missing secure return reference must not make a verification request available.",
+  );
+  auditResults.push(
+    await assertNoSeriousAxeViolations(
+      missingSessionPage,
+      "order-verification-missing-session-desktop",
+    ),
+  );
+  await missingSessionContext.close();
 
+  const verificationDesktop = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  await verificationDesktop.grantPermissions(
+    ["clipboard-read", "clipboard-write"],
+    { origin },
+  );
+  await installVerificationState(verificationDesktop, "light");
+  const getVerificationCalls = await mockVerificationService(
+    verificationDesktop,
+    [
+      {
+        status: 503,
+        body: {
+          error: "Unable to verify payment.",
+          code: "verification_unavailable",
+          retryable: true,
+          supportReference: "SC-111111111111",
+        },
+      },
+      {
+        delay: 350,
+        body: {
+          success: true,
+          supportReference: "SC-111111111111",
+          order: {
+            id: "11111111-1111-4111-8111-111111111111",
+            items: [{ quantity: 2 }, { quantity: 1 }],
+            total: 94.97,
+            status: "paid",
+          },
+        },
+      },
+      {
+        body: {
+          success: true,
+          supportReference: "SC-111111111111",
+          order: {
+            id: "11111111-1111-4111-8111-111111111111",
+            items: [{ quantity: 2 }, { quantity: 1 }],
+            total: 94.97,
+            status: "paid",
+          },
+        },
+      },
+    ],
+  );
+  const verificationPage = await verificationDesktop.newPage();
+  await verificationPage.goto(
+    `${origin}/order-success?session_id=test-session-existing`,
+  );
+  await verificationPage
+    .getByRole("heading", { level: 1, name: "We’re still confirming your order" })
+    .waitFor();
+  assert.equal(
+    getVerificationCalls(),
+    1,
+    "Initial verification should make exactly one existing-session request.",
+  );
+  await verificationPage
+    .getByRole("button", { name: "Open cart, 2 items" })
+    .waitFor();
+  await verificationPage
+    .getByText("SC-111111111111", { exact: true })
+    .waitFor();
+  const retryVerification = verificationPage.getByRole("button", {
+    name: "Retry verification",
+  });
+  await assertTargetSize(retryVerification, "Order verification retry");
+  await assertFocusIndicator(
+    verificationPage,
+    retryVerification,
+    "Order verification retry",
+  );
+  auditResults.push(
+    await assertNoSeriousAxeViolations(
+      verificationPage,
+      "order-verification-retryable-desktop",
+    ),
+  );
+  await verificationPage.screenshot({
+    path: resolve(outputDir, "order-verification-retryable-desktop.png"),
+    fullPage: true,
+  });
+
+  await retryVerification.evaluate((button) => {
+    button.click();
+    button.click();
+  });
+  await verificationPage
+    .getByRole("button", { name: "Checking again…" })
+    .waitFor();
+  assert.equal(
+    await verificationPage.getByRole("button", { name: "Checking again…" }).isDisabled(),
+    true,
+    "Retry must be disabled while verification is active.",
+  );
+  await verificationPage
+    .getByRole("heading", { level: 1, name: "Thank you for your order!" })
+    .waitFor();
+  assert.equal(
+    getVerificationCalls(),
+    2,
+    "Repeated retry clicks must coalesce into one verification request.",
+  );
+  await verificationPage.getByText("3 cases", { exact: true }).waitFor();
+  await verificationPage
+    .getByRole("button", { name: "Open cart, empty" })
+    .waitFor();
+  auditResults.push(
+    await assertNoSeriousAxeViolations(
+      verificationPage,
+      "order-verification-success-desktop",
+    ),
+  );
+  await verificationPage.screenshot({
+    path: resolve(outputDir, "order-verification-success-desktop.png"),
+    fullPage: true,
+  });
+
+  const analyticsBeforeRefresh = await verificationPage.evaluate(() => {
+    const events = JSON.parse(
+      window.sessionStorage.getItem("snapcase_a11y_analytics_events") ?? "[]",
+    );
+    return events.filter(
+      (entry) => entry[0] === "event" && entry[1] === "order_verification",
+    ).length;
+  });
+  assert.equal(
+    analyticsBeforeRefresh,
+    2,
+    "Retryable and verified outcomes should each be tracked once.",
+  );
+
+  await verificationPage.reload();
+  await verificationPage
+    .getByRole("heading", { level: 1, name: "Thank you for your order!" })
+    .waitFor();
+  assert.equal(
+    getVerificationCalls(),
+    3,
+    "A refresh may safely re-check the existing session.",
+  );
+  const analyticsAfterRefresh = await verificationPage.evaluate(() => {
+    const events = JSON.parse(
+      window.sessionStorage.getItem("snapcase_a11y_analytics_events") ?? "[]",
+    );
+    return {
+      verification: events.filter(
+        (entry) => entry[0] === "event" && entry[1] === "order_verification",
+      ).length,
+      purchase: events.filter(
+        (entry) => entry[0] === "event" && entry[1] === "purchase",
+      ).length,
+    };
+  });
+  assert.deepEqual(
+    analyticsAfterRefresh,
+    { verification: 2, purchase: 0 },
+    "Refresh must not duplicate verification outcomes or emit browser purchase events.",
+  );
+  await verificationDesktop.close();
+
+  const verificationMobile = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    reducedMotion: "reduce",
+    colorScheme: "dark",
+  });
+  await verificationMobile.grantPermissions(
+    ["clipboard-read", "clipboard-write"],
+    { origin },
+  );
+  await installVerificationState(verificationMobile, "dark");
+  await mockVerificationService(verificationMobile, [{
+    body: {
+      success: false,
+      retryable: false,
+      code: "order_requires_review",
+      supportReference: "SC-222222222222",
+      order: {
+        id: "22222222-2222-4222-8222-222222222222",
+        items: [{ quantity: 2 }],
+        total: 59.98,
+        status: "payment_review",
+      },
+    },
+  }]);
+  const verificationMobilePage = await verificationMobile.newPage();
+  await verificationMobilePage.goto(
+    `${origin}/order-success?session_id=test-session-review`,
+  );
+  await verificationMobilePage
+    .getByRole("heading", { level: 1, name: "Your order needs support review" })
+    .waitFor();
+  await assertNoHorizontalOverflow(
+    verificationMobilePage,
+    "Mobile order verification review",
+  );
+  const copyReference = verificationMobilePage.getByRole("button", {
+    name: "Copy support reference SC-222222222222",
+  });
+  await assertTargetSize(copyReference, "Mobile support reference copy");
+  await copyReference.focus();
+  await verificationMobilePage.keyboard.press("Enter");
+  await verificationMobilePage.getByText("Support reference copied.").waitFor();
+  await assertTargetSize(
+    verificationMobilePage.getByRole("link", { name: "View My Orders" }),
+    "Mobile verification orders",
+  );
+  await assertTargetSize(
+    verificationMobilePage.getByRole("link", { name: "Contact support" }),
+    "Mobile verification contact",
+  );
+  await assertTargetSize(
+    verificationMobilePage.getByRole("link", { name: "Browse cases" }),
+    "Mobile verification browse",
+  );
+  assert.equal(
+    await verificationMobilePage
+      .getByRole("button", { name: "Retry verification" })
+      .count(),
+    0,
+    "A confirmed support-review state must not offer blind retry.",
+  );
+  auditResults.push(
+    await assertNoSeriousAxeViolations(
+      verificationMobilePage,
+      "order-verification-review-dark-mobile",
+    ),
+  );
+  await verificationMobilePage.screenshot({
+    path: resolve(outputDir, "order-verification-review-dark-mobile.png"),
+    fullPage: true,
+  });
+  await verificationMobile.close();
   console.log(
     JSON.stringify(
       {
@@ -1143,6 +1474,9 @@ try {
           "output/playwright/checkout-light-tablet.png",
           "output/playwright/checkout-dark-tablet.png",
           "output/playwright/checkout-dark-desktop.png",
+          "output/playwright/order-verification-retryable-desktop.png",
+          "output/playwright/order-verification-success-desktop.png",
+          "output/playwright/order-verification-review-dark-mobile.png",
         ],
       },
       null,

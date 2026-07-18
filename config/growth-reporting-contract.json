@@ -585,7 +585,8 @@
       "primary_cta_click",
       "editor_error",
       "checkout_error",
-      "promo_applied"
+      "promo_applied",
+      "order_verification"
     ]
   },
   "cadence": {

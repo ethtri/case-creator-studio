@@ -291,6 +291,7 @@ const CANONICAL_DATA_QUALITY = {
     "editor_error",
     "checkout_error",
     "promo_applied",
+    "order_verification",
   ],
 };
 
@@ -381,6 +382,7 @@ const EVENT_REQUIRED_PARAMETERS = new Map([
   ["design_save", ["brand", "model", "variant_id"]],
   ["editor_error", ["variant_id", "error_code"]],
   ["checkout_error", ["error_code", "stage"]],
+  ["order_verification", ["stage", "error_code"]],
 ]);
 const EVENTS_WITH_TRANSACTION_ID = new Set(["purchase", "refund"]);
 

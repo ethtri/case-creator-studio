@@ -65,6 +65,18 @@ type KexiaozhanHandoffRecord = {
   expires_at?: unknown;
 };
 
+const formatSupportReference = (orderId: unknown): string | null => {
+  if (
+    typeof orderId !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      .test(orderId)
+  ) {
+    return null;
+  }
+
+  return `SC-${orderId.replaceAll("-", "").slice(0, 12).toUpperCase()}`;
+};
+
 const extractShippingDetails = (
   session: Stripe.Checkout.Session,
 ): ShippingDetails | null => {
@@ -101,6 +113,7 @@ const extractShippingDetails = (
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
+  let supportReference: string | null = null;
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -127,6 +140,22 @@ serve(async (req) => {
       apiVersion: "2025-08-27.basil",
     });
 
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const supabaseClient = createClient(supabaseUrl, serviceRoleKey);
+    const { data: existingOrder, error: orderLookupError } =
+      await supabaseClient
+        .from("orders")
+        .select("*")
+        .eq("stripe_session_id", sessionId)
+        .single();
+
+    if (orderLookupError || !existingOrder) {
+      console.error("[VERIFY-PAYMENT] Error loading order:", orderLookupError);
+      throw new Error("Database order lookup failed");
+    }
+    supportReference = formatSupportReference(existingOrder.id);
+
     // Retrieve the checkout session
     const session = await stripe.checkout.sessions.retrieve(sessionId, {
       expand: ["payment_intent"],
@@ -144,7 +173,14 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          message: "Payment not completed",
+          code: session.status === "expired"
+            ? "checkout_expired"
+            : "payment_pending",
+          retryable: session.status !== "expired",
+          supportReference,
+          message: session.status === "expired"
+            ? "Checkout expired before payment was confirmed"
+            : "Payment confirmation is pending",
         }),
         {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -154,10 +190,6 @@ serve(async (req) => {
     }
 
     // Update order in database
-    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    const supabaseClient = createClient(supabaseUrl, serviceRoleKey);
-
     const paymentIntent = session.payment_intent as Stripe.PaymentIntent;
 
     const updateData: Record<string, unknown> = {
@@ -198,18 +230,6 @@ serve(async (req) => {
         zip: shippingAddress.postal_code ?? "",
         country: shippingAddress.country ?? "",
       };
-    }
-
-    const { data: existingOrder, error: orderLookupError } =
-      await supabaseClient
-        .from("orders")
-        .select("*")
-        .eq("stripe_session_id", sessionId)
-        .single();
-
-    if (orderLookupError || !existingOrder) {
-      console.error("[VERIFY-PAYMENT] Error loading order:", orderLookupError);
-      throw new Error("Database order lookup failed");
     }
 
     const kexiaozhanOutTradeNo = extractKexiaozhanOutTradeNo(
@@ -280,6 +300,9 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({
             success: false,
+            code: "order_requires_review",
+            retryable: false,
+            supportReference,
             message:
               "Payment received, but the vendor checkout link expired before payment completed. Please contact support so we can review or refund the order.",
             order: blockedOrder,
@@ -389,6 +412,7 @@ serve(async (req) => {
         success: true,
         order: order,
         customerEmail: session.customer_details?.email,
+        supportReference,
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -398,7 +422,12 @@ serve(async (req) => {
   } catch (error: unknown) {
     const corsHeaders = getCorsHeaders(req);
     const safeMessage = getSafeErrorMessage(error);
-    return new Response(JSON.stringify({ error: safeMessage }), {
+    return new Response(JSON.stringify({
+      error: safeMessage,
+      code: "verification_unavailable",
+      retryable: true,
+      supportReference,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 500,
     });
