@@ -47,6 +47,76 @@ active.
 - Run verification on the PR branch; local testing happens by checking out that branch.
 - Treat local hooks as optional guardrails; CI is the source of truth.
 
+### Goal execution and delegation
+- The lead agent owns the goal end to end: confirm the current issue/board state,
+  order dependencies, delegate independent slices, integrate results, update
+  status, and verify the final goal acceptance criteria.
+- Proactively use sub-agents for independent implementation, research, review, or
+  QA slices when parallel work will shorten the critical path. Delegation does
+  not transfer the lead agent's accountability for the completed goal.
+- Before delegating, give each sub-agent a concrete task contract:
+  - GitHub issue and acceptance criteria
+  - allowed scope and expected files or ownership boundary
+  - dedicated worktree and branch name
+  - dependencies and whether the PR may merge immediately
+  - required verification and handoff evidence
+- Sub-agents are empowered to inspect the repo, implement their assigned scope,
+  run verification, open a PR, address review or CI findings, and squash-merge
+  when this file's merge gates pass. They should not wait for separate approval
+  for those actions unless the task contract marks the work as review-only or
+  dependent on an unmerged prerequisite.
+- Do not delegate overlapping edits to the same shared foundation in parallel.
+  Establish and merge the shared contract first, then update dependent branches
+  from `main`. When overlap is unavoidable, assign one owner and make other
+  agents review-only for those files.
+- Every sub-agent must read this file and the relevant canonical docs before
+  editing. Each sub-agent uses its own worktree; agents never share uncommitted
+  files, terminals, branches, or worktrees.
+- A sub-agent handoff must include the issue and PR, files changed, verification
+  results, migrations or environment changes, risks, and any acceptance criteria
+  that remain unproven.
+- The lead agent owns external coordination. Sub-agents must not contact or ask
+  the user, vendors, or on-site staff to test unless their task contract
+  explicitly delegates that communication and the stated preconditions are met.
+- After each dependent merge, the lead agent updates downstream branches from
+  `main`, reruns affected verification, and checks the GitHub board, open PRs,
+  review comments, and CI before starting the next wave.
+- Merged code is not enough to close an issue when staging, production, vendor,
+  or physical evidence remains in its acceptance criteria. Record the remaining
+  gate and keep the issue open.
+- Delegation is not a stopping point. The lead agent continues through
+  integration and final QA until the goal is achieved or a specific external
+  blocker is documented.
+
+### Executive escalation policy
+- Treat the user as the executive sponsor, not as the routine reviewer,
+  integrator, release operator, or project coordinator.
+- Agents own routine execution without user intervention, including repository
+  research, reasonable implementation decisions, issue and board updates,
+  worktree and branch management, commits, PR creation, review remediation, CI
+  reruns, clean squash merges, and post-merge status updates.
+- Do not ask the user to review or merge a PR, run a command, copy values between
+  tools, gather information available to agents, or approve an ordinary
+  reversible engineering decision.
+- Use available repository, GitHub, browser, infrastructure, and connected-app
+  tools to resolve access or evidence gaps before escalating. Never claim a
+  blocker after only proposing work that the agent can perform.
+- Escalate only when progress requires at least one of the following:
+  - an executive product, legal, financial, risk, or priority decision not
+    already resolved by repository guidance or the active goal
+  - credentials, permissions, billing approval, or a physical action that no
+    available tool or authorized agent can supply
+  - approval for an irreversible or materially customer-impacting production
+    action that was not already authorized by the active goal
+  - external vendor or on-site coordination whose documented preconditions are
+    satisfied and that cannot be completed asynchronously by an authorized agent
+- Before escalating, exhaust safe alternatives and report the exact blocker,
+  evidence, attempted resolutions, impact, and one recommended executive action.
+  Keep the request narrow enough that the user can decide or unblock it once.
+- When one slice is externally blocked, continue every independent executable
+  slice. Do not pause the whole goal merely because one dependency needs an
+  executive response.
+
 ### PR requirements (always)
 - PR description includes:
   - Summary (1-3 bullets)
