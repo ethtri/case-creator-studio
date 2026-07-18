@@ -642,6 +642,44 @@ const getFrameStyle = (locator) =>
     };
   });
 
+const waitForChangedFrameStyle = (
+  locator,
+  previousStyle,
+  properties,
+  timeoutMs = 1_000,
+) =>
+  locator.evaluate(
+    (element, { previousStyle, properties, timeoutMs }) =>
+      new Promise((resolveStyle) => {
+        const deadline = performance.now() + timeoutMs;
+        const readStyle = () => {
+          const style = getComputedStyle(element);
+          return {
+            backgroundColor: style.backgroundColor,
+            borderColor: style.borderColor,
+            boxShadow: style.boxShadow,
+            color: style.color,
+            transform: style.transform,
+          };
+        };
+        const poll = () => {
+          const currentStyle = readStyle();
+          if (
+            properties.every(
+              (property) => currentStyle[property] !== previousStyle[property],
+            ) ||
+            performance.now() >= deadline
+          ) {
+            resolveStyle(currentStyle);
+            return;
+          }
+          requestAnimationFrame(poll);
+        };
+        requestAnimationFrame(poll);
+      }),
+    { previousStyle, properties, timeoutMs },
+  );
+
 const assertNoHorizontalOverflow = async (page, label) => {
   const widths = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
@@ -1011,8 +1049,11 @@ try {
     true,
     "Catalog details link must remain hovered while pressed.",
   );
-  await page.waitForTimeout(10);
-  const detailsActiveStyle = await getFrameStyle(modelDetailsLink);
+  const detailsActiveStyle = await waitForChangedFrameStyle(
+    modelDetailsLink,
+    detailsHoverStyle,
+    ["backgroundColor", "color"],
+  );
   assert.notEqual(
     detailsActiveStyle.backgroundColor,
     detailsHoverStyle.backgroundColor,
@@ -1057,8 +1098,11 @@ try {
     true,
     "Catalog model action must remain hovered while pressed.",
   );
-  await page.waitForTimeout(10);
-  const designActiveStyle = await getFrameStyle(modelDesignLink);
+  const designActiveStyle = await waitForChangedFrameStyle(
+    modelDesignLink,
+    designHoverStyle,
+    ["backgroundColor"],
+  );
   assert.notEqual(
     designActiveStyle.backgroundColor,
     designHoverStyle.backgroundColor,
