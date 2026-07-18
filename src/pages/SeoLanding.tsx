@@ -75,11 +75,15 @@ const SeoLanding = () => {
             <div className="relative min-h-[420px] hidden lg:block">
               <img
                 src={iphoneCaseFront}
+                width={1600}
+                height={800}
                 alt="iPhone case model illustration"
                 className="absolute left-6 top-0 w-64 drop-shadow-2xl"
               />
               <img
                 src={samsungCaseFront}
+                width={1600}
+                height={800}
                 alt="Samsung case model illustration"
                 className="absolute right-0 bottom-0 w-60 rotate-3 drop-shadow-2xl"
               />

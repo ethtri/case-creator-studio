@@ -12,7 +12,11 @@ import {
 } from "@/components/ui/breadcrumb";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
-import { getVariantById, phoneVariants } from "@/data/phoneVariants";
+import {
+  formatProductPrice,
+  getRelatedVariants,
+  getVariantById,
+} from "@/data/phoneVariants";
 import NotFound from "@/pages/NotFound";
 import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
 import samsungCaseFront from "@/assets/mockups/samsung-case-front.png";
@@ -46,11 +50,10 @@ const PhoneCaseSeo = () => {
     return <NotFound />;
   }
 
-  const related = phoneVariants
-    .filter((candidate) => candidate.brand === variant.brand && candidate.id !== variant.id)
-    .slice(0, 3);
+  const related = getRelatedVariants(variant);
   const productName = `${variant.model} Custom Phone Case`;
   const productUrl = `${SITE_URL}/phone-cases/${variant.id}`;
+  const visiblePrice = formatProductPrice(variant);
   const breadcrumbs = [
     { name: "Home", url: `${SITE_URL}/` },
     { name: "Phone cases", url: `${SITE_URL}/catalog` },
@@ -90,7 +93,6 @@ const PhoneCaseSeo = () => {
             url: productUrl,
             priceCurrency: variant.currency,
             price: variant.price.toFixed(2),
-            itemCondition: "https://schema.org/NewCondition",
           },
         }}
       />
@@ -157,6 +159,22 @@ const PhoneCaseSeo = () => {
                   Personalize a {variant.model} case with a photo, artwork, text, or gift message.
                   Preview your design before checkout and keep the order tied to the exact model.
                 </p>
+                <div
+                  className="mb-6 inline-flex min-w-48 items-end justify-between gap-6 rounded-lg border border-border bg-card px-4 py-3 shadow-soft"
+                  data-product-offer="true"
+                  data-product-id={variant.id}
+                  data-price={variant.price.toFixed(2)}
+                  data-currency={variant.currency}
+                >
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Custom case price
+                    </p>
+                    <p className="text-2xl font-bold tracking-tight text-foreground">
+                      {visiblePrice}
+                    </p>
+                  </div>
+                </div>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <Button asChild size="lg" className="bg-cta hover:bg-cta/90 text-cta-foreground">
                     <Link
@@ -193,7 +211,10 @@ const PhoneCaseSeo = () => {
               <div className="hidden lg:flex justify-center">
                 <img
                   src={mockup}
-                  alt={`${variant.model} custom phone case mockup`}
+                  width={1600}
+                  height={800}
+                  alt={`Digital illustration of a ${variant.model} custom phone case mockup`}
+                  data-product-mockup="true"
                   className="w-72 drop-shadow-2xl"
                 />
               </div>

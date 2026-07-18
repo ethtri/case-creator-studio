@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && node scripts/prerender.mjs && npm run merchant:check && node scripts/performance-budget.mjs",
+    "build": "vite build && node scripts/prerender.mjs && npm run merchant:check && npm run seo:check && node scripts/performance-budget.mjs",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

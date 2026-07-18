@@ -3,8 +3,13 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { phoneVariants, getPhoneModels, getBrands } from "@/data/phoneVariants";
-import { Filter, Search } from "lucide-react";
+import {
+  formatProductPrice,
+  phoneVariants,
+  getPhoneModels,
+  getBrands,
+} from "@/data/phoneVariants";
+import { ChevronRight, Filter, Search } from "lucide-react";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
 import { trackMarketingEvent } from "@/lib/marketing";
@@ -30,11 +35,11 @@ const Catalog = () => {
   const filteredModels = useMemo(() => {
     const entries = Array.from(phoneModels.entries());
     let filtered = entries;
-    
+
     if (selectedBrand) {
       filtered = filtered.filter(([key]) => key.startsWith(selectedBrand));
     }
-    
+
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered
@@ -44,10 +49,22 @@ const Catalog = () => {
         )] as [string, typeof variants])
         .filter(([, variants]) => variants.length > 0);
     }
-    
+
     return filtered;
   }, [phoneModels, selectedBrand, searchQuery]);
   const visibleVariants = filteredModels.flatMap(([, variants]) => variants);
+  const trackCatalogSelection = (
+    variant: (typeof phoneVariants)[number],
+    placement: string,
+  ) =>
+    trackMarketingEvent("select_item", {
+      item_list_id: "phone_models",
+      item_list_name: "Phone models",
+      placement,
+      items: asMarketingItems(
+        [buildAnalyticsItem({ variant })].filter(Boolean),
+      ),
+    });
 
   return (
     <div className="min-h-screen bg-background">
@@ -129,40 +146,76 @@ const Catalog = () => {
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {visibleVariants.map((variant) => (
-              <div key={variant.id}>
-                <Link
-                  to={`/design/${variant.id}`}
-                  onClick={() =>
-                    trackMarketingEvent("select_item", {
-                      item_list_id: "phone_models",
-                      item_list_name: "Phone models",
-                      placement: "catalog_grid",
-                      items: asMarketingItems(
-                        [buildAnalyticsItem({ variant })].filter(Boolean),
-                      ),
-                    })
-                  }
+                <article
+                  key={variant.id}
+                  className="group relative flex h-full flex-col rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:border-accent/50 hover:shadow-medium"
                 >
-                  <div className="group relative bg-card rounded-xl p-4 hover:shadow-medium transition-all duration-200 cursor-pointer border border-border/50 hover:border-accent/50">
-                    {/* Phone Icon */}
-                    <div className="flex justify-center mb-3">
-                      <div className="w-10 h-20 rounded-lg bg-muted border-2 border-border/50 flex flex-col items-center pt-1">
-                        <div className="w-4 h-1 rounded-full bg-foreground/20" />
-                      </div>
+                  {/* Phone Icon */}
+                  <div className="mb-3 flex justify-center" aria-hidden="true">
+                    <div className="flex h-20 w-10 flex-col items-center rounded-lg border-2 border-border/50 bg-muted pt-1">
+                      <div className="h-1 w-4 rounded-full bg-foreground/20" />
                     </div>
-
-                    {/* Model name & Price */}
-                    <div className="text-center">
-                      <p className="text-xs text-muted-foreground mb-0.5">{variant.brand}</p>
-                      <p className="text-sm font-medium leading-tight mb-2">{variant.model}</p>
-                      <p className="text-sm font-semibold text-accent-emphasis">${variant.price.toFixed(2)}</p>
-                    </div>
-
-                    {/* Hover ring */}
-                    <div className="absolute inset-0 rounded-xl ring-2 ring-accent ring-opacity-0 group-hover:ring-opacity-100 transition-all pointer-events-none" />
                   </div>
-                </Link>
-              </div>
+
+                  {/* Model name & Price */}
+                  <div className="flex flex-1 flex-col text-center">
+                    <p className="mb-0.5 text-xs text-muted-foreground">
+                      {variant.brand}
+                    </p>
+                    <h2 className="mb-2 text-sm font-medium leading-tight">
+                      {variant.model}
+                    </h2>
+                    <p
+                      className="mb-3 text-sm font-semibold text-accent-emphasis"
+                      data-catalog-offer={variant.id}
+                      data-price={variant.price.toFixed(2)}
+                      data-currency={variant.currency}
+                    >
+                      {formatProductPrice(variant)}
+                    </p>
+
+                    <div className="mt-auto flex flex-col gap-2">
+                      <Link
+                        to={`/phone-cases/${variant.id}`}
+                        onClick={() =>
+                          trackCatalogSelection(variant, "catalog_view_details")
+                        }
+                        className="inline-flex min-h-11 items-center justify-center rounded-md px-2 text-sm font-medium text-cta-emphasis underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      >
+                        View details
+                        <span className="sr-only"> for {variant.model}</span>
+                      </Link>
+                      <Button
+                        asChild
+                        size="sm"
+                        className="min-h-11 w-full bg-cta px-2 text-cta-foreground hover:bg-cta/90"
+                      >
+                        <Link
+                          to={`/design/${variant.id}`}
+                          onClick={() =>
+                            trackCatalogSelection(
+                              variant,
+                              "catalog_start_design",
+                            )
+                          }
+                        >
+                          Start designing
+                          <span className="sr-only"> for {variant.model}</span>
+                          <ChevronRight
+                            className="ml-1 h-4 w-4"
+                            aria-hidden="true"
+                          />
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Hover ring */}
+                  <div
+                    className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-accent ring-opacity-0 transition-all group-hover:ring-opacity-100"
+                    aria-hidden="true"
+                  />
+                </article>
             ))}
           </div>
           {visibleVariants.length === 0 && (

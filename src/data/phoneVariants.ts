@@ -387,6 +387,31 @@ export const getVariantById = (id: string) => {
   return phoneVariants.find((v) => v.id === id);
 };
 
+export const formatProductPrice = (
+  variant: Pick<PhoneVariant, "price" | "currency">,
+) =>
+  `${new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: variant.currency,
+  }).format(variant.price)} ${variant.currency}`;
+
+export const getRelatedVariants = (variant: PhoneVariant, limit = 3) => {
+  const brandVariants = phoneVariants.filter(
+    (candidate) => candidate.brand === variant.brand,
+  );
+  const currentIndex = brandVariants.findIndex(
+    (candidate) => candidate.id === variant.id,
+  );
+
+  if (currentIndex < 0) return [];
+
+  return Array.from(
+    { length: Math.min(limit, Math.max(brandVariants.length - 1, 0)) },
+    (_, offset) =>
+      brandVariants[(currentIndex + offset + 1) % brandVariants.length],
+  );
+};
+
 export const getBrands = () => {
   return [...new Set(phoneVariants.map((v) => v.brand))];
 };

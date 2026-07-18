@@ -5,7 +5,6 @@ import { phoneVariants } from "../src/data/phoneVariants.ts";
 import { buildAnalyticsItems } from "../src/lib/analytics-commerce.ts";
 import { validateMerchantCatalog } from "./merchant-catalog-contract.mjs";
 
-const DIST_PRODUCT_ROUTES = path.resolve("dist", "phone-cases");
 const CHECKOUT_FUNCTION = path.resolve(
   "supabase",
   "functions",
@@ -13,6 +12,27 @@ const CHECKOUT_FUNCTION = path.resolve(
   "index.ts",
 );
 const SITE_URL = "https://www.snapcase.ai";
+
+const collectIndexFiles = async (directory) => {
+  const entries = await fs.readdir(directory, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...(await collectIndexFiles(fullPath)));
+    } else if (entry.isFile() && entry.name === "index.html") {
+      files.push(fullPath);
+    }
+  }
+  return files;
+};
+
+const routeFromFile = (file) => {
+  const relativeDirectory = path
+    .relative(path.resolve("dist"), path.dirname(file))
+    .replaceAll("\\", "/");
+  return relativeDirectory ? `/${relativeDirectory}` : "/";
+};
 
 const checkoutSource = await fs.readFile(CHECKOUT_FUNCTION, "utf8");
 const checkoutPrice = Number(
@@ -23,23 +43,24 @@ const checkoutCurrency = checkoutSource.match(
 )?.[1];
 
 if (!Number.isFinite(checkoutPrice)) {
-  throw new Error("Unable to read the server-controlled checkout product price.");
+  throw new Error(
+    "Unable to read the server-controlled checkout product price.",
+  );
 }
 if (!checkoutCurrency) {
   throw new Error("Unable to read the server-controlled checkout currency.");
 }
 
-const routeEntries = await fs.readdir(DIST_PRODUCT_ROUTES, {
-  withFileTypes: true,
-});
+const indexFiles = await collectIndexFiles(path.resolve("dist"));
+const internalPages = new Map();
+for (const file of indexFiles) {
+  internalPages.set(routeFromFile(file), await fs.readFile(file, "utf8"));
+}
+
 const pages = new Map();
-for (const entry of routeEntries) {
-  if (!entry.isDirectory()) continue;
-  const html = await fs.readFile(
-    path.join(DIST_PRODUCT_ROUTES, entry.name, "index.html"),
-    "utf8",
-  );
-  pages.set(entry.name, html);
+for (const [route, html] of internalPages) {
+  const variantId = route.match(/^\/phone-cases\/([^/]+)$/)?.[1];
+  if (variantId) pages.set(variantId, html);
 }
 
 const analyticsItems = buildAnalyticsItems(
@@ -51,14 +72,13 @@ const findings = validateMerchantCatalog({
   checkoutPrice,
   checkoutCurrency,
   pages,
+  internalPages,
   siteUrl: SITE_URL,
 });
 
 if (findings.length > 0) {
   for (const finding of findings) {
-    console.error(
-      `[${finding.code}] ${finding.variantId}: ${finding.message}`,
-    );
+    console.error(`[${finding.code}] ${finding.variantId}: ${finding.message}`);
   }
   process.exitCode = 1;
 } else {
