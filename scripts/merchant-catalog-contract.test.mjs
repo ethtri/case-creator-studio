@@ -24,14 +24,34 @@ const analyticsItem = {
 
 const pageHtml = ({
   price = "29.99",
+  visiblePrice = "29.99",
+  visibleCurrency = "USD",
+  visibleText = "$29.99 USD",
   availability,
+  itemCondition,
+  visibleItemCondition,
   middleBreadcrumb = "Phone cases",
+  title = "iPhone Test Custom Phone Case | Snapcase",
+  description = "Design a personalized iPhone Test phone case.",
+  canonical = `${siteUrl}/phone-cases/iphone-test`,
+  mockupWidth = "1600",
+  mockupHeight = "800",
+  mockupAlt = "Digital illustration of an iPhone Test custom phone case mockup",
 } = {}) => {
   const offerAvailability = availability
     ? `,\"availability\":\"${availability}\"`
     : "";
+  const offerCondition = itemCondition
+    ? `,\"itemCondition\":\"${itemCondition}\"`
+    : "";
+  const visibleConditionAttribute = visibleItemCondition
+    ? ` data-item-condition="${visibleItemCondition}"`
+    : "";
   return `
-    <script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","productID":"iphone-test","offers":{"price":"${price}","priceCurrency":"USD"${offerAvailability}}}</script>
+    <title>${title}</title>
+    <meta name="description" content="${description}" />
+    <link rel="canonical" href="${canonical}" />
+    <script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","productID":"iphone-test","offers":{"price":"${price}","priceCurrency":"USD"${offerAvailability}${offerCondition}}}</script>
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"${siteUrl}/"},{"@type":"ListItem","position":2,"name":"Phone cases","item":"${siteUrl}/catalog"},{"@type":"ListItem","position":3,"name":"iPhone Test custom case","item":"${siteUrl}/phone-cases/iphone-test"}]}</script>
     <nav aria-label="breadcrumb" data-product-breadcrumb="true">
       <ol>
@@ -40,6 +60,10 @@ const pageHtml = ({
         <li data-breadcrumb-position="3"><span aria-current="page">iPhone Test custom case</span></li>
       </ol>
     </nav>
+    <div data-product-offer="true" data-product-id="iphone-test" data-price="${visiblePrice}" data-currency="${visibleCurrency}"${visibleConditionAttribute}>
+      <p>${visibleText}</p>
+    </div>
+    <img data-product-mockup="true" src="/mockup.png" width="${mockupWidth}" height="${mockupHeight}" alt="${mockupAlt}" />
   `;
 };
 
@@ -47,6 +71,13 @@ const validate = ({
   item = analyticsItem,
   html = pageHtml(),
   checkoutPrice = 29.99,
+  internalPages = new Map([
+    [
+      "/catalog",
+      '<a href="/phone-cases/iphone-test">View iPhone Test details</a>',
+    ],
+    ["/phone-cases/iphone-test", html],
+  ]),
 } = {}) =>
   validateMerchantCatalog({
     variants: [variant],
@@ -54,6 +85,7 @@ const validate = ({
     checkoutPrice,
     checkoutCurrency: "usd",
     pages: new Map([[variant.id, html]]),
+    internalPages,
     siteUrl,
   });
 
@@ -74,6 +106,34 @@ test("detects checkout and structured price drift", () => {
   );
 });
 
+test("detects visible price, currency, and text drift", () => {
+  const findings = validate({
+    html: pageHtml({
+      visiblePrice: "30.99",
+      visibleCurrency: "CAD",
+      visibleText: "$30.99 CAD",
+    }),
+  });
+
+  assert.ok(findings.some((finding) => finding.code === "visible_price_drift"));
+  assert.ok(
+    findings.some((finding) => finding.code === "visible_currency_drift"),
+  );
+  assert.ok(
+    findings.some((finding) => finding.code === "visible_offer_text_drift"),
+  );
+});
+
+test("detects hidden-only structured item condition claims", () => {
+  assert.ok(
+    validate({
+      html: pageHtml({
+        itemCondition: "https://schema.org/NewCondition",
+      }),
+    }).some((finding) => finding.code === "hidden_only_item_condition"),
+  );
+});
+
 test("detects unverified availability and visible breadcrumb drift", () => {
   assert.ok(
     validate({
@@ -84,6 +144,85 @@ test("detects unverified availability and visible breadcrumb drift", () => {
     validate({ html: pageHtml({ middleBreadcrumb: "Shop" }) }).some(
       (finding) => finding.code === "visible_breadcrumb_name",
     ),
+  );
+});
+
+test("detects missing intrinsic mockup dimensions and inaccurate alt intent", () => {
+  const findings = validate({
+    html: pageHtml({
+      mockupWidth: "",
+      mockupHeight: "",
+      mockupAlt: "iPhone Test product photo",
+    }),
+  });
+
+  assert.ok(
+    findings.some((finding) => finding.code === "missing_mockup_dimensions"),
+  );
+  assert.ok(
+    findings.some((finding) => finding.code === "inaccurate_mockup_alt"),
+  );
+});
+
+test("detects orphan product routes even when they only link to themselves", () => {
+  assert.ok(
+    validate({
+      internalPages: new Map([
+        [
+          "/phone-cases/iphone-test",
+          '<a href="/phone-cases/iphone-test">Current product</a>',
+        ],
+      ]),
+    }).some((finding) => finding.code === "orphan_product_page"),
+  );
+});
+
+test("detects duplicate and empty product metadata", () => {
+  const secondVariant = {
+    ...variant,
+    id: "iphone-test-two",
+    model: "iPhone Test Two",
+  };
+  const secondItem = {
+    ...analyticsItem,
+    item_id: secondVariant.id,
+    item_name: "Apple iPhone Test Two Custom Case",
+    item_variant: secondVariant.model,
+  };
+  const firstHtml = pageHtml({ title: "", description: "" });
+  const duplicateCanonicalHtml = pageHtml()
+    .replaceAll("iphone-test", "iphone-test-two")
+    .replaceAll("iPhone Test", "iPhone Test Two")
+    .replace(
+      /(<link\s+rel="canonical"\s+href=")[^"]+/,
+      `$1${siteUrl}/phone-cases/iphone-test`,
+    );
+  const findings = validateMerchantCatalog({
+    variants: [variant, secondVariant],
+    analyticsItems: [analyticsItem, secondItem],
+    checkoutPrice: 29.99,
+    checkoutCurrency: "usd",
+    pages: new Map([
+      [variant.id, firstHtml],
+      [secondVariant.id, duplicateCanonicalHtml],
+    ]),
+    internalPages: new Map([
+      [
+        "/catalog",
+        '<a href="/phone-cases/iphone-test">First</a><a href="/phone-cases/iphone-test-two">Second</a>',
+      ],
+    ]),
+    siteUrl,
+  });
+
+  assert.ok(
+    findings.some((finding) => finding.code === "invalid_product_title"),
+  );
+  assert.ok(
+    findings.some((finding) => finding.code === "invalid_product_description"),
+  );
+  assert.ok(
+    findings.some((finding) => finding.code === "duplicate_product_canonical"),
   );
 });
 
