@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
+import { useAnalyticsConsent } from "@/hooks/useAnalyticsConsent";
 import {
   captureMarketingAttribution,
-  getAnalyticsConsent,
   loadGoogleAnalytics,
-  subscribeToAnalyticsConsent,
   trackMarketingEvent,
 } from "@/lib/marketing";
 import {
@@ -14,10 +13,9 @@ import {
 
 export const MarketingRuntime = () => {
   const location = useLocation();
-  const [consent, setConsent] = useState(getAnalyticsConsent);
+  const consent = useAnalyticsConsent();
   const lastTrackedPagePathRef = useRef<string | null>(null);
   const pagePath = getMarketingPagePath(location.pathname, location.search);
-  useEffect(() => subscribeToAnalyticsConsent(setConsent), []);
 
   useEffect(() => {
     if (

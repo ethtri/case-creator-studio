@@ -5,6 +5,15 @@ import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
 import { getStaticSeoPage, SITE_URL } from "@/data/seoRoutes";
 import { phoneVariants } from "@/data/phoneVariants";
+import { useConsentAwareMarketingView } from "@/hooks/useConsentAwareMarketingView";
+import { trackMarketingEvent } from "@/lib/marketing";
+import {
+  buildSeoLandingCtaPayload,
+  buildSeoLandingListPayload,
+  buildSeoLandingSelectionPayload,
+  getSeoLandingItemListId,
+  type SeoLandingCtaKind,
+} from "@/lib/seo-landing-analytics";
 import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
 import samsungCaseFront from "@/assets/mockups/samsung-case-front.png";
 
@@ -21,6 +30,19 @@ const SeoLanding = () => {
   const models = page.featuredBrand
     ? phoneVariants.filter((variant) => variant.brand === page.featuredBrand).slice(0, 6)
     : phoneVariants.slice(0, 6);
+  const itemListId = getSeoLandingItemListId(page);
+
+  useConsentAwareMarketingView({
+    eventName: "view_item_list",
+    contractId: itemListId,
+    payload: buildSeoLandingListPayload(page, models),
+  });
+
+  const trackCta = (kind: SeoLandingCtaKind) =>
+    trackMarketingEvent(
+      "primary_cta_click",
+      buildSeoLandingCtaPayload(page, kind),
+    );
 
   return (
     <div className="min-h-screen bg-background">
@@ -59,13 +81,19 @@ const SeoLanding = () => {
               </p>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button asChild size="lg" className="bg-cta hover:bg-cta/90 text-cta-foreground">
-                  <Link to="/catalog">
+                  <Link
+                    to="/catalog"
+                    onClick={() => trackCta("hero_primary")}
+                  >
                     {page.cta}
                     <ChevronRight className="w-4 h-4 ml-1" />
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="outline">
-                  <Link to="/gifts/custom-phone-case">
+                  <Link
+                    to="/gifts/custom-phone-case"
+                    onClick={() => trackCta("hero_secondary")}
+                  >
                     Gift ideas
                   </Link>
                 </Button>
@@ -136,6 +164,7 @@ const SeoLanding = () => {
               </div>
               <Link
                 to="/catalog"
+                onClick={() => trackCta("models_header")}
                 className="hidden min-h-11 items-center text-sm text-cta-emphasis md:inline-flex"
               >
                 Browse all cases
@@ -147,6 +176,12 @@ const SeoLanding = () => {
                 <Link
                   key={variant.id}
                   to={`/phone-cases/${variant.id}`}
+                  onClick={() =>
+                    trackMarketingEvent(
+                      "select_item",
+                      buildSeoLandingSelectionPayload(page, variant),
+                    )
+                  }
                   className="rounded-lg border border-border bg-card p-5 hover:border-cta/50 transition-colors"
                 >
                   <p className="text-xs text-muted-foreground mb-1">{variant.brand}</p>

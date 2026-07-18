@@ -103,6 +103,113 @@ const installAppState = async (
   );
 };
 
+const installAnalyticsRecorder = async (
+  context,
+  analyticsConsent = "unset",
+) => {
+  let scriptRequests = 0;
+
+  await context.addInitScript(
+    ({ expectedOrigin, analyticsConsent }) => {
+      if (window.location.origin !== expectedOrigin) return;
+
+      window.localStorage.setItem("theme", "light");
+      if (analyticsConsent === "unset") {
+        window.localStorage.removeItem("snapcase_analytics_consent_v1");
+      } else {
+        window.localStorage.setItem(
+          "snapcase_analytics_consent_v1",
+          analyticsConsent,
+        );
+      }
+      window.__snapcaseAnalyticsCommands = [];
+      window.gtag = (...args) => {
+        window.__snapcaseAnalyticsCommands.push(args);
+      };
+    },
+    { expectedOrigin: origin, analyticsConsent },
+  );
+
+  await context.route(
+    "https://www.googletagmanager.com/gtag/js**",
+    async (route) => {
+      scriptRequests += 1;
+      await route.fulfill({
+        status: 200,
+        contentType: "application/javascript",
+        body: "",
+      });
+    },
+  );
+
+  return {
+    getScriptRequests: () => scriptRequests,
+  };
+};
+
+const getAnalyticsCommands = (page) =>
+  page.evaluate(() => window.__snapcaseAnalyticsCommands ?? []);
+
+const getAnalyticsEvents = async (page, eventName) =>
+  (await getAnalyticsCommands(page))
+    .filter(
+      (command) =>
+        command[0] === "event" &&
+        (eventName === undefined || command[1] === eventName),
+    )
+    .map((command) => ({
+      name: command[1],
+      payload: command[2],
+    }));
+
+const waitForAnalyticsEvents = async (page, eventName, count) => {
+  try {
+    await page.waitForFunction(
+      ({ eventName, count }) =>
+        (window.__snapcaseAnalyticsCommands ?? []).filter(
+          (command) => command[0] === "event" && command[1] === eventName,
+        ).length >= count,
+      { eventName, count },
+    );
+  } catch (error) {
+    const commands = await getAnalyticsCommands(page);
+    throw new Error(
+      `Timed out waiting for ${count} ${eventName} event(s). Commands: ${JSON.stringify(commands)}`,
+      { cause: error },
+    );
+  }
+};
+
+const assertCompleteAnalyticsItems = (event, expectedCount, label) => {
+  assert.equal(event.payload.currency, "USD", `${label} must use USD.`);
+  assert.equal(
+    event.payload.items?.length,
+    expectedCount,
+    `${label} must include every visible catalog item.`,
+  );
+  for (const item of event.payload.items) {
+    assert.deepEqual(
+      Object.keys(item).sort(),
+      [
+        "discount",
+        "item_brand",
+        "item_category",
+        "item_id",
+        "item_name",
+        "item_variant",
+        "price",
+        "quantity",
+      ],
+      `${label} contains an incomplete ecommerce item.`,
+    );
+  }
+  assert.doesNotMatch(
+    JSON.stringify(event.payload),
+    /artwork|preview_url|customer_|shipping_address|designId|session_id/i,
+    `${label} contains a blocked analytics field.`,
+  );
+};
+
 const mockExternalServices = async (context) => {
   let mockupStatusCalls = 0;
 
@@ -1579,6 +1686,447 @@ try {
     fullPage: true,
   });
   await verificationMobile.close();
+
+  const lateGrantContext = await browser.newContext({
+    viewport: { width: 1440, height: 1000 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  const lateGrantRecorder = await installAnalyticsRecorder(
+    lateGrantContext,
+    "unset",
+  );
+  const lateGrantPage = await lateGrantContext.newPage();
+  await lateGrantPage.goto(
+    `${origin}/catalog/?utm_source=launch&foo=first`,
+  );
+  await lateGrantPage
+    .getByRole("heading", { level: 1, name: "Choose Your Phone" })
+    .waitFor();
+  assert.equal(lateGrantRecorder.getScriptRequests(), 0);
+  assert.equal((await getAnalyticsEvents(lateGrantPage)).length, 0);
+
+  await lateGrantPage
+    .getByRole("button", { name: "Allow analytics" })
+    .click();
+  await waitForAnalyticsEvents(lateGrantPage, "view_item_list", 1);
+  assert.equal(lateGrantRecorder.getScriptRequests(), 1);
+  const lateCatalogViews = await getAnalyticsEvents(
+    lateGrantPage,
+    "view_item_list",
+  );
+  assert.equal(lateCatalogViews.length, 1);
+  assert.equal(lateCatalogViews[0].payload.item_list_id, "phone_models");
+  assertCompleteAnalyticsItems(
+    lateCatalogViews[0],
+    18,
+    "Late-grant catalog view",
+  );
+
+  await lateGrantPage.evaluate(async () => {
+    const { setAnalyticsConsent } = await import("/src/lib/marketing.ts");
+    setAnalyticsConsent("granted");
+    setAnalyticsConsent("granted");
+  });
+  await lateGrantPage.waitForTimeout(50);
+  assert.equal(
+    (await getAnalyticsEvents(lateGrantPage, "view_item_list")).length,
+    1,
+    "Repeated grant updates must not duplicate the catalog view.",
+  );
+
+  await lateGrantPage.evaluate(() => {
+    history.pushState({ rerender: 1 }, "", "/catalog?foo=second&utm_medium=email");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+  await lateGrantPage.waitForURL(/\/catalog\?foo=second/);
+  await lateGrantPage.evaluate(() => {
+    history.pushState({ rerender: 2 }, "", "/catalog/?foo=third&gclid=ignored");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+  await lateGrantPage.waitForURL(/\/catalog\/\?foo=third/);
+  assert.equal(
+    (await getAnalyticsEvents(lateGrantPage, "view_item_list")).length,
+    1,
+    "Query strings, trailing slashes, and new history keys must share one ecommerce view identity.",
+  );
+
+  const strictModeViewCount = await lateGrantPage.evaluate(async () => {
+    const reactModule = await import("/@id/react");
+    const React = reactModule.default ?? reactModule;
+    const reactDomClientModule = await import("/@id/react-dom/client");
+    const createRoot =
+      reactDomClientModule.createRoot ??
+      reactDomClientModule.default?.createRoot;
+    const { trackMarketingViewOnce } = await import(
+      "/src/lib/consent-aware-marketing-view.ts"
+    );
+    const Probe = () => {
+      React.useEffect(() => {
+        trackMarketingViewOnce({
+          eventName: "view_item_list",
+          normalizedRoute: "/catalog",
+          contractId: "strict_mode_probe",
+          payload: {
+            currency: "USD",
+            item_list_id: "strict_mode_probe",
+            item_list_name: "Strict mode probe",
+            items: [],
+          },
+        });
+      }, []);
+      return React.createElement("span", null, "Strict mode analytics probe");
+    };
+    const renderProbe = async () => {
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+      const root = createRoot(host);
+      root.render(
+        React.createElement(
+          React.StrictMode,
+          null,
+          React.createElement(Probe),
+        ),
+      );
+      await new Promise((resolveWait) => setTimeout(resolveWait, 75));
+      root.unmount();
+      host.remove();
+    };
+
+    await renderProbe();
+    await renderProbe();
+    return (window.__snapcaseAnalyticsCommands ?? []).filter(
+      (command) =>
+        command[0] === "event" &&
+        command[1] === "view_item_list" &&
+        command[2]?.item_list_id === "strict_mode_probe",
+    ).length;
+  });
+  assert.equal(
+    strictModeViewCount,
+    1,
+    "Strict Mode effect replay and a true remount must emit one view.",
+  );
+
+  const lateModelDetails = lateGrantPage.getByRole("link", {
+    name: "View details for iPhone 17 Pro Max",
+  });
+  await lateModelDetails.click();
+  await lateGrantPage.waitForURL(/\/phone-cases\/iphone-17-pro-max/);
+  await waitForAnalyticsEvents(lateGrantPage, "view_item", 1);
+  assert.equal(
+    (await getAnalyticsEvents(lateGrantPage, "select_item")).length,
+    1,
+  );
+  const lateProductViews = await getAnalyticsEvents(
+    lateGrantPage,
+    "view_item",
+  );
+  assert.equal(lateProductViews.length, 1);
+  assertCompleteAnalyticsItems(
+    lateProductViews[0],
+    1,
+    "Late-grant product view",
+  );
+  await lateGrantPage.screenshot({
+    path: resolve(outputDir, "analytics-allow-product-desktop.png"),
+    fullPage: true,
+  });
+  await lateGrantPage.goBack();
+  await lateGrantPage
+    .getByRole("heading", { level: 1, name: "Choose Your Phone" })
+    .waitFor();
+  await lateGrantPage.goForward();
+  await lateGrantPage.waitForURL(/\/phone-cases\/iphone-17-pro-max/);
+  assert.equal(
+    (await getAnalyticsEvents(lateGrantPage, "view_item_list"))
+      .filter((event) => event.payload.item_list_id === "phone_models")
+      .length,
+    1,
+  );
+  assert.equal(
+    (await getAnalyticsEvents(lateGrantPage, "view_item")).length,
+    1,
+    "Back and forward must not duplicate product views.",
+  );
+  await lateGrantContext.close();
+
+  const remountContext = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  await installAnalyticsRecorder(remountContext, "unset");
+  const remountPage = await remountContext.newPage();
+  await remountPage.goto(`${origin}/catalog`);
+  await remountPage
+    .getByRole("link", {
+      name: "View details for iPhone 17 Pro Max",
+    })
+    .click();
+  await remountPage.waitForURL(/\/phone-cases\/iphone-17-pro-max/);
+  await remountPage.goBack();
+  await remountPage
+    .getByRole("heading", { level: 1, name: "Choose Your Phone" })
+    .waitFor();
+  await remountPage
+    .getByRole("button", { name: "Allow analytics" })
+    .click();
+  await waitForAnalyticsEvents(remountPage, "view_item_list", 1);
+  assert.equal(
+    (await getAnalyticsEvents(remountPage, "view_item_list")).length,
+    1,
+    "The remounted current route must emit after grant.",
+  );
+  assert.equal(
+    (await getAnalyticsEvents(remountPage, "select_item")).length,
+    0,
+    "The pre-consent model selection must not replay.",
+  );
+  assert.equal(
+    (await getAnalyticsEvents(remountPage, "view_item")).length,
+    0,
+    "The unmounted pre-consent product view must not replay.",
+  );
+  await remountContext.close();
+
+  const seoAnalyticsContext = await browser.newContext({
+    viewport: { width: 1440, height: 1000 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  await installAnalyticsRecorder(seoAnalyticsContext, "granted");
+  const seoAnalyticsPage = await seoAnalyticsContext.newPage();
+  await seoAnalyticsPage.goto(`${origin}/custom-iphone-case`);
+  await waitForAnalyticsEvents(seoAnalyticsPage, "view_item_list", 1);
+  const iphoneSeoList = (
+    await getAnalyticsEvents(seoAnalyticsPage, "view_item_list")
+  ).find(
+    (event) =>
+      event.payload.item_list_id === "seo_landing_custom_iphone_case",
+  );
+  assert.ok(iphoneSeoList, "The iPhone SEO landing list view is missing.");
+  assertCompleteAnalyticsItems(iphoneSeoList, 6, "iPhone SEO landing view");
+  auditResults.push(
+    await assertNoSeriousAxeViolations(
+      seoAnalyticsPage,
+      "analytics-seo-allow-desktop",
+    ),
+  );
+
+  await seoAnalyticsPage
+    .getByRole("link", { name: "Design an iPhone case" })
+    .click();
+  await seoAnalyticsPage.waitForURL(`${origin}/catalog`);
+  await seoAnalyticsPage
+    .getByRole("heading", { level: 1, name: "Choose Your Phone" })
+    .waitFor();
+  await waitForAnalyticsEvents(seoAnalyticsPage, "view_item_list", 2);
+  await seoAnalyticsPage.goBack();
+  await seoAnalyticsPage.waitForURL(`${origin}/custom-iphone-case`);
+  await seoAnalyticsPage.getByRole("link", { name: "Gift ideas" }).click();
+  await seoAnalyticsPage.waitForURL(`${origin}/gifts/custom-phone-case`);
+  await waitForAnalyticsEvents(seoAnalyticsPage, "view_item_list", 3);
+  const giftListCountBeforeSelfNavigation = (
+    await getAnalyticsEvents(seoAnalyticsPage, "view_item_list")
+  ).filter(
+    (event) =>
+      event.payload.item_list_id === "seo_landing_gifts_custom_phone_case",
+  ).length;
+  await seoAnalyticsPage.getByRole("link", { name: "Gift ideas" }).click();
+  await seoAnalyticsPage.waitForTimeout(50);
+  assert.equal(
+    (
+      await getAnalyticsEvents(seoAnalyticsPage, "view_item_list")
+    ).filter(
+      (event) =>
+        event.payload.item_list_id ===
+        "seo_landing_gifts_custom_phone_case",
+    ).length,
+    giftListCountBeforeSelfNavigation,
+    "A self-navigation must not duplicate the SEO landing view.",
+  );
+  await seoAnalyticsPage.goBack();
+  if (new URL(seoAnalyticsPage.url()).pathname !== "/custom-iphone-case") {
+    await seoAnalyticsPage.goBack();
+  }
+  await seoAnalyticsPage.waitForURL(`${origin}/custom-iphone-case`);
+  await seoAnalyticsPage
+    .getByRole("link", { name: "Browse all cases" })
+    .click();
+  await seoAnalyticsPage.waitForURL(`${origin}/catalog`);
+  await seoAnalyticsPage.goBack();
+  await seoAnalyticsPage.waitForURL(`${origin}/custom-iphone-case`);
+
+  const seoCtaEvents = await getAnalyticsEvents(
+    seoAnalyticsPage,
+    "primary_cta_click",
+  );
+  for (const expected of [
+    {
+      placement: "seo_landing_hero_primary",
+      destination: "/catalog",
+      label: "Design an iPhone case",
+    },
+    {
+      placement: "seo_landing_hero_secondary",
+      destination: "/gifts/custom-phone-case",
+      label: "Gift ideas",
+    },
+    {
+      placement: "seo_landing_models_header",
+      destination: "/catalog",
+      label: "Browse all cases",
+    },
+  ]) {
+    assert.ok(
+      seoCtaEvents.some(
+        (event) =>
+          event.payload.placement === expected.placement &&
+          event.payload.destination === expected.destination &&
+          event.payload.label === expected.label,
+      ),
+      `Missing SEO CTA event ${expected.placement}.`,
+    );
+  }
+
+  await seoAnalyticsPage
+    .getByRole("link", { name: /iPhone 17 Pro Max custom case/ })
+    .click();
+  await seoAnalyticsPage.waitForURL(/\/phone-cases\/iphone-17-pro-max/);
+  const seoSelections = await getAnalyticsEvents(
+    seoAnalyticsPage,
+    "select_item",
+  );
+  assert.ok(
+    seoSelections.some(
+      (event) =>
+        event.payload.item_list_id ===
+          "seo_landing_custom_iphone_case" &&
+        event.payload.placement === "seo_landing_popular_models" &&
+        event.payload.items?.length === 1,
+    ),
+    "SEO model selection must retain its list and placement context.",
+  );
+  await seoAnalyticsContext.close();
+
+  const declineContext = await browser.newContext({
+    viewport: { width: 1440, height: 1000 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  const declineRecorder = await installAnalyticsRecorder(
+    declineContext,
+    "unset",
+  );
+  const declinePage = await declineContext.newPage();
+  await declinePage.goto(origin);
+  await declinePage.getByRole("button", { name: "Decline" }).click();
+  await declinePage
+    .getByRole("link", { name: /Start designing/ })
+    .first()
+    .click();
+  await declinePage.waitForURL(`${origin}/catalog`);
+  await declinePage
+    .getByRole("link", {
+      name: "View details for iPhone 17 Pro Max",
+    })
+    .click();
+  await declinePage.waitForURL(/\/phone-cases\/iphone-17-pro-max/);
+  await declinePage.evaluate(() => {
+    history.pushState({}, "", "/custom-iphone-case");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+  await declinePage.waitForURL(`${origin}/custom-iphone-case`);
+  await declinePage.getByRole("link", { name: "Gift ideas" }).click();
+  await declinePage.waitForURL(`${origin}/gifts/custom-phone-case`);
+  assert.equal(declineRecorder.getScriptRequests(), 0);
+  assert.equal(
+    (await getAnalyticsEvents(declinePage)).length,
+    0,
+    "Decline must suppress page, ecommerce, selection, and CTA events.",
+  );
+  const declinedPersistence = await declinePage.evaluate(() => ({
+    localKeys: Object.keys(localStorage),
+    localValues: Object.values(localStorage),
+    sessionKeys: Object.keys(sessionStorage),
+    sessionValues: Object.values(sessionStorage),
+  }));
+  assert.doesNotMatch(
+    JSON.stringify(declinedPersistence),
+    /view_item|view_item_list|select_item|primary_cta_click/,
+    "Decline must not persist an analytics event queue or payload.",
+  );
+  auditResults.push(
+    await assertNoSeriousAxeViolations(
+      declinePage,
+      "analytics-seo-decline-desktop",
+    ),
+  );
+  await declinePage.screenshot({
+    path: resolve(outputDir, "analytics-decline-seo-desktop.png"),
+    fullPage: true,
+  });
+  await declineContext.close();
+
+  const crossTabContext = await browser.newContext({
+    viewport: { width: 1200, height: 900 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  const crossTabRecorder = await installAnalyticsRecorder(
+    crossTabContext,
+    "denied",
+  );
+  const crossTabPageA = await crossTabContext.newPage();
+  const crossTabPageB = await crossTabContext.newPage();
+  await Promise.all([
+    crossTabPageA.goto(
+      `${origin}/phone-cases/iphone-17-pro-max`,
+    ),
+    crossTabPageB.goto(`${origin}/phone-cases/galaxy-s24-ultra`),
+  ]);
+  assert.equal((await getAnalyticsEvents(crossTabPageA)).length, 0);
+  assert.equal((await getAnalyticsEvents(crossTabPageB)).length, 0);
+  await crossTabPageA.evaluate(async () => {
+    const { setAnalyticsConsent } = await import("/src/lib/marketing.ts");
+    setAnalyticsConsent("granted");
+  });
+  await Promise.all([
+    waitForAnalyticsEvents(crossTabPageA, "view_item", 1),
+    waitForAnalyticsEvents(crossTabPageB, "view_item", 1),
+  ]);
+  assert.equal(
+    crossTabRecorder.getScriptRequests(),
+    2,
+    "Each document should load analytics once after a cross-tab grant.",
+  );
+  await crossTabPageA.evaluate(async () => {
+    const { setAnalyticsConsent } = await import("/src/lib/marketing.ts");
+    setAnalyticsConsent("denied");
+  });
+  await crossTabPageB.waitForFunction(
+    () =>
+      (window.__snapcaseAnalyticsCommands ?? []).some(
+        (command) =>
+          command[0] === "consent" &&
+          command[1] === "update" &&
+          command[2]?.analytics_storage === "denied",
+      ),
+  );
+  await crossTabPageB.evaluate(() => {
+    history.pushState({}, "", "/phone-cases/galaxy-s25-ultra");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  });
+  await crossTabPageB.waitForURL(/\/phone-cases\/galaxy-s25-ultra/);
+  await crossTabPageB.waitForTimeout(50);
+  assert.equal(
+    (await getAnalyticsEvents(crossTabPageB, "view_item")).length,
+    1,
+    "Cross-tab denial must suppress later product views.",
+  );
+  await crossTabContext.close();
+
   console.log(
     JSON.stringify(
       {
@@ -1602,6 +2150,8 @@ try {
           "output/playwright/order-verification-retryable-desktop.png",
           "output/playwright/order-verification-success-desktop.png",
           "output/playwright/order-verification-review-dark-mobile.png",
+          "output/playwright/analytics-allow-product-desktop.png",
+          "output/playwright/analytics-decline-seo-desktop.png",
         ],
       },
       null,

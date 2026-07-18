@@ -1,22 +1,13 @@
-import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
 import { Button } from "@/components/ui/button";
-import {
-  getAnalyticsConsent,
-  setAnalyticsConsent,
-  subscribeToAnalyticsConsent,
-  type AnalyticsConsent,
-} from "@/lib/marketing";
+import { useAnalyticsConsent } from "@/hooks/useAnalyticsConsent";
+import { setAnalyticsConsent } from "@/lib/marketing";
 
 const Privacy = () => {
-  const [analyticsConsent, setConsentState] = useState<AnalyticsConsent>(
-    getAnalyticsConsent,
-  );
-
-  useEffect(() => subscribeToAnalyticsConsent(setConsentState), []);
+  const analyticsConsent = useAnalyticsConsent();
 
   return (
     <div className="min-h-screen bg-background">

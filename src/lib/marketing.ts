@@ -18,6 +18,11 @@ export type MarketingEventName =
   | "checkout_error"
   | "promo_applied";
 
+export type MarketingViewEventName = Extract<
+  MarketingEventName,
+  "view_item_list" | "view_item"
+>;
+
 export type MarketingEventValue =
   | string
   | number
@@ -94,8 +99,38 @@ const BLOCKED_PAYLOAD_KEYS = new Set([
 let analyticsLoaded = false;
 let consentDefaultsInitialized = false;
 let appliedAnalyticsConsent: Exclude<AnalyticsConsent, "unset"> | null = null;
+let volatileConsentOverride: Extract<AnalyticsConsent, "denied"> | null = null;
 
 const isBrowser = () => typeof window !== "undefined" && typeof document !== "undefined";
+
+const readStoredAnalyticsConsent = (): AnalyticsConsent => {
+  if (!isBrowser()) return "unset";
+
+  try {
+    const stored = window.localStorage.getItem(CONSENT_STORAGE_KEY);
+    return stored === "granted" || stored === "denied" ? stored : "unset";
+  } catch {
+    return "unset";
+  }
+};
+
+const safelyWriteLocalStorage = (key: string, value: string) => {
+  try {
+    window.localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const safelyRemoveLocalStorage = (key: string) => {
+  try {
+    window.localStorage.removeItem(key);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 const getGaMeasurementId = () => {
   if (CONFIGURED_GA_MEASUREMENT_ID) return CONFIGURED_GA_MEASUREMENT_ID;
@@ -168,92 +203,158 @@ export const sanitizeMarketingPayload = (
   );
 
 const ensureGtag = () => {
-  if (!isBrowser()) return;
-  window.dataLayer = window.dataLayer ?? [];
-  window.gtag =
-    window.gtag ??
-    function gtag() {
-      // Google gtag requires the function's Arguments object, not a rest array.
-      // eslint-disable-next-line prefer-rest-params
-      window.dataLayer?.push(arguments);
-    };
+  if (!isBrowser()) return false;
 
-  if (!consentDefaultsInitialized) {
-    window.gtag("consent", "default", {
-      analytics_storage: "denied",
-      ad_storage: "denied",
-      ad_user_data: "denied",
-      ad_personalization: "denied",
-      wait_for_update: 500,
-    });
-    consentDefaultsInitialized = true;
+  try {
+    window.dataLayer = window.dataLayer ?? [];
+    window.gtag =
+      window.gtag ??
+      function gtag() {
+        // Google gtag requires the function's Arguments object, not a rest array.
+        // eslint-disable-next-line prefer-rest-params
+        window.dataLayer?.push(arguments);
+      };
+
+    if (!consentDefaultsInitialized) {
+      window.gtag("consent", "default", {
+        analytics_storage: "denied",
+        ad_storage: "denied",
+        ad_user_data: "denied",
+        ad_personalization: "denied",
+        wait_for_update: 500,
+      });
+      consentDefaultsInitialized = true;
+    }
+    return true;
+  } catch {
+    return false;
   }
 };
 
 const applyAnalyticsConsent = (
   consent: Exclude<AnalyticsConsent, "unset">,
 ) => {
-  ensureGtag();
-  if (appliedAnalyticsConsent === consent) return;
-  window.gtag?.("consent", "update", {
-    analytics_storage: consent,
-    ad_storage: "denied",
-    ad_user_data: "denied",
-    ad_personalization: "denied",
-  });
-  appliedAnalyticsConsent = consent;
+  if (!ensureGtag()) return false;
+  if (appliedAnalyticsConsent === consent) return true;
+
+  try {
+    window.gtag?.("consent", "update", {
+      analytics_storage: consent,
+      ad_storage: "denied",
+      ad_user_data: "denied",
+      ad_personalization: "denied",
+    });
+    appliedAnalyticsConsent = consent;
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 export const getAnalyticsConsent = (): AnalyticsConsent => {
   if (!isBrowser()) return "unset";
-  const stored = window.localStorage.getItem(CONSENT_STORAGE_KEY);
-  return stored === "granted" || stored === "denied" ? stored : "unset";
+  return volatileConsentOverride ?? readStoredAnalyticsConsent();
 };
 
-export const setAnalyticsConsent = (consent: Exclude<AnalyticsConsent, "unset">) => {
-  if (!isBrowser()) return;
-  window.localStorage.setItem(CONSENT_STORAGE_KEY, consent);
+const dispatchAnalyticsConsentChange = () => {
+  try {
+    window.dispatchEvent(
+      new CustomEvent(CONSENT_EVENT_NAME, {
+        detail: getAnalyticsConsent(),
+      }),
+    );
+  } catch {
+    // Consent still fails closed through the canonical snapshot.
+  }
+};
+
+const persistDeniedAnalyticsConsent = () => {
+  const persisted =
+    safelyWriteLocalStorage(CONSENT_STORAGE_KEY, "denied") &&
+    readStoredAnalyticsConsent() === "denied";
+  volatileConsentOverride = persisted ? null : "denied";
+  safelyRemoveLocalStorage(ATTRIBUTION_STORAGE_KEY);
+  safelyRemoveLocalStorage(LEGACY_ATTRIBUTION_STORAGE_KEY);
+  applyAnalyticsConsent("denied");
+  dispatchAnalyticsConsentChange();
+  return persisted;
+};
+
+export const setAnalyticsConsent = (
+  consent: Exclude<AnalyticsConsent, "unset">,
+) => {
+  if (!isBrowser()) return false;
+
   if (consent === "denied") {
-    window.localStorage.removeItem(ATTRIBUTION_STORAGE_KEY);
-    window.localStorage.removeItem(LEGACY_ATTRIBUTION_STORAGE_KEY);
-  }
-  applyAnalyticsConsent(consent);
-
-  if (consent === "granted") {
-    loadGoogleAnalytics();
+    return persistDeniedAnalyticsConsent();
   }
 
-  window.dispatchEvent(new CustomEvent(CONSENT_EVENT_NAME, { detail: consent }));
+  const persisted =
+    safelyWriteLocalStorage(CONSENT_STORAGE_KEY, consent) &&
+    readStoredAnalyticsConsent() === "granted";
+  if (!persisted) {
+    persistDeniedAnalyticsConsent();
+    return false;
+  }
+
+  volatileConsentOverride = null;
+  if (!applyAnalyticsConsent("granted")) {
+    persistDeniedAnalyticsConsent();
+    return false;
+  }
+
+  loadGoogleAnalytics();
+  dispatchAnalyticsConsentChange();
+  return true;
 };
 
 export const subscribeToAnalyticsConsent = (
-  listener: (consent: AnalyticsConsent) => void,
+  listener: () => void,
 ) => {
   if (!isBrowser()) return () => undefined;
-  const handleConsent = (event: Event) => {
-    const detail = (event as CustomEvent<AnalyticsConsent>).detail;
-    listener(detail ?? getAnalyticsConsent());
+
+  const handleConsent = () => listener();
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key !== CONSENT_STORAGE_KEY && event.key !== null) return;
+
+    const consent = getAnalyticsConsent();
+    if (consent !== "granted") {
+      safelyRemoveLocalStorage(ATTRIBUTION_STORAGE_KEY);
+      safelyRemoveLocalStorage(LEGACY_ATTRIBUTION_STORAGE_KEY);
+      applyAnalyticsConsent("denied");
+    }
+    listener();
   };
+
   window.addEventListener(CONSENT_EVENT_NAME, handleConsent);
-  return () => window.removeEventListener(CONSENT_EVENT_NAME, handleConsent);
+  window.addEventListener("storage", handleStorage);
+  return () => {
+    window.removeEventListener(CONSENT_EVENT_NAME, handleConsent);
+    window.removeEventListener("storage", handleStorage);
+  };
 };
 
 export const loadGoogleAnalytics = () => {
   const measurementId = getGaMeasurementId();
-  if (!isBrowser() || !measurementId || analyticsLoaded) return;
+  if (!isBrowser() || !measurementId) return false;
+  if (analyticsLoaded) return true;
 
-  ensureGtag();
-  if (getAnalyticsConsent() !== "granted") return;
+  if (!ensureGtag() || getAnalyticsConsent() !== "granted") return false;
+  if (!applyAnalyticsConsent("granted")) return false;
 
-  applyAnalyticsConsent("granted");
-  analyticsLoaded = true;
-  const script = document.createElement("script");
-  script.async = true;
-  script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
-  document.head.appendChild(script);
+  try {
+    const script = document.createElement("script");
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(measurementId)}`;
+    document.head.appendChild(script);
+    analyticsLoaded = true;
 
-  window.gtag?.("js", new Date());
-  window.gtag?.("config", measurementId, { send_page_view: false });
+    window.gtag?.("js", new Date());
+    window.gtag?.("config", measurementId, { send_page_view: false });
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 export const getAnalyticsClientId = async (
@@ -295,14 +396,21 @@ export const trackMarketingEvent = (
   payload: MarketingEventPayload = {},
 ) => {
   if (!isBrowser() || !getGaMeasurementId() || getAnalyticsConsent() !== "granted") {
-    return;
+    return false;
   }
 
   loadGoogleAnalytics();
-  window.gtag?.("event", eventName, {
-    ...sanitizeMarketingPayload(payload),
-    analytics_contract_version: ANALYTICS_CONTRACT_VERSION,
-  });
+  if (getAnalyticsConsent() !== "granted" || !window.gtag) return false;
+
+  try {
+    window.gtag("event", eventName, {
+      ...sanitizeMarketingPayload(payload),
+      analytics_contract_version: ANALYTICS_CONTRACT_VERSION,
+    });
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 const normalizeStoredAttribution = (value: unknown): MarketingAttribution | null => {
@@ -375,11 +483,11 @@ export const captureMarketingAttribution = () => {
   }
 
   const attribution = mergeMarketingAttribution(existing, touch);
-  window.localStorage.setItem(
+  safelyWriteLocalStorage(
     ATTRIBUTION_STORAGE_KEY,
     JSON.stringify(attribution),
   );
-  window.localStorage.removeItem(LEGACY_ATTRIBUTION_STORAGE_KEY);
+  safelyRemoveLocalStorage(LEGACY_ATTRIBUTION_STORAGE_KEY);
   return attribution;
 };
 

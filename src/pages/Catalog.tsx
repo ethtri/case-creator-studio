@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,8 +12,18 @@ import {
 import { ChevronRight, Filter, Search } from "lucide-react";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
+import { useConsentAwareMarketingView } from "@/hooks/useConsentAwareMarketingView";
 import { trackMarketingEvent } from "@/lib/marketing";
 import { asMarketingItems, buildAnalyticsItem, buildAnalyticsItems } from "@/lib/analytics-commerce";
+
+const catalogViewPayload = {
+  currency: "USD",
+  item_list_id: "phone_models",
+  item_list_name: "Phone models",
+  items: asMarketingItems(
+    buildAnalyticsItems(phoneVariants.map((variant) => ({ variant }))),
+  ),
+};
 
 const Catalog = () => {
   const [selectedBrand, setSelectedBrand] = useState<string | null>(null);
@@ -22,15 +32,11 @@ const Catalog = () => {
   const phoneModels = getPhoneModels();
   const currentYear = new Date().getFullYear();
 
-  useEffect(() => {
-    trackMarketingEvent("view_item_list", {
-      item_list_id: "phone_models",
-      item_list_name: "Phone models",
-      items: asMarketingItems(
-        buildAnalyticsItems(phoneVariants.map((variant) => ({ variant }))),
-      ),
-    });
-  }, []);
+  useConsentAwareMarketingView({
+    eventName: "view_item_list",
+    contractId: "phone_models",
+    payload: catalogViewPayload,
+  });
 
   const filteredModels = useMemo(() => {
     const entries = Array.from(phoneModels.entries());
