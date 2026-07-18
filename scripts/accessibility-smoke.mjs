@@ -657,12 +657,40 @@ try {
   await seededCartDialog.waitFor({ state: "hidden" });
   await page.getByRole("button", { name: "Open cart, empty" }).waitFor();
 
-  const modelLink = page
-    .getByRole("link", {
-      name: /Apple.*iPhone 17 Pro Max.*\$29\.99/i,
+  const modelDetailsLink = page.getByRole("link", {
+    name: "View details for iPhone 17 Pro Max",
+  });
+  const modelDesignLink = page.getByRole("link", {
+    name: "Start designing for iPhone 17 Pro Max",
+  });
+  await assertTargetSize(modelDetailsLink, "Catalog model details");
+  await assertTargetSize(modelDesignLink, "Catalog model design");
+  await assertFocusIndicator(
+    page,
+    modelDetailsLink,
+    "Catalog model details",
+  );
+  await page.keyboard.press("Enter");
+  await page.waitForURL(/\/phone-cases\/iphone-17-pro-max/);
+  await page
+    .getByRole("heading", {
+      level: 1,
+      name: "Design your own iPhone 17 Pro Max phone case.",
     })
-    .first();
-  await assertFocusIndicator(page, modelLink, "Catalog model link");
+    .waitFor();
+  await page.getByText("$29.99 USD", { exact: true }).waitFor();
+  auditResults.push(
+    await assertNoSeriousAxeViolations(page, "product-offer-light-desktop"),
+  );
+
+  await page.goBack();
+  await page.waitForURL(`${origin}/catalog`);
+  await waitForStableUi(page);
+  await assertFocusIndicator(
+    page,
+    modelDesignLink,
+    "Catalog model design",
+  );
   await page.keyboard.press("Enter");
   await page.waitForURL(/\/design\/iphone-17-pro-max/);
   await page
