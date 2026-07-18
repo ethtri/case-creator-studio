@@ -36,11 +36,67 @@ const VOID_ELEMENTS = new Set([
   "track",
   "wbr",
 ]);
+const RAW_TEXT_ELEMENTS = new Set(["script", "style", "textarea", "title"]);
+const NON_RENDERED_ELEMENTS = new Set([
+  "head",
+  "link",
+  "meta",
+  "script",
+  "style",
+  "template",
+  "title",
+]);
+const NON_RENDERED_SVG_ELEMENTS = new Set([
+  "clippath",
+  "defs",
+  "desc",
+  "mask",
+  "symbol",
+  "title",
+]);
+const SVG_RENDERING_ELEMENTS = new Set([
+  "circle",
+  "ellipse",
+  "foreignobject",
+  "image",
+  "line",
+  "path",
+  "polygon",
+  "polyline",
+  "rect",
+  "text",
+  "use",
+]);
 const RESPONSIVE_PREFIX = /^(?:sm|md|lg|xl|2xl):/;
 const VISIBLE_DISPLAY_CLASS =
   /^(?:sm|md|lg|xl|2xl):(?:block|flex|grid|inline|inline-block|inline-flex|inline-grid|table|visible)$/;
-const VISIBLE_OPACITY_CLASS =
-  /^(?:sm|md|lg|xl|2xl):opacity-(?!0$)\d+$/;
+const CSS_NUMBER_PATTERN =
+  /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?%?$/i;
+
+const isNumericZero = (value) => {
+  const normalized = value.trim();
+  if (!CSS_NUMBER_PATTERN.test(normalized)) return false;
+  return Number(normalized.replace(/%$/, "")) === 0;
+};
+
+const getOpacityClassValue = (token) => {
+  const normalized = token.replace(/^!/, "");
+  const standard = normalized.match(/^opacity-(\d+)$/)?.[1];
+  if (standard !== undefined) return standard;
+  return normalized.match(/^opacity-\[([^\]]+)\]$/)?.[1] ?? null;
+};
+
+const isZeroOpacityClass = (token) => {
+  const value = getOpacityClassValue(token);
+  return value !== null && isNumericZero(value);
+};
+
+const isResponsiveVisibleOpacityClass = (token) => {
+  const match = token.match(/^(?:sm|md|lg|xl|2xl):(.+)$/);
+  if (!match) return false;
+  const value = getOpacityClassValue(match[1]);
+  return value !== null && !isNumericZero(value);
+};
 
 const parseAttributes = (tag) => {
   const attributes = new Map();
@@ -67,9 +123,7 @@ const hasAlwaysHiddenClass = (attributes) => {
   const responsiveDisplay = tokens.some((token) =>
     VISIBLE_DISPLAY_CLASS.test(token),
   );
-  const responsiveOpacity = tokens.some((token) =>
-    VISIBLE_OPACITY_CLASS.test(token),
-  );
+  const responsiveOpacity = tokens.some(isResponsiveVisibleOpacityClass);
 
   return (
     ((tokens.includes("hidden") || tokens.includes("!hidden")) &&
@@ -84,8 +138,7 @@ const hasAlwaysHiddenClass = (attributes) => {
         (token) =>
           RESPONSIVE_PREFIX.test(token) && token.endsWith(":visible"),
       )) ||
-    ((tokens.includes("opacity-0") || tokens.includes("!opacity-0")) &&
-      !responsiveOpacity)
+    (tokens.some(isZeroOpacityClass) && !responsiveOpacity)
   );
 };
 
@@ -93,10 +146,16 @@ const hasHiddenStyle = (attributes) => {
   const style = (attributes.get("style") ?? "")
     .toLowerCase()
     .replace(/\s+/g, "");
+  const opacityValues = [
+    ...style.matchAll(
+      /(?:^|;)opacity:([^;!]+)(?:!important)?(?=;|$)/g,
+    ),
+  ].map((match) => match[1]);
+
   return (
     /(?:^|;)display:none(?:!important)?(?:;|$)/.test(style) ||
     /(?:^|;)visibility:hidden(?:!important)?(?:;|$)/.test(style) ||
-    /(?:^|;)opacity:0(?:!important)?(?:;|$)/.test(style)
+    opacityValues.some(isNumericZero)
   );
 };
 
@@ -122,13 +181,24 @@ const attributeIsTrue = (attributes, name) => {
 
 const scanHtmlElements = (html) => {
   const elements = [];
-  const byStart = new Map();
+  const tokens = [];
   const stack = [];
   const tagPattern = /<!--[\s\S]*?-->|<![^>]*>|<\/?[a-z][^>]*>/gi;
 
-  for (const match of html.matchAll(tagPattern)) {
+  for (
+    let match = tagPattern.exec(html);
+    match;
+    match = tagPattern.exec(html)
+  ) {
     const tag = match[0];
-    if (tag.startsWith("<!--") || tag.startsWith("<!")) continue;
+    if (tag.startsWith("<!--") || tag.startsWith("<!")) {
+      tokens.push({
+        kind: "skip",
+        start: match.index,
+        end: match.index + tag.length,
+      });
+      continue;
+    }
     const name = tag.match(/^<\/?\s*([a-z][\w:-]*)/i)?.[1]?.toLowerCase();
     if (!name) continue;
 
@@ -138,6 +208,7 @@ const scanHtmlElements = (html) => {
       );
       if (stackIndex < 0) continue;
 
+      const closedElement = stack[stackIndex];
       for (const element of stack.slice(stackIndex)) {
         if (element.contentEnd === null) {
           element.contentEnd = match.index;
@@ -145,22 +216,43 @@ const scanHtmlElements = (html) => {
         }
       }
       stack.length = stackIndex;
+      tokens.push({
+        kind: "close",
+        start: match.index,
+        end: match.index + tag.length,
+        element: closedElement,
+      });
       continue;
     }
 
     const attributes = parseAttributes(tag);
     const parent = stack.at(-1);
-    const ownHidden =
+    const ownVisuallyHidden =
       attributes.has("hidden") ||
-      attributeIsTrue(attributes, "aria-hidden") ||
       hasHiddenStyle(attributes) ||
       hasAlwaysHiddenClass(attributes) ||
       name === "template" ||
       name === "script" ||
       name === "style";
-    const ownInert = attributes.has("inert");
+    const ownExcludedFromUsers =
+      attributeIsTrue(attributes, "aria-hidden") ||
+      attributes.has("inert");
+    let withinSvg = false;
+    for (let ancestor = parent; ancestor; ancestor = ancestor.parent) {
+      if (ancestor.name === "svg") {
+        withinSvg = true;
+        break;
+      }
+    }
     const excludedFromUsers =
-      Boolean(parent?.excludedFromUsers) || ownHidden || ownInert;
+      Boolean(parent?.excludedFromUsers) ||
+      ownVisuallyHidden ||
+      ownExcludedFromUsers;
+    const excludedFromRendering =
+      Boolean(parent?.excludedFromRendering) ||
+      ownVisuallyHidden ||
+      NON_RENDERED_ELEMENTS.has(name) ||
+      (withinSvg && NON_RENDERED_SVG_ELEMENTS.has(name));
     const interactionBlocked =
       Boolean(parent?.interactionBlocked) ||
       excludedFromUsers ||
@@ -172,16 +264,43 @@ const scanHtmlElements = (html) => {
       contentStart: match.index + tag.length,
       contentEnd: null,
       end: null,
+      parent,
       excludedFromUsers,
+      excludedFromRendering,
       interactionBlocked,
     };
 
     elements.push(element);
-    byStart.set(element.start, element);
+    tokens.push({
+      kind: "open",
+      start: match.index,
+      end: match.index + tag.length,
+      element,
+    });
 
     if (VOID_ELEMENTS.has(name) || /\/>$/.test(tag)) {
       element.contentEnd = element.contentStart;
       element.end = element.contentStart;
+    } else if (RAW_TEXT_ELEMENTS.has(name)) {
+      const closingPattern = new RegExp(`</\\s*${name}\\s*>`, "gi");
+      closingPattern.lastIndex = element.contentStart;
+      const closingMatch = closingPattern.exec(html);
+
+      if (closingMatch) {
+        element.contentEnd = closingMatch.index;
+        element.end = closingMatch.index + closingMatch[0].length;
+        tokens.push({
+          kind: "close",
+          start: closingMatch.index,
+          end: element.end,
+          element,
+        });
+        tagPattern.lastIndex = element.end;
+      } else {
+        element.contentEnd = html.length;
+        element.end = html.length;
+        tagPattern.lastIndex = html.length;
+      }
     } else {
       stack.push(element);
     }
@@ -192,7 +311,7 @@ const scanHtmlElements = (html) => {
     element.end = html.length;
   }
 
-  return { elements, byStart };
+  return { elements, tokens };
 };
 
 const getJsonLd = (html) => {
@@ -243,46 +362,66 @@ const hasJsonLdType = (value, expectedType) => {
   return types.includes(expectedType);
 };
 
-const visibleTextContent = (html, root, byStart) => {
-  let cursor = root.contentStart;
-  let visibleText = "";
-  const stack = [root];
-  const tagPattern = /<!--[\s\S]*?-->|<![^>]*>|<\/?[a-z][^>]*>/gi;
-  tagPattern.lastIndex = root.contentStart;
+const scopedTextContent = (
+  html,
+  root,
+  scan,
+  exclusionProperty,
+) => {
+  if (RAW_TEXT_ELEMENTS.has(root.name)) {
+    return decodeHtml(
+      html
+        .slice(root.contentStart, root.contentEnd)
+        .replace(/\s+/g, " ")
+        .trim(),
+    );
+  }
 
-  for (
-    let match = tagPattern.exec(html);
-    match && match.index < root.contentEnd;
-    match = tagPattern.exec(html)
-  ) {
-    if (!stack.at(-1)?.excludedFromUsers) {
-      visibleText += html.slice(cursor, match.index);
+  let cursor = root.contentStart;
+  let content = "";
+  const stack = [root];
+
+  for (const token of scan.tokens) {
+    if (
+      token.start < root.contentStart ||
+      token.start >= root.contentEnd
+    ) {
+      continue;
     }
 
-    const tag = match[0];
-    if (!tag.startsWith("<!--") && !tag.startsWith("<!")) {
-      if (/^<\//.test(tag)) {
-        if (stack.length > 1) stack.pop();
-      } else {
-        const element = byStart.get(match.index);
-        if (
-          element &&
-          !VOID_ELEMENTS.has(element.name) &&
-          !/\/>$/.test(tag)
-        ) {
-          stack.push(element);
-        }
+    if (!stack.at(-1)?.[exclusionProperty]) {
+      content += html.slice(cursor, token.start);
+    }
+
+    if (
+      token.kind === "open" &&
+      token.element.contentEnd > token.element.contentStart
+    ) {
+      stack.push(token.element);
+    } else if (token.kind === "close") {
+      const stackIndex = stack.lastIndexOf(token.element);
+      if (stackIndex > 0) {
+        stack.length = stackIndex;
       }
     }
-    cursor = match.index + tag.length;
+    cursor = token.end;
   }
 
-  if (!stack.at(-1)?.excludedFromUsers) {
-    visibleText += html.slice(cursor, root.contentEnd);
+  if (!stack.at(-1)?.[exclusionProperty]) {
+    content += html.slice(cursor, root.contentEnd);
   }
 
-  return textContent(visibleText);
+  return textContent(content);
 };
+
+const visibleTextContent = (html, root, scan) =>
+  scopedTextContent(html, root, scan, "excludedFromUsers");
+
+const renderedTextContent = (html, root, scan) =>
+  scopedTextContent(html, root, scan, "excludedFromRendering");
+
+const isDescendantOf = (element, root) =>
+  element.start >= root.contentStart && element.end <= root.contentEnd;
 
 const getVisibleOffer = (html) => {
   const scan = scanHtmlElements(html);
@@ -314,7 +453,7 @@ const getVisibleOffer = (html) => {
       price: element.attributes.get("data-price") ?? "",
       currency: element.attributes.get("data-currency") ?? "",
       itemCondition: element.attributes.get("data-item-condition") ?? "",
-      text: visibleTextContent(html, element, scan.byStart),
+      text: visibleTextContent(html, element, scan),
     },
   };
 };
@@ -341,14 +480,21 @@ const getProductMockup = (html) => {
 
 const getProductMetadata = (html) => {
   const scan = scanHtmlElements(html);
+  const isActiveHeadMetadata = (element) =>
+    !element.excludedFromUsers && element.parent?.name === "head";
+
   return {
     titles: scan.elements
-      .filter((element) => element.name === "title")
-      .map((element) => visibleTextContent(html, element, scan.byStart)),
+      .filter(
+        (element) =>
+          element.name === "title" && isActiveHeadMetadata(element),
+      )
+      .map((element) => visibleTextContent(html, element, scan)),
     descriptions: scan.elements
       .filter(
         (element) =>
           element.name === "meta" &&
+          isActiveHeadMetadata(element) &&
           element.attributes.get("name")?.toLowerCase() === "description",
       )
       .map((element) => element.attributes.get("content") ?? ""),
@@ -356,6 +502,7 @@ const getProductMetadata = (html) => {
       .filter(
         (element) =>
           element.name === "link" &&
+          isActiveHeadMetadata(element) &&
           (element.attributes.get("rel") ?? "")
             .toLowerCase()
             .split(/\s+/)
@@ -368,6 +515,79 @@ const getProductMetadata = (html) => {
 const normalizePath = (value) => {
   if (value === "/") return value;
   return value.replace(/\/+$/, "");
+};
+
+const hasNonZeroAttribute = (element, name) => {
+  const value = element.attributes.get(name)?.trim();
+  return Boolean(value) && !isNumericZero(value);
+};
+
+const hasMeaningfulSvgContent = (html, svg, scan) =>
+  scan.elements.some((element) => {
+    if (
+      !isDescendantOf(element, svg) ||
+      element.excludedFromRendering ||
+      !SVG_RENDERING_ELEMENTS.has(element.name)
+    ) {
+      return false;
+    }
+
+    switch (element.name) {
+      case "path":
+        return Boolean(element.attributes.get("d")?.trim());
+      case "circle":
+        return hasNonZeroAttribute(element, "r");
+      case "ellipse":
+        return (
+          hasNonZeroAttribute(element, "rx") &&
+          hasNonZeroAttribute(element, "ry")
+        );
+      case "rect":
+        return (
+          hasNonZeroAttribute(element, "width") &&
+          hasNonZeroAttribute(element, "height")
+        );
+      case "polyline":
+      case "polygon":
+        return Boolean(element.attributes.get("points")?.trim());
+      case "use":
+      case "image":
+        return Boolean(
+          element.attributes.get("href")?.trim() ||
+            element.attributes.get("xlink:href")?.trim(),
+        );
+      case "text":
+      case "foreignobject":
+        return Boolean(renderedTextContent(html, element, scan));
+      case "line":
+        return ["x1", "x2", "y1", "y2"].some((attribute) =>
+          hasNonZeroAttribute(element, attribute),
+        );
+      default:
+        return false;
+    }
+  });
+
+const getRenderedGraphics = (html, root, scan) =>
+  scan.elements.filter(
+    (element) =>
+      isDescendantOf(element, root) &&
+      !element.excludedFromRendering &&
+      ((element.name === "svg" &&
+        hasMeaningfulSvgContent(html, element, scan)) ||
+        (element.name === "img" &&
+          Boolean(element.attributes.get("src")?.trim()))),
+  );
+
+const getGraphicAccessibleName = (html, element, scan) => {
+  if (element.excludedFromUsers) return "";
+  if (element.name === "img") {
+    return element.attributes.get("alt")?.trim() ?? "";
+  }
+  return (
+    element.attributes.get("aria-label")?.trim() ||
+    visibleTextContent(html, element, scan)
+  );
 };
 
 export const validateProductLinkGraph = ({
@@ -415,14 +635,24 @@ export const validateProductLinkGraph = ({
       );
       const removedFromTabOrder =
         element.attributes.get("tabindex")?.trim() === "-1";
+      const renderedGraphics = getRenderedGraphics(html, element, scan);
       const accessibleName =
-        visibleTextContent(html, element, scan.byStart) ||
-        element.attributes.get("aria-label")?.trim();
+        visibleTextContent(html, element, scan) ||
+        element.attributes.get("aria-label")?.trim() ||
+        renderedGraphics
+          .map((graphic) =>
+            getGraphicAccessibleName(html, graphic, scan),
+          )
+          .find(Boolean);
+      const hasRenderedContent =
+        Boolean(renderedTextContent(html, element, scan)) ||
+        renderedGraphics.length > 0;
       if (
         element.interactionBlocked ||
         ariaDisabled ||
         removedFromTabOrder ||
-        !accessibleName
+        !accessibleName ||
+        !hasRenderedContent
       ) {
         continue;
       }

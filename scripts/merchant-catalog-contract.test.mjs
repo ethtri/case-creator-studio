@@ -48,22 +48,28 @@ const pageHtml = ({
     ? ` data-item-condition="${visibleItemCondition}"`
     : "";
   return `
-    <title>${title}</title>
-    <meta name="description" content="${description}" />
-    <link rel="canonical" href="${canonical}" />
-    <script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","productID":"iphone-test","offers":{"price":"${price}","priceCurrency":"USD"${offerAvailability}${offerCondition}}}</script>
-    <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"${siteUrl}/"},{"@type":"ListItem","position":2,"name":"Phone cases","item":"${siteUrl}/catalog"},{"@type":"ListItem","position":3,"name":"iPhone Test custom case","item":"${siteUrl}/phone-cases/iphone-test"}]}</script>
-    <nav aria-label="breadcrumb" data-product-breadcrumb="true">
-      <ol>
-        <li data-breadcrumb-position="1"><a href="/">Home</a></li>
-        <li data-breadcrumb-position="2"><a href="/catalog">${middleBreadcrumb}</a></li>
-        <li data-breadcrumb-position="3"><span aria-current="page">iPhone Test custom case</span></li>
-      </ol>
-    </nav>
-    <div data-product-offer="true" data-product-id="iphone-test" data-price="${visiblePrice}" data-currency="${visibleCurrency}"${visibleConditionAttribute}>
-      <p>${visibleText}</p>
-    </div>
-    <img data-product-mockup="true" src="/mockup.png" width="${mockupWidth}" height="${mockupHeight}" alt="${mockupAlt}" />
+    <html>
+      <head>
+        <title>${title}</title>
+        <meta name="description" content="${description}" />
+        <link rel="canonical" href="${canonical}" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","productID":"iphone-test","offers":{"price":"${price}","priceCurrency":"USD"${offerAvailability}${offerCondition}}}</script>
+        <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"${siteUrl}/"},{"@type":"ListItem","position":2,"name":"Phone cases","item":"${siteUrl}/catalog"},{"@type":"ListItem","position":3,"name":"iPhone Test custom case","item":"${siteUrl}/phone-cases/iphone-test"}]}</script>
+      </head>
+      <body>
+        <nav aria-label="breadcrumb" data-product-breadcrumb="true">
+          <ol>
+            <li data-breadcrumb-position="1"><a href="/">Home</a></li>
+            <li data-breadcrumb-position="2"><a href="/catalog">${middleBreadcrumb}</a></li>
+            <li data-breadcrumb-position="3"><span aria-current="page">iPhone Test custom case</span></li>
+          </ol>
+        </nav>
+        <div data-product-offer="true" data-product-id="iphone-test" data-price="${visiblePrice}" data-currency="${visibleCurrency}"${visibleConditionAttribute}>
+          <p>${visibleText}</p>
+        </div>
+        <img data-product-mockup="true" src="/mockup.png" width="${mockupWidth}" height="${mockupHeight}" alt="${mockupAlt}" />
+      </body>
+    </html>
   `;
 };
 
@@ -142,7 +148,15 @@ test("rejects offer markers excluded from rendered or accessible content", () =>
     ),
     wrapVisibleOffer(pageHtml(), '<div aria-hidden="true">', "</div>"),
     wrapVisibleOffer(pageHtml(), '<div style="display: none">', "</div>"),
+    wrapVisibleOffer(pageHtml(), '<div style="opacity:0.0">', "</div>"),
+    wrapVisibleOffer(
+      pageHtml(),
+      '<div style=" opacity : 0.00 !important ; ">',
+      "</div>",
+    ),
     wrapVisibleOffer(pageHtml(), "<div inert>", "</div>"),
+    wrapVisibleOffer(pageHtml(), '<div class="opacity-[0]">', "</div>"),
+    wrapVisibleOffer(pageHtml(), '<div class="!opacity-[0.0]">', "</div>"),
   ];
 
   for (const html of hostilePages) {
@@ -248,6 +262,14 @@ test("hidden, inert, disabled, and unnamed links do not de-orphan routes", () =>
     '<a aria-disabled="true" href="/phone-cases/iphone-test">Details</a>',
     '<a tabindex="-1" href="/phone-cases/iphone-test">Details</a>',
     '<a href="/phone-cases/iphone-test"></a>',
+    '<a aria-label="Details" href="/phone-cases/iphone-test"></a>',
+    '<a aria-label="Details" href="/phone-cases/iphone-test"><span class="sr-only">Details</span></a>',
+    '<a aria-label="Details" href="/phone-cases/iphone-test"><svg hidden width="24" height="24"><path d="M1 1h2v2z"></path></svg></a>',
+    '<a aria-label="Details" href="/phone-cases/iphone-test"><img class="opacity-[0]" src="/case.png" alt="" /></a>',
+    '<a href="/phone-cases/iphone-test"><svg width="24" height="24"><path d="M1 1h2v2z"></path></svg></a>',
+    '<a aria-label="Details" href="/phone-cases/iphone-test"><svg width="24" height="24"></svg></a>',
+    '<a aria-label="Details" href="/phone-cases/iphone-test"><svg width="24" height="24"><title>Decorative title</title></svg></a>',
+    '<a aria-label="Details" href="/phone-cases/iphone-test"><svg width="24" height="24"><g><desc>Decorative description</desc></g></svg></a>',
   ];
 
   for (const link of hostileLinks) {
@@ -257,6 +279,39 @@ test("hidden, inert, disabled, and unnamed links do not de-orphan routes", () =>
       }).some((finding) => finding.code === "orphan_product_page"),
     );
   }
+});
+
+test("visible graphics can provide rendered link content and accessible names", () => {
+  const validLinks = [
+    '<a aria-label="Details" href="/phone-cases/iphone-test"><svg aria-hidden="true" width="24" height="24"><path d="M1 1h2v2z"></path></svg></a>',
+    '<a href="/phone-cases/iphone-test"><img src="/case.png" alt="Details" /></a>',
+    '<a href="/phone-cases/iphone-test"><svg width="24" height="24"><title>Details</title><path d="M1 1h2v2z"></path></svg></a>',
+  ];
+
+  for (const link of validLinks) {
+    assert.ok(
+      !validate({
+        internalPages: new Map([["/catalog", link]]),
+      }).some((finding) => finding.code === "orphan_product_page"),
+    );
+  }
+});
+
+test("document metadata ignores inactive and non-head tag-like decoys", () => {
+  const decoys = `
+    <svg><title>Case illustration</title></svg>
+    <script>const titleDecoy = '<TITLE>Script title</TITLE><META name="description" content="Script description"><LINK rel="canonical" href="https://example.com/script">';</script>
+    <style>.case::before { content: "<TITLE>Style title</TITLE><META name='description' content='Style description'>"; }</style>
+    <!-- <TITLE>Comment title</TITLE><META name="description" content="Comment description"><LINK rel="canonical" href="https://example.com/comment"> -->
+  `;
+  const html = pageHtml()
+    .replace(
+      "</head>",
+      `<svg><title>Nested head SVG title</title></svg><template><title>Template title</title><meta name="description" content="Template description"><link rel="canonical" href="https://example.com/template"></template></head>`,
+    )
+    .replace("</body>", `${decoys}</body>`);
+
+  assert.deepEqual(validate({ html }), []);
 });
 
 test("metadata parsing catches case and attribute-order duplicate bypasses", () => {
