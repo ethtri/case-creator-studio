@@ -15,6 +15,7 @@ import { SiteMenu } from "@/components/SiteMenu";
 import { useConsentAwareMarketingView } from "@/hooks/useConsentAwareMarketingView";
 import { trackMarketingEvent } from "@/lib/marketing";
 import { asMarketingItems, buildAnalyticsItem, buildAnalyticsItems } from "@/lib/analytics-commerce";
+import { getCatalogResultCopy } from "@/lib/entry-page-contract";
 
 const catalogViewPayload = {
   currency: "USD",
@@ -47,7 +48,7 @@ const Catalog = () => {
     }
 
     if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+      const query = searchQuery.trim().toLowerCase();
       filtered = filtered
         .map(([key, variants]) => [key, variants.filter(v => 
           v.model.toLowerCase().includes(query) || 
@@ -64,6 +65,7 @@ const Catalog = () => {
     placement: string,
   ) =>
     trackMarketingEvent("select_item", {
+      currency: variant.currency,
       item_list_id: "phone_models",
       item_list_name: "Phone models",
       placement,
@@ -101,7 +103,7 @@ const Catalog = () => {
           </div>
 
           {/* Search & Brand Filter */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-8">
+          <div className="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-center">
             <div className="relative w-full sm:w-64">
               <Label htmlFor="phone-search" className="sr-only">Search phone models</Label>
               <Search
@@ -140,8 +142,14 @@ const Catalog = () => {
                 </Button>
               ))}
             </div>
-            <p className="sr-only" role="status" aria-live="polite">
-              {visibleVariants.length} phone {visibleVariants.length === 1 ? "model" : "models"} shown.
+            <p
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-border/70 bg-card px-4 text-sm font-medium text-foreground shadow-soft sm:w-auto"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              data-catalog-result-count="true"
+            >
+              {getCatalogResultCopy(visibleVariants.length)}
             </p>
           </div>
         </div>
@@ -154,7 +162,8 @@ const Catalog = () => {
             {visibleVariants.map((variant) => (
                 <article
                   key={variant.id}
-                  className="group relative flex h-full flex-col rounded-xl border border-border/50 bg-card p-4 transition-all duration-200 hover:border-accent/50 hover:shadow-medium"
+                  className="relative flex h-full flex-col rounded-xl border border-border/70 bg-card p-4 shadow-soft transition-[border-color,box-shadow,background-color] duration-200 hover:border-cta/60 hover:shadow-medium focus-within:border-cta focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
+                  data-catalog-card={variant.id}
                 >
                   {/* Phone Icon */}
                   <div className="mb-3 flex justify-center" aria-hidden="true">
@@ -186,7 +195,7 @@ const Catalog = () => {
                         onClick={() =>
                           trackCatalogSelection(variant, "catalog_view_details")
                         }
-                        className="inline-flex min-h-11 items-center justify-center rounded-md px-2 text-sm font-medium text-cta-emphasis underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        className="catalog-details-action inline-flex min-h-11 items-center justify-center rounded-md px-2 text-sm font-medium text-cta-emphasis underline-offset-4 transition-colors hover:bg-muted/60 hover:underline"
                       >
                         View details
                         <span className="sr-only"> for {variant.model}</span>
@@ -194,10 +203,11 @@ const Catalog = () => {
                       <Button
                         asChild
                         size="sm"
-                        className="min-h-11 w-full bg-cta px-2 text-cta-foreground hover:bg-cta/90"
+                        className="catalog-design-action min-h-11 w-full bg-cta px-2 text-cta-foreground hover:bg-cta/90 active:scale-100"
                       >
                         <Link
                           to={`/design/${variant.id}`}
+                          data-model-selection-cue="true"
                           onClick={() =>
                             trackCatalogSelection(
                               variant,
@@ -205,7 +215,7 @@ const Catalog = () => {
                             )
                           }
                         >
-                          Start designing
+                          Choose model
                           <span className="sr-only"> for {variant.model}</span>
                           <ChevronRight
                             className="ml-1 h-4 w-4"
@@ -215,12 +225,6 @@ const Catalog = () => {
                       </Button>
                     </div>
                   </div>
-
-                  {/* Hover ring */}
-                  <div
-                    className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-accent ring-opacity-0 transition-all group-hover:ring-opacity-100"
-                    aria-hidden="true"
-                  />
                 </article>
             ))}
           </div>

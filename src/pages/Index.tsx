@@ -18,12 +18,17 @@ import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
 import { trackMarketingEvent } from "@/lib/marketing";
 import { asMarketingItems, buildAnalyticsItem } from "@/lib/analytics-commerce";
+import {
+  getSharedCatalogPriceContext,
+  HOME_PRIMARY_CTA,
+  HOME_STARTING_MODELS,
+} from "@/lib/entry-page-contract";
 
 const steps = [
   {
     number: "01",
     title: "Choose your model",
-    description: "Pick from the latest iPhone and Samsung devices.",
+    description: "Pick from supported iPhone and Samsung models.",
   },
   {
     number: "02",
@@ -37,7 +42,8 @@ const steps = [
   },
 ];
 
-const popularModels = phoneVariants.slice(0, 4);
+const startingModels = phoneVariants.slice(0, 4);
+const homePriceContext = getSharedCatalogPriceContext(phoneVariants);
 
 const faqs = [
   {
@@ -82,7 +88,11 @@ const Index = () => {
 
       <main>
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      <section
+        className="relative flex min-h-[700px] items-end overflow-hidden bg-[#08050f] text-[#fff9fc] md:min-h-screen md:items-center"
+        data-home-design-bench="true"
+        data-hero-theme="fixed-dark"
+      >
         {/* The picture sources let the browser request one viewport-appropriate hero. */}
         <div className="absolute inset-0">
           <picture className="block h-full w-full">
@@ -120,51 +130,92 @@ const Index = () => {
               sizes="100vw"
               alt=""
               aria-hidden="true"
+              data-hero-artwork="true"
               width="1024"
               height="1024"
               {...{ fetchpriority: "high" }}
               loading="eager"
               decoding="async"
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover object-center opacity-90"
             />
           </picture>
-          {/* Dark gradient overlay for readability */}
-          <div className="absolute inset-0 bg-gradient-to-r from-background/95 via-background/70 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-background/50" />
+          <div
+            className="absolute inset-0 bg-gradient-to-b from-[#08050f]/15 via-[#08050f]/60 to-[#08050f] md:hidden"
+            data-hero-mobile-scrim="true"
+          />
+          <div
+            className="absolute inset-0 hidden bg-[linear-gradient(90deg,#08050f_0%,rgba(8,5,15,0.96)_27%,rgba(8,5,15,0.52)_43%,rgba(8,5,15,0.08)_66%,rgba(8,5,15,0.02)_100%)] md:block"
+            data-hero-desktop-scrim="true"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#08050f]/90 via-transparent to-[#08050f]/45 md:bg-[linear-gradient(180deg,rgba(8,5,15,0.24)_0%,transparent_22%,transparent_78%,rgba(8,5,15,0.32)_100%)]" />
+          <div
+            className="absolute inset-0 opacity-30"
+            style={{
+              backgroundImage:
+                "linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px)",
+              backgroundSize: "40px 40px",
+            }}
+            aria-hidden="true"
+          />
+          <div
+            className="absolute inset-x-4 bottom-5 top-20 rounded-[1.75rem] border border-white/10 sm:inset-x-6 md:inset-x-8 md:bottom-8 md:top-24"
+            aria-hidden="true"
+          />
         </div>
 
-        <div className="container relative z-10 mx-auto px-6 pt-24 pb-16">
+        <div className="container relative z-10 mx-auto px-6 pb-14 pt-32 md:pb-20 md:pt-28">
           <div className="max-w-2xl">
-            <h1 className="font-display text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight text-foreground mb-6">
+            <p className="mb-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.22em] text-[#f7a6d2]">
+              <span className="h-px w-8 bg-[#f04b9b]" aria-hidden="true" />
+              The Snapcase design bench
+            </p>
+            <h1 className="mb-6 font-display text-5xl font-bold tracking-tight text-[#fff9fc] md:text-7xl lg:text-8xl">
               Print your
               <br />
               story.
             </h1>
 
-            <p className="text-lg md:text-xl text-muted-foreground max-w-md mb-10">
+            <p className="mb-8 max-w-md text-lg text-[#ddd5df] md:text-xl">
               Choose your phone, create the design, and review a preview before checkout.
             </p>
 
-            <div className="flex flex-col sm:flex-row items-start gap-4">
+            <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
               <Button
                 asChild
                 size="lg"
-                className="bg-cta hover:bg-cta/90 text-cta-foreground font-semibold px-8 py-6 text-base shadow-glow"
+                className="bg-cta px-8 py-6 text-base font-semibold text-cta-foreground shadow-glow hover:bg-cta/90 active:scale-100 active:bg-cta"
               >
                 <Link
-                  to="/catalog"
+                  to={HOME_PRIMARY_CTA.destination}
+                  data-home-primary-cta="true"
                   onClick={() =>
                     trackMarketingEvent("primary_cta_click", {
-                      placement: "home_hero",
-                      destination: "/catalog",
-                      label: "Start designing",
+                      placement: HOME_PRIMARY_CTA.placement,
+                      destination: HOME_PRIMARY_CTA.destination,
+                      label: HOME_PRIMARY_CTA.label,
                     })
                   }
                 >
-                  Start designing
+                  {HOME_PRIMARY_CTA.label}
                   <ChevronRight className="w-5 h-5 ml-1" aria-hidden="true" />
                 </Link>
               </Button>
+              {homePriceContext ? (
+                <p
+                  className="rounded-full border border-white/20 bg-black/25 px-4 py-2 text-sm font-semibold text-[#fff9fc] backdrop-blur-sm"
+                  data-home-price-context="true"
+                >
+                  {homePriceContext}
+                </p>
+              ) : null}
+            </div>
+            <div
+              className="mt-10 flex flex-wrap gap-x-5 gap-y-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#bdb2c2]"
+              aria-label="Design flow: choose model, create, preview"
+            >
+              <span><span className="text-[#f7a6d2]">01</span> Choose model</span>
+              <span><span className="text-[#f7a6d2]">02</span> Create</span>
+              <span><span className="text-[#f7a6d2]">03</span> Preview</span>
             </div>
           </div>
         </div>
@@ -198,15 +249,17 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Popular Models Section */}
+      {/* Starting Models Section */}
       <section className="py-24">
         <div className="container mx-auto px-6">
           <div className="flex items-center justify-between mb-12">
             <div>
               <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-2">
-                Popular models
+                Choose a starting model
               </h2>
-              <p className="text-muted-foreground">Start with the most popular devices</p>
+              <p className="text-muted-foreground">
+                Four supported Apple models to begin with, or browse the full catalog.
+              </p>
             </div>
             <Button asChild variant="ghost" className="hidden text-muted-foreground hover:text-foreground md:inline-flex">
               <Link to="/catalog">
@@ -217,15 +270,18 @@ const Index = () => {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {popularModels.map((variant) => (
+            {startingModels.map((variant) => (
               <div key={variant.id}>
                 <Link
                   to={`/design/${variant.id}`}
+                  data-home-starting-model={variant.id}
+                  aria-label={`Start designing for ${variant.model}`}
                   onClick={() =>
                     trackMarketingEvent("select_item", {
-                      item_list_id: "popular_models",
-                      item_list_name: "Popular models",
-                      placement: "home_popular_models",
+                      currency: variant.currency,
+                      item_list_id: HOME_STARTING_MODELS.itemListId,
+                      item_list_name: HOME_STARTING_MODELS.itemListName,
+                      placement: HOME_STARTING_MODELS.placement,
                       items: asMarketingItems(
                         [buildAnalyticsItem({ variant })].filter(Boolean),
                       ),

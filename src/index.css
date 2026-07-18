@@ -251,6 +251,15 @@
   }
 }
 
+.catalog-details-action:hover:active {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+.catalog-design-action:hover:active {
+  background-color: hsl(var(--cta) / 0.8);
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
