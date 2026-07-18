@@ -47,6 +47,47 @@ active.
 - Run verification on the PR branch; local testing happens by checking out that branch.
 - Treat local hooks as optional guardrails; CI is the source of truth.
 
+### Goal execution and delegation
+- The lead agent owns the goal end to end: confirm the current issue/board state,
+  order dependencies, delegate independent slices, integrate results, update
+  status, and verify the final goal acceptance criteria.
+- Proactively use sub-agents for independent implementation, research, review, or
+  QA slices when parallel work will shorten the critical path. Delegation does
+  not transfer the lead agent's accountability for the completed goal.
+- Before delegating, give each sub-agent a concrete task contract:
+  - GitHub issue and acceptance criteria
+  - allowed scope and expected files or ownership boundary
+  - dedicated worktree and branch name
+  - dependencies and whether the PR may merge immediately
+  - required verification and handoff evidence
+- Sub-agents are empowered to inspect the repo, implement their assigned scope,
+  run verification, open a PR, address review or CI findings, and squash-merge
+  when this file's merge gates pass. They should not wait for separate approval
+  for those actions unless the task contract marks the work as review-only or
+  dependent on an unmerged prerequisite.
+- Do not delegate overlapping edits to the same shared foundation in parallel.
+  Establish and merge the shared contract first, then update dependent branches
+  from `main`. When overlap is unavoidable, assign one owner and make other
+  agents review-only for those files.
+- Every sub-agent must read this file and the relevant canonical docs before
+  editing. Each sub-agent uses its own worktree; agents never share uncommitted
+  files, terminals, branches, or worktrees.
+- A sub-agent handoff must include the issue and PR, files changed, verification
+  results, migrations or environment changes, risks, and any acceptance criteria
+  that remain unproven.
+- The lead agent owns external coordination. Sub-agents must not contact or ask
+  the user, vendors, or on-site staff to test unless their task contract
+  explicitly delegates that communication and the stated preconditions are met.
+- After each dependent merge, the lead agent updates downstream branches from
+  `main`, reruns affected verification, and checks the GitHub board, open PRs,
+  review comments, and CI before starting the next wave.
+- Merged code is not enough to close an issue when staging, production, vendor,
+  or physical evidence remains in its acceptance criteria. Record the remaining
+  gate and keep the issue open.
+- Delegation is not a stopping point. The lead agent continues through
+  integration and final QA until the goal is achieved or a specific external
+  blocker is documented.
+
 ### PR requirements (always)
 - PR description includes:
   - Summary (1-3 bullets)
