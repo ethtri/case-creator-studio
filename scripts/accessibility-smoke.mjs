@@ -644,6 +644,10 @@ try {
   auditResults.push(
     await assertNoSeriousAxeViolations(page, "catalog-light-desktop"),
   );
+  await page.screenshot({
+    path: resolve(outputDir, "catalog-light-desktop.png"),
+    fullPage: true,
+  });
 
   await page.getByRole("button", { name: "Open cart, 2 items" }).click();
   const seededCartDialog = page.getByRole("dialog", {
@@ -682,6 +686,10 @@ try {
   auditResults.push(
     await assertNoSeriousAxeViolations(page, "product-offer-light-desktop"),
   );
+  await page.screenshot({
+    path: resolve(outputDir, "product-offer-light-desktop.png"),
+    fullPage: true,
+  });
 
   await page.goBack();
   await page.waitForURL(`${origin}/catalog`);
@@ -981,6 +989,37 @@ try {
     path: resolve(outputDir, "catalog-dark-mobile.png"),
     fullPage: true,
   });
+
+  await mobilePage
+    .getByRole("link", {
+      name: "View details for iPhone 17 Pro Max",
+    })
+    .click();
+  await mobilePage.waitForURL(/\/phone-cases\/iphone-17-pro-max/);
+  await mobilePage
+    .getByRole("heading", {
+      level: 1,
+      name: "Design your own iPhone 17 Pro Max phone case.",
+    })
+    .waitFor();
+  await mobilePage
+    .locator('[data-product-offer="true"]')
+    .getByText("$29.99 USD", { exact: true })
+    .waitFor();
+  await assertNoHorizontalOverflow(mobilePage, "Mobile product offer");
+  auditResults.push(
+    await assertNoSeriousAxeViolations(
+      mobilePage,
+      "product-offer-dark-mobile",
+    ),
+  );
+  await mobilePage.screenshot({
+    path: resolve(outputDir, "product-offer-dark-mobile.png"),
+    fullPage: true,
+  });
+  await mobilePage.goBack();
+  await mobilePage.waitForURL(`${origin}/catalog`);
+  await waitForStableUi(mobilePage);
 
   await mobilePage.getByRole("button", { name: "Open cart, 2 items" }).click();
   await mobilePage
@@ -1547,10 +1586,13 @@ try {
         audited: auditResults,
         evidence: [
           "output/playwright/home-light-desktop.png",
+          "output/playwright/catalog-light-desktop.png",
+          "output/playwright/product-offer-light-desktop.png",
           "output/playwright/preview-light-desktop.png",
           "output/playwright/checkout-light-desktop.png",
           "output/playwright/home-dark-mobile.png",
           "output/playwright/catalog-dark-mobile.png",
+          "output/playwright/product-offer-dark-mobile.png",
           "output/playwright/cart-dark-mobile.png",
           "output/playwright/checkout-dark-mobile.png",
           "output/playwright/checkout-light-mobile.png",
