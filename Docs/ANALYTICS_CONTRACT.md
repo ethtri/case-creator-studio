@@ -153,6 +153,71 @@ then deploy `ga4-outbox-drain` before applying the cron migration. Do not apply
 this chain until the production migration backlog and required secrets have
 been reviewed. A manual drain is:
 
+Before the controlled purchase/refund reconciliation in #100, run the
+repository's read-only, fail-closed preflight. It verifies the migration and
+function source contracts, requires explicit non-secret deployment
+attestations, checks the Stripe subscription contract, and writes a sanitized
+evidence scaffold to an ignored path. It does not inspect secret values or
+mutate Supabase, Stripe, GA4, or payment state.
+
+Start from
+`scripts/fixtures/analytics-reconciliation-attestation.example.json`, replace
+every placeholder with sanitized evidence from the selected environment, and
+keep the working copy under `output/analytics-reconciliation/`. The function
+`sourceCommit` may be an earlier commit only when the tracked function and
+shared analytics sources are byte-for-byte unchanged from current `HEAD`.
+
+```text
+npm run analytics:reconciliation-preflight -- --help
+
+npm run analytics:reconciliation-preflight -- \
+  --target staging-analytics \
+  --stripe-mode test \
+  --supabase-project-ref abcdefghijklmnopqrst \
+  --operator launch-operator \
+  --window-start 2026-07-18T16:00:00.000Z \
+  --window-end 2026-07-18T17:00:00.000Z \
+  --timezone America/Los_Angeles \
+  --attestations output/analytics-reconciliation/attestations.json \
+  --output output/analytics-reconciliation/2026-07-18T1600Z.json
+```
+
+Live mode additionally requires `--confirm-live-read-only`. That flag confirms
+the target selection only; it does not authorize a live purchase, refund,
+deployment, or legal acknowledgement. The command refuses output outside
+`output/analytics-reconciliation/`, refuses overwrites and symlink traversal,
+and rejects likely credentials or personal values in supplied attestations.
+
+The generated file is an offline contract scaffold, not proof that Supabase,
+Stripe, or GA4 is configured correctly. Every attestation includes a sanitized
+capture label, capture time, and fixed source type; the operator must retain
+and privately cross-check the underlying source-of-truth capture. Run the
+preflight before the controlled test window; captures must be no more than 24
+hours old and cannot be later than the preflight time. The scaffold therefore
+records `externalDeploymentVerifiedByCommand: false`.
+
+Do not paste raw query results or unrestricted notes into the scaffold. Record
+only bounded outcomes, 12-character one-way fingerprints, and sanitized
+evidence labels. Do not change the generated target, queries, preflight
+contract, or privacy policy: the validator binds those immutable sections with
+a SHA-256 contract fingerprint. That fingerprint detects accidental drift; it
+is stored with the artifact and is not a signature or proof of authenticity.
+The completed artifact must also record the full ordered cleanup checklist.
+Before attaching it to GitHub, run:
+
+```text
+npm run analytics:reconciliation-evidence-check -- \
+  output/analytics-reconciliation/2026-07-18T1600Z.json
+```
+
+That privacy/schema check still does not prove external truth. Run the growth
+validator separately against its own privacy-reviewed reporting export, using
+the positional path required by that validator:
+
+```text
+node scripts/validate-growth-reporting.mjs path/to/growth-export.json
+```
+
 ```text
 POST https://<project-ref>.supabase.co/functions/v1/ga4-outbox-drain
 Authorization: Bearer <GA4_OUTBOX_DRAIN_AUTH_SECRET>

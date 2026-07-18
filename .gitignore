@@ -50,6 +50,7 @@ coverage
 .playwright-mcp/
 output/playwright/
 output/performance/
+output/analytics-reconciliation/
 
 # Temporary files
 *.tmp
