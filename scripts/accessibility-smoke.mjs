@@ -522,6 +522,26 @@ const assertNoHorizontalOverflow = async (page, label) => {
   );
 };
 
+const assertFullyOpaqueFrames = async (page, locators, label) => {
+  const frameDelays = [0, 50, 50, 100, 200];
+  let elapsedMs = 0;
+
+  for (const delayMs of frameDelays) {
+    if (delayMs > 0) {
+      await page.waitForTimeout(delayMs);
+      elapsedMs += delayMs;
+    }
+
+    for (const locator of locators) {
+      assert.equal(
+        await locator.evaluate((element) => getComputedStyle(element).opacity),
+        "1",
+        `${label} must remain fully opaque at ${elapsedMs} ms.`,
+      );
+    }
+  }
+};
+
 const waitForImage = async (locator, label) => {
   await locator.waitFor({ state: "visible" });
   const dimensions = await locator.evaluate(
@@ -1339,6 +1359,14 @@ try {
     ),
     true,
     "The verified result heading should receive focus after retry.",
+  );
+  const orderDetailsSurface = verificationPage
+    .getByRole("heading", { level: 2, name: "Order details" })
+    .locator("xpath=..");
+  await assertFullyOpaqueFrames(
+    verificationPage,
+    [verifiedHeading.locator("xpath=.."), orderDetailsSurface],
+    "Order verification success surfaces",
   );
   assert.equal(
     getVerificationCalls(),

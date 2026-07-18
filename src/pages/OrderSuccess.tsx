@@ -424,7 +424,7 @@ const OrderSuccess = () => {
       <main className="container mx-auto px-6 py-12 sm:py-16">
         <motion.div
           className="mx-auto max-w-2xl text-center"
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
@@ -461,7 +461,7 @@ const OrderSuccess = () => {
 
           <motion.div
             className="mb-6 rounded-2xl bg-card p-6 text-left shadow-soft"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
           >
