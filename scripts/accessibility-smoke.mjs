@@ -748,6 +748,40 @@ try {
       headingColor: headingStyle.color,
     };
   });
+  const desktopHeroArtwork = await homeHero
+    .locator('[data-hero-artwork="true"]')
+    .evaluate((image) => ({
+      currentSrc: image.currentSrc,
+      naturalWidth: image.naturalWidth,
+      naturalHeight: image.naturalHeight,
+      opacity: Number.parseFloat(getComputedStyle(image).opacity),
+    }));
+  assert.match(
+    desktopHeroArtwork.currentSrc,
+    /hero-wide-(?:960|1536)\.(?:avif|webp|jpg)/,
+    "Desktop hero must render a wide responsive artwork candidate.",
+  );
+  assert.ok(
+    desktopHeroArtwork.naturalWidth >= 900 &&
+      desktopHeroArtwork.naturalHeight >= 600,
+    "Desktop hero artwork must decode at a useful intrinsic size.",
+  );
+  assert.ok(
+    desktopHeroArtwork.opacity >= 0.85,
+    "Desktop hero artwork must remain visibly composited.",
+  );
+  const desktopHeroScrim = await homeHero
+    .locator('[data-hero-desktop-scrim="true"]')
+    .evaluate((element) => ({
+      display: getComputedStyle(element).display,
+      backgroundImage: getComputedStyle(element).backgroundImage,
+    }));
+  assert.equal(desktopHeroScrim.display, "block");
+  assert.match(
+    desktopHeroScrim.backgroundImage,
+    /rgba\(8, 5, 15, 0\.02\) 100%\)/,
+    "Desktop hero scrim must preserve the low-alpha artwork reveal on the right.",
+  );
   assert.equal(
     await homeHero.getAttribute("data-hero-theme"),
     "fixed-dark",
@@ -953,6 +987,13 @@ try {
   await assertTargetSize(modelDesignLink, "Catalog model design");
   const detailsDefaultStyle = await getFrameStyle(modelDetailsLink);
   await modelDetailsLink.hover();
+  await page.waitForTimeout(10);
+  const detailsHoverStyle = await getFrameStyle(modelDetailsLink);
+  assert.notEqual(
+    detailsHoverStyle.backgroundColor,
+    detailsDefaultStyle.backgroundColor,
+    "Catalog details hover must change the action background.",
+  );
   const detailsBox = await modelDetailsLink.boundingBox();
   assert.ok(detailsBox, "Catalog details link must have a visible box.");
   await page.mouse.move(
@@ -960,11 +1001,27 @@ try {
     detailsBox.y + detailsBox.height / 2,
   );
   await page.mouse.down();
+  assert.equal(
+    await modelDetailsLink.evaluate((element) => element.matches(":active")),
+    true,
+    "Catalog details link must enter the active pseudo-class while pressed.",
+  );
+  assert.equal(
+    await modelDetailsLink.evaluate((element) => element.matches(":hover")),
+    true,
+    "Catalog details link must remain hovered while pressed.",
+  );
+  await page.waitForTimeout(10);
   const detailsActiveStyle = await getFrameStyle(modelDetailsLink);
   assert.notEqual(
     detailsActiveStyle.backgroundColor,
-    detailsDefaultStyle.backgroundColor,
-    "Catalog details link must expose a pressed background color.",
+    detailsHoverStyle.backgroundColor,
+    "Catalog details pressed background must be distinct from hover.",
+  );
+  assert.notEqual(
+    detailsActiveStyle.color,
+    detailsHoverStyle.color,
+    "Catalog details pressed text must be distinct from hover.",
   );
   assert.equal(
     detailsActiveStyle.transform,
@@ -976,6 +1033,13 @@ try {
 
   const designDefaultStyle = await getFrameStyle(modelDesignLink);
   await modelDesignLink.hover();
+  await page.waitForTimeout(10);
+  const designHoverStyle = await getFrameStyle(modelDesignLink);
+  assert.notEqual(
+    designHoverStyle.backgroundColor,
+    designDefaultStyle.backgroundColor,
+    "Catalog model-action hover must change the background.",
+  );
   const designBox = await modelDesignLink.boundingBox();
   assert.ok(designBox, "Catalog model action must have a visible box.");
   await page.mouse.move(
@@ -983,11 +1047,22 @@ try {
     designBox.y + designBox.height / 2,
   );
   await page.mouse.down();
+  assert.equal(
+    await modelDesignLink.evaluate((element) => element.matches(":active")),
+    true,
+    "Catalog model action must enter the active pseudo-class while pressed.",
+  );
+  assert.equal(
+    await modelDesignLink.evaluate((element) => element.matches(":hover")),
+    true,
+    "Catalog model action must remain hovered while pressed.",
+  );
+  await page.waitForTimeout(10);
   const designActiveStyle = await getFrameStyle(modelDesignLink);
   assert.notEqual(
     designActiveStyle.backgroundColor,
-    designDefaultStyle.backgroundColor,
-    "Catalog model action must expose a pressed background color.",
+    designHoverStyle.backgroundColor,
+    "Catalog model-action pressed background must be distinct from hover.",
   );
   assert.ok(
     designActiveStyle.transform === "none" ||
@@ -1297,6 +1372,40 @@ try {
     "Mobile hero image",
   );
   const mobileHero = mobilePage.locator('[data-home-design-bench="true"]');
+  const mobileHeroArtwork = await mobileHero
+    .locator('[data-hero-artwork="true"]')
+    .evaluate((image) => ({
+      currentSrc: image.currentSrc,
+      naturalWidth: image.naturalWidth,
+      naturalHeight: image.naturalHeight,
+      opacity: Number.parseFloat(getComputedStyle(image).opacity),
+    }));
+  assert.match(
+    mobileHeroArtwork.currentSrc,
+    /hero-narrow-(?:640|1024)\.(?:avif|webp|jpg)/,
+    "Mobile hero must render a narrow responsive artwork candidate.",
+  );
+  assert.ok(
+    mobileHeroArtwork.naturalWidth >= 390 &&
+      mobileHeroArtwork.naturalHeight >= 390,
+    "Mobile hero artwork must decode at a useful intrinsic size.",
+  );
+  assert.ok(
+    mobileHeroArtwork.opacity >= 0.85,
+    "Mobile hero artwork must remain visibly composited.",
+  );
+  const mobileHeroScrim = await mobileHero
+    .locator('[data-hero-mobile-scrim="true"]')
+    .evaluate((element) => ({
+      display: getComputedStyle(element).display,
+      backgroundImage: getComputedStyle(element).backgroundImage,
+    }));
+  assert.equal(mobileHeroScrim.display, "block");
+  assert.match(
+    mobileHeroScrim.backgroundImage,
+    /rgba\(8, 5, 15, 0\.15\)/,
+    "Mobile hero scrim must retain its translucent artwork reveal.",
+  );
   const darkMobileHeroSignature = await mobileHero.evaluate((element) => {
     const style = getComputedStyle(element);
     const headingStyle = getComputedStyle(element.querySelector("h1"));
@@ -2139,6 +2248,68 @@ try {
     "Home starting-model selection",
   );
   await homeAnalyticsContext.close();
+
+  const catalogSelectionScenarios = [
+    {
+      actionName: "View details for iPhone 17 Pro Max",
+      destination: /\/phone-cases\/iphone-17-pro-max/,
+      placement: "catalog_view_details",
+    },
+    {
+      actionName: "Choose model for iPhone 17 Pro Max",
+      destination: /\/design\/iphone-17-pro-max/,
+      placement: "catalog_start_design",
+    },
+  ];
+
+  for (const scenario of catalogSelectionScenarios) {
+    const selectionContext = await browser.newContext({
+      viewport: { width: 1280, height: 900 },
+      reducedMotion: "reduce",
+      colorScheme: "light",
+    });
+    await mockExternalServices(selectionContext);
+    await installAnalyticsRecorder(selectionContext, "granted");
+    const selectionPage = await selectionContext.newPage();
+    await selectionPage.goto(`${origin}/catalog`);
+    await selectionPage
+      .getByRole("heading", { level: 1, name: "Choose Your Phone" })
+      .waitFor();
+    await selectionPage
+      .getByRole("link", { name: scenario.actionName })
+      .click();
+    await selectionPage.waitForURL(scenario.destination);
+    await waitForAnalyticsEvents(selectionPage, "select_item", 1);
+    await selectionPage.waitForTimeout(50);
+    const selectionEvents = await getAnalyticsEvents(
+      selectionPage,
+      "select_item",
+    );
+    assert.equal(
+      selectionEvents.length,
+      1,
+      `${scenario.placement} must emit exactly one selection event.`,
+    );
+    assert.deepEqual(
+      {
+        placement: selectionEvents[0].payload.placement,
+        itemListId: selectionEvents[0].payload.item_list_id,
+        currency: selectionEvents[0].payload.currency,
+      },
+      {
+        placement: scenario.placement,
+        itemListId: "phone_models",
+        currency: "USD",
+      },
+      `${scenario.placement} must retain its exact catalog analytics context.`,
+    );
+    assertCompleteAnalyticsItems(
+      selectionEvents[0],
+      1,
+      `${scenario.placement} selection`,
+    );
+    await selectionContext.close();
+  }
 
   const lateGrantContext = await browser.newContext({
     viewport: { width: 1440, height: 1000 },

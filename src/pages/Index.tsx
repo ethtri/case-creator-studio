@@ -130,6 +130,7 @@ const Index = () => {
               sizes="100vw"
               alt=""
               aria-hidden="true"
+              data-hero-artwork="true"
               width="1024"
               height="1024"
               {...{ fetchpriority: "high" }}
@@ -138,8 +139,14 @@ const Index = () => {
               className="h-full w-full object-cover object-center opacity-90"
             />
           </picture>
-          <div className="absolute inset-0 bg-gradient-to-b from-[#08050f]/15 via-[#08050f]/60 to-[#08050f] md:hidden" />
-          <div className="absolute inset-0 hidden bg-[linear-gradient(90deg,#08050f_0%,rgba(8,5,15,0.96)_27%,rgba(8,5,15,0.52)_43%,rgba(8,5,15,0.08)_66%,rgba(8,5,15,0.02)_100%)] md:block" />
+          <div
+            className="absolute inset-0 bg-gradient-to-b from-[#08050f]/15 via-[#08050f]/60 to-[#08050f] md:hidden"
+            data-hero-mobile-scrim="true"
+          />
+          <div
+            className="absolute inset-0 hidden bg-[linear-gradient(90deg,#08050f_0%,rgba(8,5,15,0.96)_27%,rgba(8,5,15,0.52)_43%,rgba(8,5,15,0.08)_66%,rgba(8,5,15,0.02)_100%)] md:block"
+            data-hero-desktop-scrim="true"
+          />
           <div className="absolute inset-0 bg-gradient-to-t from-[#08050f]/90 via-transparent to-[#08050f]/45 md:bg-[linear-gradient(180deg,rgba(8,5,15,0.24)_0%,transparent_22%,transparent_78%,rgba(8,5,15,0.32)_100%)]" />
           <div
             className="absolute inset-0 opacity-30"
