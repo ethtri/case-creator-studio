@@ -89,6 +89,12 @@ const validate = ({
     siteUrl,
   });
 
+const wrapVisibleOffer = (html, before, after = "") =>
+  html.replace(
+    /(<div data-product-offer="true"[\s\S]*?<\/div>)/,
+    `${before}$1${after}`,
+  );
+
 test("accepts a reconciled product route, analytics item, and checkout price", () => {
   assert.deepEqual(validate(), []);
 });
@@ -124,6 +130,42 @@ test("detects visible price, currency, and text drift", () => {
   );
 });
 
+test("rejects offer markers excluded from rendered or accessible content", () => {
+  const hostilePages = [
+    pageHtml().replace(
+      'data-product-offer="true"',
+      'hidden data-product-offer="true"',
+    ),
+    pageHtml().replace(
+      'data-product-offer="true"',
+      'class="sr-only" data-product-offer="true"',
+    ),
+    wrapVisibleOffer(pageHtml(), '<div aria-hidden="true">', "</div>"),
+    wrapVisibleOffer(pageHtml(), '<div style="display: none">', "</div>"),
+    wrapVisibleOffer(pageHtml(), "<div inert>", "</div>"),
+  ];
+
+  for (const html of hostilePages) {
+    const findings = validate({
+      html: `${html}<p>$99.99 USD</p>`,
+    });
+    assert.ok(
+      findings.some((finding) => finding.code === "excluded_visible_offer"),
+    );
+  }
+});
+
+test("ignores hidden correct text inside a visibly wrong marked offer", () => {
+  assert.ok(
+    validate({
+      html: pageHtml({
+        visibleText:
+          '<span aria-hidden="true">$29.99 USD</span><span>$99.99 USD</span>',
+      }),
+    }).some((finding) => finding.code === "visible_offer_text_drift"),
+  );
+});
+
 test("detects hidden-only structured item condition claims", () => {
   assert.ok(
     validate({
@@ -132,6 +174,25 @@ test("detects hidden-only structured item condition claims", () => {
       }),
     }).some((finding) => finding.code === "hidden_only_item_condition"),
   );
+});
+
+test("requires exactly one Product JSON-LD entity", () => {
+  const hostileDuplicates = [
+    '<script type="application/ld+json">{"@context":"https://schema.org","@type":"Product","productID":"iphone-test","offers":{"price":"29.99","priceCurrency":"USD"}}</script>',
+    '<SCRIPT data-hostile="true" TYPE="application/ld+json">{"@context":"https://schema.org","@type":["Thing","Product"],"productID":"iphone-test"}</SCRIPT>',
+    '<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Product","productID":"iphone-test"}]}</script>',
+    '<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","mainEntity":{"@type":"Product","productID":"iphone-test"}}</script>',
+  ];
+
+  for (const duplicateProduct of hostileDuplicates) {
+    assert.ok(
+      validate({
+        html: `${pageHtml()}${duplicateProduct}`,
+      }).some(
+        (finding) => finding.code === "invalid_product_json_ld_count",
+      ),
+    );
+  }
 });
 
 test("detects unverified availability and visible breadcrumb drift", () => {
@@ -174,6 +235,54 @@ test("detects orphan product routes even when they only link to themselves", () 
         ],
       ]),
     }).some((finding) => finding.code === "orphan_product_page"),
+  );
+});
+
+test("hidden, inert, disabled, and unnamed links do not de-orphan routes", () => {
+  const hostileLinks = [
+    '<a hidden href="/phone-cases/iphone-test">Details</a>',
+    '<div aria-hidden="true"><a href="/phone-cases/iphone-test">Details</a></div>',
+    '<div style="display:none"><a href="/phone-cases/iphone-test">Details</a></div>',
+    '<div inert><a href="/phone-cases/iphone-test">Details</a></div>',
+    '<a class="sr-only" href="/phone-cases/iphone-test">Details</a>',
+    '<a aria-disabled="true" href="/phone-cases/iphone-test">Details</a>',
+    '<a tabindex="-1" href="/phone-cases/iphone-test">Details</a>',
+    '<a href="/phone-cases/iphone-test"></a>',
+  ];
+
+  for (const link of hostileLinks) {
+    assert.ok(
+      validate({
+        internalPages: new Map([["/catalog", link]]),
+      }).some((finding) => finding.code === "orphan_product_page"),
+    );
+  }
+});
+
+test("metadata parsing catches case and attribute-order duplicate bypasses", () => {
+  const hostileHtml = pageHtml()
+    .replace(
+      "</title>",
+      "</title><TITLE>Duplicate product title</TITLE>",
+    )
+    .replace(
+      '<meta name="description" content="Design a personalized iPhone Test phone case." />',
+      '<meta name="description" content="Design a personalized iPhone Test phone case." /><META content="Duplicate description" name="description">',
+    )
+    .replace(
+      `<link rel="canonical" href="${siteUrl}/phone-cases/iphone-test" />`,
+      `<link rel="canonical" href="${siteUrl}/phone-cases/iphone-test" /><LINK href="${siteUrl}/phone-cases/duplicate" rel="canonical">`,
+    );
+  const findings = validate({ html: hostileHtml });
+
+  assert.ok(
+    findings.some((finding) => finding.code === "invalid_product_title"),
+  );
+  assert.ok(
+    findings.some((finding) => finding.code === "invalid_product_description"),
+  );
+  assert.ok(
+    findings.some((finding) => finding.code === "invalid_product_canonical"),
   );
 });
 

@@ -1,18 +1,3 @@
-const getMatches = (value, pattern) =>
-  [...value.matchAll(pattern)].map((match) => match[1]);
-
-const getJsonLd = (html) =>
-  getMatches(
-    html,
-    /<script\s+type="application\/ld\+json">(.*?)<\/script>/gs,
-  ).flatMap((value) => {
-    try {
-      return [JSON.parse(value)];
-    } catch {
-      return [];
-    }
-  });
-
 const decodeHtml = (value) =>
   value
     .replaceAll("&amp;", "&")
@@ -35,32 +20,301 @@ const absoluteUrl = (value, pageUrl) => new URL(value, pageUrl).href;
 const getAttribute = (tag, name) =>
   decodeHtml(tag.match(new RegExp(`\\b${name}="([^"]*)"`))?.[1] ?? "");
 
-const getVisibleOffer = (html) => {
-  const offerTags = [
-    ...html.matchAll(
-      /<([a-z][\w:-]*)\b(?=[^>]*\bdata-product-offer="true")[^>]*>/gi,
-    ),
-  ];
+const VOID_ELEMENTS = new Set([
+  "area",
+  "base",
+  "br",
+  "col",
+  "embed",
+  "hr",
+  "img",
+  "input",
+  "link",
+  "meta",
+  "param",
+  "source",
+  "track",
+  "wbr",
+]);
+const RESPONSIVE_PREFIX = /^(?:sm|md|lg|xl|2xl):/;
+const VISIBLE_DISPLAY_CLASS =
+  /^(?:sm|md|lg|xl|2xl):(?:block|flex|grid|inline|inline-block|inline-flex|inline-grid|table|visible)$/;
+const VISIBLE_OPACITY_CLASS =
+  /^(?:sm|md|lg|xl|2xl):opacity-(?!0$)\d+$/;
 
-  if (offerTags.length !== 1) {
-    return { count: offerTags.length, offer: null };
+const parseAttributes = (tag) => {
+  const attributes = new Map();
+  const tagNameEnd = tag.search(/\s|\/?>/);
+  const source = tag.slice(tagNameEnd < 0 ? tag.length : tagNameEnd);
+  const pattern =
+    /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
+
+  for (const match of source.matchAll(pattern)) {
+    attributes.set(
+      match[1].toLowerCase(),
+      decodeHtml(match[2] ?? match[3] ?? match[4] ?? ""),
+    );
   }
 
-  const match = offerTags[0];
-  const tagName = match[1];
-  const openingTag = match[0];
-  const contentStart = (match.index ?? 0) + openingTag.length;
-  const contentEnd = html.indexOf(`</${tagName}>`, contentStart);
-  const content = contentEnd >= 0 ? html.slice(contentStart, contentEnd) : "";
+  return attributes;
+};
+
+const classTokens = (attributes) =>
+  (attributes.get("class") ?? "").split(/\s+/).filter(Boolean);
+
+const hasAlwaysHiddenClass = (attributes) => {
+  const tokens = classTokens(attributes);
+  const responsiveDisplay = tokens.some((token) =>
+    VISIBLE_DISPLAY_CLASS.test(token),
+  );
+  const responsiveOpacity = tokens.some((token) =>
+    VISIBLE_OPACITY_CLASS.test(token),
+  );
+
+  return (
+    ((tokens.includes("hidden") || tokens.includes("!hidden")) &&
+      !responsiveDisplay) ||
+    ((tokens.includes("sr-only") || tokens.includes("!sr-only")) &&
+      !tokens.some(
+        (token) =>
+          RESPONSIVE_PREFIX.test(token) && token.endsWith(":not-sr-only"),
+      )) ||
+    ((tokens.includes("invisible") || tokens.includes("!invisible")) &&
+      !tokens.some(
+        (token) =>
+          RESPONSIVE_PREFIX.test(token) && token.endsWith(":visible"),
+      )) ||
+    ((tokens.includes("opacity-0") || tokens.includes("!opacity-0")) &&
+      !responsiveOpacity)
+  );
+};
+
+const hasHiddenStyle = (attributes) => {
+  const style = (attributes.get("style") ?? "")
+    .toLowerCase()
+    .replace(/\s+/g, "");
+  return (
+    /(?:^|;)display:none(?:!important)?(?:;|$)/.test(style) ||
+    /(?:^|;)visibility:hidden(?:!important)?(?:;|$)/.test(style) ||
+    /(?:^|;)opacity:0(?:!important)?(?:;|$)/.test(style)
+  );
+};
+
+const hasBlockedPointerStyle = (attributes) => {
+  const style = (attributes.get("style") ?? "")
+    .toLowerCase()
+    .replace(/\s+/g, "");
+  return (
+    /(?:^|;)pointer-events:none(?:!important)?(?:;|$)/.test(style) ||
+    classTokens(attributes).some(
+      (token) =>
+        token === "pointer-events-none" ||
+        token === "!pointer-events-none",
+    )
+  );
+};
+
+const attributeIsTrue = (attributes, name) => {
+  if (!attributes.has(name)) return false;
+  const value = attributes.get(name).trim().toLowerCase();
+  return value === "" || value === "true" || value === name;
+};
+
+const scanHtmlElements = (html) => {
+  const elements = [];
+  const byStart = new Map();
+  const stack = [];
+  const tagPattern = /<!--[\s\S]*?-->|<![^>]*>|<\/?[a-z][^>]*>/gi;
+
+  for (const match of html.matchAll(tagPattern)) {
+    const tag = match[0];
+    if (tag.startsWith("<!--") || tag.startsWith("<!")) continue;
+    const name = tag.match(/^<\/?\s*([a-z][\w:-]*)/i)?.[1]?.toLowerCase();
+    if (!name) continue;
+
+    if (/^<\//.test(tag)) {
+      const stackIndex = stack.findLastIndex(
+        (element) => element.name === name,
+      );
+      if (stackIndex < 0) continue;
+
+      for (const element of stack.slice(stackIndex)) {
+        if (element.contentEnd === null) {
+          element.contentEnd = match.index;
+          element.end = match.index + tag.length;
+        }
+      }
+      stack.length = stackIndex;
+      continue;
+    }
+
+    const attributes = parseAttributes(tag);
+    const parent = stack.at(-1);
+    const ownHidden =
+      attributes.has("hidden") ||
+      attributeIsTrue(attributes, "aria-hidden") ||
+      hasHiddenStyle(attributes) ||
+      hasAlwaysHiddenClass(attributes) ||
+      name === "template" ||
+      name === "script" ||
+      name === "style";
+    const ownInert = attributes.has("inert");
+    const excludedFromUsers =
+      Boolean(parent?.excludedFromUsers) || ownHidden || ownInert;
+    const interactionBlocked =
+      Boolean(parent?.interactionBlocked) ||
+      excludedFromUsers ||
+      hasBlockedPointerStyle(attributes);
+    const element = {
+      name,
+      attributes,
+      start: match.index,
+      contentStart: match.index + tag.length,
+      contentEnd: null,
+      end: null,
+      excludedFromUsers,
+      interactionBlocked,
+    };
+
+    elements.push(element);
+    byStart.set(element.start, element);
+
+    if (VOID_ELEMENTS.has(name) || /\/>$/.test(tag)) {
+      element.contentEnd = element.contentStart;
+      element.end = element.contentStart;
+    } else {
+      stack.push(element);
+    }
+  }
+
+  for (const element of stack) {
+    element.contentEnd = html.length;
+    element.end = html.length;
+  }
+
+  return { elements, byStart };
+};
+
+const getJsonLd = (html) => {
+  const scan = scanHtmlElements(html);
+  return scan.elements
+    .filter(
+      (element) =>
+        element.name === "script" &&
+        element.attributes.get("type")?.toLowerCase() ===
+          "application/ld+json",
+    )
+    .flatMap((element) => {
+      try {
+        return [
+          JSON.parse(
+            html.slice(element.contentStart, element.contentEnd),
+          ),
+        ];
+      } catch {
+        return [];
+      }
+    });
+};
+
+const flattenJsonLdEntities = (values) => {
+  const entities = [];
+  const visited = new Set();
+  const visit = (value) => {
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (!value || typeof value !== "object" || visited.has(value)) return;
+
+    visited.add(value);
+    entities.push(value);
+    Object.values(value).forEach(visit);
+  };
+
+  visit(values);
+  return entities;
+};
+
+const hasJsonLdType = (value, expectedType) => {
+  const types = Array.isArray(value?.["@type"])
+    ? value["@type"]
+    : [value?.["@type"]];
+  return types.includes(expectedType);
+};
+
+const visibleTextContent = (html, root, byStart) => {
+  let cursor = root.contentStart;
+  let visibleText = "";
+  const stack = [root];
+  const tagPattern = /<!--[\s\S]*?-->|<![^>]*>|<\/?[a-z][^>]*>/gi;
+  tagPattern.lastIndex = root.contentStart;
+
+  for (
+    let match = tagPattern.exec(html);
+    match && match.index < root.contentEnd;
+    match = tagPattern.exec(html)
+  ) {
+    if (!stack.at(-1)?.excludedFromUsers) {
+      visibleText += html.slice(cursor, match.index);
+    }
+
+    const tag = match[0];
+    if (!tag.startsWith("<!--") && !tag.startsWith("<!")) {
+      if (/^<\//.test(tag)) {
+        if (stack.length > 1) stack.pop();
+      } else {
+        const element = byStart.get(match.index);
+        if (
+          element &&
+          !VOID_ELEMENTS.has(element.name) &&
+          !/\/>$/.test(tag)
+        ) {
+          stack.push(element);
+        }
+      }
+    }
+    cursor = match.index + tag.length;
+  }
+
+  if (!stack.at(-1)?.excludedFromUsers) {
+    visibleText += html.slice(cursor, root.contentEnd);
+  }
+
+  return textContent(visibleText);
+};
+
+const getVisibleOffer = (html) => {
+  const scan = scanHtmlElements(html);
+  const offerElements = scan.elements.filter(
+    (element) =>
+      element.attributes.get("data-product-offer")?.toLowerCase() === "true",
+  );
+
+  if (
+    offerElements.length !== 1 ||
+    offerElements[0].excludedFromUsers
+  ) {
+    return {
+      count: offerElements.length,
+      excludedCount: offerElements.filter(
+        (element) => element.excludedFromUsers,
+      ).length,
+      offer: null,
+    };
+  }
+
+  const element = offerElements[0];
 
   return {
     count: 1,
+    excludedCount: 0,
     offer: {
-      productId: getAttribute(openingTag, "data-product-id"),
-      price: getAttribute(openingTag, "data-price"),
-      currency: getAttribute(openingTag, "data-currency"),
-      itemCondition: getAttribute(openingTag, "data-item-condition"),
-      text: textContent(content),
+      productId: element.attributes.get("data-product-id") ?? "",
+      price: element.attributes.get("data-price") ?? "",
+      currency: element.attributes.get("data-currency") ?? "",
+      itemCondition: element.attributes.get("data-item-condition") ?? "",
+      text: visibleTextContent(html, element, scan.byStart),
     },
   };
 };
@@ -85,17 +339,31 @@ const getProductMockup = (html) => {
   };
 };
 
-const getProductMetadata = (html) => ({
-  titles: getMatches(html, /<title>(.*?)<\/title>/gs).map(textContent),
-  descriptions: getMatches(
-    html,
-    /<meta\s+name="description"\s+content="([^"]*)"\s*\/?>/g,
-  ).map(decodeHtml),
-  canonicals: getMatches(
-    html,
-    /<link\s+rel="canonical"\s+href="([^"]*)"\s*\/?>/g,
-  ).map(decodeHtml),
-});
+const getProductMetadata = (html) => {
+  const scan = scanHtmlElements(html);
+  return {
+    titles: scan.elements
+      .filter((element) => element.name === "title")
+      .map((element) => visibleTextContent(html, element, scan.byStart)),
+    descriptions: scan.elements
+      .filter(
+        (element) =>
+          element.name === "meta" &&
+          element.attributes.get("name")?.toLowerCase() === "description",
+      )
+      .map((element) => element.attributes.get("content") ?? ""),
+    canonicals: scan.elements
+      .filter(
+        (element) =>
+          element.name === "link" &&
+          (element.attributes.get("rel") ?? "")
+            .toLowerCase()
+            .split(/\s+/)
+            .includes("canonical"),
+      )
+      .map((element) => element.attributes.get("href") ?? ""),
+  };
+};
 
 const normalizePath = (value) => {
   if (value === "/") return value;
@@ -114,10 +382,15 @@ export const validateProductLinkGraph = ({
   );
 
   for (const [sourcePath, html] of internalPages) {
-    for (const match of html.matchAll(/<a\b[^>]*\bhref="([^"]+)"[^>]*>/gi)) {
+    const scan = scanHtmlElements(html);
+    for (const element of scan.elements) {
+      if (element.name !== "a") continue;
+      const href = element.attributes.get("href");
+      if (!href) continue;
+
       let target;
       try {
-        target = new URL(decodeHtml(match[1]), `${siteUrl}${sourcePath}`);
+        target = new URL(href, `${siteUrl}${sourcePath}`);
       } catch {
         continue;
       }
@@ -136,6 +409,24 @@ export const validateProductLinkGraph = ({
         continue;
       }
 
+      const ariaDisabled = attributeIsTrue(
+        element.attributes,
+        "aria-disabled",
+      );
+      const removedFromTabOrder =
+        element.attributes.get("tabindex")?.trim() === "-1";
+      const accessibleName =
+        visibleTextContent(html, element, scan.byStart) ||
+        element.attributes.get("aria-label")?.trim();
+      if (
+        element.interactionBlocked ||
+        ariaDisabled ||
+        removedFromTabOrder ||
+        !accessibleName
+      ) {
+        continue;
+      }
+
       if (normalizePath(sourcePath) !== targetPath) {
         inboundSources.get(targetId).add(normalizePath(sourcePath));
       }
@@ -147,7 +438,8 @@ export const validateProductLinkGraph = ({
       findings.push({
         code: "orphan_product_page",
         variantId: variant.id,
-        message: `No crawlable internal page links to /phone-cases/${variant.id}`,
+        message:
+          `No visible, named, interactive internal page links to /phone-cases/${variant.id}`,
       });
     }
   }
@@ -350,12 +642,17 @@ export const validateMerchantCatalog = ({
     }
 
     const jsonLd = getJsonLd(html);
-    const product = jsonLd.find((value) => value?.["@type"] === "Product");
-    if (!product) {
+    const jsonLdEntities = flattenJsonLdEntities(jsonLd);
+    const products = jsonLdEntities.filter((value) =>
+      hasJsonLdType(value, "Product"),
+    );
+    const product = products.length === 1 ? products[0] : null;
+    if (products.length !== 1) {
       findings.push({
-        code: "missing_product_json_ld",
+        code: "invalid_product_json_ld_count",
         variantId: variant.id,
-        message: `Missing Product JSON-LD`,
+        message:
+          `Product page publishes ${products.length} Product JSON-LD entities; expected exactly 1`,
       });
     } else {
       if (product.productID !== variant.id) {
@@ -395,6 +692,14 @@ export const validateMerchantCatalog = ({
         variantId: variant.id,
         message: `Product page has ${visibleOffer.count} machine-testable visible offers; expected 1`,
       });
+      if (visibleOffer.excludedCount > 0) {
+        findings.push({
+          code: "excluded_visible_offer",
+          variantId: variant.id,
+          message:
+            `Product offer marker is hidden, inert, or excluded from assistive technology`,
+        });
+      }
     } else {
       const expectedFormattedPrice = new Intl.NumberFormat("en-US", {
         style: "currency",
@@ -478,8 +783,8 @@ export const validateMerchantCatalog = ({
         item: pageUrl,
       },
     ];
-    const structuredBreadcrumb = jsonLd.find(
-      (value) => value?.["@type"] === "BreadcrumbList",
+    const structuredBreadcrumb = jsonLdEntities.find(
+      (value) => hasJsonLdType(value, "BreadcrumbList"),
     );
     const structuredItems = Array.isArray(structuredBreadcrumb?.itemListElement)
       ? structuredBreadcrumb.itemListElement.map((item) => ({
