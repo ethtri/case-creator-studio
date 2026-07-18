@@ -88,6 +88,35 @@ active.
   integration and final QA until the goal is achieved or a specific external
   blocker is documented.
 
+### Executive escalation policy
+- Treat the user as the executive sponsor, not as the routine reviewer,
+  integrator, release operator, or project coordinator.
+- Agents own routine execution without user intervention, including repository
+  research, reasonable implementation decisions, issue and board updates,
+  worktree and branch management, commits, PR creation, review remediation, CI
+  reruns, clean squash merges, and post-merge status updates.
+- Do not ask the user to review or merge a PR, run a command, copy values between
+  tools, gather information available to agents, or approve an ordinary
+  reversible engineering decision.
+- Use available repository, GitHub, browser, infrastructure, and connected-app
+  tools to resolve access or evidence gaps before escalating. Never claim a
+  blocker after only proposing work that the agent can perform.
+- Escalate only when progress requires at least one of the following:
+  - an executive product, legal, financial, risk, or priority decision not
+    already resolved by repository guidance or the active goal
+  - credentials, permissions, billing approval, or a physical action that no
+    available tool or authorized agent can supply
+  - approval for an irreversible or materially customer-impacting production
+    action that was not already authorized by the active goal
+  - external vendor or on-site coordination whose documented preconditions are
+    satisfied and that cannot be completed asynchronously by an authorized agent
+- Before escalating, exhaust safe alternatives and report the exact blocker,
+  evidence, attempted resolutions, impact, and one recommended executive action.
+  Keep the request narrow enough that the user can decide or unblock it once.
+- When one slice is externally blocked, continue every independent executable
+  slice. Do not pause the whole goal merely because one dependency needs an
+  executive response.
+
 ### PR requirements (always)
 - PR description includes:
   - Summary (1-3 bullets)
