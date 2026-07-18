@@ -1273,9 +1273,18 @@ try {
   await verificationPage.goto(
     `${origin}/order-success?session_id=test-session-existing`,
   );
-  await verificationPage
-    .getByRole("heading", { level: 1, name: "We’re still confirming your order" })
-    .waitFor();
+  const retryableHeading = verificationPage.getByRole("heading", {
+    level: 1,
+    name: "We’re still confirming your order",
+  });
+  await retryableHeading.waitFor();
+  assert.equal(
+    await retryableHeading.evaluate((heading) =>
+      document.activeElement === heading
+    ),
+    true,
+    "The retryable result heading should receive focus after verification.",
+  );
   assert.equal(
     getVerificationCalls(),
     1,
@@ -1319,9 +1328,18 @@ try {
     true,
     "Retry must be disabled while verification is active.",
   );
-  await verificationPage
-    .getByRole("heading", { level: 1, name: "Thank you for your order!" })
-    .waitFor();
+  const verifiedHeading = verificationPage.getByRole("heading", {
+    level: 1,
+    name: "Thank you for your order!",
+  });
+  await verifiedHeading.waitFor();
+  assert.equal(
+    await verifiedHeading.evaluate((heading) =>
+      document.activeElement === heading
+    ),
+    true,
+    "The verified result heading should receive focus after retry.",
+  );
   assert.equal(
     getVerificationCalls(),
     2,
@@ -1413,9 +1431,18 @@ try {
   await verificationMobilePage.goto(
     `${origin}/order-success?session_id=test-session-review`,
   );
-  await verificationMobilePage
-    .getByRole("heading", { level: 1, name: "Your order needs support review" })
-    .waitFor();
+  const supportReviewHeading = verificationMobilePage.getByRole("heading", {
+    level: 1,
+    name: "Your order needs support review",
+  });
+  await supportReviewHeading.waitFor();
+  assert.equal(
+    await supportReviewHeading.evaluate((heading) =>
+      document.activeElement === heading
+    ),
+    true,
+    "The support-review result heading should receive focus.",
+  );
   await assertNoHorizontalOverflow(
     verificationMobilePage,
     "Mobile order verification review",

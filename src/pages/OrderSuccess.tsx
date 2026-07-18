@@ -184,6 +184,7 @@ const RecoveryPanel = ({
   state,
   isRetrying,
   onRetry,
+  headingRef,
 }: {
   state: Extract<
     VisibleVerificationState,
@@ -191,6 +192,7 @@ const RecoveryPanel = ({
   >;
   isRetrying: boolean;
   onRetry: () => void;
+  headingRef: React.RefObject<HTMLHeadingElement>;
 }) => {
   const isMissing = state.kind === "missing_session";
   const isConfirmed = state.kind === "confirmed_failure";
@@ -242,11 +244,21 @@ const RecoveryPanel = ({
             Order verification
           </p>
           <h1
+            ref={headingRef}
             id="verification-heading"
+            tabIndex={-1}
             className="text-2xl font-bold tracking-tight sm:text-3xl"
           >
             {title}
           </h1>
+          <p
+            className="sr-only"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {title}. {description}
+          </p>
           <p className="mt-3 text-muted-foreground">{description}</p>
 
           {isRetrying && (
@@ -291,6 +303,7 @@ const OrderSuccess = () => {
   const clearedOrderRef = useRef<string | null>(null);
   const activeRequestRef = useRef(0);
   const trackedStatesRef = useRef(new Set<string>());
+  const resultHeadingRef = useRef<HTMLHeadingElement>(null);
   const runnerRef = useRef(
     createOrderVerificationRunner((candidateSessionId) =>
       supabase.functions.invoke("verify-payment", {
@@ -352,6 +365,12 @@ const OrderSuccess = () => {
     });
   }, [sessionId, state]);
 
+  useEffect(() => {
+    if (state.kind !== "verifying") {
+      resultHeadingRef.current?.focus();
+    }
+  }, [state]);
+
   if (state.kind === "verifying") {
     return (
       <PageShell>
@@ -385,6 +404,7 @@ const OrderSuccess = () => {
       <RecoveryPanel
         state={state}
         isRetrying={isRetrying}
+        headingRef={resultHeadingRef}
         onRetry={() => {
           trackMarketingEvent("primary_cta_click", {
             placement: "order_verification_recovery",
@@ -420,9 +440,21 @@ const OrderSuccess = () => {
             />
           </motion.div>
 
-          <h1 className="mb-4 text-3xl font-bold md:text-4xl">
+          <h1
+            ref={resultHeadingRef}
+            tabIndex={-1}
+            className="mb-4 text-3xl font-bold md:text-4xl"
+          >
             Thank you for your order!
           </h1>
+          <p
+            className="sr-only"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            Order verified. Thank you for your order.
+          </p>
           <p className="mb-8 text-lg text-muted-foreground">
             {orderProgressCopy.summary}
           </p>

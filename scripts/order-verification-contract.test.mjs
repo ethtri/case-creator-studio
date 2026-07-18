@@ -11,6 +11,9 @@ import {
   normalizeVerificationResponse,
   trackVerificationOutcomeOnce,
 } from "../src/lib/order-verification.ts";
+import {
+  classifyPaymentVerificationOrder,
+} from "../supabase/functions/_shared/order-verification-state.ts";
 
 const order = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -74,6 +77,7 @@ test("models retryable delay, missing order record, and confirmed failure distin
       retryable: false,
       code: "checkout_expired",
       order: { ...order, status: "failed" },
+      supportReference: "SC-111111111111",
     }),
     {
       kind: "confirmed_failure",
@@ -99,6 +103,109 @@ test("does not trust arbitrary server codes, support references, or identifiers"
   );
   assert.equal(formatSupportReference("test-session-secret"), undefined);
   assert.equal(formatSupportReference(order.id), "SC-111111111111");
+});
+
+test("fails closed on hostile or malformed confirmed-failure payloads", () => {
+  const malformedPayloads = [
+    { success: false, retryable: false },
+    {
+      success: false,
+      retryable: false,
+      code: "private@example.com",
+    },
+    {
+      success: false,
+      retryable: false,
+      code: "verification_unavailable",
+    },
+    {
+      success: false,
+      retryable: false,
+      code: "payment_pending",
+    },
+    {
+      success: false,
+      retryable: false,
+      code: "order_requires_review",
+      supportReference: "private-session-secret",
+    },
+    {
+      success: false,
+      retryable: true,
+      code: "order_requires_review",
+      supportReference: "SC-111111111111",
+    },
+    {
+      success: false,
+      retryable: true,
+      order: { ...order, status: "failed" },
+      supportReference: "SC-111111111111",
+    },
+  ];
+
+  for (const payload of malformedPayloads) {
+    assert.deepEqual(normalizeVerificationResponse(payload), {
+      kind: "retryable",
+      errorCode: "verification_unavailable",
+      supportReference: payload.supportReference === "SC-111111111111"
+        ? "SC-111111111111"
+        : undefined,
+    });
+  }
+
+  assert.deepEqual(
+    normalizeVerificationResponse({
+      success: false,
+      retryable: false,
+      code: "order_requires_review",
+      supportReference: "SC-111111111111",
+    }),
+    {
+      kind: "confirmed_failure",
+      errorCode: "order_requires_review",
+      supportReference: "SC-111111111111",
+    },
+  );
+});
+
+test("requires a trusted paid-or-later status for verified success", () => {
+  for (const status of ["pending", "failed", "payment_review", "private"]) {
+    assert.deepEqual(
+      normalizeVerificationResponse({
+        success: true,
+        order: { ...order, status },
+        supportReference: "SC-111111111111",
+      }),
+      {
+        kind: "retryable",
+        errorCode: "order_record_pending",
+        supportReference: "SC-111111111111",
+      },
+    );
+  }
+});
+
+test("classifies canonical order truth for read-only shopper verification", () => {
+  assert.equal(classifyPaymentVerificationOrder("pending"), "pending_payment");
+  for (const status of ["paid", "processing", "shipped", "delivered"]) {
+    assert.equal(classifyPaymentVerificationOrder(status), "verified");
+  }
+  for (
+    const status of [
+      "canceled",
+      "cancelled",
+      "failed",
+      "payment_review",
+    ]
+  ) {
+    assert.equal(
+      classifyPaymentVerificationOrder(status),
+      "confirmed_failure",
+    );
+  }
+  for (const status of ["refunded", "private", "", null, undefined]) {
+    assert.equal(classifyPaymentVerificationOrder(status), "unknown");
+  }
 });
 
 test("sums purchased units and applies singular/plural grammar", () => {
@@ -273,8 +380,16 @@ test("shopper recovery calls only verify-payment and never emits purchase", asyn
     verifySource,
     /checkout\.sessions\.create|paymentIntents\.create|charges\.create|refunds\.create/,
   );
+  assert.doesNotMatch(
+    verifySource,
+    /\.update\(|\.insert\(|\.upsert\(|sendOrderEmail|route-fulfillment-order|recordKexiaozhanPaymentNotification|kexiaozhan_handoffs/,
+  );
   assert.doesNotMatch(verifySource, /customerEmail:\s*session/);
   assert.match(verifySource, /order:\s*buildPublicOrderSummary\(order\)/);
+  assert.match(
+    verifySource,
+    /This shopper-triggered endpoint is read-only[\s\S]{0,300}return buildExistingOrderResponse/,
+  );
   assert.match(jobMigration, /UNIQUE\s+\(order_id,\s*provider\)/);
   assert.match(
     fulfillmentSource,

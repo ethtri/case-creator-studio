@@ -57,16 +57,14 @@ type VerificationInvocation = (
 const ORDER_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SUPPORT_REFERENCE_PATTERN = /^SC-[0-9A-F]{12}$/;
-const CONFIRMED_FAILURE_STATUSES = new Set([
-  "cancelled",
-  "canceled",
-  "failed",
-  "payment_review",
+const VERIFIED_ORDER_STATUSES = new Set([
+  "paid",
+  "processing",
+  "shipped",
+  "delivered",
 ]);
-const ALLOWED_ERROR_CODES = new Set<VerificationErrorCode>([
-  "checkout_expired",
+const RETRYABLE_ERROR_CODES = new Set<VerificationErrorCode>([
   "order_record_pending",
-  "order_requires_review",
   "payment_pending",
   "verification_unavailable",
 ]);
@@ -98,12 +96,11 @@ export const formatSupportReference = (
 
 const normalizeSupportReference = (
   value: unknown,
-  orderId?: unknown,
 ): string | undefined => {
   if (typeof value === "string" && SUPPORT_REFERENCE_PATTERN.test(value)) {
     return value;
   }
-  return formatSupportReference(orderId);
+  return undefined;
 };
 
 const normalizeOrder = (value: unknown): VerifiedOrder | null => {
@@ -113,7 +110,9 @@ const normalizeOrder = (value: unknown): VerifiedOrder | null => {
   if (
     !Array.isArray(value.items) ||
     total === null ||
-    typeof value.status !== "string"
+    total < 0 ||
+    typeof value.status !== "string" ||
+    !VERIFIED_ORDER_STATUSES.has(value.status.trim().toLowerCase())
   ) {
     return null;
   }
@@ -126,15 +125,6 @@ const normalizeOrder = (value: unknown): VerifiedOrder | null => {
     status: value.status,
   };
 };
-
-const normalizeErrorCode = (
-  value: unknown,
-  fallback: VerificationErrorCode,
-): VerificationErrorCode =>
-  typeof value === "string" &&
-  ALLOWED_ERROR_CODES.has(value as VerificationErrorCode)
-    ? (value as VerificationErrorCode)
-    : fallback;
 
 export const countPurchasedUnits = (items: OrderItem[] | null | undefined) =>
   (items ?? []).reduce((total, item) => {
@@ -151,11 +141,7 @@ export const normalizeVerificationResponse = (
 ): OrderVerificationResult => {
   const response = isRecord(value) ? (value as VerificationResponse) : {};
   const order = normalizeOrder(response.order);
-  const rawOrderId = isRecord(response.order) ? response.order.id : undefined;
-  const supportReference = normalizeSupportReference(
-    response.supportReference,
-    rawOrderId,
-  );
+  const supportReference = normalizeSupportReference(response.supportReference);
 
   if (response.success === true && order && supportReference) {
     return {
@@ -173,23 +159,44 @@ export const normalizeVerificationResponse = (
     };
   }
 
-  const statusRequiresReview = order
-    ? CONFIRMED_FAILURE_STATUSES.has(order.status.toLowerCase())
-    : false;
-  if (response.retryable === false || statusRequiresReview) {
+  if (
+    response.retryable === false &&
+    response.code === "checkout_expired"
+  ) {
     return {
       kind: "confirmed_failure",
-      errorCode: normalizeErrorCode(
-        response.code,
-        statusRequiresReview ? "order_requires_review" : "checkout_expired",
-      ),
+      errorCode: "checkout_expired",
+      supportReference,
+    };
+  }
+
+  if (
+    response.retryable === false &&
+    response.code === "order_requires_review" &&
+    supportReference
+  ) {
+    return {
+      kind: "confirmed_failure",
+      errorCode: "order_requires_review",
+      supportReference,
+    };
+  }
+
+  if (
+    response.retryable === true &&
+    typeof response.code === "string" &&
+    RETRYABLE_ERROR_CODES.has(response.code as VerificationErrorCode)
+  ) {
+    return {
+      kind: "retryable",
+      errorCode: response.code as VerificationErrorCode,
       supportReference,
     };
   }
 
   return {
     kind: "retryable",
-    errorCode: normalizeErrorCode(response.code, "verification_unavailable"),
+    errorCode: "verification_unavailable",
     supportReference,
   };
 };
