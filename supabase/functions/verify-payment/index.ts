@@ -77,6 +77,44 @@ const formatSupportReference = (orderId: unknown): string | null => {
   return `SC-${orderId.replaceAll("-", "").slice(0, 12).toUpperCase()}`;
 };
 
+const buildPublicOrderSummary = (order: unknown) => {
+  if (!order || typeof order !== "object" || Array.isArray(order)) return null;
+  const record = order as Record<string, unknown>;
+  if (
+    record.total === null ||
+    record.total === undefined ||
+    (typeof record.total === "string" && !record.total.trim())
+  ) {
+    return null;
+  }
+  const total = typeof record.total === "number"
+    ? record.total
+    : Number(record.total);
+  if (
+    !Number.isFinite(total) ||
+    typeof record.status !== "string" ||
+    !Array.isArray(record.items)
+  ) {
+    return null;
+  }
+
+  return {
+    items: record.items.map((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) {
+        return { quantity: 1 };
+      }
+      const quantity = Number((item as Record<string, unknown>).quantity);
+      return {
+        quantity: Number.isFinite(quantity)
+          ? Math.max(0, Math.trunc(quantity))
+          : 1,
+      };
+    }),
+    total,
+    status: record.status.slice(0, 64),
+  };
+};
+
 const extractShippingDetails = (
   session: Stripe.Checkout.Session,
 ): ShippingDetails | null => {
@@ -261,7 +299,7 @@ serve(async (req) => {
         const expiredOrderUpdate = buildExpiredKexiaozhanOrderUpdate(
           updateData,
         );
-        const { data: blockedOrder, error: blockedOrderError } =
+        const { error: blockedOrderError } =
           await supabaseClient
             .from("orders")
             .update(expiredOrderUpdate)
@@ -305,7 +343,6 @@ serve(async (req) => {
             supportReference,
             message:
               "Payment received, but the vendor checkout link expired before payment completed. Please contact support so we can review or refund the order.",
-            order: blockedOrder,
           }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -410,8 +447,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        order: order,
-        customerEmail: session.customer_details?.email,
+        order: buildPublicOrderSummary(order),
         supportReference,
       }),
       {

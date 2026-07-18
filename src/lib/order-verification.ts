@@ -3,12 +3,8 @@ export type OrderItem = {
 };
 
 export type VerifiedOrder = {
-  id: string;
   items: OrderItem[];
   total: number;
-  shipping_cost?: number | null;
-  discount_total?: number | null;
-  promotion_code?: string | null;
   status: string;
 };
 
@@ -79,6 +75,13 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 const asFiniteNumber = (value: unknown): number | null => {
+  if (
+    value === null ||
+    value === undefined ||
+    (typeof value === "string" && value.trim() === "")
+  ) {
+    return null;
+  }
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 };
@@ -108,8 +111,6 @@ const normalizeOrder = (value: unknown): VerifiedOrder | null => {
 
   const total = asFiniteNumber(value.total);
   if (
-    typeof value.id !== "string" ||
-    !ORDER_ID_PATTERN.test(value.id) ||
     !Array.isArray(value.items) ||
     total === null ||
     typeof value.status !== "string"
@@ -118,13 +119,10 @@ const normalizeOrder = (value: unknown): VerifiedOrder | null => {
   }
 
   return {
-    id: value.id,
-    items: value.items.map((item) => (isRecord(item) ? item : {})),
+    items: value.items.map((item) => ({
+      quantity: isRecord(item) ? item.quantity : undefined,
+    })),
     total,
-    shipping_cost: asFiniteNumber(value.shipping_cost),
-    discount_total: asFiniteNumber(value.discount_total),
-    promotion_code:
-      typeof value.promotion_code === "string" ? value.promotion_code : null,
     status: value.status,
   };
 };
@@ -153,9 +151,10 @@ export const normalizeVerificationResponse = (
 ): OrderVerificationResult => {
   const response = isRecord(value) ? (value as VerificationResponse) : {};
   const order = normalizeOrder(response.order);
+  const rawOrderId = isRecord(response.order) ? response.order.id : undefined;
   const supportReference = normalizeSupportReference(
     response.supportReference,
-    order?.id,
+    rawOrderId,
   );
 
   if (response.success === true && order && supportReference) {

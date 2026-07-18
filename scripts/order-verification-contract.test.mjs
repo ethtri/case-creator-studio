@@ -31,8 +31,10 @@ test("normalizes authoritative success without retaining sensitive order fields"
   assert.equal(result.kind, "verified");
   assert.equal(result.supportReference, "SC-111111111111");
   assert.equal(result.order.total, 94.97);
+  assert.equal("id" in result.order, false);
   assert.equal("customer_email" in result.order, false);
   assert.equal("shipping_address" in result.order, false);
+  assert.equal("customer_email" in result.order.items[0], false);
 });
 
 test("models retryable delay, missing order record, and confirmed failure distinctly", () => {
@@ -56,6 +58,18 @@ test("models retryable delay, missing order record, and confirmed failure distin
   });
   assert.deepEqual(
     normalizeVerificationResponse({
+      success: true,
+      order: { ...order, total: null },
+      supportReference: "SC-111111111111",
+    }),
+    {
+      kind: "retryable",
+      errorCode: "order_record_pending",
+      supportReference: "SC-111111111111",
+    },
+  );
+  assert.deepEqual(
+    normalizeVerificationResponse({
       success: false,
       retryable: false,
       code: "checkout_expired",
@@ -75,7 +89,7 @@ test("does not trust arbitrary server codes, support references, or identifiers"
       success: false,
       retryable: true,
       code: "private@example.com",
-      supportReference: "cs_secret",
+      supportReference: "test-session-secret",
     }),
     {
       kind: "retryable",
@@ -259,6 +273,8 @@ test("shopper recovery calls only verify-payment and never emits purchase", asyn
     verifySource,
     /checkout\.sessions\.create|paymentIntents\.create|charges\.create|refunds\.create/,
   );
+  assert.doesNotMatch(verifySource, /customerEmail:\s*session/);
+  assert.match(verifySource, /order:\s*buildPublicOrderSummary\(order\)/);
   assert.match(jobMigration, /UNIQUE\s+\(order_id,\s*provider\)/);
   assert.match(
     fulfillmentSource,

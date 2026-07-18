@@ -313,9 +313,9 @@ const OrderSuccess = () => {
 
     if (
       result.kind === "verified" &&
-      clearedOrderRef.current !== result.order.id
+      clearedOrderRef.current !== result.supportReference
     ) {
-      clearedOrderRef.current = result.order.id;
+      clearedOrderRef.current = result.supportReference;
       clearCart();
     }
   }, [clearCart, sessionId]);
