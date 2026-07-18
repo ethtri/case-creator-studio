@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "targetEnvironment": "staging-analytics",
+  "stripeMode": "test",
+  "supabaseProjectRef": "abcdefghijklmnopqrst",
+  "appliedMigrations": [
+    "20260717090000_add_analytics_event_outbox.sql",
+    "20260717160000_harden_analytics_event_outbox.sql",
+    "20260717161000_schedule_analytics_outbox_drain.sql"
+  ],
+  "deployedFunctions": [
+    {
+      "name": "stripe-webhook",
+      "version": "replace-with-sanitized-version",
+      "sourceCommit": "0000000000000000000000000000000000000000"
+    },
+    {
+      "name": "ga4-outbox-drain",
+      "version": "replace-with-sanitized-version",
+      "sourceCommit": "0000000000000000000000000000000000000000"
+    }
+  ],
+  "evidenceSources": {
+    "migrations": {
+      "source": "supabase-migration-list",
+      "capturedAt": "2026-07-18T15:30:00.000Z",
+      "evidenceId": "replace-with-private-capture-id"
+    },
+    "functions": {
+      "source": "supabase-function-list",
+      "capturedAt": "2026-07-18T15:30:00.000Z",
+      "evidenceId": "replace-with-private-capture-id"
+    },
+    "secrets": {
+      "source": "supabase-edge-secret-list",
+      "capturedAt": "2026-07-18T15:30:00.000Z",
+      "evidenceId": "replace-with-private-capture-id"
+    },
+    "vault": {
+      "source": "supabase-vault-secret-list",
+      "capturedAt": "2026-07-18T15:30:00.000Z",
+      "evidenceId": "replace-with-private-capture-id"
+    },
+    "stripeWebhook": {
+      "source": "stripe-webhook-endpoint-list",
+      "capturedAt": "2026-07-18T15:30:00.000Z",
+      "evidenceId": "replace-with-private-capture-id"
+    }
+  },
+  "presentSecretNames": [
+    "SUPABASE_URL",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "STRIPE_MODE",
+    "STRIPE_SECRET_KEY_TEST",
+    "STRIPE_WEBHOOK_SECRET_TEST",
+    "GA4_MEASUREMENT_ID",
+    "GA4_API_SECRET",
+    "GA4_OUTBOX_DRAIN_AUTH_SECRET"
+  ],
+  "presentVaultSecretNames": ["project_url", "ga4_outbox_drain_auth_secret"],
+  "stripeWebhook": {
+    "enabled": true,
+    "mode": "test",
+    "endpoint": "https://abcdefghijklmnopqrst.supabase.co/functions/v1/stripe-webhook",
+    "eventTypes": [
+      "checkout.session.completed",
+      "checkout.session.async_payment_succeeded",
+      "checkout.session.async_payment_failed",
+      "checkout.session.expired",
+      "refund.created"
+    ]
+  }
+}
