@@ -1,22 +1,10 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import {
-  getAnalyticsConsent,
-  setAnalyticsConsent,
-  subscribeToAnalyticsConsent,
-  type AnalyticsConsent,
-} from "@/lib/marketing";
+import { useAnalyticsConsent } from "@/hooks/useAnalyticsConsent";
+import { setAnalyticsConsent } from "@/lib/marketing";
 
 export const AnalyticsConsentBanner = () => {
-  // Match the server-rendered first pass, then restore the browser preference
-  // after hydration so prerendered routes stay console-clean.
-  const [consent, setConsent] = useState<AnalyticsConsent>("unset");
-
-  useEffect(() => {
-    setConsent(getAnalyticsConsent());
-    return subscribeToAnalyticsConsent(setConsent);
-  }, []);
+  const consent = useAnalyticsConsent();
 
   if (consent !== "unset") return null;
 

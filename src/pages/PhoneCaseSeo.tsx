@@ -1,4 +1,4 @@
-import { Fragment, useEffect } from "react";
+import { Fragment } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ChevronRight, Package, Palette, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import {
 import NotFound from "@/pages/NotFound";
 import iphoneCaseFront from "@/assets/mockups/iphone-case-front.png";
 import samsungCaseFront from "@/assets/mockups/samsung-case-front.png";
+import { useConsentAwareMarketingView } from "@/hooks/useConsentAwareMarketingView";
 import { trackMarketingEvent } from "@/lib/marketing";
 import { asMarketingItems, buildAnalyticsItem } from "@/lib/analytics-commerce";
 import { SITE_URL } from "@/data/seoRoutes";
@@ -35,16 +36,20 @@ const PhoneCaseSeo = () => {
   const { variantSlug } = useParams();
   const variant = getVariantById(variantSlug ?? "");
 
-  useEffect(() => {
-    if (!variant) return;
-    trackMarketingEvent("view_item", {
-      currency: variant.currency,
-      value: variant.price,
-      items: asMarketingItems(
-        [buildAnalyticsItem({ variant })].filter(Boolean),
-      ),
-    });
-  }, [variant]);
+  useConsentAwareMarketingView({
+    enabled: Boolean(variant),
+    eventName: "view_item",
+    contractId: variant?.id ?? "missing_product",
+    payload: variant
+      ? {
+          currency: variant.currency,
+          value: variant.price,
+          items: asMarketingItems(
+            [buildAnalyticsItem({ variant })].filter(Boolean),
+          ),
+        }
+      : {},
+  });
 
   if (!variant) {
     return <NotFound />;

@@ -17,6 +17,11 @@ Version: `1.0.0`
   free text is never forwarded as `client_id`.
 - The Privacy Policy exposes the current device preference and lets the visitor
   change it.
+- Consent consumers read one canonical external-store snapshot. Same-tab
+  changes and cross-tab storage changes are invalidation signals only; event
+  payloads are never trusted as consent. Missing, malformed, cleared, or
+  inaccessible storage fails closed to `unset`, and a failed Decline remains
+  denied in the current document even when the preference cannot be persisted.
 - This implementation is a conservative global default. The selling-region
   policy and final copy still require owner/counsel approval before launch.
 
@@ -62,6 +67,23 @@ Every ecommerce event includes `items`. Each valid item contains:
 
 Currency, value, shipping, coupon, tax, and transaction ID are event-level
 parameters where GA4 defines them.
+
+Catalog, product-detail, and SEO-landing views are consent-aware. An already
+granted visitor emits the current view at mount; a visitor who grants after the
+route mounts emits that current view once. View deduplication is held only in
+bounded document memory and uses the contract version, view event, normalized
+pathname, and stable list or product ID. Query strings, history-entry keys,
+rerenders, Strict Mode effect replay, and back/forward navigation cannot create
+another ecommerce view for the same route contract during that SPA lifetime.
+A full reload starts a new document and may emit a new view.
+
+No pre-consent ecommerce payload or pending-event queue is stored. Selection,
+CTA, and other interaction events remain immediate: they are dropped while
+consent is unset or denied and are never replayed after a later grant. SEO
+landing pages use route-specific list IDs, emit the complete set of visibly
+featured items, and retain the same list context on model selection. Their
+hero-primary, Gift ideas, and Browse all cases CTAs use the existing
+`primary_cta_click` contract with stable placement, label, and destination.
 
 ## Product and diagnostic events
 
