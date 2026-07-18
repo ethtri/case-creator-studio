@@ -222,7 +222,7 @@ const RecoveryPanel = ({
       <main className="container mx-auto px-6 py-12 sm:py-20">
         <motion.section
           className="mx-auto max-w-xl rounded-3xl border border-border bg-card p-6 shadow-soft sm:p-9"
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
           aria-labelledby="verification-heading"
