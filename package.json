@@ -29,7 +29,7 @@
     "validate:printful": "node scripts/validate-printful-variants.mjs",
     "kexiaozhan:preflight": "node scripts/kexiaozhan-test-preflight.mjs",
     "kexiaozhan:staging": "node scripts/kexiaozhan-staging-mode.mjs",
-    "test": "node --experimental-strip-types --test scripts/analytics-contract.test.mjs scripts/analytics-outbox-contract.test.mjs scripts/claim-safety-contract.test.mjs scripts/growth-reporting-contract.test.mjs scripts/kexiaozhan-test-preflight.test.mjs scripts/merchant-catalog-contract.test.mjs scripts/route-path-contract.test.mjs",
+    "test": "node --experimental-strip-types --test scripts/analytics-contract.test.mjs scripts/analytics-outbox-contract.test.mjs scripts/checkout-review-contract.test.mjs scripts/claim-safety-contract.test.mjs scripts/growth-reporting-contract.test.mjs scripts/kexiaozhan-test-preflight.test.mjs scripts/merchant-catalog-contract.test.mjs scripts/route-path-contract.test.mjs",
     "test:a11y": "node scripts/accessibility-smoke.mjs"
   },
   "dependencies": {
