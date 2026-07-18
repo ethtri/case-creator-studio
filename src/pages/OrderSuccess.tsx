@@ -123,7 +123,7 @@ const SafeActions = ({
         type="button"
         variant="cta"
         size="lg"
-        className="hover:bg-cta"
+        className="!bg-cta-emphasis hover:!bg-cta-emphasis"
         disabled={isRetrying}
         onClick={onRetry}
       >
@@ -259,7 +259,7 @@ const RecoveryPanel = ({
           >
             {title}. {description}
           </p>
-          <p className="mt-3 text-muted-foreground">{description}</p>
+          <p className="mt-3 text-foreground">{description}</p>
 
           {isRetrying && (
             <p
