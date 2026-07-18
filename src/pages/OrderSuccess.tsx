@@ -75,7 +75,7 @@ const SupportReference = ({ reference }: { reference: string }) => {
 
   return (
     <div className="rounded-xl border border-border bg-muted/40 p-4 text-left">
-      <p className="text-xs font-medium uppercase tracking-[0.14em] text-muted-foreground">
+      <p className="text-xs font-medium uppercase tracking-[0.14em] text-foreground">
         Support reference
       </p>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
@@ -97,7 +97,7 @@ const SupportReference = ({ reference }: { reference: string }) => {
           {copyStatus === "copied" ? "Copied" : "Copy"}
         </Button>
       </div>
-      <p className="mt-2 text-xs text-muted-foreground" aria-live="polite">
+      <p className="mt-2 text-xs text-foreground" aria-live="polite">
         {copyStatus === "copied"
           ? "Support reference copied."
           : copyStatus === "failed"
@@ -123,6 +123,7 @@ const SafeActions = ({
         type="button"
         variant="cta"
         size="lg"
+        className="hover:bg-cta"
         disabled={isRetrying}
         onClick={onRetry}
       >
@@ -237,7 +238,7 @@ const RecoveryPanel = ({
               <Clock3 className="h-7 w-7" aria-hidden="true" />
             )}
           </div>
-          <p className="mb-2 text-sm font-semibold text-accent-emphasis">
+          <p className="mb-2 text-sm font-semibold text-foreground">
             Order verification
           </p>
           <h1
@@ -468,7 +469,7 @@ const OrderSuccess = () => {
           </div>
 
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
-            <Button asChild size="lg" variant="cta">
+            <Button asChild size="lg" variant="cta" className="hover:bg-cta">
               <Link to="/catalog">
                 Design another case
                 <ArrowRight aria-hidden="true" />
