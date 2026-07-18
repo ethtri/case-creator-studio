@@ -162,6 +162,18 @@ const getAnalyticsEvents = async (page, eventName) =>
       payload: command[2],
     }));
 
+const clearInteractionPresentation = async (page) => {
+  await page.mouse.move(1, 1);
+  await page.evaluate(() => {
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+  });
+  await page.evaluate(
+    () => new Promise((resolveFrame) => requestAnimationFrame(resolveFrame)),
+  );
+};
+
 const waitForAnalyticsEvents = async (page, eventName, count) => {
   try {
     await page.waitForFunction(
@@ -618,6 +630,18 @@ const assertFocusIndicator = async (page, locator, label) => {
   );
 };
 
+const getFrameStyle = (locator) =>
+  locator.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      backgroundColor: style.backgroundColor,
+      borderColor: style.borderColor,
+      boxShadow: style.boxShadow,
+      color: style.color,
+      transform: style.transform,
+    };
+  });
+
 const assertNoHorizontalOverflow = async (page, label) => {
   const widths = await page.evaluate(() => ({
     viewport: document.documentElement.clientWidth,
@@ -652,8 +676,8 @@ const assertFullyOpaqueFrames = async (page, locators, label) => {
 const waitForImage = async (locator, label) => {
   await locator.waitFor({ state: "visible" });
   const dimensions = await locator.evaluate(
-    (image) =>
-      new Promise((resolveImage, rejectImage) => {
+    async (image) => {
+      const loadedDimensions = await new Promise((resolveImage, rejectImage) => {
         const finish = () =>
           image.naturalWidth > 0
             ? resolveImage({
@@ -675,7 +699,15 @@ const waitForImage = async (locator, label) => {
             once: true,
           },
         );
-      }),
+      });
+      await image.decode();
+      await new Promise((resolveFrame) =>
+        requestAnimationFrame(() =>
+          requestAnimationFrame(resolveFrame),
+        ),
+      );
+      return loadedDimensions;
+    },
   );
   assert.ok(
     dimensions.width > 0 && dimensions.height > 0,
@@ -702,6 +734,29 @@ try {
   await page.goto(origin);
   await waitForStableUi(page);
   await waitForImage(page.locator("picture img").first(), "Desktop hero image");
+  const homeHero = page.locator('[data-home-design-bench="true"]');
+  const homeHeroHeading = homeHero.getByRole("heading", {
+    level: 1,
+    name: "Print your story.",
+  });
+  const lightHeroSignature = await homeHero.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const headingStyle = getComputedStyle(element.querySelector("h1"));
+    return {
+      backgroundColor: style.backgroundColor,
+      color: style.color,
+      headingColor: headingStyle.color,
+    };
+  });
+  assert.equal(
+    await homeHero.getAttribute("data-hero-theme"),
+    "fixed-dark",
+    "The home hero must declare its theme-independent dark surface.",
+  );
+  await assertTextContrast(homeHeroHeading, "Home hero heading");
+  await homeHero
+    .getByText("Cases $29.99 USD", { exact: true })
+    .waitFor();
   await assertTargetSize(
     page.getByRole("link", { name: "Snapcase", exact: true }),
     "Home logo",
@@ -715,10 +770,13 @@ try {
     "Home menu",
   );
   await assertTargetSize(
-    page.getByRole("link", { name: /Start designing/ }),
+    page.getByRole("link", { name: "Choose your phone", exact: true }),
     "Home primary CTA",
   );
-  const homePrimaryCta = page.getByRole("link", { name: /Start designing/ });
+  const homePrimaryCta = page.getByRole("link", {
+    name: "Choose your phone",
+    exact: true,
+  });
   await assertTextContrast(homePrimaryCta, "Home primary CTA default");
   await homePrimaryCta.hover();
   await page.waitForTimeout(20);
@@ -734,13 +792,17 @@ try {
   auditResults.push(
     await assertNoSeriousAxeViolations(page, "home-light-desktop"),
   );
+  await clearInteractionPresentation(page);
   await page.screenshot({
     path: resolve(outputDir, "home-light-desktop.png"),
-    fullPage: true,
+    fullPage: false,
   });
 
-  const startDesigning = page.getByRole("link", { name: /Start designing/ });
-  await startDesigning.focus();
+  const chooseYourPhone = page.getByRole("link", {
+    name: "Choose your phone",
+    exact: true,
+  });
+  await chooseYourPhone.focus();
   await page.keyboard.press("Enter");
   await page.waitForURL(`${origin}/catalog`);
   await waitForStableUi(page);
@@ -748,6 +810,119 @@ try {
     .getByRole("heading", { level: 1, name: "Choose Your Phone" })
     .waitFor();
   await page.getByRole("textbox", { name: "Search phone models" }).waitFor();
+  const catalogResultCount = page.locator(
+    '[data-catalog-result-count="true"]',
+  );
+  await catalogResultCount
+    .getByText("18 phone models shown.", { exact: true })
+    .waitFor();
+  assert.equal(
+    await catalogResultCount.getAttribute("role"),
+    "status",
+    "The visible result count must be the polite status region.",
+  );
+
+  const firstCatalogCard = page.locator(
+    '[data-catalog-card="iphone-17-pro-max"]',
+  );
+  assert.equal(
+    await firstCatalogCard.locator("a").count(),
+    2,
+    "Each catalog card must expose exactly two links.",
+  );
+  assert.equal(
+    await firstCatalogCard.locator("a a").count(),
+    0,
+    "Catalog links must never be nested.",
+  );
+  assert.equal(
+    await firstCatalogCard.locator(
+      ':scope > .pointer-events-none.absolute.inset-0',
+    ).count(),
+    0,
+    "Catalog cards must not include a selected-ring overlay.",
+  );
+  assert.equal(
+    await firstCatalogCard.getAttribute("aria-selected"),
+    null,
+    "Catalog articles must not imply a persistent selected state.",
+  );
+  const defaultCatalogFrame = await getFrameStyle(firstCatalogCard);
+  assert.equal(
+    await firstCatalogCard.evaluate((element) =>
+      element.matches(":focus-within"),
+    ),
+    false,
+    "Default catalog cards must not begin in a focus or selected state.",
+  );
+  await firstCatalogCard.hover();
+  await page.waitForTimeout(30);
+  const hoverCatalogFrame = await getFrameStyle(firstCatalogCard);
+  assert.notEqual(
+    hoverCatalogFrame.borderColor,
+    defaultCatalogFrame.borderColor,
+    "Catalog hover must change the card border.",
+  );
+
+  const allFilter = page.getByRole("button", { name: "All", exact: true });
+  const appleFilter = page.getByRole("button", {
+    name: "Apple",
+    exact: true,
+  });
+  const samsungFilter = page.getByRole("button", {
+    name: "Samsung",
+    exact: true,
+  });
+  assert.equal(await allFilter.getAttribute("aria-pressed"), "true");
+  await appleFilter.focus();
+  await page.keyboard.press("Enter");
+  await catalogResultCount
+    .getByText("15 phone models shown.", { exact: true })
+    .waitFor();
+  assert.equal(await appleFilter.getAttribute("aria-pressed"), "true");
+  await samsungFilter.focus();
+  await page.keyboard.press("Enter");
+  await catalogResultCount
+    .getByText("3 phone models shown.", { exact: true })
+    .waitFor();
+  assert.equal(await samsungFilter.getAttribute("aria-pressed"), "true");
+  const catalogSearch = page.getByRole("textbox", {
+    name: "Search phone models",
+  });
+  await catalogSearch.fill("  S24  ");
+  await catalogResultCount
+    .getByText("3 phone models shown.", { exact: true })
+    .waitFor();
+  await catalogSearch.fill("no matching model");
+  await catalogResultCount
+    .getByText("0 phone models shown.", { exact: true })
+    .waitFor();
+  await page
+    .getByText(
+      "No phone models match your search. Try another model or brand.",
+      { exact: true },
+    )
+    .waitFor();
+  assert.equal(
+    await page.locator("[data-catalog-card]").count(),
+    0,
+    "An empty filter state must not leave stale model cards.",
+  );
+  auditResults.push(
+    await assertNoSeriousAxeViolations(page, "catalog-empty-light-desktop"),
+  );
+  await page.screenshot({
+    path: resolve(outputDir, "catalog-empty-light-desktop.png"),
+    fullPage: true,
+  });
+  await catalogSearch.fill("");
+  await allFilter.focus();
+  await page.keyboard.press("Enter");
+  await catalogResultCount
+    .getByText("18 phone models shown.", { exact: true })
+    .waitFor();
+  assert.equal(await allFilter.getAttribute("aria-pressed"), "true");
+  await clearInteractionPresentation(page);
   auditResults.push(
     await assertNoSeriousAxeViolations(page, "catalog-light-desktop"),
   );
@@ -772,15 +947,75 @@ try {
     name: "View details for iPhone 17 Pro Max",
   });
   const modelDesignLink = page.getByRole("link", {
-    name: "Start designing for iPhone 17 Pro Max",
+    name: "Choose model for iPhone 17 Pro Max",
   });
   await assertTargetSize(modelDetailsLink, "Catalog model details");
   await assertTargetSize(modelDesignLink, "Catalog model design");
+  const detailsDefaultStyle = await getFrameStyle(modelDetailsLink);
+  await modelDetailsLink.hover();
+  const detailsBox = await modelDetailsLink.boundingBox();
+  assert.ok(detailsBox, "Catalog details link must have a visible box.");
+  await page.mouse.move(
+    detailsBox.x + detailsBox.width / 2,
+    detailsBox.y + detailsBox.height / 2,
+  );
+  await page.mouse.down();
+  const detailsActiveStyle = await getFrameStyle(modelDetailsLink);
+  assert.notEqual(
+    detailsActiveStyle.backgroundColor,
+    detailsDefaultStyle.backgroundColor,
+    "Catalog details link must expose a pressed background color.",
+  );
+  assert.equal(
+    detailsActiveStyle.transform,
+    "none",
+    "Catalog details pressed feedback must not move the target.",
+  );
+  await page.mouse.move(0, 0);
+  await page.mouse.up();
+
+  const designDefaultStyle = await getFrameStyle(modelDesignLink);
+  await modelDesignLink.hover();
+  const designBox = await modelDesignLink.boundingBox();
+  assert.ok(designBox, "Catalog model action must have a visible box.");
+  await page.mouse.move(
+    designBox.x + designBox.width / 2,
+    designBox.y + designBox.height / 2,
+  );
+  await page.mouse.down();
+  const designActiveStyle = await getFrameStyle(modelDesignLink);
+  assert.notEqual(
+    designActiveStyle.backgroundColor,
+    designDefaultStyle.backgroundColor,
+    "Catalog model action must expose a pressed background color.",
+  );
+  assert.ok(
+    designActiveStyle.transform === "none" ||
+      designActiveStyle.transform === "matrix(1, 0, 0, 1, 0, 0)",
+    "Catalog model pressed feedback must not move the target.",
+  );
+  await page.mouse.move(0, 0);
+  await page.mouse.up();
   await assertFocusIndicator(
     page,
     modelDetailsLink,
     "Catalog model details",
   );
+  const focusCatalogFrame = await getFrameStyle(firstCatalogCard);
+  assert.notEqual(
+    focusCatalogFrame.borderColor,
+    defaultCatalogFrame.borderColor,
+    "Catalog focus-within must change the card border.",
+  );
+  await modelDetailsLink.evaluate((element) => element.blur());
+  await page.waitForTimeout(30);
+  const blurCatalogFrame = await getFrameStyle(firstCatalogCard);
+  assert.equal(
+    blurCatalogFrame.borderColor,
+    defaultCatalogFrame.borderColor,
+    "Catalog card border must return to default after blur.",
+  );
+  await modelDetailsLink.focus();
   await page.keyboard.press("Enter");
   await page.waitForURL(/\/phone-cases\/iphone-17-pro-max/);
   await page
@@ -1061,6 +1296,24 @@ try {
     mobilePage.locator("picture img").first(),
     "Mobile hero image",
   );
+  const mobileHero = mobilePage.locator('[data-home-design-bench="true"]');
+  const darkMobileHeroSignature = await mobileHero.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const headingStyle = getComputedStyle(element.querySelector("h1"));
+    return {
+      backgroundColor: style.backgroundColor,
+      color: style.color,
+      headingColor: headingStyle.color,
+    };
+  });
+  assert.deepEqual(
+    darkMobileHeroSignature,
+    lightHeroSignature,
+    "The design-bench hero colors must remain fixed across themes.",
+  );
+  await mobileHero
+    .getByText("Cases $29.99 USD", { exact: true })
+    .waitFor();
   await assertNoHorizontalOverflow(mobilePage, "Mobile home");
   await assertTargetSize(
     mobilePage.getByRole("link", { name: "Snapcase", exact: true }),
@@ -1075,19 +1328,33 @@ try {
     "Mobile home menu",
   );
   await assertTextContrast(
-    mobilePage.getByRole("link", { name: /Start designing/ }),
+    mobilePage.getByRole("link", {
+      name: "Choose your phone",
+      exact: true,
+    }),
     "Mobile dark primary CTA",
   );
   auditResults.push(
     await assertNoSeriousAxeViolations(mobilePage, "home-dark-mobile"),
   );
+  await clearInteractionPresentation(mobilePage);
   await mobilePage.screenshot({
     path: resolve(outputDir, "home-dark-mobile.png"),
-    fullPage: true,
+    fullPage: false,
   });
 
   await mobilePage.goto(`${origin}/catalog`);
   await waitForStableUi(mobilePage);
+  await mobilePage
+    .locator('[data-catalog-result-count="true"]')
+    .getByText("18 phone models shown.", { exact: true })
+    .waitFor();
+  await assertTargetSize(
+    mobilePage.getByRole("link", {
+      name: "Choose model for iPhone 17 Pro Max",
+    }),
+    "Mobile catalog model action",
+  );
   await assertNoHorizontalOverflow(mobilePage, "Mobile catalog");
   auditResults.push(
     await assertNoSeriousAxeViolations(mobilePage, "catalog-dark-mobile"),
@@ -1217,6 +1484,118 @@ try {
   await mobilePage.waitForURL(`${origin}/checkout`);
   await mobilePage.getByText("2 items", { exact: true }).waitFor();
   await mobile.close();
+
+  const entryEvidenceScenarios = [
+    {
+      name: "dark-desktop",
+      viewport: { width: 1440, height: 1000 },
+      theme: "dark",
+    },
+    {
+      name: "light-mobile",
+      viewport: { width: 390, height: 844 },
+      theme: "light",
+    },
+    {
+      name: "dark-tablet",
+      viewport: { width: 768, height: 1024 },
+      theme: "dark",
+    },
+  ];
+
+  for (const scenario of entryEvidenceScenarios) {
+    const entryContext = await browser.newContext({
+      viewport: scenario.viewport,
+      reducedMotion: "reduce",
+      colorScheme: scenario.theme,
+    });
+    await installAppState(entryContext, scenario.theme);
+    await mockExternalServices(entryContext);
+    const entryPage = await entryContext.newPage();
+
+    await entryPage.goto(origin);
+    await waitForStableUi(entryPage);
+    await waitForImage(
+      entryPage.locator("picture img").first(),
+      `${scenario.name} hero image`,
+    );
+    const scenarioHero = entryPage.locator(
+      '[data-home-design-bench="true"]',
+    );
+    const scenarioHeroSignature = await scenarioHero.evaluate((element) => {
+      const style = getComputedStyle(element);
+      const headingStyle = getComputedStyle(element.querySelector("h1"));
+      return {
+        backgroundColor: style.backgroundColor,
+        color: style.color,
+        headingColor: headingStyle.color,
+      };
+    });
+    assert.deepEqual(
+      scenarioHeroSignature,
+      lightHeroSignature,
+      `${scenario.name} hero must keep the fixed design-bench palette.`,
+    );
+    await scenarioHero
+      .getByRole("link", { name: "Choose your phone", exact: true })
+      .waitFor();
+    await scenarioHero
+      .getByText("Cases $29.99 USD", { exact: true })
+      .waitFor();
+    await assertNoHorizontalOverflow(
+      entryPage,
+      `${scenario.name} home`,
+    );
+    auditResults.push(
+      await assertNoSeriousAxeViolations(
+        entryPage,
+        `home-${scenario.name}`,
+      ),
+    );
+    await clearInteractionPresentation(entryPage);
+    await entryPage.screenshot({
+      path: resolve(outputDir, `home-${scenario.name}.png`),
+      fullPage: false,
+    });
+
+    await entryPage.goto(`${origin}/catalog`);
+    await waitForStableUi(entryPage);
+    await entryPage
+      .locator('[data-catalog-result-count="true"]')
+      .getByText("18 phone models shown.", { exact: true })
+      .waitFor();
+    const reducedMotionDuration = await entryPage
+      .locator('[data-catalog-card="iphone-17-pro-max"]')
+      .evaluate((element) =>
+        getComputedStyle(element)
+          .transitionDuration.split(",")
+          .map((duration) =>
+            duration.trim().endsWith("ms")
+              ? Number.parseFloat(duration)
+              : Number.parseFloat(duration) * 1000,
+          ),
+      );
+    assert.ok(
+      reducedMotionDuration.every((duration) => duration <= 1),
+      `${scenario.name} catalog transitions must honor reduced motion.`,
+    );
+    await assertNoHorizontalOverflow(
+      entryPage,
+      `${scenario.name} catalog`,
+    );
+    await clearInteractionPresentation(entryPage);
+    auditResults.push(
+      await assertNoSeriousAxeViolations(
+        entryPage,
+        `catalog-${scenario.name}`,
+      ),
+    );
+    await entryPage.screenshot({
+      path: resolve(outputDir, `catalog-${scenario.name}.png`),
+      fullPage: true,
+    });
+    await entryContext.close();
+  }
 
   const checkoutEvidenceScenarios = [
     {
@@ -1687,6 +2066,80 @@ try {
   });
   await verificationMobile.close();
 
+  const homeAnalyticsContext = await browser.newContext({
+    viewport: { width: 1440, height: 1000 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  await installAnalyticsRecorder(homeAnalyticsContext, "granted");
+  const homeAnalyticsPage = await homeAnalyticsContext.newPage();
+  await homeAnalyticsPage.goto(origin);
+  await homeAnalyticsPage
+    .getByRole("link", { name: "Choose your phone", exact: true })
+    .click();
+  await homeAnalyticsPage.waitForURL(`${origin}/catalog`);
+  await waitForAnalyticsEvents(
+    homeAnalyticsPage,
+    "primary_cta_click",
+    1,
+  );
+  const homeCtaEvents = await getAnalyticsEvents(
+    homeAnalyticsPage,
+    "primary_cta_click",
+  );
+  assert.equal(
+    homeCtaEvents.length,
+    1,
+    "The home primary CTA must fire exactly once.",
+  );
+  assert.deepEqual(
+    {
+      placement: homeCtaEvents[0].payload.placement,
+      destination: homeCtaEvents[0].payload.destination,
+      label: homeCtaEvents[0].payload.label,
+    },
+    {
+      placement: "home_hero",
+      destination: "/catalog",
+      label: "Choose your phone",
+    },
+  );
+
+  await homeAnalyticsPage.goBack();
+  await homeAnalyticsPage.waitForURL(origin);
+  await homeAnalyticsPage
+    .locator('[data-home-starting-model="iphone-17-pro-max"]')
+    .click();
+  await homeAnalyticsPage.waitForURL(/\/design\/iphone-17-pro-max/);
+  await waitForAnalyticsEvents(homeAnalyticsPage, "select_item", 1);
+  const homeStartingSelections = (
+    await getAnalyticsEvents(homeAnalyticsPage, "select_item")
+  ).filter(
+    (event) =>
+      event.payload.item_list_id === "home_starting_models",
+  );
+  assert.equal(
+    homeStartingSelections.length,
+    1,
+    "The home starting-model selection must fire exactly once.",
+  );
+  assert.deepEqual(
+    {
+      itemListName: homeStartingSelections[0].payload.item_list_name,
+      placement: homeStartingSelections[0].payload.placement,
+    },
+    {
+      itemListName: "Starting models",
+      placement: "home_starting_models",
+    },
+  );
+  assertCompleteAnalyticsItems(
+    homeStartingSelections[0],
+    1,
+    "Home starting-model selection",
+  );
+  await homeAnalyticsContext.close();
+
   const lateGrantContext = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
     reducedMotion: "reduce",
@@ -2023,8 +2476,7 @@ try {
   await declinePage.goto(origin);
   await declinePage.getByRole("button", { name: "Decline" }).click();
   await declinePage
-    .getByRole("link", { name: /Start designing/ })
-    .first()
+    .getByRole("link", { name: "Choose your phone", exact: true })
     .click();
   await declinePage.waitForURL(`${origin}/catalog`);
   await declinePage
@@ -2135,6 +2587,13 @@ try {
         evidence: [
           "output/playwright/home-light-desktop.png",
           "output/playwright/catalog-light-desktop.png",
+          "output/playwright/catalog-empty-light-desktop.png",
+          "output/playwright/home-dark-desktop.png",
+          "output/playwright/catalog-dark-desktop.png",
+          "output/playwright/home-light-mobile.png",
+          "output/playwright/catalog-light-mobile.png",
+          "output/playwright/home-dark-tablet.png",
+          "output/playwright/catalog-dark-tablet.png",
           "output/playwright/product-offer-light-desktop.png",
           "output/playwright/preview-light-desktop.png",
           "output/playwright/checkout-light-desktop.png",
