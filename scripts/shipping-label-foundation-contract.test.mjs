@@ -25,7 +25,10 @@ test("shipping label migration keeps artifacts private and duplicate-safe", asyn
     /production_jobs\(id\) ON DELETE RESTRICT/i,
   );
   assert.match(sql, /prepare_manual_shipping_label/i);
-  assert.match(sql, /complete_manual_shipping_label/i);
+  assert.match(
+    sql,
+    /complete_manual_shipping_label[\s\S]*FOR SHARE[\s\S]*v_job_status IN \('shipped', 'failed'\)/i,
+  );
   assert.match(sql, /fail_manual_shipping_label/i);
   assert.match(sql, /authorize_shipping_label_print/i);
   assert.match(

@@ -328,6 +328,7 @@ SET search_path = ''
 AS $$
 DECLARE
   v_label public.shipping_labels%ROWTYPE;
+  v_job_status TEXT;
 BEGIN
   IF NULLIF(BTRIM(p_operator_email), '') IS NULL OR
     char_length(p_operator_email) > 320 THEN
@@ -349,6 +350,16 @@ BEGIN
       AND name = v_label.label_storage_path
   ) THEN
     RAISE EXCEPTION 'Manual label upload is incomplete';
+  END IF;
+
+  SELECT status
+  INTO v_job_status
+  FROM public.production_jobs
+  WHERE id = v_label.production_job_id
+  FOR SHARE;
+
+  IF NOT FOUND OR v_job_status IN ('shipped', 'failed') THEN
+    RAISE EXCEPTION 'Production job cannot accept a shipping label';
   END IF;
 
   UPDATE public.shipping_labels
