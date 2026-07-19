@@ -130,27 +130,59 @@ serve(async (req) => {
   }
 
   if (payload.action === "request_refund") {
-    if (label.provider !== "easypost" || label.state !== "purchased") {
+    if (
+      label.provider !== "easypost" ||
+      !["purchased", "refund_pending"].includes(label.state)
+    ) {
       return jsonResponse(req, 409, {
         error: "Shipping label is not refundable",
       });
     }
 
-    const { data, error } = await admin.rpc(
-      "request_shipping_label_refund",
-      {
-        p_label_id: label.id,
-        p_operator_email: operator.email,
-      },
-    );
-    const updated = firstRpcRow(data);
-    if (error || !updated) {
-      return jsonResponse(req, 409, {
+    let refundResponse: Response;
+    try {
+      refundResponse = await fetch(
+        `${supabaseUrl}/functions/v1/shipping-refund-label`,
+        {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${serviceRoleKey}`,
+            "apikey": serviceRoleKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            labelId: label.id,
+            operatorEmail: operator.email,
+          }),
+        },
+      );
+    } catch {
+      return jsonResponse(req, 503, {
+        error: "Shipping refund service is unavailable",
+      });
+    }
+
+    let refundResult: Record<string, unknown> | null = null;
+    try {
+      const parsed = await refundResponse.json();
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        refundResult = parsed as Record<string, unknown>;
+      }
+    } catch {
+      // The provider handler intentionally returns only bounded JSON responses.
+    }
+
+    if (!refundResponse.ok || !refundResult?.label) {
+      const status = refundResponse.status === 409 ? 409 : 503;
+      return jsonResponse(req, status, {
         error: "Refund request was not accepted",
       });
     }
 
-    return jsonResponse(req, 202, { label: toSafeShippingLabel(updated) });
+    return jsonResponse(req, refundResponse.status, {
+      label: refundResult.label,
+      refundStatus: refundResult.refundStatus ?? null,
+    });
   }
 
   if (
@@ -162,21 +194,85 @@ serve(async (req) => {
     });
   }
 
-  const { data, error: replacementError } = await admin.rpc(
-    "request_shipping_label_replacement",
-    {
-      p_label_id: label.id,
-      p_operator_email: operator.email,
-    },
-  );
-  const replacement = firstRpcRow(data);
-  if (replacementError || !replacement) {
-    return jsonResponse(req, 409, {
-      error: "Replacement request was not accepted",
+  const { data: existingReplacement, error: existingReplacementError } =
+    await admin
+      .from("shipping_labels")
+      .select("*")
+      .eq("provider", "easypost")
+      .eq("replaces_label_id", label.id)
+      .in("state", [
+        "preparing",
+        "shipping_review",
+        "rated",
+        "purchasing",
+        "purchase_reconciliation",
+        "purchased",
+        "refund_pending",
+      ])
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+  if (existingReplacementError) {
+    return jsonResponse(req, 500, {
+      error: "Unable to verify replacement state",
     });
   }
 
+  let replacement = existingReplacement;
+  if (!replacement) {
+    const { data, error: replacementError } = await admin.rpc(
+      "request_shipping_label_replacement",
+      {
+        p_label_id: label.id,
+        p_operator_email: operator.email,
+      },
+    );
+    replacement = firstRpcRow(data);
+    if (replacementError || !replacement) {
+      return jsonResponse(req, 409, {
+        error: "Replacement request was not accepted",
+      });
+    }
+  }
+
+  let preparedLabel = toSafeShippingLabel(replacement);
+  let preparationState = "preparing";
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/functions/v1/shipping-prepare-order`,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${serviceRoleKey}`,
+          "apikey": serviceRoleKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jobId: replacement.production_job_id,
+        }),
+      },
+    );
+    const result = await response.json().catch(() => null);
+    if (result && typeof result === "object" && !Array.isArray(result)) {
+      const safeResult = result as Record<string, unknown>;
+      if (
+        safeResult.label &&
+        typeof safeResult.label === "object" &&
+        !Array.isArray(safeResult.label)
+      ) {
+        preparedLabel = safeResult.label as Record<string, unknown>;
+      }
+      if (typeof safeResult.state === "string") {
+        preparationState = safeResult.state;
+      }
+    }
+  } catch {
+    // The preparing row remains visible and can be retried without duplication.
+  }
+
   return jsonResponse(req, 202, {
-    label: toSafeShippingLabel(replacement),
+    label: preparedLabel,
+    preparationState,
   });
 });

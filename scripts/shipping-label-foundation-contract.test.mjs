@@ -69,7 +69,7 @@ test("operator endpoints use trusted auth and never expose permanent paths", asy
   assert.match(actions, /createSignedUrl/);
   assert.match(actions, /requireOperator/);
   assert.match(actions, /authorize_shipping_label_print/);
-  assert.match(actions, /request_shipping_label_refund/);
+  assert.match(actions, /shipping-refund-label/);
   assert.match(actions, /request_shipping_label_replacement/);
   assert.match(upload, /hasPdfMagic/);
   assert.match(upload, /requireOperator/);

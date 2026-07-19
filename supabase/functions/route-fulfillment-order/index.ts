@@ -135,6 +135,56 @@ function isOnshoreManualEnabled(): boolean {
   );
 }
 
+function isEasyPostAutomationEnabled(): boolean {
+  return TRUE_VALUES.has(
+    (Deno.env.get("EASYPOST_AUTOMATION_ENABLED") ?? "").trim().toLowerCase(),
+  );
+}
+
+async function prepareEasyPostShipping(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  jobId: string,
+): Promise<JsonRecord | null> {
+  if (!isEasyPostAutomationEnabled()) return null;
+
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/functions/v1/shipping-prepare-order`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceRoleKey}`,
+          apikey: serviceRoleKey,
+        },
+        body: JSON.stringify({ jobId }),
+      },
+    );
+    const body = await response.json().catch(() => null);
+    if (response.ok && isRecord(body)) return body;
+
+    console.error(
+      "[ROUTE-FULFILLMENT] Shipping preparation did not complete:",
+      response.status,
+    );
+    return {
+      success: false,
+      state: "shipping_review",
+      status: response.status,
+    };
+  } catch {
+    console.error(
+      "[ROUTE-FULFILLMENT] Shipping preparation request failed",
+    );
+    return {
+      success: false,
+      state: "shipping_review",
+      status: 503,
+    };
+  }
+}
+
 function hasRequiredShippingFields(shippingAddress: unknown): boolean {
   if (!isRecord(shippingAddress)) return false;
 
@@ -777,12 +827,19 @@ serve(async (req) => {
       })
       .eq("id", order.id);
 
+    const shipping = await prepareEasyPostShipping(
+      supabaseUrl,
+      serviceRoleKey,
+      jobWithPaymentNotification.id,
+    );
+
     return new Response(
       JSON.stringify({
         success: true,
         provider,
         created: false,
         job: jobWithPaymentNotification,
+        shipping,
       }),
       {
         status: 200,
@@ -912,12 +969,19 @@ serve(async (req) => {
       })
       .eq("id", order.id);
 
+    const shipping = await prepareEasyPostShipping(
+      supabaseUrl,
+      serviceRoleKey,
+      jobWithPaymentNotification.id,
+    );
+
     return new Response(
       JSON.stringify({
         success: true,
         provider,
         created: false,
         job: jobWithPaymentNotification,
+        shipping,
       }),
       {
         status: 200,
@@ -953,6 +1017,11 @@ serve(async (req) => {
     order,
     insertedJob,
   );
+  const shipping = await prepareEasyPostShipping(
+    supabaseUrl,
+    serviceRoleKey,
+    jobWithPaymentNotification.id,
+  );
 
   return new Response(
     JSON.stringify({
@@ -960,6 +1029,7 @@ serve(async (req) => {
       provider,
       created: true,
       job: jobWithPaymentNotification,
+      shipping,
     }),
     {
       status: 200,
