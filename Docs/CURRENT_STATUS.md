@@ -2,33 +2,34 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-07-17
+**Last updated:** 2026-07-18
 **Last updated by:** Codex
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
 
 ## Blockers
-- Alejandro must complete one supervised physical release of paid vendor order
-  `4612221969487051` with Merchant Portal `Send to Print` and report the result.
+- EasyPost automation must be merged, deployed to isolated staging, and proven
+  with one test-mode label before the `/operations` workflow can be finalized.
+- Alejandro must provide the packed-case dimensions/weight and complete the
+  named async physical dry run after the software evidence is ready.
 
 ## Top 3 Next Tasks
-1. P0: Have Alejandro release paid order `4612221969487051` once in Merchant
-   Portal and record the physical result (#35, #40). Do not release the zero order.
-2. P0: Complete production environment and supervised-pilot readiness
-   (#32, #33). The cutover/rollback runbook review is complete (#34).
-3. P0: Run one allowlisted, supervised production pilot only after all physical
-   and configuration gates pass (#32).
+1. P0: Complete, review, merge, and deploy the EasyPost automation state machine,
+   private label purchase, signed tracking webhook, and refund recovery (#118,
+   #130).
+2. P0: Build and render-QA the automated `/operations` shipping workflow (#116).
+3. P0: Prepare the exact named order, label, instructions, and rollback for
+   Alejandro's async dry run (#117); execute it only after its physical gates pass.
 
 ## Now / Next / Later
 **Now**
-- P0: The 2026-07-16 coordinated paid/delayed and zero-total staging run passed
-  end to end. Merchant Portal independently showed both orders as Payment
-  Successful, Pending Print, Print Time `0`, with `Send to Print` available.
-  Issues #30, #39, and #51 are complete. Staging is fail-closed again.
+- P0: The private shipping-label foundation is merged and deployed to isolated
+  staging. EasyPost test/production account keys are held outside the repository;
+  provider automation and durable webhook recovery are in #130.
 
 **Next**
-- P0: Complete the physical Merchant Portal release evidence in #35 and #40.
-- P0: Production cutover readiness - production secrets, rollback runbook, and first supervised pilot order.
+- P0: Complete the #118 staging provider E2E, then #116 operations UI.
+- P0: Complete #117 package measurement and async physical shipping dry run.
 
 **Later**
 - None
@@ -47,6 +48,10 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - UAT: multi-item checkout metadata limit handled.
 - Onshore staging: Stripe sandbox checkout, webhook routing, duplicate replay, operator allowlist/update, tracking, and provider rollback smoke passed.
 - Onshore staging: owner dry-run job `a059d2eb-3ada-4dd5-8f32-a4fa88e1a873` is queued from paid Stripe test order `d89cfec5-d190-4209-aff5-c017c22225c6`; duplicate routing reused the same job.
+- Automated shipping foundation: private PDF storage, operator-only signed label
+  access, shipping audit records, tracking projection, and print/refund
+  serialization are merged and live in isolated staging. Provider automation
+  remains production-disabled until #118 and #117 evidence pass.
 - Kexiaozhan deferred-order success pages use the persisted
   `fulfillment_provider=onshore_manual` value to describe an administrator-held
   production queue; normal Printful order copy is unchanged (#59).

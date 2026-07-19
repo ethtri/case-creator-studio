@@ -278,7 +278,10 @@ BEGIN
             'eventType',
             'trackerId',
             'shipmentId',
+            'carrier',
+            'trackingCode',
             'trackerStatus',
+            'trackingUrl',
             'shipmentStatus'
           ]
         ) = '{}'::jsonb AND
@@ -299,7 +302,19 @@ BEGIN
           true
         ) AND
         COALESCE(
+          jsonb_typeof(safe_payload -> 'carrier') IN ('string', 'null'),
+          true
+        ) AND
+        COALESCE(
+          jsonb_typeof(safe_payload -> 'trackingCode') IN ('string', 'null'),
+          true
+        ) AND
+        COALESCE(
           jsonb_typeof(safe_payload -> 'trackerStatus') IN ('string', 'null'),
+          true
+        ) AND
+        COALESCE(
+          jsonb_typeof(safe_payload -> 'trackingUrl') IN ('string', 'null'),
           true
         ) AND
         COALESCE(
@@ -310,7 +325,10 @@ BEGIN
         char_length(COALESCE(safe_payload ->> 'eventType', '')) <= 200 AND
         char_length(COALESCE(safe_payload ->> 'trackerId', '')) <= 200 AND
         char_length(COALESCE(safe_payload ->> 'shipmentId', '')) <= 200 AND
+        char_length(COALESCE(safe_payload ->> 'carrier', '')) <= 120 AND
+        char_length(COALESCE(safe_payload ->> 'trackingCode', '')) <= 120 AND
         char_length(COALESCE(safe_payload ->> 'trackerStatus', '')) <= 120 AND
+        char_length(COALESCE(safe_payload ->> 'trackingUrl', '')) <= 1000 AND
         char_length(COALESCE(safe_payload ->> 'shipmentStatus', '')) <= 120
       );
   END IF;
@@ -362,24 +380,11 @@ DECLARE
   v_job public.production_jobs%ROWTYPE;
   v_label public.shipping_labels%ROWTYPE;
   v_label_id UUID;
+  v_label_found BOOLEAN := false;
   v_replaces_label_id UUID;
 BEGIN
   IF p_label_format NOT IN ('pdf_4x6', 'pdf_letter') THEN
     RAISE EXCEPTION 'Invalid EasyPost label format';
-  END IF;
-
-  SELECT *
-  INTO v_job
-  FROM public.production_jobs
-  WHERE id = p_production_job_id
-  FOR UPDATE;
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Production job not found';
-  END IF;
-
-  IF v_job.status IN ('shipped', 'failed') THEN
-    RAISE EXCEPTION 'Production job cannot accept a shipping label';
   END IF;
 
   SELECT *
@@ -399,7 +404,23 @@ BEGIN
   LIMIT 1
   FOR UPDATE;
 
-  IF FOUND THEN
+  v_label_found := FOUND;
+
+  SELECT *
+  INTO v_job
+  FROM public.production_jobs
+  WHERE id = p_production_job_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Production job not found';
+  END IF;
+
+  IF v_job.status IN ('shipped', 'failed') THEN
+    RAISE EXCEPTION 'Production job cannot accept a shipping label';
+  END IF;
+
+  IF v_label_found THEN
     IF v_label.provider <> 'easypost' THEN
       RAISE EXCEPTION 'Production job already has an active shipping label';
     END IF;
@@ -534,18 +555,26 @@ BEGIN
     jsonb_typeof(p_rate_summary) <> 'object' OR
     (
       p_rate_summary - ARRAY['eligibleRateCount', 'policyVersion']
-    ) <> '{}'::jsonb OR
-    p_rate_summary ? 'eligibleRateCount' AND CASE
-      WHEN jsonb_typeof(p_rate_summary -> 'eligibleRateCount') = 'number'
-        THEN (p_rate_summary ->> 'eligibleRateCount')::NUMERIC < 0
-      ELSE true
-    END OR
-    p_rate_summary ? 'policyVersion' AND CASE
-      WHEN jsonb_typeof(p_rate_summary -> 'policyVersion') = 'number'
-        THEN (p_rate_summary ->> 'policyVersion')::NUMERIC < 1
-      ELSE true
-    END THEN
+    ) <> '{}'::jsonb THEN
     RAISE EXCEPTION 'Invalid approved EasyPost rate';
+  END IF;
+
+  IF p_rate_summary ? 'eligibleRateCount' THEN
+    IF jsonb_typeof(p_rate_summary -> 'eligibleRateCount') <> 'number' THEN
+      RAISE EXCEPTION 'Invalid approved EasyPost rate';
+    END IF;
+    IF (p_rate_summary ->> 'eligibleRateCount')::NUMERIC < 0 THEN
+      RAISE EXCEPTION 'Invalid approved EasyPost rate';
+    END IF;
+  END IF;
+
+  IF p_rate_summary ? 'policyVersion' THEN
+    IF jsonb_typeof(p_rate_summary -> 'policyVersion') <> 'number' THEN
+      RAISE EXCEPTION 'Invalid approved EasyPost rate';
+    END IF;
+    IF (p_rate_summary ->> 'policyVersion')::NUMERIC < 1 THEN
+      RAISE EXCEPTION 'Invalid approved EasyPost rate';
+    END IF;
   END IF;
 
   SELECT *
@@ -753,16 +782,6 @@ BEGIN
     RAISE EXCEPTION 'Invalid EasyPost purchase claim';
   END IF;
 
-  SELECT status
-  INTO v_job_status
-  FROM public.production_jobs
-  WHERE id = p_production_job_id
-  FOR UPDATE;
-
-  IF NOT FOUND OR v_job_status NOT IN ('printed', 'packed') THEN
-    RAISE EXCEPTION 'Production job is not ready for postage purchase';
-  END IF;
-
   SELECT *
   INTO v_label
   FROM public.shipping_labels
@@ -780,6 +799,16 @@ BEGIN
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'EasyPost shipping label not found';
+  END IF;
+
+  SELECT status
+  INTO v_job_status
+  FROM public.production_jobs
+  WHERE id = p_production_job_id
+  FOR UPDATE;
+
+  IF NOT FOUND OR v_job_status NOT IN ('printed', 'packed') THEN
+    RAISE EXCEPTION 'Production job is not ready for postage purchase';
   END IF;
 
   IF v_label.state = 'purchased' THEN
@@ -1146,6 +1175,171 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION public.transition_easypost_production_job(
+  p_production_job_id UUID,
+  p_next_status TEXT,
+  p_operator_email TEXT,
+  p_operator_notes TEXT,
+  p_update_operator_notes BOOLEAN
+)
+RETURNS public.production_jobs
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_job public.production_jobs%ROWTYPE;
+  v_label public.shipping_labels%ROWTYPE;
+  v_previous_status TEXT;
+  v_fulfillment_status TEXT;
+BEGIN
+  IF p_production_job_id IS NULL OR
+    p_next_status NOT IN ('printed', 'packed', 'shipped') OR
+    NULLIF(BTRIM(p_operator_email), '') IS NULL OR
+    char_length(p_operator_email) > 320 OR
+    LOWER(BTRIM(p_operator_email)) !~
+      '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' OR
+    p_update_operator_notes IS NULL OR
+    p_update_operator_notes AND
+      p_operator_notes IS NOT NULL AND
+      char_length(p_operator_notes) > 2000 THEN
+    RAISE EXCEPTION 'Invalid EasyPost production transition';
+  END IF;
+
+  -- Label updates already project tracking to the job from a database trigger.
+  -- Keep that established label-then-job lock order everywhere.
+  SELECT *
+  INTO v_label
+  FROM public.shipping_labels
+  WHERE production_job_id = p_production_job_id
+    AND provider = 'easypost'
+    AND state IN (
+      'rated',
+      'purchasing',
+      'purchase_reconciliation',
+      'purchased',
+      'refund_pending'
+    )
+  ORDER BY created_at DESC
+  LIMIT 1
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'EasyPost shipping state does not permit transition';
+  END IF;
+
+  SELECT *
+  INTO v_job
+  FROM public.production_jobs
+  WHERE id = p_production_job_id
+  FOR UPDATE;
+
+  IF NOT FOUND OR
+    v_job.provider <> 'onshore_manual' OR
+    v_job.status = 'failed' THEN
+    RAISE EXCEPTION 'EasyPost production job is not transitionable';
+  END IF;
+
+  IF
+    p_next_status = 'printed' AND
+      v_job.status NOT IN ('queued', 'artwork_ready', 'printed') OR
+    p_next_status = 'packed' AND
+      v_job.status NOT IN ('printed', 'packed') OR
+    p_next_status = 'shipped' AND
+      v_job.status NOT IN ('packed', 'shipped') THEN
+    RAISE EXCEPTION 'Invalid EasyPost production status transition';
+  END IF;
+
+  IF
+    p_next_status = 'printed' AND
+      v_label.state NOT IN (
+        'rated',
+        'purchasing',
+        'purchase_reconciliation',
+        'purchased'
+      ) OR
+    p_next_status IN ('packed', 'shipped') AND (
+      v_label.state <> 'purchased' OR
+      NULLIF(BTRIM(v_label.tracking_number), '') IS NULL
+    ) THEN
+    RAISE EXCEPTION 'EasyPost shipping state does not permit transition';
+  END IF;
+
+  v_previous_status := v_job.status;
+  v_fulfillment_status := CASE
+    WHEN p_next_status = 'shipped' THEN 'shipped'
+    ELSE 'onshore_manual_' || p_next_status
+  END;
+
+  UPDATE public.production_jobs
+  SET
+    status = p_next_status,
+    operator_email = LOWER(BTRIM(p_operator_email)),
+    operator_notes = CASE
+      WHEN p_update_operator_notes THEN p_operator_notes
+      ELSE operator_notes
+    END,
+    fulfillment_status = v_fulfillment_status,
+    tracking_carrier = COALESCE(v_label.carrier, tracking_carrier),
+    tracking_number = COALESCE(v_label.tracking_number, tracking_number),
+    tracking_url = COALESCE(v_label.tracking_url, tracking_url),
+    started_at = COALESCE(started_at, now()),
+    shipped_at = CASE
+      WHEN p_next_status = 'shipped' THEN COALESCE(shipped_at, now())
+      ELSE shipped_at
+    END
+  WHERE id = v_job.id
+  RETURNING * INTO v_job;
+
+  UPDATE public.orders
+  SET
+    fulfillment_provider = 'onshore_manual',
+    fulfillment_order_id = v_job.id::text,
+    fulfillment_status = v_fulfillment_status,
+    fulfillment_last_error = NULL,
+    printful_status = v_fulfillment_status,
+    printful_last_error = NULL,
+    status = CASE
+      WHEN p_next_status = 'shipped' THEN 'shipped'
+      ELSE 'processing'
+    END,
+    tracking_carrier = COALESCE(v_label.carrier, tracking_carrier),
+    tracking_number = COALESCE(v_label.tracking_number, tracking_number),
+    tracking_url = COALESCE(v_label.tracking_url, tracking_url),
+    shipped_at = CASE
+      WHEN p_next_status = 'shipped' THEN COALESCE(shipped_at, now())
+      ELSE shipped_at
+    END
+  WHERE id = v_job.order_id;
+
+  IF v_previous_status IS DISTINCT FROM p_next_status THEN
+    INSERT INTO public.shipping_label_audit_events (
+      shipping_label_id,
+      production_job_id,
+      action,
+      actor_email,
+      source,
+      safe_details
+    )
+    VALUES (
+      v_label.id,
+      v_job.id,
+      'easypost_job_transition_authorized',
+      LOWER(BTRIM(p_operator_email)),
+      'operator',
+      jsonb_build_object(
+        'previousStatus',
+        v_previous_status,
+        'nextStatus',
+        p_next_status
+      )
+    );
+  END IF;
+
+  RETURN v_job;
+END;
+$$;
+
 DROP FUNCTION IF EXISTS public.claim_easypost_label_refund(
   UUID,
   UUID,
@@ -1182,8 +1376,21 @@ BEGIN
     AND provider = 'easypost'
   FOR UPDATE;
 
-  IF NOT FOUND OR
-    v_label.purchased_at IS NULL OR
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'EasyPost shipping label is not refundable';
+  END IF;
+
+  SELECT status
+  INTO v_job_status
+  FROM public.production_jobs
+  WHERE id = v_label.production_job_id
+  FOR UPDATE;
+
+  IF NOT FOUND OR v_job_status IN ('packed', 'shipped') THEN
+    RAISE EXCEPTION 'EasyPost shipping label is not refundable';
+  END IF;
+
+  IF v_label.purchased_at IS NULL OR
     v_label.print_accessed_at IS NOT NULL THEN
     RAISE EXCEPTION 'EasyPost shipping label is not refundable';
   END IF;
@@ -1195,16 +1402,6 @@ BEGIN
 
   IF v_label.refund_status = 'rejected' THEN
     RAISE EXCEPTION 'Rejected EasyPost refund requires operator review';
-  END IF;
-
-  SELECT status
-  INTO v_job_status
-  FROM public.production_jobs
-  WHERE id = v_label.production_job_id
-  FOR SHARE;
-
-  IF NOT FOUND OR v_job_status = 'shipped' THEN
-    RAISE EXCEPTION 'EasyPost shipping label is not refundable';
   END IF;
 
   IF v_label.state = 'refund_pending' AND
@@ -1418,7 +1615,10 @@ BEGIN
         'eventType',
         'trackerId',
         'shipmentId',
+        'carrier',
+        'trackingCode',
         'trackerStatus',
+        'trackingUrl',
         'shipmentStatus'
       ]
     ) <> '{}'::jsonb OR
@@ -1439,7 +1639,19 @@ BEGIN
       true
     ) OR
     NOT COALESCE(
+      jsonb_typeof(p_safe_payload -> 'carrier') IN ('string', 'null'),
+      true
+    ) OR
+    NOT COALESCE(
+      jsonb_typeof(p_safe_payload -> 'trackingCode') IN ('string', 'null'),
+      true
+    ) OR
+    NOT COALESCE(
       jsonb_typeof(p_safe_payload -> 'trackerStatus') IN ('string', 'null'),
+      true
+    ) OR
+    NOT COALESCE(
+      jsonb_typeof(p_safe_payload -> 'trackingUrl') IN ('string', 'null'),
       true
     ) OR
     NOT COALESCE(
@@ -1450,7 +1662,10 @@ BEGIN
     char_length(COALESCE(p_safe_payload ->> 'eventType', '')) > 200 OR
     char_length(COALESCE(p_safe_payload ->> 'trackerId', '')) > 200 OR
     char_length(COALESCE(p_safe_payload ->> 'shipmentId', '')) > 200 OR
+    char_length(COALESCE(p_safe_payload ->> 'carrier', '')) > 120 OR
+    char_length(COALESCE(p_safe_payload ->> 'trackingCode', '')) > 120 OR
     char_length(COALESCE(p_safe_payload ->> 'trackerStatus', '')) > 120 OR
+    char_length(COALESCE(p_safe_payload ->> 'trackingUrl', '')) > 1000 OR
     char_length(COALESCE(p_safe_payload ->> 'shipmentStatus', '')) > 120 OR
     p_safe_payload ? 'eventId' AND
       p_safe_payload ->> 'eventId' <> p_event_id THEN
@@ -1499,6 +1714,7 @@ BEGIN
     v_event.lease_token = p_claim_token THEN
     RETURN jsonb_build_object(
       'claimResult', 'claimed',
+      'leaseToken', p_claim_token,
       'event', to_jsonb(v_event) - ARRAY[
         'lease_token',
         'payload_sha256',
@@ -1537,6 +1753,7 @@ BEGIN
 
   RETURN jsonb_build_object(
     'claimResult', 'claimed',
+    'leaseToken', p_claim_token,
     'event', to_jsonb(v_event) - ARRAY[
       'lease_token',
       'payload_sha256',
@@ -1718,6 +1935,13 @@ REVOKE ALL ON FUNCTION public.mark_easypost_purchase_reconciliation(
   TEXT,
   TEXT
 ) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.transition_easypost_production_job(
+  UUID,
+  TEXT,
+  TEXT,
+  TEXT,
+  BOOLEAN
+) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.claim_easypost_label_refund(
   UUID,
   TEXT,
@@ -1799,6 +2023,13 @@ GRANT EXECUTE ON FUNCTION public.mark_easypost_purchase_reconciliation(
   UUID,
   TEXT,
   TEXT
+) TO service_role;
+GRANT EXECUTE ON FUNCTION public.transition_easypost_production_job(
+  UUID,
+  TEXT,
+  TEXT,
+  TEXT,
+  BOOLEAN
 ) TO service_role;
 GRANT EXECUTE ON FUNCTION public.claim_easypost_label_refund(
   UUID,

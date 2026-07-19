@@ -26,6 +26,12 @@ Configure these only after dry-run and TTL/print-mode gates are accepted. Do not
 | Fulfillment safety | `ALLOW_ONSHORE_MANUAL=true` |
 | Operators | `OPERATOR_EMAILS=<Snapcase administrator email(s)>` |
 | Stripe | `STRIPE_MODE=live`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
+| Shipping automation | `EASYPOST_AUTOMATION_ENABLED=true` |
+| EasyPost production gate | `EASYPOST_MODE=production`, `EASYPOST_PRODUCTION_ENABLED=true` |
+| EasyPost credentials | `EASYPOST_API_KEY_PRODUCTION`, `EASYPOST_FROM_ADDRESS_ID` |
+| EasyPost package/rates | `EASYPOST_PARCEL_JSON`, `EASYPOST_RATE_POLICY_JSON` |
+| EasyPost webhook | `EASYPOST_WEBHOOK_SECRET`, `SHIPPING_WEBHOOK_DRAIN_AUTH_SECRET` |
+| Private label links | `SHIPPING_LABEL_SIGNED_URL_TTL_SECONDS` |
 | Analytics | `GA4_MEASUREMENT_ID`, `GA4_API_SECRET` (server-only Measurement Protocol credential), `GA4_OUTBOX_DRAIN_AUTH_SECRET` |
 | Kexiaozhan API | `KEXIAOZHAN_API_BASE_URL=https://kxzus.kexiaozhan.com` |
 | Kexiaozhan auth | `KEXIAOZHAN_MACHINE_KEY`, `KEXIAOZHAN_ALLOWED_MACHINE_SN` |
@@ -58,13 +64,20 @@ Deploy or confirm these Supabase Edge Functions in production before the pilot:
 - `route-fulfillment-order`
 - `production-jobs`
 - `update-production-job`
+- `shipping-label-actions`
+- `shipping-prepare-order`
+- `shipping-purchase-label`
+- `shipping-refund-label`
+- `easypost-webhook`
+- `shipping-webhook-drain`
 - `printful-retry`
 - `submit-printful-order`
 
 Apply all repository migrations, including
 `20260717090000_add_analytics_event_outbox`,
 `20260717160000_harden_analytics_event_outbox`, and
-`20260717161000_schedule_analytics_outbox_drain`. Apply the hardening migration,
+`20260717161000_schedule_analytics_outbox_drain`, followed by the shipping-label
+foundation and EasyPost automation migrations. Apply the hardening migration,
 deploy the updated Stripe webhook and `ga4-outbox-drain`, then apply the schedule
 migration.
 
@@ -73,11 +86,16 @@ Confirm Supabase Vault contains:
 - `project_url`
 - `ga4_outbox_drain_auth_secret`
 - `kexiaozhan_checkout_expirer_auth_secret`
+- `shipping_webhook_drain_auth_secret`
 
 The Vault `ga4_outbox_drain_auth_secret` value must match the Edge Function env
 `GA4_OUTBOX_DRAIN_AUTH_SECRET`. The worker uses this dedicated cron credential
 instead of placing the Supabase service-role key in the scheduled request.
 The Vault `kexiaozhan_checkout_expirer_auth_secret` value must match the Edge Function env `KEXIAOZHAN_CHECKOUT_EXPIRER_AUTH_SECRET`. This avoids storing the service-role key in the expirer cron header.
+The Vault `shipping_webhook_drain_auth_secret` value must match the Edge Function
+env `SHIPPING_WEBHOOK_DRAIN_AUTH_SECRET`. Run
+`configure_shipping_webhook_drain_schedule()` after both it and `project_url`
+exist.
 
 ## Stripe Webhook
 
@@ -99,13 +117,15 @@ The Vault `kexiaozhan_checkout_expirer_auth_secret` value must match the Edge Fu
    - `https://www.snapcase.ai/kexiaozhan/checkout`
 4. Configure production envs, leaving `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false`.
 5. Deploy/confirm functions and migrations.
-6. Run `kexiaozhan-checkout-expirer` once with `dryRun=true` and verify a 200 response.
-7. Enable callback only for the supervised pilot:
+6. Keep `EASYPOST_PRODUCTION_ENABLED=false` while verifying the production
+   configuration, then enable it only for the supervised pilot window.
+7. Run `kexiaozhan-checkout-expirer` once with `dryRun=true` and verify a 200 response.
+8. Enable callback only for the supervised pilot:
    - `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=true`
    - `KEXIAOZHAN_PAYMENT_NOTIFY_REQUIRE_ALLOWLIST=true`
    - exact first-order `KEXIAOZHAN_PAYMENT_NOTIFY_ALLOWED_OUT_TRADE_NOS` if available
-8. Run one supervised production pilot order.
-9. Verify all pilot evidence before broadening scope.
+9. Run one supervised production pilot order.
+10. Verify all pilot evidence before broadening scope.
 
 ## Pilot Verification
 
@@ -118,6 +138,10 @@ For the first order, record evidence in issue #32:
 - `/client/process-payment-notify` response is successful.
 - The signed callback body contains the confirmed admin/batch print-mode field from issue #36.
 - Exactly one `production_jobs` row exists for the order.
+- Exactly one approved EasyPost rate and one purchased postage label exist.
+- The label PDF is private and its operator print URL expires.
+- Signed EasyPost tracking updates reach the order without duplicate customer
+  notifications.
 - A designated Snapcase administrator can see the job in `/operations`.
 - Alejandro finds the verified `Pending Print` order in Kexiaozhan Merchant
   Portal **Order Center > Order List**, selects `Send to Print` once, and
@@ -132,7 +156,9 @@ Rollback for new orders:
 2. Set `ALLOW_ONSHORE_MANUAL=false` or unset it.
 3. Set `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false`.
 4. Clear any pilot `KEXIAOZHAN_PAYMENT_NOTIFY_ALLOWED_OUT_TRADE_NOS`.
-5. Confirm new normal site orders route to Printful.
+5. Set `EASYPOST_PRODUCTION_ENABLED=false` and
+   `EASYPOST_AUTOMATION_ENABLED=false`.
+6. Confirm new normal site orders route to Printful.
 
 Already queued onshore jobs are not automatically moved. An operator must manually complete, cancel, fail, or otherwise disposition each existing `production_jobs` row.
 
@@ -143,6 +169,8 @@ Go only if:
 - #35 dry run passed.
 - #30 delayed deferred-print callback behavior passed.
 - #36 print-mode field is confirmed and verified, or callbacks remain disabled.
+- #115, #118, and #116 staging validation passed.
+- #117 async shipping dry run passed with the measured package profile.
 - #33 production env/secrets are configured without exposure.
 - #34 runbook has been reviewed.
 - First #32 pilot order passes all checks.

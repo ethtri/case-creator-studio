@@ -20,3 +20,18 @@ Lightweight record of key decisions for AI agents.
   as the primary production domain and redirects the apex host to it. Canonical
   tags, sitemap URLs, structured data, social metadata, analytics locations, and
   public return URLs must use `www`; the apex redirect must remain permanent.
+
+## 2026-07-18
+- EasyPost is the automated shipping provider for the onshore pilot. Snapcase
+  validates recipients and rates after job creation, but purchases postage only
+  after an operator marks the job `printed`.
+- EasyPost automation is server-controlled and fail-closed. Production requires
+  both `EASYPOST_MODE=production` and `EASYPOST_PRODUCTION_ENABLED=true`;
+  customer or operator input cannot choose an unapproved carrier, service, or
+  rate.
+- Shipping labels remain private PDFs in Supabase Storage. Operators receive
+  only short-lived signed print URLs, and provider webhook storage is limited to
+  the identifiers and statuses required for durable replay.
+- An ambiguous purchase or refund enters an explicit reconciliation state.
+  Snapcase retrieves the provider shipment before any retry and never purchases
+  duplicate postage blindly.

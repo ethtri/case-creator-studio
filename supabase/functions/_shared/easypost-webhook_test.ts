@@ -117,7 +117,10 @@ Deno.test("stored safe events retain only replay-required identifiers and status
     eventType: "tracker.updated",
     trackerId: "trk_123",
     shipmentId: "shp_123",
+    carrier: "USPS",
+    trackingCode: "9400111899223856928499",
     trackerStatus: "in_transit",
+    trackingUrl: "https://tools.usps.com/go/TrackConfirmAction?tLabels=9400",
     shipmentStatus: null,
   });
 });
@@ -125,9 +128,9 @@ Deno.test("stored safe events retain only replay-required identifiers and status
 Deno.test("claim decisions distinguish claimed and duplicate deliveries", () => {
   assertEquals(
     interpretShippingWebhookClaim({
-      claim_status: "claimed",
-      event_record_id: "event-record-123",
-      lease_token: "lease-123",
+      claimResult: "claimed",
+      leaseToken: "lease-123",
+      event: { id: "event-record-123" },
     }),
     {
       kind: "claimed",

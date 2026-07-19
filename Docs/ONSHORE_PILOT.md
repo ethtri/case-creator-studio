@@ -25,6 +25,16 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - `onshore_manual` creates or reuses one `production_jobs` row per order.
 - `/operations` is an authenticated internal queue backed by server-side operator allowlist checks.
 - Operator updates can move jobs through `queued`, `artwork_ready`, `printed`, `packed`, `shipped`, or `failed`.
+- When `EASYPOST_AUTOMATION_ENABLED=true`, job creation strictly verifies the
+  recipient and stores one approved EasyPost rate. Postage is purchased only
+  when the job first reaches `printed`; `packed` and `shipped` require a
+  purchased label with tracking.
+- EasyPost labels are PDF 4x6 artifacts in the private `shipping-labels` bucket.
+  `/operations` requests a short-lived signed print URL and never receives a
+  permanent provider or storage URL.
+- Signed EasyPost tracker webhooks update tracking and delivery status through a
+  leased event ledger. Failed or interrupted processing is retried by
+  `shipping-webhook-drain` without retaining recipient payloads.
 - `fake-vendor-design-complete` is a staging-only signed handoff rehearsal. It creates a Snapcase Stripe Checkout Session from mock vendor design metadata, then the existing Stripe webhook routes paid orders to `production_jobs`.
 - Kexiaozhan payment callback rehearsal is dry-run by default and records the
   signed callback body under `production_jobs.metadata.kexiaozhan` when fake
@@ -36,6 +46,18 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Keep production unset or set to `FULFILLMENT_PROVIDER=printful`; keep `ALLOW_ONSHORE_MANUAL` unset in production until cutover gates pass.
 - Use `FULFILLMENT_PROVIDER=onshore_manual` and `ALLOW_ONSHORE_MANUAL=true` only in staging/preview until pilot approval.
 - Configure `OPERATOR_EMAILS` as a comma-separated allowlist in environments where `/operations` should be usable.
+- EasyPost staging uses `EASYPOST_MODE=test`,
+  `EASYPOST_API_KEY_TEST`, `EASYPOST_FROM_ADDRESS_ID`,
+  `EASYPOST_PARCEL_JSON`, `EASYPOST_RATE_POLICY_JSON`,
+  `EASYPOST_WEBHOOK_SECRET`, `SHIPPING_INTERNAL_AUTH_SECRET`, and
+  `SHIPPING_WEBHOOK_DRAIN_AUTH_SECRET`. Do not commit their values.
+- Production EasyPost calls require `EASYPOST_MODE=production`,
+  `EASYPOST_API_KEY_PRODUCTION`, and the independent
+  `EASYPOST_PRODUCTION_ENABLED=true` kill switch. Keep the switch false until
+  the supervised cutover.
+- Supabase Vault must contain `project_url` and
+  `shipping_webhook_drain_auth_secret`; run
+  `configure_shipping_webhook_drain_schedule()` after both values exist.
 - Configure `VERCEL_PREVIEW_ORIGINS` as exact comma-separated preview origins. Do not rely on broad `*.vercel.app` matching.
 - For fake vendor handoff tests only, configure `FAKE_VENDOR_HANDOFF_SECRET` and `VENDOR_HANDOFF_CHECKOUT_ORIGIN` in staging/preview.
 - For Kexiaozhan redirect checkout tests, configure `KEXIAOZHAN_API_BASE_URL`,
@@ -126,6 +148,12 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
   automatically. Missing, invalid, or non-deferred fulfillment mode remains
   fail-closed.
 - Operator allowlist blocks non-operators from reading or updating jobs.
+- A test-mode EasyPost order proves strict address verification, policy-approved
+  rating, exactly one label purchase after `printed`, private label printing,
+  signed tracking updates, and provider-backed refund recovery.
+- Ambiguous EasyPost purchases enter `purchase_reconciliation`; ambiguous
+  refunds remain `refund_pending`. Resolve them by provider retrieval, never by
+  blind retry.
 - A verified `Pending Print` test order can be released once through the Merchant
   Portal and the physical result is recorded without output-slot blockage.
 - Rollback for new orders is one environment change from `onshore_manual` back to `printful`; already-queued onshore jobs require manual operator disposition.

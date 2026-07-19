@@ -42,6 +42,21 @@ verify_jwt = true
 [functions.shipping-label-upload]
 verify_jwt = true
 
+[functions.shipping-prepare-order]
+verify_jwt = true
+
+[functions.shipping-purchase-label]
+verify_jwt = true
+
+[functions.shipping-refund-label]
+verify_jwt = true
+
+[functions.easypost-webhook]
+verify_jwt = false
+
+[functions.shipping-webhook-drain]
+verify_jwt = false
+
 [functions.printful-webhook]
 verify_jwt = false
 

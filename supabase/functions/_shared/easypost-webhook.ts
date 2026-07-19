@@ -115,11 +115,18 @@ function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function hasControlCharacters(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const code = character.charCodeAt(0);
+    return code <= 31 || code === 127;
+  });
+}
+
 function boundedText(value: unknown, maxLength: number): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
   if (!normalized || normalized.length > maxLength) return null;
-  if (/[\u0000-\u001f\u007f]/.test(normalized)) return null;
+  if (hasControlCharacters(normalized)) return null;
   return normalized;
 }
 
@@ -242,12 +249,26 @@ export function parseStoredSafeEasyPostEvent(
     : providerId(value.shipmentId, "shp", MAX_TRACKING_FIELD_LENGTH);
   const status = boundedText(value.trackerStatus, MAX_TRACKING_FIELD_LENGTH)
     ?.toLowerCase();
+  const carrier = value.carrier === null
+    ? null
+    : boundedText(value.carrier, MAX_TRACKING_FIELD_LENGTH);
+  const safeCode = value.trackingCode === null
+    ? null
+    : trackingCode(value.trackingCode);
+  const safeUrl = value.trackingUrl === null
+    ? null
+    : safeTrackingUrl(value.trackingUrl);
 
   if (
     !eventId ||
     !eventType ||
     !TRACKER_EVENT_TYPES.has(eventType) ||
     (!trackerId && !shipmentId) ||
+    (value.carrier !== null && value.carrier !== undefined && !carrier) ||
+    (value.trackingCode !== null && value.trackingCode !== undefined &&
+      !safeCode) ||
+    (value.trackingUrl !== null && value.trackingUrl !== undefined &&
+      !safeUrl) ||
     !status ||
     !TRACKER_STATUSES.has(status)
   ) {
@@ -259,10 +280,10 @@ export function parseStoredSafeEasyPostEvent(
     eventType: eventType as SafeEasyPostWebhookEvent["eventType"],
     trackerId,
     shipmentId,
-    carrier: null,
-    trackingCode: null,
+    carrier,
+    trackingCode: safeCode,
     trackerStatus: status,
-    trackingUrl: null,
+    trackingUrl: safeUrl,
   };
 }
 
@@ -274,7 +295,10 @@ export function toStoredSafeEasyPostEvent(
     eventType: event.eventType,
     trackerId: event.trackerId,
     shipmentId: event.shipmentId,
+    carrier: event.carrier,
+    trackingCode: event.trackingCode,
     trackerStatus: event.trackerStatus,
+    trackingUrl: event.trackingUrl,
     shipmentStatus: null,
   };
 }

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { sendOrderEmail } from "../_shared/email.ts";
 import { requireOperator } from "../_shared/operator-auth.ts";
 
 const JOB_STATUSES = [
@@ -18,6 +19,7 @@ const SAFE_PREVIEW_HOSTS = [
   "snapcaseappv2.vercel.app",
   "supabase.co",
 ];
+const TRUE_VALUES = new Set(["1", "true", "yes"]);
 
 const updateSchema = z.object({
   jobId: z.string().uuid(),
@@ -38,6 +40,49 @@ function fulfillmentStatusForJobStatus(status: string): string {
   if (status === "shipped") return "shipped";
   if (status === "failed") return "failed";
   return `onshore_manual_${status}`;
+}
+
+function isEasyPostAutomationEnabled(): boolean {
+  return TRUE_VALUES.has(
+    (Deno.env.get("EASYPOST_AUTOMATION_ENABLED") ?? "").trim().toLowerCase(),
+  );
+}
+
+async function invokeShippingPurchase(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  jobId: string,
+): Promise<Record<string, unknown>> {
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/functions/v1/shipping-purchase-label`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceRoleKey}`,
+          apikey: serviceRoleKey,
+        },
+        body: JSON.stringify({ jobId }),
+      },
+    );
+    const body = await response.json().catch(() => null);
+    return {
+      success: response.ok,
+      status: response.status,
+      state: body && typeof body === "object" && "state" in body
+        ? body.state
+        : response.ok
+        ? "purchased"
+        : "purchase_reconciliation",
+    };
+  } catch {
+    return {
+      success: false,
+      status: 503,
+      state: "purchase_reconciliation",
+    };
+  }
 }
 
 function isSafePreviewUrl(value: unknown): boolean {
@@ -149,6 +194,112 @@ serve(async (req) => {
 
   const nowIso = new Date().toISOString();
   const nextStatus = payload.status ?? existingJob.status;
+  const shippingAutomationEnabled = isEasyPostAutomationEnabled() &&
+    existingJob.provider === "onshore_manual";
+
+  if (
+    shippingAutomationEnabled &&
+    (
+      payload.trackingNumber !== undefined ||
+      payload.trackingCarrier !== undefined ||
+      payload.trackingUrl !== undefined
+    )
+  ) {
+    return new Response(
+      JSON.stringify({ error: "Tracking is managed by EasyPost" }),
+      {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  }
+
+  if (
+    shippingAutomationEnabled &&
+    payload.status !== undefined &&
+    ["printed", "packed", "shipped"].includes(nextStatus)
+  ) {
+    const { data: transitionData, error: transitionError } = await supabaseAdmin
+      .rpc(
+        "transition_easypost_production_job",
+        {
+          p_production_job_id: existingJob.id,
+          p_next_status: nextStatus,
+          p_operator_email: operator.email,
+          p_operator_notes: payload.operatorNotes ?? null,
+          p_update_operator_notes: payload.operatorNotes !== undefined,
+        },
+      );
+    const transitionedJob = Array.isArray(transitionData)
+      ? transitionData[0]
+      : transitionData;
+
+    if (transitionError || !transitionedJob) {
+      console.error(
+        "[UPDATE-PRODUCTION-JOB] Shipping transition was not accepted",
+      );
+      return new Response(
+        JSON.stringify({ error: "Shipping transition was not accepted" }),
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    let shippingPurchase: Record<string, unknown> | null = null;
+    if (nextStatus === "printed") {
+      shippingPurchase = await invokeShippingPurchase(
+        supabaseUrl,
+        serviceRoleKey,
+        existingJob.id,
+      );
+    }
+
+    if (nextStatus === "shipped") {
+      const { data: updatedOrder, error: updatedOrderError } =
+        await supabaseAdmin
+          .from("orders")
+          .select("*")
+          .eq("id", existingJob.order_id)
+          .single();
+      if (!updatedOrderError && updatedOrder) {
+        try {
+          await sendOrderEmail(
+            supabaseAdmin,
+            "order_shipped",
+            updatedOrder,
+            {
+              trackingNumber: updatedOrder.tracking_number,
+              trackingCarrier: updatedOrder.tracking_carrier,
+              trackingUrl: updatedOrder.tracking_url,
+            },
+          );
+        } catch {
+          console.error(
+            "[UPDATE-PRODUCTION-JOB] Shipped email delivery failed",
+          );
+        }
+      } else {
+        console.error(
+          "[UPDATE-PRODUCTION-JOB] Shipped email order lookup failed",
+        );
+      }
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        job: toSafeJob(transitionedJob),
+        shippingPurchase,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  }
+
   const fulfillmentStatus = fulfillmentStatusForJobStatus(nextStatus);
   const jobUpdates: Record<string, unknown> = {
     operator_email: operator.email,
@@ -240,8 +391,44 @@ serve(async (req) => {
     );
   }
 
+  const shippingPurchase: Record<string, unknown> | null = null;
+
+  if (nextStatus === "shipped") {
+    const { data: updatedOrder, error: updatedOrderError } = await supabaseAdmin
+      .from("orders")
+      .select("*")
+      .eq("id", existingJob.order_id)
+      .single();
+    if (!updatedOrderError && updatedOrder) {
+      try {
+        await sendOrderEmail(
+          supabaseAdmin,
+          "order_shipped",
+          updatedOrder,
+          {
+            trackingNumber: updatedOrder.tracking_number,
+            trackingCarrier: updatedOrder.tracking_carrier,
+            trackingUrl: updatedOrder.tracking_url,
+          },
+        );
+      } catch {
+        console.error(
+          "[UPDATE-PRODUCTION-JOB] Shipped email delivery failed",
+        );
+      }
+    } else {
+      console.error(
+        "[UPDATE-PRODUCTION-JOB] Shipped email order lookup failed",
+      );
+    }
+  }
+
   return new Response(
-    JSON.stringify({ success: true, job: toSafeJob(updatedJob) }),
+    JSON.stringify({
+      success: true,
+      job: toSafeJob(updatedJob),
+      shippingPurchase,
+    }),
     {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
