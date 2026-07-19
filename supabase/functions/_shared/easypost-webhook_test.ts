@@ -178,12 +178,9 @@ Deno.test("bounded errors never return provider or recipient detail", () => {
   assertFalse(bounded.includes(" "));
 });
 
-Deno.test("webhook envelope requires the exact signed path and fresh timestamp", () => {
-  const now = new Date("2026-07-18T12:00:00Z");
+Deno.test("webhook envelope requires the exact route and HMAC header", () => {
   const headers = {
-    "x-path": "/functions/v1/easypost-webhook",
-    "x-timestamp": "Sat, 18 Jul 2026 11:59:30 +0000",
-    "x-hmac-signature-v2": `hmac-sha256-hex=${"a".repeat(64)}`,
+    "x-hmac-signature": `hmac-sha256-hex=${"a".repeat(64)}`,
   };
   assertEquals(
     validateEasyPostWebhookEnvelope(
@@ -191,7 +188,6 @@ Deno.test("webhook envelope requires the exact signed path and fresh timestamp",
         "https://example.test/functions/v1/easypost-webhook",
         { method: "POST", headers },
       ),
-      now,
     ),
     null,
   );
@@ -201,7 +197,6 @@ Deno.test("webhook envelope requires the exact signed path and fresh timestamp",
         "https://example.test/functions/v1/other",
         { method: "POST", headers },
       ),
-      now,
     ),
     "INVALID_WEBHOOK_PATH",
   );
@@ -211,15 +206,11 @@ Deno.test("webhook envelope requires the exact signed path and fresh timestamp",
         "https://example.test/functions/v1/easypost-webhook",
         {
           method: "POST",
-          headers: {
-            ...headers,
-            "x-timestamp": "Sat, 18 Jul 2026 11:00:00 +0000",
-          },
+          headers: {},
         },
       ),
-      now,
     ),
-    "STALE_WEBHOOK_TIMESTAMP",
+    "INVALID_WEBHOOK_SIGNATURE",
   );
 });
 

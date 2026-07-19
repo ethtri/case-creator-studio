@@ -141,24 +141,16 @@ export interface EasyPostSafeError {
 export type EasyPostWebhookFailureReason =
   | "invalid_configuration"
   | "missing_header"
-  | "invalid_timestamp"
-  | "expired"
-  | "future_timestamp"
-  | "path_mismatch"
   | "invalid_signature";
 
 export type EasyPostWebhookValidation =
-  | { valid: true; timestamp: Date }
+  | { valid: true }
   | { valid: false; reason: EasyPostWebhookFailureReason };
 
 export interface EasyPostWebhookValidationInput {
   secret: string;
   headers: Headers | Record<string, string | undefined>;
-  method: string;
-  expectedPath: string;
   rawBody: string;
-  toleranceMinutes: number;
-  now?: Date | number;
 }
 
 export interface EasyPostClientOptions {
@@ -631,56 +623,6 @@ function headerValue(
   return null;
 }
 
-const RFC_2822_PATTERN =
-  /^(Mon|Tue|Wed|Thu|Fri|Sat|Sun), (0[1-9]|[12]\d|3[01]) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) (20\d{2}) ([01]\d|2[0-3]):([0-5]\d):([0-5]\d) ([+-])([01]\d|2[0-3])([0-5]\d)$/;
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-] as const;
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
-
-function parseRfc2822Timestamp(raw: string): Date | null {
-  const match = RFC_2822_PATTERN.exec(raw);
-  if (!match) return null;
-
-  const [, weekday, dayRaw, monthRaw, yearRaw, hourRaw, minuteRaw, secondRaw] =
-    match;
-  const sign = match[8] === "+" ? 1 : -1;
-  const offsetMinutes = sign *
-    (Number(match[9]) * 60 + Number(match[10]));
-  const year = Number(yearRaw);
-  const month = MONTHS.indexOf(monthRaw as typeof MONTHS[number]);
-  const day = Number(dayRaw);
-  const localUtcMs = Date.UTC(
-    year,
-    month,
-    day,
-    Number(hourRaw),
-    Number(minuteRaw),
-    Number(secondRaw),
-  );
-  const calendar = new Date(localUtcMs);
-  if (
-    calendar.getUTCFullYear() !== year ||
-    calendar.getUTCMonth() !== month ||
-    calendar.getUTCDate() !== day ||
-    WEEKDAYS[calendar.getUTCDay()] !== weekday
-  ) {
-    return null;
-  }
-  return new Date(localUtcMs - offsetMinutes * 60_000);
-}
-
 function timingSafeEqual(left: string, right: string): boolean {
   if (left.length !== right.length) return false;
   let difference = 0;
@@ -694,7 +636,7 @@ async function hmacSha256Hex(secret: string, value: string): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     "raw",
-    encoder.encode(secret),
+    encoder.encode(secret.normalize("NFKD")),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
@@ -712,43 +654,14 @@ export async function validateEasyPostWebhook(
 ): Promise<EasyPostWebhookValidation> {
   if (
     !input.secret || input.secret.trim() !== input.secret ||
-    !Number.isInteger(input.toleranceMinutes) ||
-    input.toleranceMinutes < 0 || input.toleranceMinutes > 60 ||
-    !input.expectedPath.startsWith("/") ||
-    input.expectedPath.includes("?") ||
     typeof input.rawBody !== "string"
   ) {
     return { valid: false, reason: "invalid_configuration" };
   }
 
-  const timestampRaw = headerValue(input.headers, "x-timestamp");
-  const path = headerValue(input.headers, "x-path");
-  const signature = headerValue(input.headers, "x-hmac-signature-v2");
-  if (!timestampRaw || !path || !signature) {
+  const signature = headerValue(input.headers, "x-hmac-signature");
+  if (!signature) {
     return { valid: false, reason: "missing_header" };
-  }
-  if (path !== input.expectedPath) {
-    return { valid: false, reason: "path_mismatch" };
-  }
-
-  const timestamp = parseRfc2822Timestamp(timestampRaw);
-  if (!timestamp) return { valid: false, reason: "invalid_timestamp" };
-
-  const nowMs = input.now instanceof Date
-    ? input.now.getTime()
-    : typeof input.now === "number"
-    ? input.now
-    : Date.now();
-  if (!Number.isFinite(nowMs)) {
-    return { valid: false, reason: "invalid_configuration" };
-  }
-
-  const ageMs = nowMs - timestamp.getTime();
-  if (ageMs > input.toleranceMinutes * 60_000) {
-    return { valid: false, reason: "expired" };
-  }
-  if (ageMs < -30_000) {
-    return { valid: false, reason: "future_timestamp" };
   }
 
   const signatureMatch = /^hmac-sha256-hex=([0-9a-f]{64})$/.exec(signature);
@@ -756,14 +669,9 @@ export async function validateEasyPostWebhook(
     return { valid: false, reason: "invalid_signature" };
   }
 
-  const method = input.method.toUpperCase();
-  if (!/^[A-Z]+$/.test(method)) {
-    return { valid: false, reason: "invalid_configuration" };
-  }
-  const stringToSign = timestampRaw + method + path + input.rawBody;
-  const expected = await hmacSha256Hex(input.secret, stringToSign);
+  const expected = await hmacSha256Hex(input.secret, input.rawBody);
   return timingSafeEqual(expected, signatureMatch[1])
-    ? { valid: true, timestamp }
+    ? { valid: true }
     : { valid: false, reason: "invalid_signature" };
 }
 
