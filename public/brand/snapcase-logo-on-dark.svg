@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 296 80" role="img" aria-labelledby="title">
+  <title id="title">Snapcase</title>
+  <style>
+    @font-face{font-family:"Space Grotesk";font-style:normal;font-weight:700;src:url("../fonts/space-grotesk-latin.woff2") format("woff2")}
+  </style>
+  <path fill="#F7F4F2" d="M13 8C13 3.582 16.582 0 21 0H43C47.418 0 51 3.582 51 8V36.5C41.55 27.39 33.36 22.1 22.78 20.02C17.4 18.96 13 14.53 13 9.05V8Z"/>
+  <path fill="#F7F4F2" d="M13 42.5C22.45 51.65 30.65 56.98 41.23 59.08C46.6 60.14 51 64.57 51 70.05V72C51 76.418 47.418 80 43 80H21C16.582 80 13 76.418 13 72V42.5Z"/>
+  <path fill="#218675" d="M36 14C36 19 38 21 43 21C38 21 36 23 36 28C36 23 34 21 29 21C34 21 36 19 36 14Z"/>
+  <text x="68" y="57" fill="#F7F4F2" font-family="Space Grotesk, Trebuchet MS, sans-serif" font-size="48" font-weight="700" letter-spacing="-1.7">Snapcase</text>
+</svg>
