@@ -224,12 +224,13 @@ CREATE TABLE IF NOT EXISTS public.shipping_label_audit_events (
 CREATE INDEX IF NOT EXISTS shipping_label_audit_job_created_idx
 ON public.shipping_label_audit_events (production_job_id, created_at DESC);
 
-CREATE OR REPLACE FUNCTION public.register_manual_shipping_label(
+CREATE OR REPLACE FUNCTION public.prepare_manual_shipping_label(
   p_label_id UUID,
   p_production_job_id UUID,
   p_storage_path TEXT,
   p_label_format TEXT,
-  p_operator_email TEXT
+  p_operator_email TEXT,
+  p_size_bytes INTEGER
 )
 RETURNS public.shipping_labels
 LANGUAGE plpgsql
@@ -249,6 +250,11 @@ BEGIN
     'manual/' || p_production_job_id::text || '/' || p_label_id::text || '.pdf'
   THEN
     RAISE EXCEPTION 'Invalid manual label path';
+  END IF;
+
+  IF p_label_format NOT IN ('pdf_4x6', 'pdf_letter') OR
+    p_size_bytes < 1 OR p_size_bytes > 10485760 THEN
+    RAISE EXCEPTION 'Invalid manual label metadata';
   END IF;
 
   SELECT *
@@ -273,19 +279,17 @@ BEGIN
     label_storage_path,
     label_format,
     label_mime_type,
-    created_by_operator,
-    purchased_at
+    created_by_operator
   )
   VALUES (
     p_label_id,
     p_production_job_id,
     'manual',
-    'purchased',
+    'preparing',
     p_storage_path,
     p_label_format,
     'application/pdf',
-    LOWER(p_operator_email),
-    now()
+    LOWER(p_operator_email)
   )
   RETURNING * INTO v_label;
 
@@ -299,9 +303,131 @@ BEGIN
   VALUES (
     v_label.id,
     v_label.production_job_id,
-    'manual_label_uploaded',
+    'manual_label_upload_prepared',
     LOWER(p_operator_email),
-    jsonb_build_object('format', p_label_format)
+    jsonb_build_object(
+      'format',
+      p_label_format,
+      'sizeBytes',
+      p_size_bytes
+    )
+  );
+
+  RETURN v_label;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.complete_manual_shipping_label(
+  p_label_id UUID,
+  p_operator_email TEXT
+)
+RETURNS public.shipping_labels
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_label public.shipping_labels%ROWTYPE;
+BEGIN
+  IF NULLIF(BTRIM(p_operator_email), '') IS NULL OR
+    char_length(p_operator_email) > 320 THEN
+    RAISE EXCEPTION 'Invalid operator identity';
+  END IF;
+
+  SELECT *
+  INTO v_label
+  FROM public.shipping_labels
+  WHERE id = p_label_id
+    AND provider = 'manual'
+    AND state = 'preparing'
+  FOR UPDATE;
+
+  IF NOT FOUND OR NOT EXISTS (
+    SELECT 1
+    FROM storage.objects
+    WHERE bucket_id = 'shipping-labels'
+      AND name = v_label.label_storage_path
+  ) THEN
+    RAISE EXCEPTION 'Manual label upload is incomplete';
+  END IF;
+
+  UPDATE public.shipping_labels
+  SET
+    state = 'purchased',
+    purchased_at = now(),
+    last_error_code = NULL,
+    last_error_message = NULL,
+    failed_at = NULL
+  WHERE id = v_label.id
+  RETURNING * INTO v_label;
+
+  INSERT INTO public.shipping_label_audit_events (
+    shipping_label_id,
+    production_job_id,
+    action,
+    actor_email
+  )
+  VALUES (
+    v_label.id,
+    v_label.production_job_id,
+    'manual_label_uploaded',
+    LOWER(p_operator_email)
+  );
+
+  RETURN v_label;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.fail_manual_shipping_label(
+  p_label_id UUID,
+  p_error_code TEXT,
+  p_operator_email TEXT
+)
+RETURNS public.shipping_labels
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_label public.shipping_labels%ROWTYPE;
+BEGIN
+  IF NULLIF(BTRIM(p_operator_email), '') IS NULL OR
+    char_length(p_operator_email) > 320 OR
+    NULLIF(BTRIM(p_error_code), '') IS NULL OR
+    char_length(p_error_code) > 120 THEN
+    RAISE EXCEPTION 'Invalid manual label failure';
+  END IF;
+
+  UPDATE public.shipping_labels
+  SET
+    state = 'failed',
+    last_error_code = p_error_code,
+    last_error_message = 'Manual label upload did not complete',
+    failed_at = now()
+  WHERE id = p_label_id
+    AND provider = 'manual'
+    AND state = 'preparing'
+  RETURNING * INTO v_label;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Manual label upload is not recoverable';
+  END IF;
+
+  INSERT INTO public.shipping_label_audit_events (
+    shipping_label_id,
+    production_job_id,
+    action,
+    actor_email,
+    source,
+    safe_details
+  )
+  VALUES (
+    v_label.id,
+    v_label.production_job_id,
+    'manual_label_upload_failed',
+    LOWER(p_operator_email),
+    'system',
+    jsonb_build_object('errorCode', p_error_code)
   );
 
   RETURN v_label;
@@ -623,10 +749,20 @@ ON public.shipping_webhook_events TO service_role;
 GRANT SELECT, INSERT
 ON public.shipping_label_audit_events TO service_role;
 
-REVOKE ALL ON FUNCTION public.register_manual_shipping_label(
+REVOKE ALL ON FUNCTION public.prepare_manual_shipping_label(
   UUID,
   UUID,
   TEXT,
+  TEXT,
+  TEXT,
+  INTEGER
+) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.complete_manual_shipping_label(
+  UUID,
+  TEXT
+) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.fail_manual_shipping_label(
+  UUID,
   TEXT,
   TEXT
 ) FROM PUBLIC, anon, authenticated;
@@ -652,10 +788,20 @@ REVOKE ALL ON FUNCTION public.register_shipping_webhook_event(
 REVOKE ALL ON FUNCTION public.sync_shipping_label_tracking()
 FROM PUBLIC, anon, authenticated, service_role;
 
-GRANT EXECUTE ON FUNCTION public.register_manual_shipping_label(
+GRANT EXECUTE ON FUNCTION public.prepare_manual_shipping_label(
   UUID,
   UUID,
   TEXT,
+  TEXT,
+  TEXT,
+  INTEGER
+) TO service_role;
+GRANT EXECUTE ON FUNCTION public.complete_manual_shipping_label(
+  UUID,
+  TEXT
+) TO service_role;
+GRANT EXECUTE ON FUNCTION public.fail_manual_shipping_label(
+  UUID,
   TEXT,
   TEXT
 ) TO service_role;

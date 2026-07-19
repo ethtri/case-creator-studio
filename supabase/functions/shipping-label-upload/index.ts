@@ -107,6 +107,26 @@ serve(async (req) => {
 
   const labelId = crypto.randomUUID();
   const storagePath = buildManualLabelPath(job.id, labelId);
+  const { data: preparationData, error: preparationError } = await admin.rpc(
+    "prepare_manual_shipping_label",
+    {
+      p_label_id: labelId,
+      p_production_job_id: job.id,
+      p_storage_path: storagePath,
+      p_label_format: labelFormat,
+      p_operator_email: operator.email,
+      p_size_bytes: bytes.byteLength,
+    },
+  );
+  const preparedLabel = Array.isArray(preparationData)
+    ? preparationData[0]
+    : preparationData;
+  if (preparationError || !preparedLabel) {
+    return jsonResponse(req, 409, {
+      error: "Production job already has an active shipping label",
+    });
+  }
+
   const { error: uploadError } = await admin.storage
     .from(SHIPPING_LABEL_BUCKET)
     .upload(storagePath, bytes, {
@@ -114,38 +134,25 @@ serve(async (req) => {
       upsert: false,
     });
   if (uploadError) {
+    await admin.rpc("fail_manual_shipping_label", {
+      p_label_id: labelId,
+      p_error_code: "storage_upload_failed",
+      p_operator_email: operator.email,
+    });
     return jsonResponse(req, 500, { error: "Unable to store manual label" });
   }
 
-  const { data, error: registrationError } = await admin.rpc(
-    "register_manual_shipping_label",
+  const { data, error: completionError } = await admin.rpc(
+    "complete_manual_shipping_label",
     {
       p_label_id: labelId,
-      p_production_job_id: job.id,
-      p_storage_path: storagePath,
-      p_label_format: labelFormat,
       p_operator_email: operator.email,
     },
   );
   const label = Array.isArray(data) ? data[0] : data;
-  if (registrationError || !label) {
-    const { error: cleanupError } = await admin.storage
-      .from(SHIPPING_LABEL_BUCKET)
-      .remove([storagePath]);
-    if (cleanupError) {
-      await admin.from("shipping_label_audit_events").insert({
-        production_job_id: job.id,
-        action: "orphaned_manual_label_cleanup_required",
-        actor_email: operator.email,
-        source: "system",
-        safe_details: { storagePath },
-      });
-      return jsonResponse(req, 500, {
-        error: "Manual label cleanup requires operator review",
-      });
-    }
-    return jsonResponse(req, 409, {
-      error: "Production job already has an active shipping label",
+  if (completionError || !label) {
+    return jsonResponse(req, 500, {
+      error: "Manual label requires operator recovery",
     });
   }
 

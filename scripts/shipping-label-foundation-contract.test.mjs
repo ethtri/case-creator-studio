@@ -24,7 +24,9 @@ test("shipping label migration keeps artifacts private and duplicate-safe", asyn
     sql,
     /production_jobs\(id\) ON DELETE RESTRICT/i,
   );
-  assert.match(sql, /register_manual_shipping_label/i);
+  assert.match(sql, /prepare_manual_shipping_label/i);
+  assert.match(sql, /complete_manual_shipping_label/i);
+  assert.match(sql, /fail_manual_shipping_label/i);
   assert.match(sql, /authorize_shipping_label_print/i);
   assert.match(
     sql,
@@ -68,8 +70,10 @@ test("operator endpoints use trusted auth and never expose permanent paths", asy
   assert.match(actions, /request_shipping_label_replacement/);
   assert.match(upload, /hasPdfMagic/);
   assert.match(upload, /requireOperator/);
-  assert.match(upload, /register_manual_shipping_label/);
-  assert.match(upload, /orphaned_manual_label_cleanup_required/);
+  assert.match(upload, /prepare_manual_shipping_label/);
+  assert.match(upload, /complete_manual_shipping_label/);
+  assert.match(upload, /fail_manual_shipping_label/);
+  assert.doesNotMatch(upload, /\.remove\(/);
   assert.doesNotMatch(helpers, /label_storage_path:\s*row\.label_storage_path/);
   assert.doesNotMatch(actions, /getPublicUrl/);
   assert.doesNotMatch(upload, /getPublicUrl/);
