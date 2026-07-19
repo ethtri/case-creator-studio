@@ -16,6 +16,7 @@ import heroNarrow1024Jpeg from "@/assets/hero-narrow-1024.jpg";
 import { phoneVariants } from "@/data/phoneVariants";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
+import { SnapcaseLogo } from "@/components/SnapcaseLogo";
 import { trackMarketingEvent } from "@/lib/marketing";
 import { asMarketingItems, buildAnalyticsItem } from "@/lib/analytics-commerce";
 import {
@@ -77,7 +78,7 @@ const Index = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/30">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <Link to="/" className="-ml-2 inline-flex min-h-11 items-center gap-2 px-2">
-            <span className="font-display font-bold text-xl text-foreground">Snapcase</span>
+            <SnapcaseLogo className="text-xl" />
           </Link>
           <div className="flex items-center gap-3">
             <CartSheet />
@@ -351,9 +352,7 @@ const Index = () => {
       <footer className="py-12 border-t border-border/30">
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2">
-              <span className="font-display font-bold text-lg text-foreground">Snapcase</span>
-            </div>
+            <SnapcaseLogo className="text-lg" />
             <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
               <Link to="/custom-phone-case" className="hover:text-foreground transition-colors">Custom Cases</Link>
               <Link to="/custom-iphone-case" className="hover:text-foreground transition-colors">iPhone Cases</Link>
