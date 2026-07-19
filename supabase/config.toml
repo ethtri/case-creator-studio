@@ -36,6 +36,12 @@ verify_jwt = true
 [functions.update-production-job]
 verify_jwt = true
 
+[functions.shipping-label-actions]
+verify_jwt = true
+
+[functions.shipping-label-upload]
+verify_jwt = true
+
 [functions.printful-webhook]
 verify_jwt = false
 
