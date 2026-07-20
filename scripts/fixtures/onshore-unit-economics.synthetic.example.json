@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "evidenceType": "synthetic_example",
+  "marginPolicy": {
+    "targetContributionMarginBps": 4000,
+    "reviewFloorContributionMarginBps": 3000
+  },
+  "paymentProcessing": {
+    "rateBps": 290,
+    "fixedCents": 30
+  },
+  "products": [
+    {
+      "id": "standard-launch-example",
+      "productPriceCents": 3499,
+      "customerShippingCents": 0,
+      "costs": {
+        "blankCaseCents": 600,
+        "printingSuppliesCents": 100,
+        "productionLaborCents": 250,
+        "qualityControlCents": 75,
+        "packagingCents": 100,
+        "outboundShippingCents": 450,
+        "remakeRefundReserveCents": 100,
+        "vendorMachineCents": 50
+      },
+      "claimed": {
+        "revenueCents": 3499,
+        "paymentFeeCents": 131,
+        "operatingCostCents": 1725,
+        "totalVariableCostCents": 1856,
+        "contributionCents": 1643,
+        "contributionMarginBps": 4696
+      }
+    },
+    {
+      "id": "magnetic-launch-example",
+      "productPriceCents": 4499,
+      "customerShippingCents": 0,
+      "costs": {
+        "blankCaseCents": 850,
+        "printingSuppliesCents": 100,
+        "productionLaborCents": 250,
+        "qualityControlCents": 75,
+        "packagingCents": 100,
+        "outboundShippingCents": 450,
+        "remakeRefundReserveCents": 125,
+        "vendorMachineCents": 50
+      },
+      "claimed": {
+        "revenueCents": 4499,
+        "paymentFeeCents": 160,
+        "operatingCostCents": 2000,
+        "totalVariableCostCents": 2160,
+        "contributionCents": 2339,
+        "contributionMarginBps": 5199
+      }
+    }
+  ],
+  "decision": {
+    "type": "analysis_only",
+    "note": "Synthetic market-test examples only. Replace every cost with physical pilot evidence before approval."
+  },
+  "approval": {
+    "status": "not_approved"
+  }
+}

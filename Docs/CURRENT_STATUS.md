@@ -44,6 +44,11 @@ Owner-updated snapshot for AI agents. Keep this short and current.
   `arguments` shape so consented browser page views reach GA4; opt-out remains
   the default and advertising storage stays denied (#96).
 - Promo codes: pre-checkout apply with Stripe validation; enforce eligibility at checkout.
+- Pricing readiness: catalog, normal checkout, promo validation, and
+  Kexiaozhan defaults now share one executable `$29.99 + $4.99` contract.
+  The unit-economics validator is ready, but #134 remains blocked on private
+  physical cost evidence; the synthetic `$34.99/$44.99` scenarios are not
+  launch approval.
 - UAT: cart persists after Stripe cancel; My Orders thumbnails restored.
 - UAT: multi-item checkout metadata limit handled.
 - Onshore staging: Stripe sandbox checkout, webhook routing, duplicate replay, operator allowlist/update, tracking, and provider rollback smoke passed.

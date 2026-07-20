@@ -20,11 +20,13 @@ import {
   parseKexiaozhanPaymentNotificationExtraFields,
 } from "../_shared/kexiaozhan-payment.ts";
 import { resolveKexiaozhanCheckoutPricing } from "../_shared/kexiaozhan-checkout-pricing.ts";
+import {
+  SNAPCASE_DEFAULT_CURRENCY,
+  SNAPCASE_DEFAULT_PRODUCT_PRICE_CENTS,
+  SNAPCASE_DEFAULT_SHIPPING_CENTS,
+} from "../_shared/catalog-pricing.ts";
 
 const TRUE_VALUES = new Set(["1", "true", "yes"]);
-const DEFAULT_PRODUCT_PRICE_CENTS = 2999;
-const DEFAULT_SHIPPING_CENTS = 499;
-const DEFAULT_CHECKOUT_CURRENCY = "usd";
 const DEFAULT_PREVIEW_URL =
   "https://snapcase.ai/placeholder-vendor-preview.png";
 const STRIPE_CHECKOUT_SESSION_SECONDS = 31 * 60;
@@ -99,7 +101,7 @@ function isZeroTotalCheckoutEnabled(): boolean {
 
 function readCheckoutCurrency(): string {
   const currency = (Deno.env.get("KEXIAOZHAN_CHECKOUT_CURRENCY") ??
-    DEFAULT_CHECKOUT_CURRENCY).trim().toLowerCase();
+    SNAPCASE_DEFAULT_CURRENCY).trim().toLowerCase();
   if (!/^[a-z]{3}$/.test(currency)) {
     throw new Error("KEXIAOZHAN_CHECKOUT_CURRENCY must be a 3-letter code");
   }
@@ -459,11 +461,11 @@ serve(async (req) => {
 
     const configuredUnitAmountCents = readIntegerEnv(
       "KEXIAOZHAN_CHECKOUT_UNIT_AMOUNT_CENTS",
-      DEFAULT_PRODUCT_PRICE_CENTS,
+      SNAPCASE_DEFAULT_PRODUCT_PRICE_CENTS,
     );
     const configuredShippingCents = readIntegerEnv(
       "KEXIAOZHAN_CHECKOUT_SHIPPING_CENTS",
-      DEFAULT_SHIPPING_CENTS,
+      SNAPCASE_DEFAULT_SHIPPING_CENTS,
     );
     const pricing = resolveKexiaozhanCheckoutPricing({
       unitAmountCents: configuredUnitAmountCents,

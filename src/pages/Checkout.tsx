@@ -40,8 +40,9 @@ import {
   asMarketingItems,
   buildAnalyticsItems,
 } from "@/lib/analytics-commerce";
+import { SNAPCASE_DEFAULT_SHIPPING } from "../../supabase/functions/_shared/catalog-pricing.ts";
 
-const SHIPPING_COST = 4.99;
+const SHIPPING_COST = SNAPCASE_DEFAULT_SHIPPING;
 
 type PromoDetails = {
   code: string;

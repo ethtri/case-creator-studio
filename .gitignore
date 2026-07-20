@@ -51,6 +51,7 @@ coverage
 output/playwright/
 output/performance/
 output/analytics-reconciliation/
+scripts/fixtures/*unit-economics*.private.json
 
 # Temporary files
 *.tmp

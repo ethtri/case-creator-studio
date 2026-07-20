@@ -5,6 +5,13 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { getCorsHeaders, requireAllowedOrigin } from "../_shared/cors.ts";
 import { GA4_BROWSER_CLIENT_ID_PATTERN } from "../_shared/ga4-client-id.ts";
 import { getStripeSecretKey } from "../_shared/stripe-config.ts";
+import {
+  SNAPCASE_DEFAULT_CURRENCY,
+  SNAPCASE_DEFAULT_PRODUCT_PRICE,
+  SNAPCASE_DEFAULT_PRODUCT_PRICE_CENTS,
+  SNAPCASE_DEFAULT_SHIPPING,
+  SNAPCASE_DEFAULT_SHIPPING_CENTS,
+} from "../_shared/catalog-pricing.ts";
 
 const FULFILLMENT_PROVIDERS = new Set(["printful", "onshore_manual"]);
 const TRUE_VALUES = new Set(["1", "true", "yes"]);
@@ -148,10 +155,6 @@ const checkoutRequestSchema = z.object({
     .optional(),
   analyticsConsent: z.enum(["granted", "denied", "unset"]).optional(),
 });
-
-// Server-side pricing - single source of truth
-const PRODUCT_PRICE = 29.99;
-const SHIPPING_COST = 4.99;
 
 type PromoResolution = {
   code: string;
@@ -351,7 +354,7 @@ serve(async (req) => {
     // Normalize items using server-side pricing
     const items = requestItems.map((item) => ({
       ...item,
-      price: PRODUCT_PRICE,
+      price: SNAPCASE_DEFAULT_PRODUCT_PRICE,
     }));
 
     // Calculate totals using server-side pricing
@@ -359,7 +362,7 @@ serve(async (req) => {
       (sum, item) => sum + item.price * item.quantity,
       0,
     );
-    const shippingCost = SHIPPING_COST;
+    const shippingCost = SNAPCASE_DEFAULT_SHIPPING;
     if (promoCode && !supabaseClient) {
       throw new Error("Unable to validate promo code right now.");
     }
@@ -382,7 +385,7 @@ serve(async (req) => {
     // Create line items for Stripe using server-side pricing
     const lineItems = items.map((item) => ({
       price_data: {
-        currency: "usd",
+        currency: SNAPCASE_DEFAULT_CURRENCY,
         product_data: {
           name: `${item.brand} ${item.model} Custom Case`,
           description: "Custom designed phone case",
@@ -390,7 +393,7 @@ serve(async (req) => {
             variantId: item.variantId,
           },
         },
-        unit_amount: Math.round(item.price * 100), // Convert to cents - use server price
+        unit_amount: SNAPCASE_DEFAULT_PRODUCT_PRICE_CENTS,
       },
       quantity: item.quantity,
     }));
@@ -427,8 +430,8 @@ serve(async (req) => {
           shipping_rate_data: {
             type: "fixed_amount",
             fixed_amount: {
-              amount: Math.round(SHIPPING_COST * 100),
-              currency: "usd",
+              amount: SNAPCASE_DEFAULT_SHIPPING_CENTS,
+              currency: SNAPCASE_DEFAULT_CURRENCY,
             },
             display_name: "Standard shipping",
             delivery_estimate: {
