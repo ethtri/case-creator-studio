@@ -18,6 +18,11 @@ import {
 } from "../_shared/kexiaozhan-payment-guard.ts";
 import { evaluateKexiaozhanApiResponse } from "../_shared/kexiaozhan-api-response.ts";
 import { isAllowedKexiaozhanMachineSn } from "../_shared/kexiaozhan-handoff.ts";
+import {
+  fulfillmentStatusForKexiaozhanNotification,
+  getKexiaozhanNotificationSummary,
+  kexiaozhanNotificationLastError,
+} from "../_shared/kexiaozhan-reconciliation.ts";
 
 const PROVIDERS = ["printful", "onshore_manual"] as const;
 type FulfillmentProvider = (typeof PROVIDERS)[number];
@@ -50,6 +55,10 @@ type ProductionJobsClient = {
   };
 };
 
+type KexiaozhanHandoffUpdateQuery = PromiseLike<{ error: unknown }> & {
+  eq(column: string, value: unknown): KexiaozhanHandoffUpdateQuery;
+};
+
 type KexiaozhanHandoffsClient = {
   from(table: "kexiaozhan_handoffs"): {
     select(columns?: string): {
@@ -60,13 +69,15 @@ type KexiaozhanHandoffsClient = {
         maybeSingle(): Promise<{ data: unknown; error: unknown }>;
       };
     };
-    update(values: JsonRecord): {
-      eq(
-        column: "out_trade_no",
-        value: unknown,
-      ): Promise<{ error: unknown }>;
-    };
+    update(values: JsonRecord): KexiaozhanHandoffUpdateQuery;
   };
+};
+
+type KexiaozhanClaimClient = {
+  rpc(
+    name: "claim_kexiaozhan_payment_notification",
+    values: { p_out_trade_no: string; p_lease_seconds: number },
+  ): Promise<{ data: unknown; error: unknown }>;
 };
 
 type KexiaozhanPaymentContext = {
@@ -203,6 +214,33 @@ function orderStatusForJobStatus(status: string): string {
   if (status === "shipped") return "shipped";
   if (status === "failed") return "failed";
   return "processing";
+}
+
+function buildOrderFulfillmentUpdate(
+  job: ProductionJobRecord,
+  provider: FulfillmentProvider,
+): JsonRecord {
+  const summary = getKexiaozhanNotificationSummary(job.metadata);
+  const fulfillmentStatus = fulfillmentStatusForKexiaozhanNotification(
+    job.fulfillment_status ?? job.status,
+    summary,
+  ) ?? job.status;
+  const lastError = kexiaozhanNotificationLastError(summary);
+
+  const update: JsonRecord = {
+    status: orderStatusForJobStatus(job.status),
+    fulfillment_provider: provider,
+    fulfillment_order_id: job.id,
+    fulfillment_status: fulfillmentStatus,
+    fulfillment_routed_at: new Date().toISOString(),
+    printful_status: fulfillmentStatus,
+    printful_next_attempt_at: null,
+  };
+  if (summary?.state !== "in_progress") {
+    update.fulfillment_last_error = lastError;
+    update.printful_last_error = lastError;
+  }
+  return update;
 }
 
 function resolveKexiaozhanNotifyGate(outTradeNo: string) {
@@ -390,6 +428,7 @@ async function recordKexiaozhanHandoffNotification(
   payment: KexiaozhanPaymentContext,
   paymentNotification: JsonRecord,
   stripePaymentIntentId: string | null,
+  notifyClaimId: string | null,
 ): Promise<void> {
   try {
     const response = isRecord(paymentNotification.response)
@@ -429,11 +468,19 @@ async function recordKexiaozhanHandoffNotification(
     if (responseOk) {
       update.payment_notified_at = new Date().toISOString();
     }
+    if (notifyClaimId) {
+      update.notify_claim_id = null;
+      update.notify_claimed_at = null;
+    }
 
-    const { error } = await (supabaseAdmin as KexiaozhanHandoffsClient)
+    let query = (supabaseAdmin as KexiaozhanHandoffsClient)
       .from("kexiaozhan_handoffs")
       .update(update)
       .eq("out_trade_no", payment.outTradeNo);
+    if (notifyClaimId) {
+      query = query.eq("notify_claim_id", notifyClaimId);
+    }
+    const { error } = await query;
 
     if (error) {
       console.error(
@@ -447,6 +494,43 @@ async function recordKexiaozhanHandoffNotification(
       error,
     );
   }
+}
+
+type KexiaozhanNotificationClaim =
+  | { state: "claimed"; claimId: string }
+  | { state: "already_succeeded" }
+  | { state: "in_progress" }
+  | { state: "error" };
+
+async function claimKexiaozhanPaymentNotification(
+  supabaseAdmin: unknown,
+  outTradeNo: string,
+): Promise<KexiaozhanNotificationClaim> {
+  const { data, error } = await (supabaseAdmin as KexiaozhanClaimClient).rpc(
+    "claim_kexiaozhan_payment_notification",
+    {
+      p_out_trade_no: outTradeNo,
+      p_lease_seconds: 300,
+    },
+  );
+
+  if (error) {
+    console.error(
+      "[ROUTE-FULFILLMENT] Kexiaozhan notification claim failed:",
+      error,
+    );
+    return { state: "error" };
+  }
+
+  const rawRow = Array.isArray(data) ? data[0] : data;
+  if (!isRecord(rawRow)) return { state: "error" };
+  if (rawRow.already_succeeded === true) {
+    return { state: "already_succeeded" };
+  }
+  if (rawRow.claimed !== true) return { state: "in_progress" };
+
+  const claimId = getStringField(rawRow, "claim_id");
+  return claimId ? { state: "claimed", claimId } : { state: "error" };
 }
 
 async function recordKexiaozhanPaymentNotification(
@@ -537,6 +621,8 @@ async function recordKexiaozhanPaymentNotification(
       authentication: "signature_only",
       transactionIdSource: transaction?.source ?? null,
     };
+    let notifyClaimId: string | null = null;
+    let skipHandoffUpdate = false;
 
     if (!transactionId) {
       paymentNotification.mode = "blocked";
@@ -600,35 +686,85 @@ async function recordKexiaozhanPaymentNotification(
       };
 
       if (notifyEnabled) {
-        try {
-          const response = await fetch(endpoint, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-          });
-          paymentNotification.response = evaluateKexiaozhanApiResponse(
-            response.status,
-            response.ok,
-            await response.text(),
-          );
-        } catch (error) {
-          const message = error instanceof Error
-            ? error.message
-            : String(error);
-          paymentNotification.response = {
-            ok: false,
-            error: truncateForMetadata(message),
+        const claim = await claimKexiaozhanPaymentNotification(
+          supabaseAdmin,
+          payment.outTradeNo,
+        );
+        if (claim.state === "in_progress") {
+          return {
+            ...job,
+            metadata: {
+              ...existingMetadata,
+              kexiaozhan: {
+                ...existingKexiaozhan,
+                payment: paymentMetadata,
+                paymentNotification: {
+                  mode: "in_progress",
+                  generatedAt: new Date().toISOString(),
+                  reason: "notification_in_progress",
+                },
+              },
+            },
           };
+        }
+        if (claim.state === "error") {
+          paymentNotification.mode = "blocked";
+          paymentNotification.reason = "notification_claim_failed";
+          skipHandoffUpdate = true;
+        } else if (claim.state === "already_succeeded") {
+          paymentNotification.response = {
+            ok: true,
+            status: 200,
+            code: 0,
+            message: "Previously accepted",
+            error: null,
+          };
+          skipHandoffUpdate = true;
+        } else {
+          notifyClaimId = claim.claimId;
+          try {
+            const response = await fetch(endpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+              signal: AbortSignal.timeout(20_000),
+            });
+            paymentNotification.response = evaluateKexiaozhanApiResponse(
+              response.status,
+              response.ok,
+              await response.text(),
+            );
+          } catch (error) {
+            const message = error instanceof Error
+              ? error.message
+              : String(error);
+            paymentNotification.response = {
+              ok: false,
+              status: 503,
+              code: null,
+              message: null,
+              error: "network_error",
+            };
+            console.error(
+              "[ROUTE-FULFILLMENT] Kexiaozhan vendor request failed:",
+              truncateForMetadata(message),
+            );
+          }
         }
       }
     }
 
-    await recordKexiaozhanHandoffNotification(
-      supabaseAdmin,
-      payment,
-      paymentNotification,
-      stripePaymentIntentId,
-    );
+    paymentNotification.completedAt = new Date().toISOString();
+
+    if (!skipHandoffUpdate) {
+      await recordKexiaozhanHandoffNotification(
+        supabaseAdmin,
+        payment,
+        paymentNotification,
+        stripePaymentIntentId,
+        notifyClaimId,
+      );
+    }
 
     const metadata = {
       ...existingMetadata,
@@ -638,11 +774,19 @@ async function recordKexiaozhanPaymentNotification(
         paymentNotification,
       },
     };
+    const summary = getKexiaozhanNotificationSummary(metadata);
+    const fulfillmentStatus = fulfillmentStatusForKexiaozhanNotification(
+      job.fulfillment_status,
+      summary,
+    );
 
     const { data: updatedJob, error: updateError } =
       await (supabaseAdmin as ProductionJobsClient)
         .from("production_jobs")
-        .update({ metadata })
+        .update({
+          metadata,
+          fulfillment_status: fulfillmentStatus,
+        })
         .eq("id", job.id)
         .select()
         .single();
@@ -657,7 +801,7 @@ async function recordKexiaozhanPaymentNotification(
 
     return updatedJob
       ? updatedJob as ProductionJobRecord
-      : { ...job, metadata };
+      : { ...job, metadata, fulfillment_status: fulfillmentStatus };
   } catch (error) {
     console.error(
       "[ROUTE-FULFILLMENT] Kexiaozhan notification recording failed:",
@@ -833,19 +977,10 @@ serve(async (req) => {
 
     await supabaseAdmin
       .from("orders")
-      .update({
-        status: orderStatusForJobStatus(jobWithPaymentNotification.status),
-        fulfillment_provider: provider,
-        fulfillment_order_id: jobWithPaymentNotification.id,
-        fulfillment_status: jobWithPaymentNotification.fulfillment_status ??
-          jobWithPaymentNotification.status,
-        fulfillment_last_error: null,
-        fulfillment_routed_at: new Date().toISOString(),
-        printful_status: jobWithPaymentNotification.fulfillment_status ??
-          jobWithPaymentNotification.status,
-        printful_last_error: null,
-        printful_next_attempt_at: null,
-      })
+      .update(buildOrderFulfillmentUpdate(
+        jobWithPaymentNotification,
+        provider,
+      ))
       .eq("id", order.id);
 
     const shipping = await prepareEasyPostShipping(
@@ -975,19 +1110,10 @@ serve(async (req) => {
 
     await supabaseAdmin
       .from("orders")
-      .update({
-        status: orderStatusForJobStatus(jobWithPaymentNotification.status),
-        fulfillment_provider: provider,
-        fulfillment_order_id: jobWithPaymentNotification.id,
-        fulfillment_status: jobWithPaymentNotification.fulfillment_status ??
-          jobWithPaymentNotification.status,
-        fulfillment_last_error: null,
-        fulfillment_routed_at: new Date().toISOString(),
-        printful_status: jobWithPaymentNotification.fulfillment_status ??
-          jobWithPaymentNotification.status,
-        printful_last_error: null,
-        printful_next_attempt_at: null,
-      })
+      .update(buildOrderFulfillmentUpdate(
+        jobWithPaymentNotification,
+        provider,
+      ))
       .eq("id", order.id);
 
     const shipping = await prepareEasyPostShipping(
@@ -1038,6 +1164,13 @@ serve(async (req) => {
     order,
     insertedJob,
   );
+  await supabaseAdmin
+    .from("orders")
+    .update(buildOrderFulfillmentUpdate(
+      jobWithPaymentNotification,
+      provider,
+    ))
+    .eq("id", order.id);
   const shipping = await prepareEasyPostShipping(
     supabaseUrl,
     serviceRoleKey,

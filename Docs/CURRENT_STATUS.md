@@ -2,7 +2,7 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-07-18
+**Last updated:** 2026-07-19
 **Last updated by:** Codex
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
@@ -76,6 +76,11 @@ Owner-updated snapshot for AI agents. Keep this short and current.
   `KEXIAOZHAN_ALLOWED_MACHINE_SN`. Vendor notification counts as successful
   only when HTTP succeeds and the bounded JSON response contains `code: 0`;
   business, format, size, HTTP, and network failures remain retryable (#140).
+- Kexiaozhan notification recovery now reserves live attempts with a database
+  lease, projects only safe failure details into the internal production queue,
+  and lets an authenticated operator retry the existing order without creating
+  another production job. Successful retries return the job to the onshore
+  queue; public callbacks and production machines remain disabled (#142).
 - Kexiaozhan staging smoke on 2026-06-16: deployed `20260616034837_add_kexiaozhan_handoffs`, `kexiaozhan-create-checkout`, `stripe-webhook`, and `route-fulfillment-order` to Supabase staging `onztuktjcmjukfhcuphh`; configured sandbox Kexiaozhan secrets without committing them; verified signed checkout creation, duplicate retry reuse, changed replay rejection, bad signature rejection, wrong-machine rejection, real Stripe test payment, webhook order update, one onshore production job, and dry-run signed Kexiaozhan callback metadata.
 - Historical note: a private Vercel preview-bypass URL was used during the initial staging setup. It is not part of the current vendor test path; do not post or reuse bypass tokens.
 - Kexiaozhan timeout policy: vendor cancellation still occurs after 15 minutes, but
