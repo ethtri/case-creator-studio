@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import test from "node:test";
 
 import { phoneVariants } from "../src/data/phoneVariants.ts";
@@ -18,6 +18,23 @@ const catalogSource = await readFile(
   new URL("../src/pages/Catalog.tsx", import.meta.url),
   "utf8",
 );
+const indexHtml = await readFile(
+  new URL("../index.html", import.meta.url),
+  "utf8",
+);
+const manifest = JSON.parse(
+  await readFile(
+    new URL("../public/site.webmanifest", import.meta.url),
+    "utf8",
+  ),
+);
+
+const brandedIconPaths = [
+  "snapcase-favicon.svg",
+  "snapcase-favicon-96.png",
+  "snapcase-favicon.ico",
+  "snapcase-apple-touch-icon.png",
+];
 
 test("entry-page CTA, starting-list, and shared price contracts are truthful", () => {
   assert.deepEqual(HOME_PRIMARY_CTA, {
@@ -69,4 +86,67 @@ test("catalog cards keep two routes and remove the always-selected overlay", () 
   assert.match(catalogSource, /catalog_start_design/);
   assert.match(catalogSource, /data-catalog-offer=\{variant\.id\}/);
   assert.match(catalogSource, /focus-within:border-cta/);
+});
+
+test("browser metadata uses only Snapcase-named icon URLs", () => {
+  assert.match(indexHtml, /href="\/snapcase-favicon\.svg"/);
+  assert.match(indexHtml, /href="\/snapcase-favicon-96\.png"/);
+  assert.match(indexHtml, /href="\/snapcase-favicon\.ico"/);
+  assert.match(indexHtml, /href="\/snapcase-apple-touch-icon\.png"/);
+  assert.match(indexHtml, /href="\/site\.webmanifest"/);
+  assert.match(indexHtml, /name="theme-color" content="#120B1A"/);
+  assert.doesNotMatch(indexHtml, /lovable/i);
+});
+
+test("Snapcase browser icons and manifest assets are packaged", async () => {
+  for (const path of brandedIconPaths) {
+    const iconFile = new URL(`../public/${path}`, import.meta.url);
+    assert.ok((await stat(iconFile)).size > 0, `${path} is empty`);
+  }
+
+  assert.equal(manifest.name, "Snapcase");
+  assert.equal(manifest.short_name, "Snapcase");
+  assert.equal(manifest.theme_color, "#120B1A");
+  assert.deepEqual(
+    manifest.icons.map(({ src }) => src),
+    ["/snapcase-favicon-96.png", "/brand/snapcase-mark-512.png"],
+  );
+
+  for (const { src } of manifest.icons) {
+    const manifestIcon = new URL(`../public${src}`, import.meta.url);
+    assert.ok((await stat(manifestIcon)).size > 0, `${src} is missing`);
+  }
+});
+
+test("conventional root icons stay synchronized with branded URLs", async () => {
+  const svgPairs = [["favicon.svg", "snapcase-favicon.svg"]];
+  const binaryPairs = [
+    ["favicon-96.png", "snapcase-favicon-96.png"],
+    ["favicon.ico", "snapcase-favicon.ico"],
+    ["apple-touch-icon.png", "snapcase-apple-touch-icon.png"],
+  ];
+
+  for (const [rootPath, brandedPath] of svgPairs) {
+    const normalizeLineEndings = (value) => value.replaceAll("\r\n", "\n");
+    assert.equal(
+      normalizeLineEndings(
+        await readFile(new URL(`../public/${rootPath}`, import.meta.url), "utf8"),
+      ),
+      normalizeLineEndings(
+        await readFile(
+          new URL(`../public/${brandedPath}`, import.meta.url),
+          "utf8",
+        ),
+      ),
+      `${rootPath} drifted from ${brandedPath}`,
+    );
+  }
+
+  for (const [rootPath, brandedPath] of binaryPairs) {
+    assert.deepEqual(
+      await readFile(new URL(`../public/${rootPath}`, import.meta.url)),
+      await readFile(new URL(`../public/${brandedPath}`, import.meta.url)),
+      `${rootPath} drifted from ${brandedPath}`,
+    );
+  }
 });
