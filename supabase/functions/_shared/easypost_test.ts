@@ -16,22 +16,17 @@ import {
   validateEasyPostWebhook,
 } from "./easypost.ts";
 
-const WEBHOOK_PATH = "/functions/v1/easypost-webhook";
 const WEBHOOK_SECRET = "test-webhook-secret";
 const WEBHOOK_BODY = '{"description":"tracker.updated"}';
-const WEBHOOK_NOW = Date.UTC(2026, 6, 19, 12, 0, 0);
-const WEBHOOK_TIMESTAMP = "Sun, 19 Jul 2026 12:00:00 +0000";
 
 async function signatureFor(
-  timestamp = WEBHOOK_TIMESTAMP,
-  method = "POST",
-  path = WEBHOOK_PATH,
   body = WEBHOOK_BODY,
+  secret = WEBHOOK_SECRET,
 ) {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     "raw",
-    encoder.encode(WEBHOOK_SECRET),
+    encoder.encode(secret.normalize("NFKD")),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
@@ -40,7 +35,7 @@ async function signatureFor(
     await crypto.subtle.sign(
       "HMAC",
       key,
-      encoder.encode(timestamp + method + path + body),
+      encoder.encode(body),
     ),
   );
   return "hmac-sha256-hex=" +
@@ -53,39 +48,28 @@ async function validWebhookHeaders(
   overrides: Record<string, string> = {},
 ): Promise<Record<string, string>> {
   return {
-    "x-timestamp": WEBHOOK_TIMESTAMP,
-    "x-path": WEBHOOK_PATH,
-    "x-hmac-signature-v2": await signatureFor(),
+    "x-hmac-signature": await signatureFor(),
     ...overrides,
   };
 }
 
-Deno.test("validateEasyPostWebhook accepts a valid HMAC v2 request", async () => {
+Deno.test("validateEasyPostWebhook accepts the official raw-body HMAC", async () => {
   const result = await validateEasyPostWebhook({
     secret: WEBHOOK_SECRET,
     headers: await validWebhookHeaders(),
-    method: "post",
-    expectedPath: WEBHOOK_PATH,
     rawBody: WEBHOOK_BODY,
-    toleranceMinutes: 5,
-    now: WEBHOOK_NOW,
   });
 
-  assert(result.valid);
-  assertEquals(result.timestamp.toISOString(), "2026-07-19T12:00:00.000Z");
+  assertEquals(result, { valid: true });
 });
 
-Deno.test("validateEasyPostWebhook rejects bad signatures and path mismatch", async () => {
+Deno.test("validateEasyPostWebhook rejects missing or malformed signatures", async () => {
   const invalidSignature = await validateEasyPostWebhook({
     secret: WEBHOOK_SECRET,
     headers: await validWebhookHeaders({
-      "x-hmac-signature-v2": `hmac-sha256-hex=${"0".repeat(64)}`,
+      "x-hmac-signature": `hmac-sha256-hex=${"0".repeat(64)}`,
     }),
-    method: "POST",
-    expectedPath: WEBHOOK_PATH,
     rawBody: WEBHOOK_BODY,
-    toleranceMinutes: 5,
-    now: WEBHOOK_NOW,
   });
   assertEquals(invalidSignature, {
     valid: false,
@@ -95,74 +79,40 @@ Deno.test("validateEasyPostWebhook rejects bad signatures and path mismatch", as
   const uppercaseSignature = await validateEasyPostWebhook({
     secret: WEBHOOK_SECRET,
     headers: await validWebhookHeaders({
-      "x-hmac-signature-v2": (await signatureFor()).toUpperCase(),
+      "x-hmac-signature": (await signatureFor()).toUpperCase(),
     }),
-    method: "POST",
-    expectedPath: WEBHOOK_PATH,
     rawBody: WEBHOOK_BODY,
-    toleranceMinutes: 5,
-    now: WEBHOOK_NOW,
   });
   assertEquals(uppercaseSignature, {
     valid: false,
     reason: "invalid_signature",
   });
 
-  const pathMismatch = await validateEasyPostWebhook({
+  const missingSignature = await validateEasyPostWebhook({
     secret: WEBHOOK_SECRET,
-    headers: await validWebhookHeaders({ "x-path": "/wrong-path" }),
-    method: "POST",
-    expectedPath: WEBHOOK_PATH,
+    headers: {},
     rawBody: WEBHOOK_BODY,
-    toleranceMinutes: 5,
-    now: WEBHOOK_NOW,
   });
-  assertEquals(pathMismatch, { valid: false, reason: "path_mismatch" });
+  assertEquals(missingSignature, { valid: false, reason: "missing_header" });
 });
 
-Deno.test("validateEasyPostWebhook rejects replay and future timestamps", async () => {
-  const replayTimestamp = "Sun, 19 Jul 2026 11:54:59 +0000";
-  const replay = await validateEasyPostWebhook({
-    secret: WEBHOOK_SECRET,
+Deno.test("validateEasyPostWebhook normalizes secrets and rejects invalid config", async () => {
+  const unicodeSecret = "caf\u00e9-webhook-secret";
+  const normalized = await validateEasyPostWebhook({
+    secret: unicodeSecret,
     headers: {
-      "x-timestamp": replayTimestamp,
-      "x-path": WEBHOOK_PATH,
-      "x-hmac-signature-v2": await signatureFor(replayTimestamp),
+      "x-hmac-signature": await signatureFor(WEBHOOK_BODY, unicodeSecret),
     },
-    method: "POST",
-    expectedPath: WEBHOOK_PATH,
     rawBody: WEBHOOK_BODY,
-    toleranceMinutes: 5,
-    now: WEBHOOK_NOW,
   });
-  assertEquals(replay, { valid: false, reason: "expired" });
+  assertEquals(normalized, { valid: true });
 
-  const futureTimestamp = "Sun, 19 Jul 2026 12:00:31 +0000";
-  const future = await validateEasyPostWebhook({
-    secret: WEBHOOK_SECRET,
-    headers: {
-      "x-timestamp": futureTimestamp,
-      "x-path": WEBHOOK_PATH,
-      "x-hmac-signature-v2": await signatureFor(futureTimestamp),
-    },
-    method: "POST",
-    expectedPath: WEBHOOK_PATH,
-    rawBody: WEBHOOK_BODY,
-    toleranceMinutes: 5,
-    now: WEBHOOK_NOW,
-  });
-  assertEquals(future, { valid: false, reason: "future_timestamp" });
-
-  const invalidTolerance = await validateEasyPostWebhook({
-    secret: WEBHOOK_SECRET,
+  const invalidSecret = await validateEasyPostWebhook({
+    secret: ` ${WEBHOOK_SECRET}`,
     headers: await validWebhookHeaders(),
-    method: "POST",
-    expectedPath: WEBHOOK_PATH,
     rawBody: WEBHOOK_BODY,
-    toleranceMinutes: 61,
-    now: WEBHOOK_NOW,
   });
-  assertEquals(invalidTolerance, {
+  assertEquals(invalidSecret, {
     valid: false,
     reason: "invalid_configuration",
   });

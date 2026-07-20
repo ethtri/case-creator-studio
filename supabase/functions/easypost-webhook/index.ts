@@ -75,9 +75,6 @@ serve(async (req) => {
       secret: webhookSecret,
       headers: req.headers,
       rawBody,
-      method: "POST",
-      expectedPath: EASYPOST_WEBHOOK_PATH,
-      toleranceMinutes: 5,
     });
     if (!validation.valid) {
       return jsonResponse(401, { error: "Invalid webhook" });

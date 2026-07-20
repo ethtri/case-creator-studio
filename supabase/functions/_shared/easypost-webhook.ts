@@ -386,8 +386,6 @@ export async function sha256Hex(value: string): Promise<string> {
 
 export function validateEasyPostWebhookEnvelope(
   req: Request,
-  now = new Date(),
-  toleranceMinutes = 5,
 ): string | null {
   let url: URL;
   try {
@@ -399,24 +397,9 @@ export function validateEasyPostWebhookEnvelope(
     return "INVALID_WEBHOOK_PATH";
   }
 
-  const signedPath = req.headers.get("x-path")?.trim() ?? "";
-  if (signedPath !== EASYPOST_WEBHOOK_PATH) {
-    return "INVALID_SIGNED_PATH";
-  }
-  const signature = req.headers.get("x-hmac-signature-v2")?.trim() ?? "";
+  const signature = req.headers.get("x-hmac-signature")?.trim() ?? "";
   if (!/^hmac-sha256-hex=[a-fA-F0-9]{64}$/.test(signature)) {
     return "INVALID_WEBHOOK_SIGNATURE";
-  }
-
-  const rawTimestamp = req.headers.get("x-timestamp")?.trim() ?? "";
-  const timestampMs = Date.parse(rawTimestamp);
-  if (!Number.isFinite(timestampMs)) return "INVALID_WEBHOOK_TIMESTAMP";
-  const ageMs = now.getTime() - timestampMs;
-  if (
-    ageMs > toleranceMinutes * 60_000 ||
-    ageMs < -30_000
-  ) {
-    return "STALE_WEBHOOK_TIMESTAMP";
   }
   return null;
 }
