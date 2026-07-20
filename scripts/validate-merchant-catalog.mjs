@@ -3,14 +3,12 @@ import path from "node:path";
 
 import { phoneVariants } from "../src/data/phoneVariants.ts";
 import { buildAnalyticsItems } from "../src/lib/analytics-commerce.ts";
+import {
+  SNAPCASE_DEFAULT_CURRENCY,
+  SNAPCASE_DEFAULT_PRODUCT_PRICE,
+} from "../supabase/functions/_shared/catalog-pricing.ts";
 import { validateMerchantCatalog } from "./merchant-catalog-contract.mjs";
 
-const CHECKOUT_FUNCTION = path.resolve(
-  "supabase",
-  "functions",
-  "create-checkout",
-  "index.ts",
-);
 const SITE_URL = "https://www.snapcase.ai";
 
 const collectIndexFiles = async (directory) => {
@@ -34,22 +32,8 @@ const routeFromFile = (file) => {
   return relativeDirectory ? `/${relativeDirectory}` : "/";
 };
 
-const checkoutSource = await fs.readFile(CHECKOUT_FUNCTION, "utf8");
-const checkoutPrice = Number(
-  checkoutSource.match(/const PRODUCT_PRICE = (\d+(?:\.\d+)?);/)?.[1],
-);
-const checkoutCurrency = checkoutSource.match(
-  /price_data:\s*\{[\s\S]*?currency:\s*"([a-zA-Z]{3})"/,
-)?.[1];
-
-if (!Number.isFinite(checkoutPrice)) {
-  throw new Error(
-    "Unable to read the server-controlled checkout product price.",
-  );
-}
-if (!checkoutCurrency) {
-  throw new Error("Unable to read the server-controlled checkout currency.");
-}
+const checkoutPrice = SNAPCASE_DEFAULT_PRODUCT_PRICE;
+const checkoutCurrency = SNAPCASE_DEFAULT_CURRENCY;
 
 const indexFiles = await collectIndexFiles(path.resolve("dist"));
 const internalPages = new Map();

@@ -3,8 +3,7 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getStripeSecretKey } from "../_shared/stripe-config.ts";
-
-const PRODUCT_PRICE = 29.99;
+import { SNAPCASE_DEFAULT_PRODUCT_PRICE } from "../_shared/catalog-pricing.ts";
 
 function getSafeErrorMessage(error: unknown): string {
   const errorMessage = error instanceof Error ? error.message : String(error);
@@ -149,7 +148,7 @@ serve(async (req) => {
     const normalizedCode = code.trim();
 
     const subtotal = items.reduce(
-      (sum, item) => sum + PRODUCT_PRICE * item.quantity,
+      (sum, item) => sum + SNAPCASE_DEFAULT_PRODUCT_PRICE * item.quantity,
       0,
     );
     const orderTotal = subtotal;

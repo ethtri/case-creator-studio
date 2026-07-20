@@ -75,6 +75,19 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
    - Verify Stripe live payment, Kexiaozhan callback success, one production job, and Alejandro workflow.
    - Disable or narrow callback if anything unexpected appears.
 
+7. Commercial pricing is approved from physical evidence.
+   - Keep the current `$29.99` case plus `$4.99` shipping defaults until #134
+     records actual blank case, supplies, labor, quality control, packaging,
+     postage, payment, remake/refund reserve, and vendor/machine costs.
+   - Run `npm run pricing:economics-check -- <private-evidence.json>` against a
+     private evidence file. Do not commit supplier terms, customer data, or
+     private cost agreements.
+   - The `$34.99` standard and `$44.99` magnetic free-shipping launch scenarios
+     in the synthetic fixture are analysis only. They require physical-pilot
+     evidence, an approved decision, at least 40% contribution before
+     advertising, and completion of SKU/compatibility work before launch.
+   - Treat contribution below 30% as a stop-and-review condition.
+
 ## Production Board
 
 - #30 - Delayed Stripe Checkout payment recovery test (complete 2026-07-16).
@@ -93,6 +106,7 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 - #34 - Production cutover and rollback runbook.
 - #32 - Production pilot order and monitoring.
 - #29 - Kexiaozhan print status/reprint APIs. Not required for the first manual pilot; required before automation or unattended scale.
+- #134 - Onshore unit economics and authoritative launch-pricing approval.
 
 ## Historical Coordination Messages (Superseded)
 
