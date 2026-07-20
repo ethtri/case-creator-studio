@@ -14,6 +14,15 @@ preferred for avatars, app icons, and square placements.
 - `snapcase-mark-on-light-512.png` - transparent raster symbol for light surfaces
 - `snapcase-mark-monochrome.svg` - one-color symbol with a cutout sparkle
 - `snapcase-mark-512.png` - square raster mark for metadata and integrations
+- `/snapcase-favicon.svg`, `/snapcase-favicon-96.png`, and
+  `/snapcase-favicon.ico` - browser-tab icons with Snapcase-owned URLs
+- `/snapcase-apple-touch-icon.png` - saved-link icon for Apple devices
+- `/site.webmanifest` - installable web-app name, colors, and icon references
+
+Keep the conventional root favicon files synchronized with the
+`snapcase-*` browser assets. Page metadata uses the Snapcase-named URLs so an
+older Lovable favicon cached under `/favicon.*` cannot override current
+branding.
 
 The site component is `src/components/SnapcaseLogo.tsx`. It follows the active
 theme automatically:
