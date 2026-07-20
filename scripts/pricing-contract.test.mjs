@@ -11,12 +11,14 @@ const [
   checkoutFunctionSource,
   promoFunctionSource,
   kexiaozhanCheckoutSource,
+  fakeVendorCheckoutSource,
 ] = await Promise.all([
   readSource("src/data/phoneVariants.ts"),
   readSource("src/pages/Checkout.tsx"),
   readSource("supabase/functions/create-checkout/index.ts"),
   readSource("supabase/functions/validate-promo/index.ts"),
   readSource("supabase/functions/kexiaozhan-create-checkout/index.ts"),
+  readSource("supabase/functions/fake-vendor-design-complete/index.ts"),
 ]);
 
 test("all executable default pricing paths use the shared contract", () => {
@@ -52,6 +54,26 @@ test("all executable default pricing paths use the shared contract", () => {
   assert.match(
     kexiaozhanCheckoutSource,
     /SNAPCASE_DEFAULT_SHIPPING_CENTS/,
+  );
+  assert.match(
+    fakeVendorCheckoutSource,
+    /price: SNAPCASE_DEFAULT_PRODUCT_PRICE,/,
+  );
+  assert.match(
+    fakeVendorCheckoutSource,
+    /unit_amount: SNAPCASE_DEFAULT_PRODUCT_PRICE_CENTS,/,
+  );
+  assert.match(
+    fakeVendorCheckoutSource,
+    /amount: SNAPCASE_DEFAULT_SHIPPING_CENTS,/,
+  );
+  assert.match(
+    fakeVendorCheckoutSource,
+    /shipping_cost: SNAPCASE_DEFAULT_SHIPPING,/,
+  );
+  assert.doesNotMatch(
+    fakeVendorCheckoutSource,
+    /const (?:PRODUCT_PRICE|SHIPPING_COST) = \d/,
   );
 });
 

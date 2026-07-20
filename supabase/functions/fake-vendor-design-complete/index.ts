@@ -4,9 +4,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { isAllowedOrigin, resolveAllowedOrigin } from "../_shared/cors.ts";
 import { getStripeSecretKey } from "../_shared/stripe-config.ts";
+import {
+  SNAPCASE_DEFAULT_PRODUCT_PRICE,
+  SNAPCASE_DEFAULT_PRODUCT_PRICE_CENTS,
+  SNAPCASE_DEFAULT_SHIPPING,
+  SNAPCASE_DEFAULT_SHIPPING_CENTS,
+  SNAPCASE_STANDARD_SHIPPING_DISPLAY_NAME,
+} from "../_shared/catalog-pricing.ts";
 
-const PRODUCT_PRICE = 29.99;
-const SHIPPING_COST = 4.99;
 const SIGNATURE_TOLERANCE_MS = 5 * 60 * 1000;
 const TRUE_VALUES = new Set(["1", "true", "yes"]);
 const DEFAULT_PREVIEW_URL =
@@ -176,7 +181,7 @@ function buildOrderItem(payload: HandoffPayload): Record<string, unknown> {
     variantId: payload.variantId,
     brand: payload.brand,
     model: payload.model,
-    price: PRODUCT_PRICE,
+    price: SNAPCASE_DEFAULT_PRODUCT_PRICE,
     quantity: payload.quantity,
     designPreview: payload.design.previewUrl ?? DEFAULT_PREVIEW_URL,
     edmTemplateId: null,
@@ -236,8 +241,8 @@ serve(async (req) => {
     });
     const supabaseClient = createClient(supabaseUrl, serviceRoleKey);
     const checkoutOrigin = getCheckoutOrigin();
-    const subtotal = PRODUCT_PRICE * payload.quantity;
-    const total = subtotal + SHIPPING_COST;
+    const subtotal = SNAPCASE_DEFAULT_PRODUCT_PRICE * payload.quantity;
+    const total = subtotal + SNAPCASE_DEFAULT_SHIPPING;
     const item = buildOrderItem(payload);
 
     const session = await stripe.checkout.sessions.create({
@@ -255,11 +260,13 @@ serve(async (req) => {
                 handoffId: payload.handoffId,
               },
             },
-            unit_amount: Math.round(PRODUCT_PRICE * 100),
+            unit_amount: SNAPCASE_DEFAULT_PRODUCT_PRICE_CENTS,
           },
           quantity: payload.quantity,
         },
       ],
+      allow_promotion_codes: false,
+      automatic_tax: { enabled: false },
       mode: "payment",
       success_url:
         `${checkoutOrigin}/order-success?session_id={CHECKOUT_SESSION_ID}`,
@@ -272,14 +279,10 @@ serve(async (req) => {
           shipping_rate_data: {
             type: "fixed_amount",
             fixed_amount: {
-              amount: Math.round(SHIPPING_COST * 100),
+              amount: SNAPCASE_DEFAULT_SHIPPING_CENTS,
               currency: "usd",
             },
-            display_name: "Standard shipping",
-            delivery_estimate: {
-              minimum: { unit: "business_day", value: 2 },
-              maximum: { unit: "business_day", value: 4 },
-            },
+            display_name: SNAPCASE_STANDARD_SHIPPING_DISPLAY_NAME,
           },
         },
       ],
@@ -297,7 +300,7 @@ serve(async (req) => {
       customer_email: payload.customerEmail,
       items: [item],
       subtotal,
-      shipping_cost: SHIPPING_COST,
+      shipping_cost: SNAPCASE_DEFAULT_SHIPPING,
       discount_total: 0,
       marketing_attribution: {
         source: "fake_vendor_handoff",

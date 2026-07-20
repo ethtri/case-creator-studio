@@ -237,10 +237,19 @@ const KexiaozhanCheckout = () => {
               </div>
             </dl>
 
-            <p className="text-xs text-muted-foreground mt-5 pt-5 border-t border-border">
-              Final Snapcase price and shipping are confirmed in Stripe before
-              payment.
-            </p>
+            <div className="mt-5 space-y-2 border-t border-border pt-5 text-xs text-muted-foreground">
+              <p>
+                Final Snapcase price and shipping are confirmed in Stripe before
+                payment. Automatic sales tax is not currently added.
+              </p>
+              <p>
+                Promo codes are not available for this vendor-handoff checkout.
+              </p>
+              <p>
+                Carrier transit begins after production. No delivery date is
+                promised on this page.
+              </p>
+            </div>
           </aside>
         </div>
       </main>

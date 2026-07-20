@@ -24,6 +24,7 @@ import {
   SNAPCASE_DEFAULT_CURRENCY,
   SNAPCASE_DEFAULT_PRODUCT_PRICE_CENTS,
   SNAPCASE_DEFAULT_SHIPPING_CENTS,
+  SNAPCASE_STANDARD_SHIPPING_DISPLAY_NAME,
 } from "../_shared/catalog-pricing.ts";
 
 const TRUE_VALUES = new Set(["1", "true", "yes"]);
@@ -508,6 +509,8 @@ serve(async (req) => {
           quantity: 1,
         },
       ],
+      allow_promotion_codes: false,
+      automatic_tax: { enabled: false },
       mode: "payment",
       success_url:
         `${checkoutOrigin}/order-success?session_id={CHECKOUT_SESSION_ID}`,
@@ -523,11 +526,7 @@ serve(async (req) => {
               amount: shippingCents,
               currency: checkoutCurrency,
             },
-            display_name: "Standard shipping",
-            delivery_estimate: {
-              minimum: { unit: "business_day", value: 2 },
-              maximum: { unit: "business_day", value: 4 },
-            },
+            display_name: SNAPCASE_STANDARD_SHIPPING_DISPLAY_NAME,
           },
         },
       ],

@@ -411,6 +411,10 @@ const Checkout = () => {
                     </span>
                     <span>${SHIPPING_COST.toFixed(2)}</span>
                   </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Tax</span>
+                    <span>$0.00</span>
+                  </div>
                   {appliedPromo && (
                     <div className="flex justify-between text-sm text-success-emphasis">
                       <span className="flex items-center gap-1">
@@ -557,13 +561,19 @@ const Checkout = () => {
                     <CreditCard className="w-5 h-5" />
                     Payment
                   </h2>
-                  <div className="rounded-lg bg-muted p-4">
+                  <div className="space-y-3 rounded-lg bg-muted p-4">
                     <p
                       id="checkout-stripe-help"
                       className="text-sm text-muted-foreground"
                     >
                       Payment and shipping details are entered and submitted in
-                      Stripe Checkout after you continue.
+                      Stripe Checkout after you continue. Snapcase currently
+                      does not add automatic sales tax.
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Production time varies. Carrier transit begins after your
+                      case is produced, and tracking appears in My Orders when
+                      it becomes available.
                     </p>
                   </div>
                 </div>
