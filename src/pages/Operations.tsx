@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
+  AlertTriangle,
+  CheckCircle2,
   Loader2,
   PackageCheck,
   RefreshCw,
+  RotateCcw,
   ShieldCheck,
   Truck,
 } from "lucide-react";
@@ -61,6 +64,14 @@ type ProductionJob = {
   trackingCarrier: string | null;
   trackingUrl: string | null;
   operatorNotes: string | null;
+  vendorNotification: {
+    state: "succeeded" | "failed" | "in_progress" | "dry_run";
+    reason: string | null;
+    vendorCode: number | null;
+    message: string | null;
+    attemptedAt: string | null;
+    canRetry: boolean;
+  } | null;
 };
 
 type DraftUpdate = {
@@ -97,6 +108,31 @@ const statusClasses: Record<ProductionJobStatus, string> = {
   shipped: "bg-success/10 text-success-emphasis border-success/20",
   failed: "bg-destructive/10 text-destructive-emphasis border-destructive/20",
 };
+
+const vendorReasonLabels: Record<string, string> = {
+  machine_not_allowed: "The production machine is not approved.",
+  vendor_business_error: "Kexiaozhan rejected the notification.",
+  http_error: "Kexiaozhan returned a network error.",
+  network_error: "Kexiaozhan could not be reached.",
+  invalid_json_response: "Kexiaozhan returned an unreadable response.",
+  missing_or_invalid_vendor_code:
+    "Kexiaozhan did not return a valid result code.",
+  response_too_large: "Kexiaozhan returned an oversized response.",
+  missing_verified_payment_reference:
+    "The order is missing a verified Stripe payment reference.",
+  invalid_payment_notify_extra_fields:
+    "The Kexiaozhan fulfillment configuration is invalid.",
+  missing_or_invalid_fulfillmentMethod:
+    "The Kexiaozhan fulfillment method is missing or invalid.",
+  notification_claim_failed:
+    "Snapcase could not reserve this notification for a safe retry.",
+  unknown_failure: "The vendor notification did not complete.",
+};
+
+const vendorReasonLabel = (reason: string | null) =>
+  reason
+    ? vendorReasonLabels[reason] ?? `Reason: ${reason}`
+    : "The vendor notification did not complete.";
 
 const buildDraft = (job: ProductionJob): DraftUpdate => ({
   status: job.status,
@@ -136,11 +172,16 @@ const OperationsContent = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [savingJobId, setSavingJobId] = useState<string | null>(null);
+  const [retryingJobId, setRetryingJobId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const sortedJobs = useMemo(
     () =>
       [...jobs].sort((a, b) => {
+        const vendorFailureDelta =
+          Number(b.vendorNotification?.state === "failed") -
+          Number(a.vendorNotification?.state === "failed");
+        if (vendorFailureDelta !== 0) return vendorFailureDelta;
         const statusDelta =
           STATUS_OPTIONS.indexOf(a.status) - STATUS_OPTIONS.indexOf(b.status);
         if (statusDelta !== 0) return statusDelta;
@@ -237,6 +278,47 @@ const OperationsContent = () => {
     }
   };
 
+  const retryVendorNotification = async (job: ProductionJob) => {
+    setRetryingJobId(job.id);
+
+    try {
+      const { data, error: invokeError } = await supabase.functions.invoke(
+        "update-production-job",
+        {
+          body: {
+            jobId: job.id,
+            action: "retry_kexiaozhan_notification",
+          },
+        },
+      );
+
+      if (invokeError) {
+        throw new Error(invokeError.message);
+      }
+      if (data?.success) {
+        toast.success(
+          data?.alreadySucceeded
+            ? "Vendor notification was already complete."
+            : "Vendor notification recovered.",
+        );
+      } else {
+        toast.error(
+          data?.error || "Vendor notification still needs attention.",
+        );
+      }
+      await fetchJobs(true);
+    } catch (retryError) {
+      const message =
+        retryError instanceof Error
+          ? retryError.message
+          : "Unable to retry the vendor notification.";
+      toast.error(message);
+      await fetchJobs(true);
+    } finally {
+      setRetryingJobId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-surface-sunken">
       <nav className="bg-card border-b border-border">
@@ -316,6 +398,8 @@ const OperationsContent = () => {
                   (item) => item.designPreview,
                 )?.designPreview;
                 const isSaving = savingJobId === job.id;
+                const isRetrying = retryingJobId === job.id;
+                const vendorNotification = job.vendorNotification;
 
                 return (
                   <motion.article
@@ -326,8 +410,8 @@ const OperationsContent = () => {
                     transition={{ duration: 0.25 }}
                   >
                     <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
-                      <div className="flex gap-4">
-                        <div className="w-20 h-28 rounded-md bg-muted flex items-center justify-center overflow-hidden shrink-0">
+                      <div className="flex min-w-0 flex-col gap-4 sm:flex-row">
+                        <div className="flex h-40 w-full shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted sm:h-28 sm:w-20">
                           {preview ? (
                             <img
                               src={preview}
@@ -373,9 +457,77 @@ const OperationsContent = () => {
                               <p className="text-muted-foreground">
                                 Fulfillment
                               </p>
-                              <p>{job.fulfillmentStatus ?? "pending"}</p>
+                              <p className="break-words">
+                                {job.fulfillmentStatus ?? "pending"}
+                              </p>
                             </div>
                           </div>
+                          {vendorNotification?.state === "failed" ? (
+                            <div
+                              className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 p-4"
+                              role="alert"
+                            >
+                              <div className="flex items-start gap-3">
+                                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-semibold text-destructive">
+                                    Vendor handoff needs attention
+                                  </p>
+                                  <p className="mt-1 text-sm text-foreground">
+                                    {vendorReasonLabel(
+                                      vendorNotification.reason,
+                                    )}
+                                  </p>
+                                  {vendorNotification.message ? (
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                      Vendor message:{" "}
+                                      {vendorNotification.message}
+                                    </p>
+                                  ) : null}
+                                  <p className="mt-2 text-xs text-muted-foreground">
+                                    {vendorNotification.vendorCode !== null
+                                      ? `Vendor code ${vendorNotification.vendorCode} · `
+                                      : ""}
+                                    {vendorNotification.attemptedAt
+                                      ? `Last attempt ${new Date(
+                                          vendorNotification.attemptedAt,
+                                        ).toLocaleString()}`
+                                      : "No valid attempt time recorded"}
+                                  </p>
+                                  {vendorNotification.canRetry ? (
+                                    <Button
+                                      type="button"
+                                      variant="destructive"
+                                      size="sm"
+                                      className="mt-3 w-full sm:w-auto"
+                                      onClick={() =>
+                                        retryVendorNotification(job)}
+                                      disabled={isSaving || isRetrying}
+                                    >
+                                      {isRetrying ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      ) : (
+                                        <RotateCcw className="mr-2 h-4 w-4" />
+                                      )}
+                                      {isRetrying
+                                        ? "Retrying vendor handoff..."
+                                        : "Retry vendor handoff"}
+                                    </Button>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </div>
+                          ) : vendorNotification?.state === "succeeded" ? (
+                            <div className="mt-4 flex items-center gap-2 rounded-md border border-success/30 bg-success/5 px-3 py-2 text-sm text-success-emphasis">
+                              <CheckCircle2 className="h-4 w-4 shrink-0" />
+                              Kexiaozhan handoff accepted
+                            </div>
+                          ) : vendorNotification?.state === "in_progress" ? (
+                            <div className="mt-4 flex items-center gap-2 rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-sm text-warning-emphasis">
+                              <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                              Kexiaozhan handoff is in progress
+                            </div>
+                          ) : null}
                         </div>
                       </div>
 
@@ -392,7 +544,7 @@ const OperationsContent = () => {
                                   .value as ProductionJobStatus,
                               })
                             }
-                            disabled={isSaving}
+                            disabled={isSaving || isRetrying}
                           >
                             {STATUS_OPTIONS.map((status) => (
                               <option key={status} value={status}>
@@ -412,7 +564,7 @@ const OperationsContent = () => {
                                   trackingCarrier: event.target.value,
                                 })
                               }
-                              disabled={isSaving}
+                              disabled={isSaving || isRetrying}
                             />
                           </div>
                           <div>
@@ -427,7 +579,7 @@ const OperationsContent = () => {
                                   trackingNumber: event.target.value,
                                 })
                               }
-                              disabled={isSaving}
+                              disabled={isSaving || isRetrying}
                             />
                           </div>
                         </div>
@@ -441,7 +593,7 @@ const OperationsContent = () => {
                                 trackingUrl: event.target.value,
                               })
                             }
-                            disabled={isSaving}
+                            disabled={isSaving || isRetrying}
                           />
                         </div>
                         <div>
@@ -454,14 +606,14 @@ const OperationsContent = () => {
                                 operatorNotes: event.target.value,
                               })
                             }
-                            disabled={isSaving}
+                            disabled={isSaving || isRetrying}
                             rows={3}
                           />
                         </div>
                         <Button
                           className="w-full bg-cta hover:bg-cta/90 text-cta-foreground"
                           onClick={() => saveJob(job)}
-                          disabled={isSaving}
+                          disabled={isSaving || isRetrying}
                         >
                           {isSaving ? (
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />

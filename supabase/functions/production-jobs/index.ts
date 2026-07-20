@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { getKexiaozhanNotificationSummary } from "../_shared/kexiaozhan-reconciliation.ts";
 import { requireOperator } from "../_shared/operator-auth.ts";
 
 const JOB_STATUSES = [
@@ -151,6 +152,7 @@ serve(async (req) => {
     trackingCarrier: job.tracking_carrier,
     trackingUrl: job.tracking_url,
     operatorNotes: job.operator_notes,
+    vendorNotification: getKexiaozhanNotificationSummary(job.metadata),
   }));
 
   return new Response(JSON.stringify({ jobs: safeJobs }), {

@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { sendOrderEmail } from "../_shared/email.ts";
+import { getKexiaozhanNotificationSummary } from "../_shared/kexiaozhan-reconciliation.ts";
 import { requireOperator } from "../_shared/operator-auth.ts";
 
 const JOB_STATUSES = [
@@ -23,18 +24,29 @@ const TRUE_VALUES = new Set(["1", "true", "yes"]);
 
 const updateSchema = z.object({
   jobId: z.string().uuid(),
+  action: z.literal("retry_kexiaozhan_notification").optional(),
   status: z.enum(JOB_STATUSES).optional(),
   trackingNumber: z.string().max(120).nullable().optional(),
   trackingCarrier: z.string().max(120).nullable().optional(),
   trackingUrl: z.string().url().max(1000).nullable().optional(),
   operatorNotes: z.string().max(2000).nullable().optional(),
 }).refine((payload) => (
+  payload.action !== undefined ||
   payload.status !== undefined ||
   payload.trackingNumber !== undefined ||
   payload.trackingCarrier !== undefined ||
   payload.trackingUrl !== undefined ||
   payload.operatorNotes !== undefined
-), { message: "At least one update field is required" });
+), { message: "At least one update field is required" }).refine((payload) => (
+  payload.action === undefined ||
+  (
+    payload.status === undefined &&
+    payload.trackingNumber === undefined &&
+    payload.trackingCarrier === undefined &&
+    payload.trackingUrl === undefined &&
+    payload.operatorNotes === undefined
+  )
+), { message: "Retry action cannot include update fields" });
 
 function fulfillmentStatusForJobStatus(status: string): string {
   if (status === "shipped") return "shipped";
@@ -131,7 +143,59 @@ function toSafeJob(job: Record<string, any>) {
     trackingCarrier: job.tracking_carrier,
     trackingUrl: job.tracking_url,
     operatorNotes: job.operator_notes,
+    vendorNotification: getKexiaozhanNotificationSummary(job.metadata),
   };
+}
+
+type VendorRetryResult = {
+  requestSucceeded: boolean;
+  state: "succeeded" | "failed" | "in_progress" | "unknown";
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function invokeVendorNotificationRetry(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  orderId: string,
+): Promise<VendorRetryResult> {
+  try {
+    const response = await fetch(
+      `${supabaseUrl}/functions/v1/route-fulfillment-order`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceRoleKey}`,
+          apikey: serviceRoleKey,
+        },
+        body: JSON.stringify({
+          orderId,
+          provider: "onshore_manual",
+        }),
+      },
+    );
+    const body = await response.json().catch(() => null);
+    const routedJob = isRecord(body) && isRecord(body.job) ? body.job : null;
+    const summary = getKexiaozhanNotificationSummary(routedJob?.metadata);
+    return {
+      requestSucceeded: response.ok,
+      state: summary?.state === "succeeded"
+        ? "succeeded"
+        : summary?.state === "in_progress"
+        ? "in_progress"
+        : summary?.state === "failed"
+        ? "failed"
+        : "unknown",
+    };
+  } catch {
+    return {
+      requestSucceeded: false,
+      state: "unknown",
+    };
+  }
 }
 
 serve(async (req) => {
@@ -190,6 +254,99 @@ serve(async (req) => {
       status: 404,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  }
+
+  if (payload.action === "retry_kexiaozhan_notification") {
+    const existingSummary = getKexiaozhanNotificationSummary(
+      existingJob.metadata,
+    );
+    if (existingJob.provider !== "onshore_manual" || !existingSummary) {
+      return new Response(
+        JSON.stringify({ error: "Job has no Kexiaozhan notification" }),
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (existingSummary.state === "succeeded") {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          alreadySucceeded: true,
+          job: toSafeJob(existingJob),
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (!existingSummary.canRetry) {
+      return new Response(
+        JSON.stringify({ error: "Vendor notification is not retryable" }),
+        {
+          status: 409,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    await supabaseAdmin
+      .from("production_jobs")
+      .update({ operator_email: operator.email })
+      .eq("id", existingJob.id);
+
+    const retry = await invokeVendorNotificationRetry(
+      supabaseUrl,
+      serviceRoleKey,
+      existingJob.order_id,
+    );
+    const { data: refreshedJob, error: refreshError } = await supabaseAdmin
+      .from("production_jobs")
+      .select("*")
+      .eq("id", existingJob.id)
+      .single();
+
+    if (refreshError || !refreshedJob) {
+      console.error(
+        "[UPDATE-PRODUCTION-JOB] Retried job refresh failed:",
+        refreshError,
+      );
+      return new Response(
+        JSON.stringify({ error: "Unable to refresh production job" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const refreshedSummary = getKexiaozhanNotificationSummary(
+      refreshedJob.metadata,
+    );
+    const succeeded = retry.requestSucceeded &&
+      refreshedSummary?.state === "succeeded";
+    const inProgress = retry.state === "in_progress";
+
+    return new Response(
+      JSON.stringify({
+        success: succeeded,
+        inProgress,
+        error: succeeded
+          ? null
+          : inProgress
+          ? "Vendor notification retry is already in progress"
+          : "Vendor notification still needs attention",
+        job: toSafeJob(refreshedJob),
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 
   const nowIso = new Date().toISOString();
