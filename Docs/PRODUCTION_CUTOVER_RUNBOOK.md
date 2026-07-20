@@ -25,6 +25,8 @@ Configure these only after dry-run and TTL/print-mode gates are accepted. Do not
 | Fulfillment | `FULFILLMENT_PROVIDER=onshore_manual` |
 | Fulfillment safety | `ALLOW_ONSHORE_MANUAL=true` |
 | Operators | `OPERATOR_EMAILS=<Snapcase administrator email(s)>` |
+| Transactional email | `RESEND_API_KEY`, `RESEND_FROM_EMAIL=hello@snapcase.ai`, `RESEND_FROM_NAME=Snapcase` |
+| Email support routing | `SUPPORT_EMAIL=support@snapcase.ai`, `RESEND_WEBHOOK_SECRET` |
 | Stripe | `STRIPE_MODE=live`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
 | Shipping automation | `EASYPOST_AUTOMATION_ENABLED=true` |
 | EasyPost production gate | `EASYPOST_MODE=production`, `EASYPOST_PRODUCTION_ENABLED=true` |
@@ -43,6 +45,36 @@ Configure these only after dry-run and TTL/print-mode gates are accepted. Do not
 | Print-mode field | `KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON={"fulfillmentMethod":"deferredPrint"}` |
 | Callback gate | `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false` until supervised go/no-go |
 | Pilot allowlist | `KEXIAOZHAN_PAYMENT_NOTIFY_REQUIRE_ALLOWLIST=true` and exact `KEXIAOZHAN_PAYMENT_NOTIFY_ALLOWED_OUT_TRADE_NOS` for first order if practical |
+
+Before production cutover, confirm the Resend domain is verified and Supabase
+Auth custom SMTP uses `hello@snapcase.ai` as its sender. Transactional order
+mail uses `hello@snapcase.ai` as its sender and `support@snapcase.ai` as its
+reply-to address. Partnership mail uses `partnerships@snapcase.ai`; creator and
+social outreach uses `social@snapcase.ai`.
+
+### Resend configuration baseline (verified 2026-07-20)
+
+- Resend workspace owner: `hello@snapcase.ai`.
+- `snapcase.ai` is verified in Resend. GoDaddy retains the Microsoft 365 root
+  MX and related records; Resend uses only `resend._domainkey` plus the `send`
+  subdomain MX/SPF records.
+- Production and staging use separate sending-only Resend API keys restricted
+  to `snapcase.ai`. Store them only as each project's `RESEND_API_KEY` secret.
+- Both environments use `hello@snapcase.ai` for `RESEND_FROM_EMAIL`,
+  `support@snapcase.ai` for `SUPPORT_EMAIL`, and `Snapcase` for
+  `RESEND_FROM_NAME`.
+- Supabase Auth custom SMTP is enabled in production and staging with
+  `smtp.resend.com:587`, username `resend`, sender `Snapcase
+  <hello@snapcase.ai>`, and the environment-specific Resend key as its encrypted
+  password.
+- Resend has separate production and staging webhook endpoints at each
+  project's `/functions/v1/resend-webhook` URL. Each listens for `email.sent`,
+  `email.delivered`, `email.bounced`, `email.complained`, `email.failed`,
+  `email.opened`, and `email.clicked`, with its own signing secret stored as
+  `RESEND_WEBHOOK_SECRET` in the matching Supabase project.
+- A controlled `hello@snapcase.ai` delivery test must show both `sent` and
+  `delivered`, and signed webhook deliveries must return HTTP 200 after any
+  signing-secret rotation.
 
 `KEXIAOZHAN_PAYMENT_NOTIFY_EXTRA_FIELDS_JSON` is a server-controlled, signed
 field. The first pilot must use deferred admin printing:

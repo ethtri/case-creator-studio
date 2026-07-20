@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
+import { SNAPCASE_EMAILS } from "@/lib/email-identities";
 
 const Terms = () => {
   return (
@@ -86,8 +87,11 @@ const Terms = () => {
               <h2 className="text-xl font-semibold text-foreground mb-3">Contact</h2>
               <p>
                 Questions about these terms? Reach us at{" "}
-                <a href="mailto:support@snapcase.ai" className="text-foreground underline">
-                  support@snapcase.ai
+                <a
+                  href={`mailto:${SNAPCASE_EMAILS.support}`}
+                  className="text-foreground underline"
+                >
+                  {SNAPCASE_EMAILS.support}
                 </a>
                 .
               </p>

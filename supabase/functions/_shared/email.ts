@@ -1,7 +1,8 @@
+import { SNAPCASE_EMAILS, resolveSnapcaseRoleEmail } from "./email-identities.ts";
+
 const RESEND_API_URL = "https://api.resend.com/emails";
 
 const DEFAULT_SITE_URL = "https://snapcase.ai";
-const DEFAULT_SUPPORT_EMAIL = "support@snapcase.ai";
 
 export type OrderEmailEvent =
   | "order_confirmed"
@@ -91,10 +92,11 @@ function formatOrderId(orderId: string): string {
 }
 
 function buildFromAddress(): string {
-  const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") ?? "";
-  if (!fromEmail) {
-    throw new Error("RESEND_FROM_EMAIL is required");
-  }
+  const fromEmail = resolveSnapcaseRoleEmail(
+    Deno.env.get("RESEND_FROM_EMAIL"),
+    SNAPCASE_EMAILS.hello,
+    "RESEND_FROM_EMAIL",
+  );
   const fromName = Deno.env.get("RESEND_FROM_NAME") ?? "";
   return fromName ? `${fromName} <${fromEmail}>` : fromEmail;
 }
@@ -104,7 +106,11 @@ function getSiteUrl(options?: SendOrderEmailOptions): string {
 }
 
 function getSupportEmail(options?: SendOrderEmailOptions): string {
-  return options?.supportEmail ?? Deno.env.get("SUPPORT_EMAIL") ?? DEFAULT_SUPPORT_EMAIL;
+  return resolveSnapcaseRoleEmail(
+    options?.supportEmail ?? Deno.env.get("SUPPORT_EMAIL"),
+    SNAPCASE_EMAILS.support,
+    "SUPPORT_EMAIL",
+  );
 }
 
 function renderItems(items: OrderItem[] | null | undefined): string {

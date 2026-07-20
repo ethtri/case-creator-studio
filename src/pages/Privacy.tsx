@@ -4,6 +4,7 @@ import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
 import { Button } from "@/components/ui/button";
 import { useAnalyticsConsent } from "@/hooks/useAnalyticsConsent";
+import { SNAPCASE_EMAILS } from "@/lib/email-identities";
 import { setAnalyticsConsent } from "@/lib/marketing";
 
 const Privacy = () => {
@@ -117,8 +118,11 @@ const Privacy = () => {
               <h2 className="text-xl font-semibold text-foreground mb-3">Contact</h2>
               <p>
                 If you have questions or requests related to privacy, contact{" "}
-                <a href="mailto:support@snapcase.ai" className="text-foreground underline">
-                  support@snapcase.ai
+                <a
+                  href={`mailto:${SNAPCASE_EMAILS.support}`}
+                  className="text-foreground underline"
+                >
+                  {SNAPCASE_EMAILS.support}
                 </a>
                 .
               </p>

@@ -29,6 +29,19 @@ Do not send public launch outreach until:
 4. Draft in Gmail only when the row is not suppressed and the template includes a clear opt-out line.
 5. Update the ledger after every draft, send, reply, bounce, follow-up, or opt-out.
 
+## Official Sender Routing
+
+Use only the official Snapcase identity that matches the conversation:
+
+| Purpose | Address |
+| --- | --- |
+| Business, retail, and brand partnerships | `partnerships@snapcase.ai` |
+| Creator and social media outreach | `social@snapcase.ai` |
+| General inquiries | `hello@snapcase.ai` |
+| Customer and order support | `support@snapcase.ai` |
+
+Customer order data must never be used for partnership or social outreach.
+
 ## Compliance Defaults
 
 - Use accurate sender and reply-to details.

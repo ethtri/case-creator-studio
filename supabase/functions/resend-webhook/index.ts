@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+import { parseSvixSignatures } from "../_shared/svix.ts";
 
 type ResendWebhookPayload = {
   type?: string;
@@ -33,16 +34,6 @@ async function signPayload(secret: string, payload: string): Promise<string> {
   );
   const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
   return btoa(String.fromCharCode(...new Uint8Array(signature)));
-}
-
-function parseSvixSignatures(header: string): string[] {
-  return header
-    .split(" ")
-    .flatMap((entry) => entry.split(","))
-    .map((entry) => entry.trim())
-    .filter((entry) => entry.startsWith("v1,"))
-    .map((entry) => entry.slice(3))
-    .filter(Boolean);
 }
 
 async function verifySignature(req: Request, rawBody: string): Promise<boolean> {
