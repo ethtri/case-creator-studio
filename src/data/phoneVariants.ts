@@ -51,7 +51,9 @@ export interface PhoneVariant {
   printAreaWidth: number;
   printAreaHeight: number;
   imageUrl: string;
-  imageRole: "device-reference" | "finish-sample";
+  imageRole: "device-reference" | "open-reference";
+  imageWidth?: number;
+  imageHeight?: number;
   mockupUrl?: string;
   camera: CameraConfig;
   mockup?: MockupConfig;
@@ -140,8 +142,10 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1680,
     printAreaHeight: 3440,
-    imageUrl: "/catalog/kemore/finish-sample.webp",
-    imageRole: "finish-sample",
+    imageUrl: "/catalog/commons/iphone-17-pro-max.jpg",
+    imageRole: "open-reference",
+    imageWidth: 960,
+    imageHeight: 1440,
     camera: iphoneProCamera,
   },
   {
@@ -154,8 +158,10 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1640,
     printAreaHeight: 3360,
-    imageUrl: "/catalog/kemore/finish-sample.webp",
-    imageRole: "finish-sample",
+    imageUrl: "/catalog/commons/iphone-17-pro.jpg",
+    imageRole: "open-reference",
+    imageWidth: 960,
+    imageHeight: 720,
     camera: iphoneProCamera,
   },
   {
@@ -163,13 +169,15 @@ export const phoneVariants: PhoneVariant[] = [
     printfulVariantId: 34011,
     printfulFinish: "Glossy",
     brand: "Apple",
-    model: "iPhone 17 Air",
+    model: "iPhone Air",
     price: SNAPCASE_DEFAULT_PRODUCT_PRICE,
     currency: "USD",
     printAreaWidth: 1600,
     printAreaHeight: 3280,
-    imageUrl: "/catalog/kemore/finish-sample.webp",
-    imageRole: "finish-sample",
+    imageUrl: "/catalog/commons/iphone-air.jpg",
+    imageRole: "open-reference",
+    imageWidth: 960,
+    imageHeight: 1440,
     camera: iphoneStandardCamera,
   },
   {
@@ -182,8 +190,10 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1520,
     printAreaHeight: 3120,
-    imageUrl: "/catalog/kemore/finish-sample.webp",
-    imageRole: "finish-sample",
+    imageUrl: "/catalog/commons/iphone-17.jpg",
+    imageRole: "open-reference",
+    imageWidth: 960,
+    imageHeight: 1440,
     camera: iphoneStandardCamera,
   },
   // iPhone 16 Series (Snap Case - Product ID: 683)

@@ -169,31 +169,38 @@ const Catalog = () => {
                   data-catalog-card={variant.id}
                 >
                   <figure className="relative mb-4 overflow-hidden rounded-lg border border-border/60 bg-[radial-gradient(circle_at_50%_36%,hsl(var(--card))_0%,hsl(var(--muted))_100%)]">
-                    <div className="aspect-[41/45] w-full">
+                    <div className="relative aspect-[41/45] w-full">
+                      {variant.imageRole === "open-reference" && (
+                        <>
+                          <img
+                            src={variant.imageUrl}
+                            alt=""
+                            aria-hidden="true"
+                            loading="lazy"
+                            decoding="async"
+                            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-35 blur-xl saturate-75"
+                          />
+                          <div
+                            className="absolute inset-0 bg-gradient-to-b from-background/5 via-background/20 to-background/55"
+                            aria-hidden="true"
+                          />
+                        </>
+                      )}
                       <img
                         src={variant.imageUrl}
-                        alt={
-                          variant.imageRole === "device-reference"
-                            ? `${variant.model} device reference for case compatibility; phone not included`
-                            : `Example KeMore custom-case finish for ${variant.model}; phone not included`
-                        }
-                        width={variant.imageRole === "device-reference" ? 410 : 284}
-                        height={variant.imageRole === "device-reference" ? 450 : 138}
+                        alt={`${variant.model} device reference for case compatibility; phone not included`}
+                        width={variant.imageWidth ?? 410}
+                        height={variant.imageHeight ?? 450}
                         loading="lazy"
                         decoding="async"
-                        className={`h-full w-full transition-transform duration-300 group-hover:scale-[1.025] ${
+                        className={`relative z-10 h-full w-full transition-transform duration-300 group-hover:scale-[1.025] ${
                           variant.imageRole === "device-reference"
                             ? "object-contain"
-                            : "object-contain p-4"
+                            : "object-contain p-3 drop-shadow-[0_14px_24px_rgba(0,0,0,0.35)]"
                         }`}
                         data-catalog-image={variant.id}
                       />
                     </div>
-                    {variant.imageRole === "finish-sample" && (
-                      <figcaption className="absolute bottom-2 left-2 rounded-full border border-border/70 bg-background/90 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-foreground shadow-soft backdrop-blur-sm">
-                        Finish sample
-                      </figcaption>
-                    )}
                   </figure>
 
                   {/* Model name & Price */}
