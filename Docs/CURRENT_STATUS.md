@@ -2,8 +2,8 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-07-19
-**Last updated by:** Codex
+**Last updated:** 2026-07-20
+**Last updated by:** ethtr
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
 
@@ -14,22 +14,15 @@ Owner-updated snapshot for AI agents. Keep this short and current.
   named async physical dry run after the software evidence is ready.
 
 ## Top 3 Next Tasks
-1. P0: Complete, review, merge, and deploy the EasyPost automation state machine,
-   private label purchase, signed tracking webhook, and refund recovery (#118,
-   #130).
-2. P0: Build and render-QA the automated `/operations` shipping workflow (#116).
-3. P0: Prepare the exact named order, label, instructions, and rollback for
-   Alejandro's async dry run (#117); execute it only after its physical gates pass.
+1. P0: Manual production dry run - use the queued staging onshore job to print/pack/ship manually, then verify status/tracking updates.
+2. P0: Vendor validation for onshore automation - confirm `filePath` creation, prepaid/internal payment handling, machine targeting, artwork requirements, SKU/material mapping, and failure states.
 
 ## Now / Next / Later
 **Now**
-- P0: The private shipping-label foundation is merged and deployed to isolated
-  staging. EasyPost test/production account keys are held outside the repository;
-  provider automation and durable webhook recovery are in #130.
+- P0: Manual production dry run - use the queued staging onshore job to print/pack/ship manually, then verify status/tracking updates.
 
 **Next**
-- P0: Complete the #118 staging provider E2E, then #116 operations UI.
-- P0: Complete #117 package measurement and async physical shipping dry run.
+- P0: Vendor validation for onshore automation - confirm `filePath` creation, prepaid/internal payment handling, machine targeting, artwork requirements, SKU/material mapping, and failure states.
 
 **Later**
 - None

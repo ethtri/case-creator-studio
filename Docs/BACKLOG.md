@@ -44,7 +44,6 @@ Short, prioritized list only. Use P0/P1/P2. Remove completed items after verific
 - [ ] EDM mobile UX - editor requires slight scroll to reach bottom toolbar on small screens.
 - [ ] Preview mockup throughput - validate Printful rate limits under concurrent load and add queue/backoff if needed.
 - [ ] Explore 3D mockups for variants with only a single front style.
-- [ ] Catalog thumbnails - replace generic images with standardized variant icons.
 - [ ] Unify account menu in EDM editor top bar for consistent access without changing the mobile-optimized header/banner.
 - [ ] Review remaining navigation CTAs (Popular models "View all", menu labeling) for redundancy and clarity.
 
