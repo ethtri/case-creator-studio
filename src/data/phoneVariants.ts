@@ -51,6 +51,7 @@ export interface PhoneVariant {
   printAreaWidth: number;
   printAreaHeight: number;
   imageUrl: string;
+  imageRole: "device-reference" | "finish-sample";
   mockupUrl?: string;
   camera: CameraConfig;
   mockup?: MockupConfig;
@@ -139,7 +140,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1680,
     printAreaHeight: 3440,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/finish-sample.webp",
+    imageRole: "finish-sample",
     camera: iphoneProCamera,
   },
   {
@@ -152,7 +154,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1640,
     printAreaHeight: 3360,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/finish-sample.webp",
+    imageRole: "finish-sample",
     camera: iphoneProCamera,
   },
   {
@@ -165,7 +168,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1600,
     printAreaHeight: 3280,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/finish-sample.webp",
+    imageRole: "finish-sample",
     camera: iphoneStandardCamera,
   },
   {
@@ -178,7 +182,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1520,
     printAreaHeight: 3120,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/finish-sample.webp",
+    imageRole: "finish-sample",
     camera: iphoneStandardCamera,
   },
   // iPhone 16 Series (Snap Case - Product ID: 683)
@@ -192,7 +197,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1680,
     printAreaHeight: 3440,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/iphone-16-pro-max.webp",
+    imageRole: "device-reference",
     camera: iphoneProCamera,
   },
   {
@@ -205,7 +211,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1640,
     printAreaHeight: 3360,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/iphone-16-pro.webp",
+    imageRole: "device-reference",
     camera: iphoneProCamera,
   },
   {
@@ -218,7 +225,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1600,
     printAreaHeight: 3280,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/iphone-16-plus.webp",
+    imageRole: "device-reference",
     camera: iphoneStandardCamera,
   },
   {
@@ -231,7 +239,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1520,
     printAreaHeight: 3120,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/iphone-16.webp",
+    imageRole: "device-reference",
     camera: iphoneStandardCamera,
   },
   // iPhone 15 Series (Snap Case - Product ID: 683)
@@ -245,7 +254,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1640,
     printAreaHeight: 3360,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/iphone-15-pro-max.webp",
+    imageRole: "device-reference",
     camera: iphoneProCamera,
   },
   {
@@ -258,7 +268,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1560,
     printAreaHeight: 3200,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/iphone-15-pro.webp",
+    imageRole: "device-reference",
     camera: iphoneProCamera,
   },
   {
@@ -271,7 +282,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1560,
     printAreaHeight: 3200,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/iphone-15-plus.webp",
+    imageRole: "device-reference",
     camera: iphoneStandardCamera,
   },
   {
@@ -284,7 +296,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1520,
     printAreaHeight: 3120,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/iphone-15.webp",
+    imageRole: "device-reference",
     camera: iphoneStandardCamera,
   },
   // iPhone 14 Series (Snap Case - Product ID: 683)
@@ -298,7 +311,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1640,
     printAreaHeight: 3360,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/iphone-14-pro-max.webp",
+    imageRole: "device-reference",
     camera: iphoneProCamera,
   },
   {
@@ -311,7 +325,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1560,
     printAreaHeight: 3200,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/iphone-14-pro.webp",
+    imageRole: "device-reference",
     camera: iphoneProCamera,
   },
   {
@@ -324,7 +339,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1520,
     printAreaHeight: 3120,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/iphone-14.webp",
+    imageRole: "device-reference",
     camera: iphoneStandardCamera,
   },
   // Samsung Galaxy S24 Series (Snap Case - Product ID: 684)
@@ -339,7 +355,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1680,
     printAreaHeight: 3440,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/galaxy-s24-ultra.webp",
+    imageRole: "device-reference",
     camera: samsungUltraCamera,
   },
   {
@@ -353,7 +370,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1600,
     printAreaHeight: 3280,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/galaxy-s24-plus.webp",
+    imageRole: "device-reference",
     camera: samsungStandardCamera,
   },
   {
@@ -367,7 +385,8 @@ export const phoneVariants: PhoneVariant[] = [
     currency: "USD",
     printAreaWidth: 1520,
     printAreaHeight: 3120,
-    imageUrl: "/placeholder.svg",
+    imageUrl: "/catalog/kemore/galaxy-s24.webp",
+    imageRole: "device-reference",
     camera: samsungStandardCamera,
   },
 ];
