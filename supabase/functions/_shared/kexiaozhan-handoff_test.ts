@@ -149,8 +149,9 @@ Deno.test("rejects bad signatures", async () => {
   );
 });
 
-Deno.test("allows optional comma-separated machine SN allowlist", () => {
-  assertEquals(isAllowedKexiaozhanMachineSn("1000450", ""), true);
+Deno.test("requires a comma-separated machine SN allowlist", () => {
+  assertEquals(isAllowedKexiaozhanMachineSn("1000450", ""), false);
+  assertEquals(isAllowedKexiaozhanMachineSn("1000450", " , "), false);
   assertEquals(
     isAllowedKexiaozhanMachineSn("1000450", "1000001,1000450"),
     true,

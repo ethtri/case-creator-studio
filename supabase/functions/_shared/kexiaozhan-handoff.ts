@@ -193,7 +193,7 @@ export function isAllowedKexiaozhanMachineSn(
     .map((value) => value.trim())
     .filter(Boolean);
 
-  return allowed.length === 0 || allowed.includes(machineSn);
+  return allowed.length > 0 && allowed.includes(machineSn);
 }
 
 export function toKexiaozhanPaymentContext(

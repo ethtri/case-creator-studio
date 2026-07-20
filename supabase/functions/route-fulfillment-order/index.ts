@@ -16,6 +16,8 @@ import {
   KEXIAOZHAN_EXPIRED_HANDOFF_ERROR,
   shouldBlockExpiredKexiaozhanHandoff,
 } from "../_shared/kexiaozhan-payment-guard.ts";
+import { evaluateKexiaozhanApiResponse } from "../_shared/kexiaozhan-api-response.ts";
+import { isAllowedKexiaozhanMachineSn } from "../_shared/kexiaozhan-handoff.ts";
 
 const PROVIDERS = ["printful", "onshore_manual"] as const;
 type FulfillmentProvider = (typeof PROVIDERS)[number];
@@ -224,6 +226,11 @@ function getKexiaozhanApiBaseUrl(): string {
   return configured.replace(/\/+$/, "") || KEXIAOZHAN_DEFAULT_API_BASE;
 }
 
+function getAllowedKexiaozhanMachineSn(): string {
+  return Deno.env.get("KEXIAOZHAN_ALLOWED_MACHINE_SN") ??
+    Deno.env.get("KEXIAOZHAN_MACHINE_SN") ?? "";
+}
+
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -401,6 +408,8 @@ async function recordKexiaozhanHandoffNotification(
     ) === "1";
     const status = notifyMode === "live"
       ? responseOk ? "vendor_notified" : "vendor_notify_failed"
+      : notifyMode === "blocked" && reason === "machine_not_allowed"
+      ? "vendor_notify_failed"
       : hasSuccessfulPayment
       ? "paid"
       : "checkout_created";
@@ -553,6 +562,18 @@ async function recordKexiaozhanPaymentNotification(
         method: "POST",
         body: unsignedBody,
       };
+    } else if (
+      !isAllowedKexiaozhanMachineSn(
+        payment.machineSn,
+        getAllowedKexiaozhanMachineSn(),
+      )
+    ) {
+      paymentNotification.mode = "blocked";
+      paymentNotification.reason = "machine_not_allowed";
+      paymentNotification.request = {
+        method: "POST",
+        body: { ...unsignedBody, orderStatus: 1 },
+      };
     } else if (!machineKey) {
       paymentNotification.mode = "dry_run";
       paymentNotification.reason = "missing_KEXIAOZHAN_MACHINE_KEY";
@@ -585,11 +606,11 @@ async function recordKexiaozhanPaymentNotification(
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(body),
           });
-          paymentNotification.response = {
-            ok: response.ok,
-            status: response.status,
-            body: truncateForMetadata(await response.text()),
-          };
+          paymentNotification.response = evaluateKexiaozhanApiResponse(
+            response.status,
+            response.ok,
+            await response.text(),
+          );
         } catch (error) {
           const message = error instanceof Error
             ? error.message
