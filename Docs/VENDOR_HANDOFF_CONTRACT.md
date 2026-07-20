@@ -101,6 +101,34 @@ Successful response:
 - Secret-like strings such as bearer tokens, Stripe keys, webhook secrets, or
   tokenized URLs are rejected from the mock vendor payload.
 
+## Future Designer Adapter (Off by Default)
+
+The future customer designer contract is defined in
+`supabase/functions/_shared/kexiaozhan-designer-contract.ts`. It is an
+integration interface only: there is no public CTA, vendor call, or production
+configuration.
+
+Activation requires every independent gate below:
+
+- explicit public enablement;
+- either `preselected_sku` or `vendor_selector` mode;
+- the exact approved contract version;
+- a query-free HTTPS session API endpoint; and
+- an exact HTTPS Snapcase return origin.
+
+`preselected_sku` means Snapcase owns phone selection and sends one trusted
+`goodsSkuId`. `vendor_selector` is the fallback when Kexiaozhan cannot preselect
+a SKU; Snapcase sends no model or SKU so the customer still selects exactly
+once. Contradictory selector input fails closed.
+
+The browser may return only a bounded one-time exchange code plus bound state.
+Snapcase must exchange that code server-to-server before trusting
+`goodsSkuId`, case/material type, `filePath`, preview, expiry, attribution, or
+integrity data. Implementing the real adapter remains blocked until Kexiaozhan
+confirms the session endpoint, safe redirect URL format, TTL, one-time exchange
+semantics, integrity scheme/key rotation, authoritative SKU mapping, and
+cancel/error behavior.
+
 ## Staging Smoke
 
 1. Post a signed fake design-complete payload to staging.

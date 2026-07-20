@@ -1,0 +1,45 @@
+{
+  "config": {
+    "publicEnabled": "true",
+    "mode": "preselected_sku",
+    "contractVersion": "2026-07-19",
+    "sessionEndpoint": "https://designer-api.vendor.example/v1/sessions",
+    "returnOrigin": "https://snapcase.ai"
+  },
+  "entry": {
+    "variantId": "iphone-17-pro",
+    "trustedGoodsSkuId": "sku-iphone-17-pro",
+    "attributionToken": "attr_0123456789abcdef",
+    "state": "state_0123456789abcdef",
+    "returnPath": "/designer/complete"
+  },
+  "session": {
+    "sessionCode": "session_0123456789abcdef",
+    "designerUrl": "https://designer.vendor.example/start?session=session_0123456789abcdef",
+    "expiresAt": "2099-01-01T00:15:00.000Z"
+  },
+  "browserReturn": {
+    "status": "complete",
+    "exchangeCode": "exchange_0123456789abcdef",
+    "state": "state_0123456789abcdef"
+  },
+  "serverExchange": {
+    "exchangeCode": "exchange_0123456789abcdef",
+    "state": "state_0123456789abcdef",
+    "attributionToken": "attr_0123456789abcdef",
+    "resultId": "result-001",
+    "goodsSkuId": "sku-iphone-17-pro",
+    "caseType": "ordinary",
+    "materialIds": [
+      "material-clear"
+    ],
+    "filePath": "tenant/designs/result-001.png",
+    "previewUrl": "https://cdn.vendor.example/previews/result-001.png",
+    "expiresAt": "2099-01-01T00:15:00.000Z",
+    "integrity": {
+      "scheme": "hmac-sha256",
+      "keyId": "vendor-key-1",
+      "value": "signature_0123456789abcdef"
+    }
+  }
+}

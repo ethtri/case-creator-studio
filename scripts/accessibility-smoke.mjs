@@ -1025,8 +1025,11 @@ try {
   await assertTargetSize(modelDesignLink, "Catalog model design");
   const detailsDefaultStyle = await getFrameStyle(modelDetailsLink);
   await modelDetailsLink.hover();
-  await page.waitForTimeout(10);
-  const detailsHoverStyle = await getFrameStyle(modelDetailsLink);
+  const detailsHoverStyle = await waitForChangedFrameStyle(
+    modelDetailsLink,
+    detailsDefaultStyle,
+    ["backgroundColor"],
+  );
   assert.notEqual(
     detailsHoverStyle.backgroundColor,
     detailsDefaultStyle.backgroundColor,
@@ -1074,8 +1077,11 @@ try {
 
   const designDefaultStyle = await getFrameStyle(modelDesignLink);
   await modelDesignLink.hover();
-  await page.waitForTimeout(10);
-  const designHoverStyle = await getFrameStyle(modelDesignLink);
+  const designHoverStyle = await waitForChangedFrameStyle(
+    modelDesignLink,
+    designDefaultStyle,
+    ["backgroundColor"],
+  );
   assert.notEqual(
     designHoverStyle.backgroundColor,
     designDefaultStyle.backgroundColor,
