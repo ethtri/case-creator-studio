@@ -50,16 +50,19 @@ const Terms = () => {
             <div>
               <h2 className="text-xl font-semibold text-foreground mb-3">Pricing and payments</h2>
               <p>
-                Prices are shown in USD unless otherwise noted. Taxes and shipping are calculated
-                at checkout. Payment is collected at the time your order is placed.
+                Prices are shown in USD unless otherwise noted. Shipping is shown before payment.
+                Stripe Checkout currently does not add automatic sales tax; if tax collection is
+                enabled later, the amount will be shown before payment. Payment is collected at
+                the time your order is placed.
               </p>
             </div>
 
             <div>
               <h2 className="text-xl font-semibold text-foreground mb-3">Shipping and delivery</h2>
               <p>
-                Confirm your shipping details during checkout. Order status and tracking
-                information appear in My Orders when they become available.
+                Confirm your shipping details during checkout. Production time varies and is not
+                included in carrier transit information. Order status and tracking information
+                appear in My Orders when they become available.
               </p>
             </div>
 

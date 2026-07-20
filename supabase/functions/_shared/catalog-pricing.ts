@@ -1,6 +1,8 @@
 export const SNAPCASE_DEFAULT_PRODUCT_PRICE_CENTS = 2999;
 export const SNAPCASE_DEFAULT_SHIPPING_CENTS = 499;
 export const SNAPCASE_DEFAULT_CURRENCY = "usd";
+export const SNAPCASE_STANDARD_SHIPPING_DISPLAY_NAME =
+  "Standard shipping (carrier transit begins after production)";
 
 export const SNAPCASE_DEFAULT_PRODUCT_PRICE =
   SNAPCASE_DEFAULT_PRODUCT_PRICE_CENTS / 100;

@@ -11,12 +11,16 @@ import {
   SNAPCASE_DEFAULT_PRODUCT_PRICE_CENTS,
   SNAPCASE_DEFAULT_SHIPPING,
   SNAPCASE_DEFAULT_SHIPPING_CENTS,
+  SNAPCASE_STANDARD_SHIPPING_DISPLAY_NAME,
 } from "../_shared/catalog-pricing.ts";
+import {
+  assertCheckoutQuantityAllowed,
+  type CheckoutFulfillmentProvider,
+} from "../_shared/checkout-fulfillment.ts";
 
-const FULFILLMENT_PROVIDERS = new Set(["printful", "onshore_manual"]);
 const TRUE_VALUES = new Set(["1", "true", "yes"]);
 
-function getFulfillmentProvider(): string {
+function getFulfillmentProvider(): CheckoutFulfillmentProvider {
   const provider = (
     Deno.env.get("FULFILLMENT_PROVIDER") ??
       Deno.env.get("ROUTE_FULFILLMENT_PROVIDER") ??
@@ -30,7 +34,7 @@ function getFulfillmentProvider(): string {
     return "printful";
   }
 
-  if (FULFILLMENT_PROVIDERS.has(provider)) {
+  if (provider === "printful" || provider === "onshore_manual") {
     return provider;
   }
 
@@ -78,6 +82,9 @@ function getSafeErrorMessage(error: unknown): string {
     return "Promo code is for first-time customers only.";
   }
   if (lowered.includes("minimum")) {
+    return errorMessage;
+  }
+  if (lowered.includes("one case per checkout")) {
     return errorMessage;
   }
   if (lowered.includes("customer")) {
@@ -310,6 +317,12 @@ serve(async (req) => {
       analyticsClientId,
       analyticsConsent,
     } = validationResult.data;
+    const fulfillmentProvider = getFulfillmentProvider();
+    const totalQuantity = requestItems.reduce(
+      (sum, item) => sum + item.quantity,
+      0,
+    );
+    assertCheckoutQuantityAllowed(fulfillmentProvider, totalQuantity);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
@@ -417,7 +430,8 @@ serve(async (req) => {
       line_items: lineItems,
       ...(promo
         ? { discounts: [{ promotion_code: promo.promotionCodeId }] }
-        : { allow_promotion_codes: true }),
+        : { allow_promotion_codes: false }),
+      automatic_tax: { enabled: false },
       mode: "payment",
       success_url:
         `${checkoutOrigin}/order-success?session_id={CHECKOUT_SESSION_ID}`,
@@ -433,11 +447,7 @@ serve(async (req) => {
               amount: SNAPCASE_DEFAULT_SHIPPING_CENTS,
               currency: SNAPCASE_DEFAULT_CURRENCY,
             },
-            display_name: "Standard shipping",
-            delivery_estimate: {
-              minimum: { unit: "business_day", value: 2 },
-              maximum: { unit: "business_day", value: 4 },
-            },
+            display_name: SNAPCASE_STANDARD_SHIPPING_DISPLAY_NAME,
           },
         },
       ],
@@ -470,7 +480,7 @@ serve(async (req) => {
       analytics_consent: analyticsConsent ?? "unset",
       total: total,
       status: "pending",
-      fulfillment_provider: getFulfillmentProvider(),
+      fulfillment_provider: fulfillmentProvider,
     });
 
     if (orderError) {

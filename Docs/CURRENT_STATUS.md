@@ -49,6 +49,11 @@ Owner-updated snapshot for AI agents. Keep this short and current.
   The unit-economics validator is ready, but #134 remains blocked on private
   physical cost evidence; the synthetic `$34.99/$44.99` scenarios are not
   launch approval.
+- Checkout truthfulness: executable Stripe paths no longer publish the
+  unsupported 2–4 business-day estimate. Automatic tax remains explicitly off
+  and disclosed, promo entry is single-path on normal checkout and excluded on
+  Kexiaozhan handoffs, and onshore checkout is capped at one case until
+  quantity-aware parcel evidence is approved (#144).
 - UAT: cart persists after Stripe cancel; My Orders thumbnails restored.
 - UAT: multi-item checkout metadata limit handled.
 - Onshore staging: Stripe sandbox checkout, webhook routing, duplicate replay, operator allowlist/update, tracking, and provider rollback smoke passed.
