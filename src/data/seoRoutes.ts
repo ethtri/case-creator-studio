@@ -179,25 +179,25 @@ export const staticSeoPages: StaticSeoPage[] = [
   {
     path: "/gifts/custom-phone-case",
     eyebrow: "Custom Phone Case Gifts",
-    headline: "A useful custom gift for birthdays, holidays, and just-because moments.",
+    headline: "Turn a favorite photo or message into a phone case gift.",
     intro:
-      "Turn a favorite memory into a phone case that is personal, practical, and easy to order.",
-    cta: "Create a gift case",
+      "Confirm their exact phone model, add something meaningful, and preview the case before checkout.",
+    cta: "Start designing",
     sections: [
       {
-        title: "Gift ideas that work",
+        title: "One favorite photo",
         body:
-          "Try a pet photo, travel memory, wedding snapshot, team color, family collage, or short message that means something to the recipient.",
+          "Choose a pet, trip, family, or celebration photo that already means something to the person receiving it.",
       },
       {
-        title: "A clear path from idea to checkout",
+        title: "One shared detail",
         body:
-          "Choose the phone model, design the case, generate the preview, and add it to the cart only when it is ready.",
+          "Use initials, a date, an inside joke, a team color, or a short message that feels specific to your relationship.",
       },
       {
-        title: "Personalized without extra coordination",
+        title: "One simple layout",
         body:
-          "Because the case is tied to a phone model, it is easier to personalize than apparel and easier to use than a keepsake that sits on a shelf.",
+          "Keep the design focused, then use the preview to check faces, text, and spacing before adding the case to your cart.",
       },
     ],
     giftAngles: [
