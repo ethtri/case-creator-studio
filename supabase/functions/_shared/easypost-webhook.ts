@@ -1,6 +1,7 @@
 import { sendOrderEmail } from "./email.ts";
 
 export const EASYPOST_WEBHOOK_PATH = "/functions/v1/easypost-webhook";
+export const EASYPOST_WEBHOOK_RUNTIME_PATH = "/easypost-webhook";
 export const EASYPOST_WEBHOOK_MAX_BODY_BYTES = 262_144;
 export const EASYPOST_WEBHOOK_LEASE_SECONDS = 120;
 
@@ -374,14 +375,55 @@ export function toBoundedErrorCode(
   return normalized || fallback;
 }
 
-export async function sha256Hex(value: string): Promise<string> {
+export async function sha256Hex(
+  value: string | Uint8Array,
+): Promise<string> {
+  const bytes: Uint8Array<ArrayBuffer> = typeof value === "string"
+    ? new TextEncoder().encode(value)
+    : Uint8Array.from(value);
   const digest = await crypto.subtle.digest(
     "SHA-256",
-    new TextEncoder().encode(value),
+    bytes,
   );
   return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, "0"))
     .join("");
+}
+
+export async function readBoundedRequestBytes(
+  req: Request,
+  maximumBytes = EASYPOST_WEBHOOK_MAX_BODY_BYTES,
+): Promise<Uint8Array | null> {
+  if (!Number.isInteger(maximumBytes) || maximumBytes < 0) {
+    throw new Error("Invalid request body limit");
+  }
+  if (!req.body) return new Uint8Array();
+
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maximumBytes) {
+        await reader.cancel().catch(() => undefined);
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const result = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return result;
 }
 
 export function validateEasyPostWebhookEnvelope(
@@ -393,7 +435,10 @@ export function validateEasyPostWebhookEnvelope(
   } catch {
     return "INVALID_WEBHOOK_PATH";
   }
-  if (url.pathname !== EASYPOST_WEBHOOK_PATH) {
+  if (
+    url.pathname !== EASYPOST_WEBHOOK_PATH &&
+    url.pathname !== EASYPOST_WEBHOOK_RUNTIME_PATH
+  ) {
     return "INVALID_WEBHOOK_PATH";
   }
 

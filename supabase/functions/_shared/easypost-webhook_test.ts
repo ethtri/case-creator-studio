@@ -4,10 +4,12 @@ import {
   assertFalse,
 } from "https://deno.land/std@0.190.0/testing/asserts.ts";
 import {
+  EASYPOST_WEBHOOK_MAX_BODY_BYTES,
   executeClaimedEasyPostWebhookEvent,
   interpretShippingWebhookClaim,
   parseSafeEasyPostWebhookEvent,
   processEasyPostWebhookEvent,
+  readBoundedRequestBytes,
   type SafeEasyPostWebhookEvent,
   ShippingWebhookProcessingError,
   toBoundedErrorCode,
@@ -194,6 +196,15 @@ Deno.test("webhook envelope requires the exact route and HMAC header", () => {
   assertEquals(
     validateEasyPostWebhookEnvelope(
       new Request(
+        "https://example.test/easypost-webhook",
+        { method: "POST", headers },
+      ),
+    ),
+    null,
+  );
+  assertEquals(
+    validateEasyPostWebhookEnvelope(
+      new Request(
         "https://example.test/functions/v1/other",
         { method: "POST", headers },
       ),
@@ -212,6 +223,31 @@ Deno.test("webhook envelope requires the exact route and HMAC header", () => {
     ),
     "INVALID_WEBHOOK_SIGNATURE",
   );
+});
+
+Deno.test("webhook body reader enforces the byte limit while streaming", async () => {
+  const accepted = await readBoundedRequestBytes(
+    new Request("https://example.test/easypost-webhook", {
+      method: "POST",
+      body: new Uint8Array(EASYPOST_WEBHOOK_MAX_BODY_BYTES),
+    }),
+  );
+  assertEquals(accepted?.byteLength, EASYPOST_WEBHOOK_MAX_BODY_BYTES);
+
+  const oversizedStream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new Uint8Array(EASYPOST_WEBHOOK_MAX_BODY_BYTES));
+      controller.enqueue(new Uint8Array([1]));
+      controller.close();
+    },
+  });
+  const rejected = await readBoundedRequestBytes(
+    new Request("https://example.test/easypost-webhook", {
+      method: "POST",
+      body: oversizedStream,
+    }),
+  );
+  assertEquals(rejected, null);
 });
 
 Deno.test("delivered tracking updates the order and sends one ledger-backed email", async () => {

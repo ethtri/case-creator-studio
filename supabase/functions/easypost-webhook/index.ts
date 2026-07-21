@@ -9,6 +9,7 @@ import {
   executeClaimedEasyPostWebhookEvent,
   interpretShippingWebhookClaim,
   parseSafeEasyPostWebhookEvent,
+  readBoundedRequestBytes,
   sha256Hex,
   toBoundedErrorCode,
   toStoredSafeEasyPostEvent,
@@ -55,12 +56,21 @@ serve(async (req) => {
     return jsonResponse(413, { error: "Payload too large" });
   }
 
-  const rawBody = await req.text();
-  if (
-    new TextEncoder().encode(rawBody).byteLength >
-      EASYPOST_WEBHOOK_MAX_BODY_BYTES
-  ) {
+  let rawBodyBytes: Uint8Array | null;
+  try {
+    rawBodyBytes = await readBoundedRequestBytes(req);
+  } catch {
+    return jsonResponse(400, { error: "Invalid payload" });
+  }
+  if (!rawBodyBytes) {
     return jsonResponse(413, { error: "Payload too large" });
+  }
+
+  let rawBody: string;
+  try {
+    rawBody = new TextDecoder("utf-8", { fatal: true }).decode(rawBodyBytes);
+  } catch {
+    return jsonResponse(400, { error: "Invalid payload" });
   }
 
   const webhookSecret = Deno.env.get("EASYPOST_WEBHOOK_SECRET")?.trim() ?? "";
@@ -74,7 +84,7 @@ serve(async (req) => {
     const validation = await validateEasyPostWebhook({
       secret: webhookSecret,
       headers: req.headers,
-      rawBody,
+      rawBody: rawBodyBytes,
     });
     if (!validation.valid) {
       return jsonResponse(401, { error: "Invalid webhook" });
@@ -96,7 +106,7 @@ serve(async (req) => {
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false },
   });
-  const payloadSha256 = await sha256Hex(rawBody);
+  const payloadSha256 = await sha256Hex(rawBodyBytes);
   const claimToken = crypto.randomUUID();
   const { data, error } = await admin.rpc(
     "claim_shipping_webhook_event",
