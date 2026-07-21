@@ -63,6 +63,10 @@ const AppRoutes = () => (
       <Route path="/custom-phone-case" element={<SeoLanding />} />
       <Route path="/custom-iphone-case" element={<SeoLanding />} />
       <Route path="/custom-samsung-case" element={<SeoLanding />} />
+      <Route
+        path="/custom-phone-case/pet-photo-phone-case"
+        element={<SeoLanding />}
+      />
       <Route path="/gifts/custom-phone-case" element={<SeoLanding />} />
       <Route path="/phone-cases/:variantSlug" element={<PhoneCaseSeo />} />
       <Route path="/design/:variantId" element={<DesignEditorEDM />} />
