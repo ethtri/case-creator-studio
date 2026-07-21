@@ -150,6 +150,35 @@ test("webhooks require EasyPost HMAC and persist only a bounded safe payload", a
   );
 });
 
+test("server shipping functions rely on strict handler service auth", async () => {
+  const [config, serviceAuth, prepare, purchase, refund] = await Promise.all([
+    read("supabase/config.toml"),
+    read("supabase/functions/_shared/service-auth.ts"),
+    read("supabase/functions/shipping-prepare-order/index.ts"),
+    read("supabase/functions/shipping-purchase-label/index.ts"),
+    read("supabase/functions/shipping-refund-label/index.ts"),
+  ]);
+
+  for (const functionName of [
+    "shipping-prepare-order",
+    "shipping-purchase-label",
+    "shipping-refund-label",
+  ]) {
+    assert.match(
+      config,
+      new RegExp(`\\[functions\\.${functionName}\\]\\s*verify_jwt = false`),
+    );
+  }
+  assert.match(serviceAuth, /req\.headers\.get\("origin"\)/);
+  assert.match(serviceAuth, /validKeys\.includes\(bearer\)/);
+  assert.match(serviceAuth, /validKeys\.includes\(apiKey\)/);
+  for (const source of [prepare, purchase, refund]) {
+    assert.match(source, /requireServiceRequest/);
+    assert.match(source, /SUPABASE_SERVICE_ROLE_KEY/);
+    assert.match(source, /SHIPPING_INTERNAL_AUTH_SECRET/);
+  }
+});
+
 test("the production workflow prepares early, purchases after print, and gates packing", async () => {
   const [route, update, prepare] = await Promise.all([
     read("supabase/functions/route-fulfillment-order/index.ts"),

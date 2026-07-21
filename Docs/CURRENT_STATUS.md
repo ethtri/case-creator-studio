@@ -71,6 +71,10 @@ Owner-updated snapshot for AI agents. Keep this short and current.
   setting, persists that choice through purchase, and rejects provider-size
   mismatches. The existing default remains `pdf_4x6`; Alejandro's printer check
   selects the production value without requiring another code change (#175).
+- EasyPost preparation, purchase, and refund are server-to-server functions with
+  gateway JWT verification disabled and strict handler-level service auth. This
+  avoids rejecting internal project credentials before the fail-closed handler
+  check runs (#177).
 - EasyPost isolated-staging proof on 2026-07-21 UTC: recipient normalization,
   approved USPS Ground Advantage selection, exactly-once test-label purchase,
   private PDF storage, 60-second allowlisted-operator retrieval, and negative

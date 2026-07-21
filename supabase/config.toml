@@ -43,13 +43,13 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.shipping-prepare-order]
-verify_jwt = true
+verify_jwt = false
 
 [functions.shipping-purchase-label]
-verify_jwt = true
+verify_jwt = false
 
 [functions.shipping-refund-label]
-verify_jwt = true
+verify_jwt = false
 
 [functions.easypost-webhook]
 verify_jwt = false
