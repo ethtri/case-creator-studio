@@ -195,7 +195,7 @@ serve(async (req) => {
     const selectedRate = selectEasyPostRate(shipment.rates ?? [], policy);
 
     const { data: finalizedData, error: finalizedError } = await admin.rpc(
-      "finalize_easypost_shipping_rate",
+      "finalize_easypost_shipping_rate_and_job",
       {
         p_label_id: label.id,
         p_provider_address_id: verifiedAddress.id,
@@ -211,6 +211,10 @@ serve(async (req) => {
           eligibleRateCount: selectedRate.eligibleRateCount,
           policyVersion: 1,
         },
+        p_normalized_shipping_address: normalizedAddressForJob(
+          job.shipping_address as Record<string, unknown>,
+          verifiedAddress as unknown as Record<string, unknown>,
+        ),
       },
     );
     const finalized = firstRpcRow(finalizedData) as
@@ -219,14 +223,6 @@ serve(async (req) => {
     if (finalizedError || !finalized) {
       throw new Error("Unable to persist EasyPost rate");
     }
-
-    await admin.from("production_jobs").update({
-      fulfillment_status: "onshore_manual_shipping_rated",
-      shipping_address: normalizedAddressForJob(
-        job.shipping_address as Record<string, unknown>,
-        verifiedAddress as unknown as Record<string, unknown>,
-      ),
-    }).eq("id", job.id);
 
     return jsonResponse(200, {
       success: true,

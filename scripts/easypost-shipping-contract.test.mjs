@@ -146,9 +146,10 @@ test("webhooks require EasyPost HMAC and persist only a bounded safe payload", a
 });
 
 test("the production workflow prepares early, purchases after print, and gates packing", async () => {
-  const [route, update] = await Promise.all([
+  const [route, update, prepare] = await Promise.all([
     read("supabase/functions/route-fulfillment-order/index.ts"),
     read("supabase/functions/update-production-job/index.ts"),
+    read("supabase/functions/shipping-prepare-order/index.ts"),
   ]);
 
   assert.match(route, /EASYPOST_AUTOMATION_ENABLED/);
@@ -160,6 +161,9 @@ test("the production workflow prepares early, purchases after print, and gates p
   assert.doesNotMatch(update, /\.select\("state, tracking_number"\)/);
   assert.match(update, /Tracking is managed by EasyPost/);
   assert.match(update, /sendOrderEmail[\s\S]*"order_shipped"/);
+  assert.match(prepare, /finalize_easypost_shipping_rate_and_job/);
+  assert.match(prepare, /p_normalized_shipping_address/);
+  assert.doesNotMatch(prepare, /fulfillmentStatusAfterSuccessfulRating/);
 
   const transitionIndex = update.indexOf(
     '"transition_easypost_production_job"',
@@ -175,5 +179,29 @@ test("the production workflow prepares early, purchases after print, and gates p
   assert.ok(
     transitionReturnIndex > transitionIndex &&
       transitionReturnIndex < laterGenericJobWriteIndex,
+  );
+});
+
+test("rate finalization locks the current job before applying status precedence", async () => {
+  const migration = await read(
+    "supabase/migrations/20260721010000_finalize_easypost_rate_and_job.sql",
+  );
+
+  assert.match(
+    migration,
+    /CREATE OR REPLACE FUNCTION public\.finalize_easypost_shipping_rate_and_job/,
+  );
+  const lockIndex = migration.indexOf("FROM public.production_jobs");
+  const forUpdateIndex = migration.indexOf("FOR UPDATE", lockIndex);
+  const statusUpdateIndex = migration.indexOf(
+    "fulfillment_status = CASE",
+    forUpdateIndex,
+  );
+  assert.ok(lockIndex >= 0);
+  assert.ok(forUpdateIndex > lockIndex);
+  assert.ok(statusUpdateIndex > forUpdateIndex);
+  assert.match(
+    migration,
+    /WHEN fulfillment_status = 'vendor_notify_failed'[\s\S]*THEN fulfillment_status[\s\S]*ELSE 'onshore_manual_shipping_rated'/,
   );
 });
