@@ -425,6 +425,10 @@ test("the scheduled worker uses a dedicated auth secret, not the service-role ke
 
   assert.match(scheduleSql, /ga4_outbox_drain_auth_secret/g);
   assert.match(scheduleSql, /ga4_outbox_drain_enabled/g);
+  assert.equal(
+    scheduleSql.match(/ga4_outbox_drain_enabled/g)?.length,
+    2,
+  );
   assert.match(scheduleSql, /configure_ga4_outbox_drain_schedule/g);
   assert.doesNotMatch(scheduleSql, /service_role_key/i);
   assert.match(

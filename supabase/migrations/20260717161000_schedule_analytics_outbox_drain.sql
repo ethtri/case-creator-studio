@@ -78,7 +78,13 @@ BEGIN
           )
         ),
         body := '{"limit":25}'::JSONB
-      ) AS request_id;
+      ) AS request_id
+      WHERE (
+        SELECT LOWER(BTRIM(decrypted_secret)) = 'true'
+        FROM vault.decrypted_secrets
+        WHERE name = 'ga4_outbox_drain_enabled'
+        LIMIT 1
+      );
     $command$
   );
 
