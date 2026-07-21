@@ -1,4 +1,5 @@
 BEGIN;
+SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
 DO $acceptance$
 DECLARE
@@ -6,6 +7,8 @@ DECLARE
   v_configured BOOLEAN;
   v_job_count INTEGER;
   v_public_execute BOOLEAN;
+  v_queue_count_after BIGINT;
+  v_queue_count_before BIGINT;
 BEGIN
   IF has_function_privilege(
     'anon',
@@ -95,6 +98,20 @@ BEGIN
     RAISE EXCEPTION 'false enable flag unexpectedly enabled cron';
   END IF;
 
+  -- Non-literal enable values remain disabled.
+  PERFORM vault.update_secret(
+    (
+      SELECT id FROM vault.secrets
+      WHERE name = 'ga4_outbox_drain_enabled'
+      LIMIT 1
+    ),
+    ' TRUE '
+  );
+  v_configured := public.configure_ga4_outbox_drain_schedule();
+  IF v_configured THEN
+    RAISE EXCEPTION 'non-literal true flag unexpectedly enabled cron';
+  END IF;
+
   -- Invalid live URL scenario.
   PERFORM vault.update_secret(
     (
@@ -152,7 +169,47 @@ BEGIN
     RAISE EXCEPTION 'scheduled command persisted a credential value';
   END IF;
 
-  -- Runtime disable is immediate; configurator removes the stored cron row.
+  -- Runtime false must queue no HTTP request before cron reconfiguration.
+  PERFORM vault.update_secret(
+    (
+      SELECT id FROM vault.secrets
+      WHERE name = 'ga4_outbox_drain_enabled'
+      LIMIT 1
+    ),
+    'false'
+  );
+  SELECT COUNT(*) INTO v_queue_count_before FROM net.http_request_queue;
+  EXECUTE v_command;
+  SELECT COUNT(*) INTO v_queue_count_after FROM net.http_request_queue;
+  IF v_queue_count_after <> v_queue_count_before THEN
+    RAISE EXCEPTION 'disabled runtime gate queued an HTTP request';
+  END IF;
+
+  -- Runtime invalid URL must also queue no HTTP request.
+  PERFORM vault.update_secret(
+    (
+      SELECT id FROM vault.secrets
+      WHERE name = 'ga4_outbox_drain_enabled'
+      LIMIT 1
+    ),
+    'true'
+  );
+  PERFORM vault.update_secret(
+    (
+      SELECT id FROM vault.secrets
+      WHERE name = 'project_url'
+      LIMIT 1
+    ),
+    'https://invalid.example.com'
+  );
+  SELECT COUNT(*) INTO v_queue_count_before FROM net.http_request_queue;
+  EXECUTE v_command;
+  SELECT COUNT(*) INTO v_queue_count_after FROM net.http_request_queue;
+  IF v_queue_count_after <> v_queue_count_before THEN
+    RAISE EXCEPTION 'invalid runtime URL queued an HTTP request';
+  END IF;
+
+  -- The configurator removes the stored cron row after runtime disable.
   PERFORM vault.update_secret(
     (
       SELECT id FROM vault.secrets

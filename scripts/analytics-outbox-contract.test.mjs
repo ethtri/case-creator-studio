@@ -431,6 +431,11 @@ test("the scheduled worker uses a dedicated auth secret, not the service-role ke
   );
   assert.match(scheduleSql, /configure_ga4_outbox_drain_schedule/g);
   assert.match(scheduleSql, /WITH runtime_config AS/i);
+  assert.match(scheduleSql, /WHERE enabled = 'true'/i);
+  assert.doesNotMatch(
+    scheduleSql,
+    /LOWER\(BTRIM\(COALESCE\((?:v_)?enabled/i,
+  );
   assert.ok(
     scheduleSql.includes(
       "AND project_url ~ '^https://[a-z0-9]{20}\\.supabase\\.co/?$'",
@@ -455,7 +460,7 @@ test("the analytics schedule is removed before its explicit enable gate is evalu
 
   const unscheduleIndex = scheduleSql.indexOf("cron.unschedule");
   const enableGateIndex = scheduleSql.indexOf(
-    "LOWER(BTRIM(COALESCE(v_enabled, '')))",
+    "COALESCE(v_enabled, '') <> 'true'",
   );
   const scheduleIndex = scheduleSql.lastIndexOf("cron.schedule");
   assert.ok(unscheduleIndex >= 0);
@@ -483,6 +488,10 @@ test("the scheduler gate has a rollback-only database acceptance test", async ()
   assert.match(acceptanceSql, /Explicit false scenario/i);
   assert.match(acceptanceSql, /Invalid live URL scenario/i);
   assert.match(acceptanceSql, /Fully valid scenario/i);
+  assert.match(acceptanceSql, /EXECUTE v_command/i);
+  assert.match(acceptanceSql, /net\.http_request_queue/i);
+  assert.match(acceptanceSql, /disabled runtime gate queued an HTTP request/i);
+  assert.match(acceptanceSql, /invalid runtime URL queued an HTTP request/i);
   assert.match(acceptanceSql, /has_function_privilege\(\s*'service_role'/i);
   assert.match(acceptanceSql, /PUBLIC can execute/i);
   assert.match(acceptanceSql, /scheduled command persisted a credential value/i);

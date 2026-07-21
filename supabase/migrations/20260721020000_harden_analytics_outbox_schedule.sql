@@ -28,7 +28,7 @@ BEGIN
   WHERE name = 'ga4_outbox_drain_enabled'
   LIMIT 1;
 
-  IF LOWER(BTRIM(COALESCE(v_enabled, ''))) <> 'true' THEN
+  IF COALESCE(v_enabled, '') <> 'true' THEN
     RAISE NOTICE
       'GA4 outbox drain schedule not enabled: explicit Vault flag is not true';
     RETURN FALSE;
@@ -91,7 +91,7 @@ BEGIN
         body := '{"limit":25}'::JSONB
       ) AS request_id
       FROM runtime_config
-      WHERE LOWER(BTRIM(COALESCE(enabled, ''))) = 'true'
+      WHERE enabled = 'true'
         AND project_url ~ '^https://[a-z0-9]{20}\.supabase\.co/?$'
         AND NULLIF(BTRIM(auth_secret), '') IS NOT NULL
         AND char_length(auth_secret) >= 32;

@@ -105,14 +105,25 @@ Deploy or confirm these Supabase Edge Functions in production before the pilot:
 - `printful-retry`
 - `submit-printful-order`
 
-Apply all repository migrations, including
-`20260717090000_add_analytics_event_outbox`,
-`20260717160000_harden_analytics_event_outbox`, and
-`20260717161000_schedule_analytics_outbox_drain`, plus
-`20260721020000_harden_analytics_outbox_schedule`, followed by the shipping-label
-foundation and EasyPost automation migrations. Apply the hardening migration,
-deploy the updated Stripe webhook and `ga4-outbox-drain`, then apply the schedule
-migration.
+Keep the analytics scheduler disabled before applying its migration chain:
+
+1. Store `project_url`, a matching dedicated scheduler credential, and the
+   literal Vault value `ga4_outbox_drain_enabled=false`.
+2. Deploy `ga4-outbox-drain`. It remains unreachable to cron while the flag is
+   false.
+3. In a clean environment, apply every migration in filename order. This puts
+   `20260721020000_harden_analytics_outbox_schedule` after the `20260719...`
+   shipping migrations, as its timestamp requires.
+4. Deploy the updated `stripe-webhook` only after
+   `20260717160000_harden_analytics_event_outbox` has executed.
+
+For an environment whose migration history already contains later shipping
+migrations but is missing an earlier analytics migration, do not run a broad
+push. With the flag still false, execute each missing analytics SQL file in
+filename order, deploy the functions at the point above, and record a migration
+as applied only after that file executes successfully. Finish with
+`20260721020000_harden_analytics_outbox_schedule`, then confirm the linked
+migration list is clean.
 
 Confirm Supabase Vault contains:
 
