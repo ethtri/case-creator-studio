@@ -121,6 +121,13 @@ active.
   research, reasonable implementation decisions, issue and board updates,
   worktree and branch management, commits, PR creation, review remediation, CI
   reruns, clean squash merges, and post-merge status updates.
+- An explicit instruction such as `proceed` or `take this through merge`
+  authorizes the normal, reversible, in-scope Definition of Done sequence:
+  create and link the tracking issue, apply scoped code or dependency fixes,
+  move a draft PR to ready, rerun CI, complete PR QA, squash-merge after every
+  gate passes, delete the merged branch, and reconcile the issue/status record.
+  It does not authorize unrelated scope or a new production or external-system
+  mutation outside the stated outcome.
 - Do not ask the user to review or merge a PR, run a command, copy values between
   tools, gather information available to agents, or approve an ordinary
   reversible engineering decision.
