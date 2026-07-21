@@ -165,17 +165,29 @@ Deployment requires `GA4_MEASUREMENT_ID` and `GA4_API_SECRET` in both the
 Stripe webhook and `ga4-outbox-drain` environments. The worker also requires a
 dedicated `GA4_OUTBOX_DRAIN_AUTH_SECRET`; its matching value is stored in
 Supabase Vault as `ga4_outbox_drain_auth_secret` for the cron request. These
-values must be configured outside source control. Before
+values must be configured outside source control. The schedule also requires
+the Vault flag `ga4_outbox_drain_enabled=true`; missing or any other value
+immediately suppresses scheduled requests. Run
+`configure_ga4_outbox_drain_schedule()` after any flag or scheduler-secret
+change so the cron row is removed or recreated to match the current config. Set
+the flag only after the GA4 server credentials, consent approval, deployment
+evidence, and monitoring are ready. Before
 closing issue #66, attach GA4 DebugView (or equivalent) evidence for a completed
 test order and refund, and record owner/counsel approval of the selling-region
 consent policy.
 
 ### Outbox operations
 
-Deploy the hardening migration before the updated Stripe webhook and worker,
-then deploy `ga4-outbox-drain` before applying the cron migration. Do not apply
-this chain until the production migration backlog and required secrets have
-been reviewed. A manual drain is:
+Configure the literal Vault value `ga4_outbox_drain_enabled=false` and deploy
+`ga4-outbox-drain` before applying the cron migrations. In a clean
+environment, apply migrations in filename order; deploy the updated Stripe
+webhook only after the hardening migration has executed. In an environment
+whose history already contains later migrations, execute and record each
+missing analytics file in filename order rather than using a broad migration
+push. Applying the schedule migrations is safe while the enable flag is missing
+or false: the service-role-only configurator removes any existing schedule.
+After all required secrets and approvals are present, call
+`configure_ga4_outbox_drain_schedule()` to create the cron. A manual drain is:
 
 Before the controlled purchase/refund reconciliation in #100, run the
 repository's read-only, fail-closed preflight. It verifies the migration and

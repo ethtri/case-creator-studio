@@ -105,24 +105,54 @@ Deploy or confirm these Supabase Edge Functions in production before the pilot:
 - `printful-retry`
 - `submit-printful-order`
 
-Apply all repository migrations, including
-`20260717090000_add_analytics_event_outbox`,
-`20260717160000_harden_analytics_event_outbox`, and
-`20260717161000_schedule_analytics_outbox_drain`, followed by the shipping-label
-foundation and EasyPost automation migrations. Apply the hardening migration,
-deploy the updated Stripe webhook and `ga4-outbox-drain`, then apply the schedule
-migration.
+Keep the analytics scheduler disabled before applying its migration chain:
+
+1. Store `project_url`, a matching dedicated scheduler credential, and the
+   literal Vault value `ga4_outbox_drain_enabled=false`.
+2. Deploy `ga4-outbox-drain`. It remains unreachable to cron while the flag is
+   false.
+3. In a clean environment, apply every migration in filename order. This puts
+   `20260721020000_harden_analytics_outbox_schedule` after the `20260719...`
+   shipping migrations, as its timestamp requires.
+4. Deploy the updated `stripe-webhook` only after
+   `20260717160000_harden_analytics_event_outbox` has executed.
+
+For an environment whose migration history already contains later shipping
+migrations but is missing an earlier analytics migration, do not run a broad
+push. With the flag still false, execute each missing analytics SQL file in
+filename order, deploy the functions at the point above, and record a migration
+as applied only after that file executes successfully. Finish with
+`20260721020000_harden_analytics_outbox_schedule`, then confirm the linked
+migration list is clean.
 
 Confirm Supabase Vault contains:
 
 - `project_url`
 - `ga4_outbox_drain_auth_secret`
+- `ga4_outbox_drain_enabled` (keep `false` until GA4 credentials, consent
+  approval, evidence, and monitoring are ready)
 - `kexiaozhan_checkout_expirer_auth_secret`
 - `shipping_webhook_drain_auth_secret`
 
 The Vault `ga4_outbox_drain_auth_secret` value must match the Edge Function env
 `GA4_OUTBOX_DRAIN_AUTH_SECRET`. The worker uses this dedicated cron credential
 instead of placing the Supabase service-role key in the scheduled request.
+Scheduled requests are sent only while `ga4_outbox_drain_enabled` is exactly
+`true` and the live Vault URL and credential still pass validation. Run
+`configure_ga4_outbox_drain_schedule()` after changing the flag, URL, or
+credential so the cron row itself is removed or recreated to match the current
+configuration.
+
+After applying the scheduler migrations, run the rollback-only database
+acceptance test against the intended project:
+
+```powershell
+supabase db query --linked --file scripts/sql/analytics-outbox-schedule-gate.acceptance.sql
+```
+
+The script verifies disabled, invalid, enabled, legacy-upgrade, runtime-gate,
+and function-privilege behavior inside one transaction, then restores all Vault
+and cron state with `ROLLBACK`.
 The Vault `kexiaozhan_checkout_expirer_auth_secret` value must match the Edge Function env `KEXIAOZHAN_CHECKOUT_EXPIRER_AUTH_SECRET`. This avoids storing the service-role key in the expirer cron header.
 The Vault `shipping_webhook_drain_auth_secret` value must match the Edge Function
 env `SHIPPING_WEBHOOK_DRAIN_AUTH_SECRET`. Run

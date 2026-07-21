@@ -170,6 +170,26 @@ test("repository contract passes against current source", () => {
   assert.equal(result.ok, true, result.errors.join("\n"));
 });
 
+test("example deployment attestation stays synchronized with the contract", () => {
+  const example = JSON.parse(
+    fs.readFileSync(
+      path.join(
+        repositoryRoot,
+        "scripts",
+        "fixtures",
+        "analytics-reconciliation-attestation.example.json",
+      ),
+      "utf8",
+    ),
+  );
+
+  assert.deepEqual(example.appliedMigrations, REQUIRED_ANALYTICS_MIGRATIONS);
+  assert.deepEqual(
+    example.presentVaultSecretNames,
+    REQUIRED_VAULT_SECRET_NAMES,
+  );
+});
+
 test("repository contract detects a missing or stale marker", () => {
   const result = validateRepositoryContract({
     readFile: (filePath) => {
