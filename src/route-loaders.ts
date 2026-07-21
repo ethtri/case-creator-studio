@@ -32,6 +32,7 @@ const seoLandingPaths = new Set([
   "/custom-phone-case",
   "/custom-iphone-case",
   "/custom-samsung-case",
+  "/custom-phone-case/pet-photo-phone-case",
   "/gifts/custom-phone-case",
 ]);
 

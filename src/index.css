@@ -251,6 +251,24 @@
   }
 }
 
+/* This campaign uses a deliberately light editorial art direction in either
+   saved site theme so its photography and contrast remain consistent. */
+.pet-photo-landing {
+  --background: 0 0% 98%;
+  --foreground: 260 50% 10%;
+  --card: 0 0% 100%;
+  --card-foreground: 260 50% 10%;
+  --muted: 260 10% 92%;
+  --muted-foreground: 260 10% 40%;
+  --border: 260 10% 85%;
+  --cta: 167 60% 28%;
+  --cta-foreground: 0 0% 100%;
+  --cta-emphasis: 167 60% 27%;
+  --surface-sunken: 260 10% 95%;
+  --shadow-soft: 0 4px 20px -2px hsl(260 50% 20% / 0.08);
+  --shadow-medium: 0 8px 30px -4px hsl(260 50% 20% / 0.12);
+}
+
 .catalog-details-action:hover:active {
   background-color: hsl(var(--muted));
   color: hsl(var(--foreground));

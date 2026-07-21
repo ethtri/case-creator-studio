@@ -40,6 +40,7 @@ export const OG_IMAGE = `${SITE_URL}/og-image.png`;
 const toAbsoluteAssetUrl = (assetUrl: string) => new URL(assetUrl, `${SITE_URL}/`).href;
 const IPHONE_IMAGE = toAbsoluteAssetUrl(iphoneCaseFront);
 const SAMSUNG_IMAGE = toAbsoluteAssetUrl(samsungCaseFront);
+const PET_PHOTO_IMAGE = `${SITE_URL}/marketing/pet-photo-landing/pet-photo-case-hero.webp`;
 
 const makeRoute = (
   path: string,
@@ -206,19 +207,59 @@ export const staticSeoPages: StaticSeoPage[] = [
       "For practical gifting, a phone case works because it is used every day and can still carry a personal memory without needing extra shelf space.",
     ],
   },
+  {
+    path: "/custom-phone-case/pet-photo-phone-case",
+    eyebrow: "Pet Photo Phone Cases",
+    headline:
+      "Turn one favorite pet photo into a phone case you can carry every day.",
+    intro:
+      "Choose the exact iPhone or Samsung model, upload a clear pet photo, add optional text, and preview the case before checkout.",
+    cta: "Start designing",
+    sections: [
+      {
+        title: "Choose the model",
+        body: "Select the exact supported iPhone or Samsung model so the case size and camera opening match the device.",
+      },
+      {
+        title: "Upload a clear photo",
+        body: "Start with a well-lit image where your pet's face is sharp and there is a little space around the subject.",
+      },
+      {
+        title: "Add a name or message",
+        body: "Keep optional text short so the pet photo remains the focus of the design.",
+      },
+      {
+        title: "Check the preview",
+        body: "Review the case preview, including the photo, text, spacing, and camera area, before checkout.",
+      },
+    ],
+    giftAngles: [
+      "Use one favorite portrait as the main design and leave enough space around the face for a clear crop.",
+      "Add a pet's name or one short message when it makes the design more personal without crowding the photo.",
+      "Choose a simple background color that helps the pet stand out and keeps the finished design easy to read.",
+    ],
+  },
 ];
 
 const staticSeoRoutes = staticSeoPages.map((page) =>
   makeRoute(
     page.path,
-    `${page.eyebrow} | Snapcase`,
+    page.path === "/custom-phone-case/pet-photo-phone-case"
+      ? "Custom Pet Photo Phone Case | Snapcase"
+      : `${page.eyebrow} | Snapcase`,
     page.intro,
-    page.path === "/custom-phone-case" ? "0.9" : "0.8",
+    page.path === "/custom-phone-case"
+      ? "0.9"
+      : page.path === "/custom-phone-case/pet-photo-phone-case"
+        ? "0.85"
+        : "0.8",
     page.featuredBrand === "Apple"
       ? IPHONE_IMAGE
       : page.featuredBrand === "Samsung"
         ? SAMSUNG_IMAGE
-        : OG_IMAGE
+        : page.path === "/custom-phone-case/pet-photo-phone-case"
+          ? PET_PHOTO_IMAGE
+          : OG_IMAGE
   )
 );
 
