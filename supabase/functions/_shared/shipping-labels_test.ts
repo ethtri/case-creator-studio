@@ -5,7 +5,6 @@ import {
 } from "https://deno.land/std@0.190.0/testing/asserts.ts";
 import {
   buildManualLabelPath,
-  fulfillmentStatusAfterSuccessfulRating,
   hasPdfMagic,
   isPdfFile,
   isShippingLabelFormat,
@@ -49,21 +48,6 @@ Deno.test("label format and signed URL TTL fail closed", () => {
   assertEquals(parseSignedUrlTtlSeconds(undefined), 60);
   assertEquals(parseSignedUrlTtlSeconds("120"), 120);
   assertEquals(parseSignedUrlTtlSeconds("900"), 60);
-});
-
-Deno.test("successful rating preserves higher-priority fulfillment blockers", () => {
-  assertEquals(
-    fulfillmentStatusAfterSuccessfulRating("vendor_notify_failed"),
-    "vendor_notify_failed",
-  );
-  assertEquals(
-    fulfillmentStatusAfterSuccessfulRating("onshore_manual_queued"),
-    "onshore_manual_shipping_rated",
-  );
-  assertEquals(
-    fulfillmentStatusAfterSuccessfulRating(null),
-    "onshore_manual_shipping_rated",
-  );
 });
 
 Deno.test("safe label summaries never expose storage or provider URLs", () => {

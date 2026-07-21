@@ -1,7 +1,6 @@
 export const SHIPPING_LABEL_BUCKET = "shipping-labels";
 export const MAX_MANUAL_LABEL_BYTES = 10 * 1024 * 1024;
 export const LABEL_FORMATS = ["pdf_4x6", "pdf_letter"] as const;
-const BLOCKING_FULFILLMENT_STATUSES = new Set(["vendor_notify_failed"]);
 
 export type ShippingLabelFormat = typeof LABEL_FORMATS[number];
 
@@ -43,15 +42,6 @@ export function parseSignedUrlTtlSeconds(raw: string | undefined): number {
   return Number.isInteger(parsed) && parsed >= 30 && parsed <= 300
     ? parsed
     : 60;
-}
-
-export function fulfillmentStatusAfterSuccessfulRating(
-  currentStatus: unknown,
-): string {
-  return typeof currentStatus === "string" &&
-      BLOCKING_FULFILLMENT_STATUSES.has(currentStatus)
-    ? currentStatus
-    : "onshore_manual_shipping_rated";
 }
 
 export function toSafeShippingLabel(

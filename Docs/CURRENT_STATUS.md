@@ -2,7 +2,7 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-07-20
+**Last updated:** 2026-07-21
 **Last updated by:** ethtr
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
