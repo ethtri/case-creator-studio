@@ -10,9 +10,9 @@ import {
 Deno.test("operator email allowlist is normalized and deduplicated", () => {
   assertEquals(
     [...parseOperatorEmails(
-      " Ops@Snapcase.ai,ops@snapcase.ai, alejandro@example.com ",
+      " Support@Snapcase.ai,support@snapcase.ai, alejandro@example.com ",
     )],
-    ["ops@snapcase.ai", "alejandro@example.com"],
+    ["support@snapcase.ai", "alejandro@example.com"],
   );
 });
 

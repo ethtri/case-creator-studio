@@ -32,6 +32,11 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - Use `Docs/PRODUCTION_ROADMAP.md` for the controlled Kexiaozhan/onshore production pilot plan and coordination messages.
 - Run `Docs/QA_SMOKE_TEST_CHECKLIST.md` before go-live.
 - QA smoke test: PASS (live-mode order; test-mode run skipped per owner).
+- Email routing: `snapcase.ai` is verified in the `hello@snapcase.ai` Resend
+  workspace. Production and staging use separate domain-restricted sending
+  keys, signed delivery webhooks, and Resend-backed Supabase Auth SMTP. The
+  official sender/reply-to pair is `hello@snapcase.ai` /
+  `support@snapcase.ai`; Microsoft 365 inbound routing remains intact.
 - SEO: pre-rendered `/` and `/catalog` with indexable HTML; app routes use noindex fallback.
 - Marketing analytics: the production GA4 command queue uses Google's canonical
   `arguments` shape so consented browser page views reach GA4; opt-out remains

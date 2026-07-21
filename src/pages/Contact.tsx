@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
+import { SNAPCASE_EMAILS } from "@/lib/email-identities";
 
 const Contact = () => {
   return (
@@ -38,19 +39,65 @@ const Contact = () => {
         <section className="pb-24">
         <div className="container mx-auto px-6">
           <div className="max-w-3xl space-y-10 text-muted-foreground">
-            <div>
-              <h2 className="text-xl font-semibold text-foreground mb-3">Email support</h2>
-              <p>
-                Email us at{" "}
-                <a href="mailto:support@snapcase.ai" className="text-foreground underline">
-                  support@snapcase.ai
-                </a>
-                . Include your order number so the support team can locate the order.
-              </p>
+            <div className="grid gap-8 sm:grid-cols-2">
+              <div>
+                <h2 className="text-xl font-semibold text-foreground mb-3">Customer support</h2>
+                <p>
+                  For help with an order or design, email{" "}
+                  <a
+                    href={`mailto:${SNAPCASE_EMAILS.support}`}
+                    className="text-foreground underline"
+                  >
+                    {SNAPCASE_EMAILS.support}
+                  </a>
+                  .
+                </p>
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-foreground mb-3">General inquiries</h2>
+                <p>
+                  For anything else, email{" "}
+                  <a
+                    href={`mailto:${SNAPCASE_EMAILS.hello}`}
+                    className="text-foreground underline"
+                  >
+                    {SNAPCASE_EMAILS.hello}
+                  </a>
+                  .
+                </p>
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-foreground mb-3">Partnerships</h2>
+                <p>
+                  For retail, brand, and business opportunities, email{" "}
+                  <a
+                    href={`mailto:${SNAPCASE_EMAILS.partnerships}`}
+                    className="text-foreground underline"
+                  >
+                    {SNAPCASE_EMAILS.partnerships}
+                  </a>
+                  .
+                </p>
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-foreground mb-3">Social and creators</h2>
+                <p>
+                  For creator collaborations and social media, email{" "}
+                  <a
+                    href={`mailto:${SNAPCASE_EMAILS.social}`}
+                    className="text-foreground underline"
+                  >
+                    {SNAPCASE_EMAILS.social}
+                  </a>
+                  .
+                </p>
+              </div>
             </div>
 
             <div>
-              <h2 className="text-xl font-semibold text-foreground mb-3">What to include</h2>
+              <h2 className="text-xl font-semibold text-foreground mb-3">
+                What to include for support
+              </h2>
               <p>
                 Include your order number, the email used at checkout, and a short description of
                 the issue. Add photos when they help explain an order problem.
