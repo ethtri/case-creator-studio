@@ -424,9 +424,35 @@ test("the scheduled worker uses a dedicated auth secret, not the service-role ke
   );
 
   assert.match(scheduleSql, /ga4_outbox_drain_auth_secret/g);
+  assert.match(scheduleSql, /ga4_outbox_drain_enabled/g);
+  assert.match(scheduleSql, /configure_ga4_outbox_drain_schedule/g);
   assert.doesNotMatch(scheduleSql, /service_role_key/i);
   assert.match(
     config,
     /\[functions\.ga4-outbox-drain\]\s+verify_jwt = false/i,
+  );
+});
+
+test("the analytics schedule is removed before its explicit enable gate is evaluated", async () => {
+  const scheduleSql = await readFile(
+    new URL(
+      "../supabase/migrations/20260721020000_harden_analytics_outbox_schedule.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  const unscheduleIndex = scheduleSql.indexOf("cron.unschedule");
+  const enableGateIndex = scheduleSql.indexOf(
+    "LOWER(BTRIM(COALESCE(v_enabled, '')))",
+  );
+  const scheduleIndex = scheduleSql.lastIndexOf("cron.schedule");
+  assert.ok(unscheduleIndex >= 0);
+  assert.ok(enableGateIndex > unscheduleIndex);
+  assert.ok(scheduleIndex > enableGateIndex);
+  assert.match(scheduleSql, /RETURN FALSE/);
+  assert.match(
+    scheduleSql,
+    /REVOKE ALL ON FUNCTION public\.configure_ga4_outbox_drain_schedule\(\)/,
   );
 });

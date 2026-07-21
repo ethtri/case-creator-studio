@@ -108,7 +108,8 @@ Deploy or confirm these Supabase Edge Functions in production before the pilot:
 Apply all repository migrations, including
 `20260717090000_add_analytics_event_outbox`,
 `20260717160000_harden_analytics_event_outbox`, and
-`20260717161000_schedule_analytics_outbox_drain`, followed by the shipping-label
+`20260717161000_schedule_analytics_outbox_drain`, plus
+`20260721020000_harden_analytics_outbox_schedule`, followed by the shipping-label
 foundation and EasyPost automation migrations. Apply the hardening migration,
 deploy the updated Stripe webhook and `ga4-outbox-drain`, then apply the schedule
 migration.
@@ -117,12 +118,16 @@ Confirm Supabase Vault contains:
 
 - `project_url`
 - `ga4_outbox_drain_auth_secret`
+- `ga4_outbox_drain_enabled` (keep `false` until GA4 credentials, consent
+  approval, evidence, and monitoring are ready)
 - `kexiaozhan_checkout_expirer_auth_secret`
 - `shipping_webhook_drain_auth_secret`
 
 The Vault `ga4_outbox_drain_auth_secret` value must match the Edge Function env
 `GA4_OUTBOX_DRAIN_AUTH_SECRET`. The worker uses this dedicated cron credential
 instead of placing the Supabase service-role key in the scheduled request.
+The cron is present only when `ga4_outbox_drain_enabled` is exactly `true`;
+run `configure_ga4_outbox_drain_schedule()` after changing the flag.
 The Vault `kexiaozhan_checkout_expirer_auth_secret` value must match the Edge Function env `KEXIAOZHAN_CHECKOUT_EXPIRER_AUTH_SECRET`. This avoids storing the service-role key in the expirer cron header.
 The Vault `shipping_webhook_drain_auth_secret` value must match the Edge Function
 env `SHIPPING_WEBHOOK_DRAIN_AUTH_SECRET`. Run

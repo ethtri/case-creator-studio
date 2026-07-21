@@ -9,6 +9,7 @@ export const REQUIRED_ANALYTICS_MIGRATIONS = Object.freeze([
   "20260717090000_add_analytics_event_outbox.sql",
   "20260717160000_harden_analytics_event_outbox.sql",
   "20260717161000_schedule_analytics_outbox_drain.sql",
+  "20260721020000_harden_analytics_outbox_schedule.sql",
 ]);
 
 export const REQUIRED_STRIPE_WEBHOOK_EVENTS = Object.freeze([
@@ -35,6 +36,7 @@ export const REQUIRED_EVIDENCE_SOURCES = Object.freeze({
 export const REQUIRED_VAULT_SECRET_NAMES = Object.freeze([
   "project_url",
   "ga4_outbox_drain_auth_secret",
+  "ga4_outbox_drain_enabled",
 ]);
 
 export const FUNCTION_DEPLOYMENT_PATHS = Object.freeze({
@@ -85,6 +87,16 @@ export const REPOSITORY_CONTRACTS = Object.freeze([
       "ga4-outbox-drain-1m",
       "ga4_outbox_drain_auth_secret",
       "/functions/v1/ga4-outbox-drain",
+    ],
+  },
+  {
+    id: "analytics-outbox-schedule-gate-migration",
+    path: `supabase/migrations/${REQUIRED_ANALYTICS_MIGRATIONS[3]}`,
+    markers: [
+      "configure_ga4_outbox_drain_schedule",
+      "ga4_outbox_drain_enabled",
+      "cron.unschedule",
+      "RETURN FALSE",
     ],
   },
   {
