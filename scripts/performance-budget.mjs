@@ -7,6 +7,7 @@ const manifestPath = path.join(distDir, ".vite", "manifest.json");
 const homepagePath = path.join(distDir, "index.html");
 const maxInitialTransferBytes = 1_500_000;
 const maxInitialJavaScriptBytes = 350_000;
+const maxJavaScriptChunkBytes = 500_000;
 const failures = [];
 
 const fail = (message) => {
@@ -63,6 +64,33 @@ if (!appEntry.isEntry) {
   fail("The index.html bundle is not marked as the application entry.");
 }
 
+const entryImportFiles = (appEntry.imports ?? []).map(
+  (key) => manifest[key]?.file ?? ""
+);
+const requiredVendorChunks = [
+  /^assets\/react-runtime-.*\.js$/,
+  /^assets\/routing-.*\.js$/,
+  /^assets\/data-services-.*\.js$/,
+];
+
+for (const pattern of requiredVendorChunks) {
+  if (!entryImportFiles.some((file) => pattern.test(file))) {
+    fail(`Missing required entry vendor chunk matching ${pattern}.`);
+  }
+}
+
+const requiredLazyRoutes = [
+  "src/pages/Index.tsx",
+  "src/pages/Catalog.tsx",
+  "src/pages/DesignEditorEDM.tsx",
+];
+
+for (const route of requiredLazyRoutes) {
+  if (!(appEntry.dynamicImports ?? []).includes(route)) {
+    fail(`Required route ${route} is no longer lazy loaded.`);
+  }
+}
+
 if (homepageEntry.file === editorEntry.file) {
   fail("Homepage and editor code are still emitted in the same route chunk.");
 }
@@ -95,6 +123,22 @@ const initialStylesheetBytes = [...initialFiles]
   );
 
 const assetFiles = fs.readdirSync(path.join(distDir, "assets"));
+const javascriptChunks = assetFiles.filter((file) => file.endsWith(".js"));
+const largestJavaScriptChunk = javascriptChunks
+  .map((file) => ({
+    file,
+    bytes: fs.statSync(path.join(distDir, "assets", file)).size,
+  }))
+  .sort((left, right) => right.bytes - left.bytes)[0];
+
+if (!largestJavaScriptChunk) {
+  fail("The production build emitted no JavaScript chunks.");
+} else if (largestJavaScriptChunk.bytes > maxJavaScriptChunkBytes) {
+  fail(
+    `Largest JavaScript chunk ${largestJavaScriptChunk.file} is ${largestJavaScriptChunk.bytes} bytes; budget is ${maxJavaScriptChunkBytes}.`
+  );
+}
+
 const largestAsset = (pattern) => {
   const candidates = assetFiles.filter((file) => pattern.test(file));
   if (candidates.length === 0) {
@@ -183,6 +227,11 @@ const toKiB = (bytes) => `${(bytes / 1024).toFixed(1)} KiB`;
 console.log("Homepage performance budget");
 console.log(`- compressed route JavaScript: ${toKiB(initialJavaScriptBytes)}`);
 console.log(`- compressed route CSS: ${toKiB(initialStylesheetBytes)}`);
+if (largestJavaScriptChunk) {
+  console.log(
+    `- largest uncompressed JavaScript chunk: ${largestJavaScriptChunk.file} (${toKiB(largestJavaScriptChunk.bytes)})`
+  );
+}
 console.log(`- self-hosted brand fonts: ${toKiB(localFontBytes)}`);
 console.log(`- favicon: ${toKiB(faviconBytes)}`);
 console.log(`- largest desktop AVIF candidate: ${toKiB(desktopHeroBytes)}`);
