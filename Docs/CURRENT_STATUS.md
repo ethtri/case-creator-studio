@@ -38,6 +38,8 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - Email delivery hardening: signed Resend callbacks fail closed, reject stale
   signatures, deduplicate `svix-id` replays atomically, preserve monotonic
   delivery state, and cannot make an accepted order email eligible for resend.
+- Local frontend tooling uses patched Vite 6.4.3 and binds the development
+  server to loopback; LAN access requires the explicit `npm run dev:network` opt-in.
 - SEO: pre-rendered `/` and `/catalog` with indexable HTML; app routes use noindex fallback.
 - Marketing analytics: the production GA4 command queue uses Google's canonical
   `arguments` shape so consented browser page views reach GA4; opt-out remains

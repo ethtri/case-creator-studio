@@ -18,6 +18,10 @@ npm run dev
 
 Visit http://localhost:8080
 
+The development server binds to loopback by default. To test from another
+device on a trusted local network, opt in explicitly with `npm run dev:network`
+and stop the server when testing is complete.
+
 ## Documentation (AI agents start here)
 
 - `AGENTS.md` - Guardrails, workflow, and DoD
@@ -45,6 +49,7 @@ Core docs:
 
 ```bash
 npm run dev          # Start development server
+npm run dev:network  # Opt in to LAN access on a trusted network
 npm run build        # Build for production
 npm run preview      # Preview production build
 npm run lint         # Check code quality
