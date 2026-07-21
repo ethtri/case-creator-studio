@@ -2,30 +2,28 @@
 
 Owner-updated snapshot for AI agents. Keep this short and current.
 
-**Last updated:** 2026-07-18
+**Last updated:** 2026-07-20
 **Last updated by:** Codex
 **MVP target:** This week  
 **Sprint goal:** Stabilize EDM-first flow through checkout
 
 ## Blockers
-- EasyPost automation must be merged, deployed to isolated staging, and proven
-  with one test-mode label before the `/operations` workflow can be finalized.
 - Alejandro must provide the packed-case dimensions/weight and complete the
   named async physical dry run after the software evidence is ready.
 
 ## Top 3 Next Tasks
-1. P0: Complete, review, merge, and deploy the EasyPost automation state machine,
-   private label purchase, signed tracking webhook, and refund recovery (#118,
-   #130).
+1. P0: Complete the remaining EasyPost staging refund/recovery evidence and close
+   the provider automation workstream (#118).
 2. P0: Build and render-QA the automated `/operations` shipping workflow (#116).
 3. P0: Prepare the exact named order, label, instructions, and rollback for
    Alejandro's async dry run (#117); execute it only after its physical gates pass.
 
 ## Now / Next / Later
 **Now**
-- P0: The private shipping-label foundation is merged and deployed to isolated
-  staging. EasyPost test/production account keys are held outside the repository;
-  provider automation and durable webhook recovery are in #130.
+- P0: EasyPost automation is merged and deployed to isolated staging. Recipient
+  validation, approved-rate selection, exactly-once test-label purchase, private
+  PDF storage, tracking projection, and provider-signed webhook ingestion are
+  proven. Refund/recovery evidence remains in #118.
 
 **Next**
 - P0: Complete the #118 staging provider E2E, then #116 operations UI.
@@ -52,6 +50,13 @@ Owner-updated snapshot for AI agents. Keep this short and current.
   access, shipping audit records, tracking projection, and print/refund
   serialization are merged and live in isolated staging. Provider automation
   remains production-disabled until #118 and #117 evidence pass.
+- EasyPost isolated-staging proof on 2026-07-21 UTC: one synthetic Snapcase job
+  passed recipient normalization and the approved USPS Ground Advantage rate,
+  purchased one test label across two purchase calls, stored the PDF in the
+  private bucket, and projected tracking to the job and order. A separate real
+  EasyPost-signed tracker event returned HTTP 202 and reached `processed` in the
+  durable event ledger with one attempt; no recipient or address fields were
+  retained. Production EasyPost remains disabled.
 - Kexiaozhan deferred-order success pages use the persisted
   `fulfillment_provider=onshore_manual` value to describe an administrator-held
   production queue; normal Printful order copy is unchanged (#59).

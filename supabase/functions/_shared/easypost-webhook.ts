@@ -1,6 +1,7 @@
 import { sendOrderEmail } from "./email.ts";
 
 export const EASYPOST_WEBHOOK_PATH = "/functions/v1/easypost-webhook";
+export const EASYPOST_WEBHOOK_RUNTIME_PATH = "/easypost-webhook";
 export const EASYPOST_WEBHOOK_MAX_BODY_BYTES = 262_144;
 export const EASYPOST_WEBHOOK_LEASE_SECONDS = 120;
 
@@ -393,7 +394,10 @@ export function validateEasyPostWebhookEnvelope(
   } catch {
     return "INVALID_WEBHOOK_PATH";
   }
-  if (url.pathname !== EASYPOST_WEBHOOK_PATH) {
+  if (
+    url.pathname !== EASYPOST_WEBHOOK_PATH &&
+    url.pathname !== EASYPOST_WEBHOOK_RUNTIME_PATH
+  ) {
     return "INVALID_WEBHOOK_PATH";
   }
 

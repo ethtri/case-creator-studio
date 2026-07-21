@@ -194,6 +194,15 @@ Deno.test("webhook envelope requires the exact route and HMAC header", () => {
   assertEquals(
     validateEasyPostWebhookEnvelope(
       new Request(
+        "https://example.test/easypost-webhook",
+        { method: "POST", headers },
+      ),
+    ),
+    null,
+  );
+  assertEquals(
+    validateEasyPostWebhookEnvelope(
+      new Request(
         "https://example.test/functions/v1/other",
         { method: "POST", headers },
       ),
