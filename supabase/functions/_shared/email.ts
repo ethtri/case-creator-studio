@@ -1,4 +1,5 @@
 import { SNAPCASE_EMAILS, resolveSnapcaseRoleEmail } from "./email-identities.ts";
+import { isNotificationSendTerminal } from "./resend-webhook.ts";
 
 const RESEND_API_URL = "https://api.resend.com/emails";
 
@@ -243,7 +244,7 @@ export async function sendOrderEmail(
 
   const { data: existing, error: lookupError } = await supabaseClient
     .from("order_notifications")
-    .select("id, status")
+    .select("id, status, provider_message_id")
     .eq("order_id", order.id)
     .eq("event_type", eventType)
     .maybeSingle();
@@ -252,7 +253,7 @@ export async function sendOrderEmail(
     console.error("[EMAIL] Failed to check notification state:", lookupError);
   }
 
-  if (existing?.status === "sent") {
+  if (isNotificationSendTerminal(existing?.status, existing?.provider_message_id)) {
     return { sent: false, skipped: true };
   }
 

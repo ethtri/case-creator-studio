@@ -35,6 +35,9 @@ Owner-updated snapshot for AI agents. Keep this short and current.
   keys, signed delivery webhooks, and Resend-backed Supabase Auth SMTP. The
   official sender/reply-to pair is `hello@snapcase.ai` /
   `support@snapcase.ai`; Microsoft 365 inbound routing remains intact.
+- Email delivery hardening: signed Resend callbacks fail closed, reject stale
+  signatures, deduplicate `svix-id` replays atomically, preserve monotonic
+  delivery state, and cannot make an accepted order email eligible for resend.
 - SEO: pre-rendered `/` and `/catalog` with indexable HTML; app routes use noindex fallback.
 - Marketing analytics: the production GA4 command queue uses Google's canonical
   `arguments` shape so consented browser page views reach GA4; opt-out remains

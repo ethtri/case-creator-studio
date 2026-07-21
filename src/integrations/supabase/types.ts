@@ -228,9 +228,12 @@ export type Database = {
       order_notifications: {
         Row: {
           created_at: string
+          delivery_status: string | null
           error_message: string | null
           event_type: string
           id: string
+          last_provider_event_at: string | null
+          last_provider_event_id: string | null
           order_id: string
           provider: string
           provider_message_id: string | null
@@ -241,9 +244,12 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          delivery_status?: string | null
           error_message?: string | null
           event_type: string
           id?: string
+          last_provider_event_at?: string | null
+          last_provider_event_id?: string | null
           order_id: string
           provider?: string
           provider_message_id?: string | null
@@ -254,9 +260,12 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          delivery_status?: string | null
           error_message?: string | null
           event_type?: string
           id?: string
+          last_provider_event_at?: string | null
+          last_provider_event_id?: string | null
           order_id?: string
           provider?: string
           provider_message_id?: string | null
@@ -274,12 +283,49 @@ export type Database = {
           },
         ]
       }
+      resend_webhook_events: {
+        Row: {
+          delivery_status: string
+          event_created_at: string
+          event_type: string
+          provider_message_id: string
+          received_at: string
+          svix_id: string
+        }
+        Insert: {
+          delivery_status: string
+          event_created_at: string
+          event_type: string
+          provider_message_id: string
+          received_at?: string
+          svix_id: string
+        }
+        Update: {
+          delivery_status?: string
+          event_created_at?: string
+          event_type?: string
+          provider_message_id?: string
+          received_at?: string
+          svix_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      apply_resend_webhook_event: {
+        Args: {
+          p_delivery_status: string
+          p_error_message?: string | null
+          p_event_created_at: string
+          p_event_type: string
+          p_provider_message_id: string
+          p_svix_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
