@@ -167,9 +167,11 @@ dedicated `GA4_OUTBOX_DRAIN_AUTH_SECRET`; its matching value is stored in
 Supabase Vault as `ga4_outbox_drain_auth_secret` for the cron request. These
 values must be configured outside source control. The schedule also requires
 the Vault flag `ga4_outbox_drain_enabled=true`; missing or any other value
-removes the cron and leaves the worker inert. Set this flag only after the GA4
-server credentials, consent approval, deployment evidence, and monitoring are
-ready. Before
+immediately suppresses scheduled requests. Run
+`configure_ga4_outbox_drain_schedule()` after any flag or scheduler-secret
+change so the cron row is removed or recreated to match the current config. Set
+the flag only after the GA4 server credentials, consent approval, deployment
+evidence, and monitoring are ready. Before
 closing issue #66, attach GA4 DebugView (or equivalent) evidence for a completed
 test order and refund, and record owner/counsel approval of the selling-region
 consent policy.

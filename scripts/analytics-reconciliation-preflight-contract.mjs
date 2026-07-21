@@ -100,6 +100,17 @@ export const REPOSITORY_CONTRACTS = Object.freeze([
     ],
   },
   {
+    id: "analytics-outbox-schedule-gate-acceptance",
+    path: "scripts/sql/analytics-outbox-schedule-gate.acceptance.sql",
+    markers: [
+      "BEGIN;",
+      "Legacy-upgrade and missing-config scenario",
+      "Invalid live URL scenario",
+      "has_function_privilege",
+      "ROLLBACK;",
+    ],
+  },
+  {
     id: "stripe-webhook-analytics-contract",
     path: "supabase/functions/stripe-webhook/index.ts",
     markers: [

@@ -6,7 +6,8 @@
   "appliedMigrations": [
     "20260717090000_add_analytics_event_outbox.sql",
     "20260717160000_harden_analytics_event_outbox.sql",
-    "20260717161000_schedule_analytics_outbox_drain.sql"
+    "20260717161000_schedule_analytics_outbox_drain.sql",
+    "20260721020000_harden_analytics_outbox_schedule.sql"
   ],
   "deployedFunctions": [
     {
@@ -57,7 +58,11 @@
     "GA4_API_SECRET",
     "GA4_OUTBOX_DRAIN_AUTH_SECRET"
   ],
-  "presentVaultSecretNames": ["project_url", "ga4_outbox_drain_auth_secret"],
+  "presentVaultSecretNames": [
+    "project_url",
+    "ga4_outbox_drain_auth_secret",
+    "ga4_outbox_drain_enabled"
+  ],
   "stripeWebhook": {
     "enabled": true,
     "mode": "test",

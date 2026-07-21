@@ -59,32 +59,42 @@ BEGIN
     'ga4-outbox-drain-1m',
     '* * * * *',
     $command$
-      SELECT net.http_post(
-        url := (
-          SELECT RTRIM(decrypted_secret, '/')
-          FROM vault.decrypted_secrets
-          WHERE name = 'project_url'
-          LIMIT 1
-        ) || '/functions/v1/ga4-outbox-drain',
-        headers := jsonb_build_object(
-          'Content-Type',
-          'application/json',
-          'Authorization',
-          'Bearer ' || (
+      WITH runtime_config AS (
+        SELECT
+          (
+            SELECT decrypted_secret
+            FROM vault.decrypted_secrets
+            WHERE name = 'ga4_outbox_drain_enabled'
+            LIMIT 1
+          ) AS enabled,
+          (
+            SELECT decrypted_secret
+            FROM vault.decrypted_secrets
+            WHERE name = 'project_url'
+            LIMIT 1
+          ) AS project_url,
+          (
             SELECT decrypted_secret
             FROM vault.decrypted_secrets
             WHERE name = 'ga4_outbox_drain_auth_secret'
             LIMIT 1
-          )
+          ) AS auth_secret
+      )
+      SELECT net.http_post(
+        url := RTRIM(project_url, '/') || '/functions/v1/ga4-outbox-drain',
+        headers := jsonb_build_object(
+          'Content-Type',
+          'application/json',
+          'Authorization',
+          'Bearer ' || auth_secret
         ),
         body := '{"limit":25}'::JSONB
       ) AS request_id
-      WHERE (
-        SELECT LOWER(BTRIM(decrypted_secret)) = 'true'
-        FROM vault.decrypted_secrets
-        WHERE name = 'ga4_outbox_drain_enabled'
-        LIMIT 1
-      );
+      FROM runtime_config
+      WHERE LOWER(BTRIM(COALESCE(enabled, ''))) = 'true'
+        AND project_url ~ '^https://[a-z0-9]{20}\.supabase\.co/?$'
+        AND NULLIF(BTRIM(auth_secret), '') IS NOT NULL
+        AND char_length(auth_secret) >= 32;
     $command$
   );
 

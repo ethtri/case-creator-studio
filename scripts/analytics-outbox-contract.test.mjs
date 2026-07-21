@@ -430,6 +430,13 @@ test("the scheduled worker uses a dedicated auth secret, not the service-role ke
     2,
   );
   assert.match(scheduleSql, /configure_ga4_outbox_drain_schedule/g);
+  assert.match(scheduleSql, /WITH runtime_config AS/i);
+  assert.ok(
+    scheduleSql.includes(
+      "AND project_url ~ '^https://[a-z0-9]{20}\\.supabase\\.co/?$'",
+    ),
+  );
+  assert.match(scheduleSql, /char_length\(auth_secret\) >= 32/i);
   assert.doesNotMatch(scheduleSql, /service_role_key/i);
   assert.match(
     config,
@@ -459,4 +466,24 @@ test("the analytics schedule is removed before its explicit enable gate is evalu
     scheduleSql,
     /REVOKE ALL ON FUNCTION public\.configure_ga4_outbox_drain_schedule\(\)/,
   );
+});
+
+test("the scheduler gate has a rollback-only database acceptance test", async () => {
+  const acceptanceSql = await readFile(
+    new URL(
+      "./sql/analytics-outbox-schedule-gate.acceptance.sql",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+
+  assert.match(acceptanceSql, /^BEGIN;/i);
+  assert.match(acceptanceSql, /ROLLBACK;\s*$/i);
+  assert.match(acceptanceSql, /Legacy-upgrade and missing-config scenario/i);
+  assert.match(acceptanceSql, /Explicit false scenario/i);
+  assert.match(acceptanceSql, /Invalid live URL scenario/i);
+  assert.match(acceptanceSql, /Fully valid scenario/i);
+  assert.match(acceptanceSql, /has_function_privilege\(\s*'service_role'/i);
+  assert.match(acceptanceSql, /PUBLIC can execute/i);
+  assert.match(acceptanceSql, /scheduled command persisted a credential value/i);
 });

@@ -126,8 +126,22 @@ Confirm Supabase Vault contains:
 The Vault `ga4_outbox_drain_auth_secret` value must match the Edge Function env
 `GA4_OUTBOX_DRAIN_AUTH_SECRET`. The worker uses this dedicated cron credential
 instead of placing the Supabase service-role key in the scheduled request.
-The cron is present only when `ga4_outbox_drain_enabled` is exactly `true`;
-run `configure_ga4_outbox_drain_schedule()` after changing the flag.
+Scheduled requests are sent only while `ga4_outbox_drain_enabled` is exactly
+`true` and the live Vault URL and credential still pass validation. Run
+`configure_ga4_outbox_drain_schedule()` after changing the flag, URL, or
+credential so the cron row itself is removed or recreated to match the current
+configuration.
+
+After applying the scheduler migrations, run the rollback-only database
+acceptance test against the intended project:
+
+```powershell
+supabase db query --linked --file scripts/sql/analytics-outbox-schedule-gate.acceptance.sql
+```
+
+The script verifies disabled, invalid, enabled, legacy-upgrade, runtime-gate,
+and function-privilege behavior inside one transaction, then restores all Vault
+and cron state with `ROLLBACK`.
 The Vault `kexiaozhan_checkout_expirer_auth_secret` value must match the Edge Function env `KEXIAOZHAN_CHECKOUT_EXPIRER_AUTH_SECRET`. This avoids storing the service-role key in the expirer cron header.
 The Vault `shipping_webhook_drain_auth_secret` value must match the Edge Function
 env `SHIPPING_WEBHOOK_DRAIN_AUTH_SECRET`. Run
