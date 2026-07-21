@@ -2,6 +2,7 @@ import {
   assert,
   assertEquals,
   assertFalse,
+  assertThrows,
 } from "https://deno.land/std@0.190.0/testing/asserts.ts";
 import {
   buildManualLabelPath,
@@ -9,6 +10,7 @@ import {
   isPdfFile,
   isShippingLabelFormat,
   MAX_MANUAL_LABEL_BYTES,
+  parseShippingLabelFormat,
   parseSignedUrlTtlSeconds,
   toSafeShippingLabel,
 } from "./shipping-labels.ts";
@@ -45,6 +47,15 @@ Deno.test("label format and signed URL TTL fail closed", () => {
   assert(isShippingLabelFormat("pdf_4x6"));
   assert(isShippingLabelFormat("pdf_letter"));
   assertFalse(isShippingLabelFormat("zpl"));
+  assertEquals(parseShippingLabelFormat(undefined), "pdf_4x6");
+  assertEquals(parseShippingLabelFormat(""), "pdf_4x6");
+  assertEquals(parseShippingLabelFormat("pdf_4x6"), "pdf_4x6");
+  assertEquals(parseShippingLabelFormat("pdf_letter"), "pdf_letter");
+  assertThrows(
+    () => parseShippingLabelFormat(" pdf_letter"),
+    Error,
+    "invalid",
+  );
   assertEquals(parseSignedUrlTtlSeconds(undefined), 60);
   assertEquals(parseSignedUrlTtlSeconds("120"), 120);
   assertEquals(parseSignedUrlTtlSeconds("900"), 60);

@@ -67,6 +67,10 @@ Owner-updated snapshot for AI agents. Keep this short and current.
   serialization are merged and live in isolated staging. Issues #115 and #118
   are complete; provider automation remains production-disabled until #117 and
   the physical workflow gates pass.
+- EasyPost PDF output supports a strict `pdf_4x6` or `pdf_letter` environment
+  setting, persists that choice through purchase, and rejects provider-size
+  mismatches. The existing default remains `pdf_4x6`; Alejandro's printer check
+  selects the production value without requiring another code change (#175).
 - EasyPost isolated-staging proof on 2026-07-21 UTC: recipient normalization,
   approved USPS Ground Advantage selection, exactly-once test-label purchase,
   private PDF storage, 60-second allowlisted-operator retrieval, and negative

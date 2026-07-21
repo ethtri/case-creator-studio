@@ -63,6 +63,8 @@ test("shipping preparation validates the recipient and selects only an approved 
   assert.match(source, /EASYPOST_PRODUCTION_ENABLED/);
   assert.match(source, /EASYPOST_PARCEL_JSON/);
   assert.match(source, /EASYPOST_RATE_POLICY_JSON/);
+  assert.match(source, /EASYPOST_LABEL_FORMAT/);
+  assert.match(source, /parseShippingLabelFormat/);
   assert.match(source, /createVerifiedAddress/);
   assert.match(source, /submittedAddress\.country !== "US"/);
   assert.match(source, /selectEasyPostRate/);
@@ -85,6 +87,9 @@ test("postage purchase reconciles before retry and stores only a private PDF", a
   assert.match(source, /SHIPPING_LABEL_BUCKET/);
   assert.match(source, /contentType:\s*"application\/pdf"/);
   assert.match(source, /finalize_easypost_label_purchase/);
+  assert.match(source, /extractPdfLabelUrl\(shipment, labelFormat\)/);
+  assert.match(source, /p_label_format:\s*labelFormat/);
+  assert.doesNotMatch(source, /p_label_format:\s*"pdf_4x6"/);
   assert.doesNotMatch(source, /getPublicUrl/);
   assert.doesNotMatch(source, /label_pdf_url\s*:/);
 });

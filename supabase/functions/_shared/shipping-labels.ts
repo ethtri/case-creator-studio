@@ -11,6 +11,16 @@ export function isShippingLabelFormat(
     LABEL_FORMATS.includes(value as ShippingLabelFormat);
 }
 
+export function parseShippingLabelFormat(
+  value: string | undefined,
+): ShippingLabelFormat {
+  if (value === undefined || value === "") return "pdf_4x6";
+  if (!isShippingLabelFormat(value)) {
+    throw new Error("EasyPost label format is invalid");
+  }
+  return value;
+}
+
 export function buildManualLabelPath(
   jobId: string,
   labelId: string,
