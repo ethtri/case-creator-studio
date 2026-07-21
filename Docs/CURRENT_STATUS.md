@@ -56,16 +56,18 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - Onshore staging: owner dry-run job `a059d2eb-3ada-4dd5-8f32-a4fa88e1a873` is queued from paid Stripe test order `d89cfec5-d190-4209-aff5-c017c22225c6`; duplicate routing reused the same job.
 - Automated shipping foundation: private PDF storage, operator-only signed label
   access, shipping audit records, tracking projection, and print/refund
-  serialization are merged and live in isolated staging. Provider automation
-  remains production-disabled until #118 and #117 evidence pass.
+  serialization are merged and live in isolated staging. Issues #115 and #118
+  are complete; provider automation remains production-disabled until #117 and
+  the physical workflow gates pass.
 - EasyPost isolated-staging proof on 2026-07-21 UTC: recipient normalization,
   approved USPS Ground Advantage selection, exactly-once test-label purchase,
-  private PDF storage, and tracking projection passed on one synthetic Snapcase
-  job. A real EasyPost-signed event returned HTTP 202 and reached `processed`
-  with one attempt while retaining no recipient or address fields. A delivered
-  test label also entered the expected `refund_reconciliation_required` state;
-  successful refund evidence requires a fresh unscanned test label. Production
-  EasyPost remains disabled.
+  private PDF storage, 60-second allowlisted-operator retrieval, and negative
+  authorization passed. Two real EasyPost-signed events matched the same
+  synthetic label, projected tracking to its job and order, and processed once
+  without recipient/address retention. EasyPost accepted an unused-label refund
+  as `submitted`; reconciliation did not duplicate the label or purchase. A
+  delivered-label refund separately proved the ineligible recovery path.
+  Production EasyPost remains disabled.
 - Kexiaozhan deferred-order success pages use the persisted
   `fulfillment_provider=onshore_manual` value to describe an administrator-held
   production queue; normal Printful order copy is unchanged (#59).
@@ -94,6 +96,11 @@ Owner-updated snapshot for AI agents. Keep this short and current.
   and lets an authenticated operator retry the existing order without creating
   another production job. Successful retries return the job to the onshore
   queue; public callbacks and production machines remain disabled (#142).
+- Kexiaozhan reconciliation migration `20260720010000` and the route, queue,
+  and operator-retry functions are deployed to isolated staging. A synthetic
+  disallowed-machine test stayed `vendor_notify_failed` through EasyPost rating
+  and authenticated retry, retained one production job, and made no vendor
+  request. Production callbacks remain disabled (#135, #164).
 - Kexiaozhan staging smoke on 2026-06-16: deployed `20260616034837_add_kexiaozhan_handoffs`, `kexiaozhan-create-checkout`, `stripe-webhook`, and `route-fulfillment-order` to Supabase staging `onztuktjcmjukfhcuphh`; configured sandbox Kexiaozhan secrets without committing them; verified signed checkout creation, duplicate retry reuse, changed replay rejection, bad signature rejection, wrong-machine rejection, real Stripe test payment, webhook order update, one onshore production job, and dry-run signed Kexiaozhan callback metadata.
 - Historical note: a private Vercel preview-bypass URL was used during the initial staging setup. It is not part of the current vendor test path; do not post or reuse bypass tokens.
 - Kexiaozhan timeout policy: vendor cancellation still occurs after 15 minutes, but
