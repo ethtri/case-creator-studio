@@ -18,6 +18,8 @@ import {
 
 const WEBHOOK_SECRET = "test-webhook-secret";
 const WEBHOOK_BODY = '{"description":"tracker.updated"}';
+const WEBHOOK_SIGNATURE =
+  "hmac-sha256-hex=9cc90ffd80bd8df3b63eed6a44dfbdff280701260dcd95eb4d1c4384037d099c";
 
 async function signatureFor(
   body = WEBHOOK_BODY,
@@ -53,14 +55,24 @@ async function validWebhookHeaders(
   };
 }
 
-Deno.test("validateEasyPostWebhook accepts the official raw-body HMAC", async () => {
+Deno.test("validateEasyPostWebhook accepts a fixed raw-byte HMAC vector", async () => {
   const result = await validateEasyPostWebhook({
     secret: WEBHOOK_SECRET,
-    headers: await validWebhookHeaders(),
-    rawBody: WEBHOOK_BODY,
+    headers: { "x-hmac-signature": WEBHOOK_SIGNATURE },
+    rawBody: new TextEncoder().encode(WEBHOOK_BODY),
   });
 
   assertEquals(result, { valid: true });
+
+  const changedBody = await validateEasyPostWebhook({
+    secret: WEBHOOK_SECRET,
+    headers: { "x-hmac-signature": WEBHOOK_SIGNATURE },
+    rawBody: new TextEncoder().encode(`${WEBHOOK_BODY} `),
+  });
+  assertEquals(changedBody, {
+    valid: false,
+    reason: "invalid_signature",
+  });
 });
 
 Deno.test("validateEasyPostWebhook rejects missing or malformed signatures", async () => {

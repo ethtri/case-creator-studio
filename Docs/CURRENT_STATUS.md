@@ -8,8 +8,6 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 **Sprint goal:** Stabilize EDM-first flow through checkout
 
 ## Blockers
-- EasyPost automation must be merged, deployed to isolated staging, and proven
-  with one test-mode label before the `/operations` workflow can be finalized.
 - Alejandro must provide the packed-case dimensions/weight and complete the
   named async physical dry run after the software evidence is ready.
 
@@ -60,6 +58,14 @@ Owner-updated snapshot for AI agents. Keep this short and current.
   access, shipping audit records, tracking projection, and print/refund
   serialization are merged and live in isolated staging. Provider automation
   remains production-disabled until #118 and #117 evidence pass.
+- EasyPost isolated-staging proof on 2026-07-21 UTC: recipient normalization,
+  approved USPS Ground Advantage selection, exactly-once test-label purchase,
+  private PDF storage, and tracking projection passed on one synthetic Snapcase
+  job. A real EasyPost-signed event returned HTTP 202 and reached `processed`
+  with one attempt while retaining no recipient or address fields. A delivered
+  test label also entered the expected `refund_reconciliation_required` state;
+  successful refund evidence requires a fresh unscanned test label. Production
+  EasyPost remains disabled.
 - Kexiaozhan deferred-order success pages use the persisted
   `fulfillment_provider=onshore_manual` value to describe an administrator-held
   production queue; normal Printful order copy is unchanged (#59).

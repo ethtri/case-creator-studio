@@ -150,7 +150,7 @@ export type EasyPostWebhookValidation =
 export interface EasyPostWebhookValidationInput {
   secret: string;
   headers: Headers | Record<string, string | undefined>;
-  rawBody: string;
+  rawBody: string | Uint8Array;
 }
 
 export interface EasyPostClientOptions {
@@ -632,7 +632,10 @@ function timingSafeEqual(left: string, right: string): boolean {
   return difference === 0;
 }
 
-async function hmacSha256Hex(secret: string, value: string): Promise<string> {
+async function hmacSha256Hex(
+  secret: string,
+  value: string | Uint8Array,
+): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
     "raw",
@@ -641,8 +644,11 @@ async function hmacSha256Hex(secret: string, value: string): Promise<string> {
     false,
     ["sign"],
   );
+  const bytes: Uint8Array<ArrayBuffer> = typeof value === "string"
+    ? encoder.encode(value)
+    : Uint8Array.from(value);
   const digest = new Uint8Array(
-    await crypto.subtle.sign("HMAC", key, encoder.encode(value)),
+    await crypto.subtle.sign("HMAC", key, bytes),
   );
   return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join(
     "",
@@ -654,7 +660,7 @@ export async function validateEasyPostWebhook(
 ): Promise<EasyPostWebhookValidation> {
   if (
     !input.secret || input.secret.trim() !== input.secret ||
-    typeof input.rawBody !== "string"
+    !(typeof input.rawBody === "string" || input.rawBody instanceof Uint8Array)
   ) {
     return { valid: false, reason: "invalid_configuration" };
   }
