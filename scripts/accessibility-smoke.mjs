@@ -2601,29 +2601,18 @@ try {
   await seoAnalyticsPage.getByRole("link", { name: "Gift ideas" }).click();
   await seoAnalyticsPage.waitForURL(`${origin}/gifts/custom-phone-case`);
   await waitForAnalyticsEvents(seoAnalyticsPage, "view_item_list", 3);
-  const giftListCountBeforeSelfNavigation = (
-    await getAnalyticsEvents(seoAnalyticsPage, "view_item_list")
-  ).filter(
-    (event) =>
-      event.payload.item_list_id === "seo_landing_gifts_custom_phone_case",
-  ).length;
-  await seoAnalyticsPage.getByRole("link", { name: "Gift ideas" }).click();
-  await seoAnalyticsPage.waitForTimeout(50);
   assert.equal(
-    (
-      await getAnalyticsEvents(seoAnalyticsPage, "view_item_list")
-    ).filter(
-      (event) =>
-        event.payload.item_list_id ===
-        "seo_landing_gifts_custom_phone_case",
-    ).length,
-    giftListCountBeforeSelfNavigation,
-    "A self-navigation must not duplicate the SEO landing view.",
+    await seoAnalyticsPage.getByRole("link", { name: "Gift ideas" }).count(),
+    0,
+    "The gift landing page must not render a self-referential Gift ideas link.",
   );
+  await seoAnalyticsPage
+    .getByRole("link", { name: "Start designing" })
+    .click();
+  await seoAnalyticsPage.waitForURL(`${origin}/catalog`);
   await seoAnalyticsPage.goBack();
-  if (new URL(seoAnalyticsPage.url()).pathname !== "/custom-iphone-case") {
-    await seoAnalyticsPage.goBack();
-  }
+  await seoAnalyticsPage.waitForURL(`${origin}/gifts/custom-phone-case`);
+  await seoAnalyticsPage.goBack();
   await seoAnalyticsPage.waitForURL(`${origin}/custom-iphone-case`);
   await seoAnalyticsPage
     .getByRole("link", { name: "Browse all cases" })
@@ -2646,6 +2635,11 @@ try {
       placement: "seo_landing_hero_secondary",
       destination: "/gifts/custom-phone-case",
       label: "Gift ideas",
+    },
+    {
+      placement: "seo_landing_hero_primary",
+      destination: "/catalog",
+      label: "Start designing",
     },
     {
       placement: "seo_landing_models_header",
