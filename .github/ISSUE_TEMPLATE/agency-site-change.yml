@@ -1,0 +1,101 @@
+name: Agency-originated website change
+description: Implement a website change sourced from Snapcase_Autonomous_MarketingAgency with durable provenance.
+title: "[Agency] "
+labels:
+  - codex
+  - governance
+  - origin:marketing-agency
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form only for work originating in `ethtri/Snapcase_Autonomous_MarketingAgency`. The website issue/PR owns implementation truth; the linked marketing artifact/audit owns purpose and authority.
+  - type: input
+    id: source_issue
+    attributes:
+      label: Marketing source issue
+      description: Use the full cross-repository reference.
+      placeholder: ethtri/Snapcase_Autonomous_MarketingAgency#123
+    validations:
+      required: true
+  - type: input
+    id: source_artifact
+    attributes:
+      label: Source artifact
+      description: Use an immutable GitHub URL when available.
+      placeholder: https://github.com/ethtri/Snapcase_Autonomous_MarketingAgency/blob/<sha>/path/to/artifact
+    validations:
+      required: true
+  - type: input
+    id: source_id
+    attributes:
+      label: Source ID
+      placeholder: brief_YYYYMMDD_slug or asset_YYYYMMDD_slug
+    validations:
+      required: true
+  - type: input
+    id: authority
+    attributes:
+      label: Authority or approval ID
+      placeholder: authority_20260720_zero_spend_marketing or appr_YYYYMMDD_slug
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Buyer or business outcome
+      description: State the measurable outcome, current evidence, and why the site change is justified.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and non-goals
+      placeholder: |
+        In scope:
+        - ...
+        Non-goals:
+        - ...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: |
+        - [ ] Observable website result...
+        - [ ] Existing behavior preserved...
+    validations:
+      required: true
+  - type: textarea
+    id: quality
+    attributes:
+      label: Claims, rights, privacy, accessibility, and measurement
+      description: Record each review, measurement plan, and any explicit N/A reason.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification and production check
+      description: Include required repository checks, rendered QA where applicable, production verification, and who owns it.
+    validations:
+      required: true
+  - type: textarea
+    id: rollback
+    attributes:
+      label: Risk and rollback
+      description: Name the likely failure, blast radius, monitoring, and exact revert/removal path.
+    validations:
+      required: true
+  - type: checkboxes
+    id: readiness
+    attributes:
+      label: Submission checks
+      options:
+        - label: I searched open website issues and pull requests for overlap.
+          required: true
+        - label: Claims, rights, privacy, spend, and authority gates are resolved or explicitly blocked.
+          required: true
+        - label: The originating marketing agent owns the post-merge audit backlink.
+          required: true

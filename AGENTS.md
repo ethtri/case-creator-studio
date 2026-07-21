@@ -1,6 +1,7 @@
 # AGENTS
 
 ## Scope and precedence
+
 - Keep context small. Prefer docs in this order:
   1. `Docs/CURRENT_STATUS.md`
   2. `Docs/MVP_SCOPE.md`
@@ -14,6 +15,7 @@
 - Task DoD is below; MVP DoD stays in `Docs/MVP_SCOPE.md`.
 
 ## Do
+
 - Focus on P0 items first.
 - Prefer small, reviewable PRs (one feature, fix, or hygiene slice per PR).
 - Keep changes minimal and reversible.
@@ -22,12 +24,32 @@
 - Prefer `npm ci` for installs/verification (use `npm install` only when a doc explicitly requires it).
 - If this touches the same files as another open PR, say so.
 
+## Cross-repository website coordination
+
+- Treat this repository's issue, PR, merge commit, and deployment checks as the
+  implementation source of truth for every website change. Treat the originating
+  marketing artifact and audit record as the business-purpose, authority, and
+  post-execution source of truth; link them instead of copying their contents.
+- Before changing SEO, CRO, analytics, public marketing assets, or another surface
+  that marketing agents may touch, review open and recently merged pull requests
+  labeled `origin:marketing-agency`. Read `Docs/AGENCY_COORDINATION.md` when a
+  labeled change overlaps the task's routes, files, metrics, or rollback path.
+- Marketing-agency work must start from the agency issue form, carry the
+  `origin:marketing-agency` label, and use an `agent/agency-<short-task-slug>`
+  branch. Its PR must complete the Cross-repo provenance section.
+- After an agency PR merges, the originating marketing agent owns reconciliation:
+  record the website issue, PR URL, merge SHA, production verification, and
+  rollback in its audit; then add the immutable audit permalink to the website PR
+  or issue. Website BAU agents do not close that loop on the agency's behalf.
+
 ## Do Not
+
 - Reformat or rewrite docs unless asked.
 - Add new large docs without removing older ones.
 - Expand scope beyond `Docs/MVP_SCOPE.md`.
 
 ## Definition of Done (task)
+
 Done means: code/docs change complete + docs updated (if P0) + verification
 run + PR opened, QA passed, and PR merged. If a PR cannot be merged, document
 the specific external blocker and leave it open only while that blocker is
@@ -36,9 +58,11 @@ active.
 ## Version control protocol (must follow)
 
 ### Never
+
 - Never commit or push directly to `main`.
 
 ### Unified workflow (all agents)
+
 - Always work in a dedicated Git worktree for the task.
 - Start from current `main` unless the user explicitly names another base.
 - Always create a new branch for the task.
@@ -48,6 +72,7 @@ active.
 - Treat local hooks as optional guardrails; CI is the source of truth.
 
 ### Goal execution and delegation
+
 - The lead agent owns the goal end to end: confirm the current issue/board state,
   order dependencies, delegate independent slices, integrate results, update
   status, and verify the final goal acceptance criteria.
@@ -89,6 +114,7 @@ active.
   blocker is documented.
 
 ### Executive escalation policy
+
 - Treat the user as the executive sponsor, not as the routine reviewer,
   integrator, release operator, or project coordinator.
 - Agents own routine execution without user intervention, including repository
@@ -118,6 +144,7 @@ active.
   executive response.
 
 ### PR requirements (always)
+
 - PR description includes:
   - Summary (1-3 bullets)
   - Files changed
@@ -132,6 +159,7 @@ active.
   - Risk/overlap notes, including open PRs touching the same files
 
 ### Proactive PR QA And Merge (always)
+
 - After opening a PR, proactively inspect its diff, review comments, merge
   state, and CI status. Do not wait for a separate user request to begin QA.
 - Merge the PR with squash once all required checks pass, focused validation is
@@ -147,11 +175,13 @@ active.
   evidence-backed comment and close it instead of force-merging it.
 
 ### Multi-agent branch safety
+
 - If another PR that touches shared foundations merges, update your branch from `main` before final verification.
 - Re-run verification after syncing.
 - Call out conflicts or risky overlaps in the PR description or status update.
 
 ### Multi-agent worktree safety
+
 - Each agent must work in its own Git worktree directory (not the same repo folder).
 - One worktree = one checked-out branch. Do not run two agents in the same worktree.
 - Worktree naming convention:
@@ -160,5 +190,6 @@ active.
 - Do not edit the root `main` worktree directly for task work.
 
 ## Hygiene routines
+
 - Use `Docs/HYGIENE_ROUTINES.md` for per-PR, weekly, and pre-launch hygiene checks.
 - Keep `main` protected in GitHub when repository permissions allow it: PR required, direct pushes blocked, and verification required before merge.
