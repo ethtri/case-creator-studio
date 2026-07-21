@@ -22,12 +22,36 @@ const requestSchema = z.object({
   trackingCarrier: z.string().max(200).optional(),
 });
 
-function authorizeServiceRole(req: Request, serviceRoleKey: string): Response | null {
-  const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
-  const apiKey = req.headers.get("apikey");
-  const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+function constantTimeEqual(left: string, right: string): boolean {
+  const maxLength = Math.max(left.length, right.length);
+  let mismatch = left.length ^ right.length;
 
-  if (bearerToken !== serviceRoleKey && apiKey !== serviceRoleKey) {
+  for (let index = 0; index < maxLength; index += 1) {
+    mismatch |= (left.charCodeAt(index) || 0) ^ (right.charCodeAt(index) || 0);
+  }
+
+  return mismatch === 0;
+}
+
+function authorizeSmokeRequest(
+  req: Request,
+  serviceRoleKey: string,
+  smokeTestSecret: string,
+): Response | null {
+  const authHeader = req.headers.get("authorization") ||
+    req.headers.get("Authorization");
+  const apiKey = req.headers.get("apikey");
+  const bearerToken = authHeader?.startsWith("Bearer ")
+    ? authHeader.slice(7)
+    : null;
+  const smokeSecret = req.headers.get("x-snapcase-smoke-secret") ?? "";
+
+  const serviceRoleAuthorized = bearerToken === serviceRoleKey ||
+    apiKey === serviceRoleKey;
+  const smokeSecretAuthorized = smokeTestSecret.length >= 32 &&
+    constantTimeEqual(smokeSecret, smokeTestSecret);
+
+  if (!serviceRoleAuthorized && !smokeSecretAuthorized) {
     return new Response("Unauthorized", { status: 401 });
   }
 
@@ -41,13 +65,18 @@ serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const smokeTestSecret = Deno.env.get("SEND_TEST_EMAIL_SECRET") ?? "";
 
   if (!supabaseUrl || !serviceRoleKey) {
     console.error("[SEND-TEST-EMAIL] Missing Supabase configuration");
     return new Response("Not configured", { status: 500 });
   }
 
-  const authResponse = authorizeServiceRole(req, serviceRoleKey);
+  const authResponse = authorizeSmokeRequest(
+    req,
+    serviceRoleKey,
+    smokeTestSecret,
+  );
   if (authResponse) return authResponse;
 
   let payload: z.infer<typeof requestSchema>;
@@ -93,11 +122,16 @@ serve(async (req) => {
     customer_email: recipientEmail,
   };
 
-  const result = await sendOrderEmail(supabaseClient, payload.eventType, orderWithRecipient, {
-    trackingNumber: payload.trackingNumber ?? null,
-    trackingUrl: payload.trackingUrl ?? null,
-    trackingCarrier: payload.trackingCarrier ?? null,
-  });
+  const result = await sendOrderEmail(
+    supabaseClient,
+    payload.eventType,
+    orderWithRecipient,
+    {
+      trackingNumber: payload.trackingNumber ?? null,
+      trackingUrl: payload.trackingUrl ?? null,
+      trackingCarrier: payload.trackingCarrier ?? null,
+    },
+  );
 
   const { data: notification } = await supabaseClient
     .from("order_notifications")

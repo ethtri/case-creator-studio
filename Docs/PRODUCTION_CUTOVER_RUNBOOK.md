@@ -27,6 +27,7 @@ Configure these only after dry-run and TTL/print-mode gates are accepted. Do not
 | Operators | `OPERATOR_EMAILS=<Snapcase administrator email(s)>` |
 | Transactional email | `RESEND_API_KEY`, `RESEND_FROM_EMAIL=hello@snapcase.ai`, `RESEND_FROM_NAME=Snapcase` |
 | Email support routing | `SUPPORT_EMAIL=support@snapcase.ai`, `RESEND_WEBHOOK_SECRET` |
+| Email smoke test | `SEND_TEST_EMAIL_SECRET=<random environment-specific value>` |
 | Stripe | `STRIPE_MODE=live`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` |
 | Shipping automation | `EASYPOST_AUTOMATION_ENABLED=true` |
 | EasyPost production gate | `EASYPOST_MODE=production`, `EASYPOST_PRODUCTION_ENABLED=true` |
@@ -72,6 +73,13 @@ social outreach uses `social@snapcase.ai`.
   `email.delivered`, `email.bounced`, `email.complained`, `email.failed`,
   `email.opened`, and `email.clicked`, with its own signing secret stored as
   `RESEND_WEBHOOK_SECRET` in the matching Supabase project.
+- Store a different random `SEND_TEST_EMAIL_SECRET` (at least 32 characters) in
+  each Supabase project. Send it only in the `x-snapcase-smoke-secret` header
+  when invoking the operator-only `send-test-email` function.
+- The webhook fails closed if its signing secret is missing, rejects signatures
+  outside the five-minute freshness window, and records each `svix-id`
+  atomically before applying a monotonic delivery-state update. Database errors
+  must return HTTP 5xx so Resend retries the event.
 - A controlled `hello@snapcase.ai` delivery test must show both `sent` and
   `delivered`, and signed webhook deliveries must return HTTP 200 after any
   signing-secret rotation.
