@@ -13,7 +13,11 @@ import {
   jsonServiceError,
   requireServiceRequest,
 } from "../_shared/service-auth.ts";
-import { toSafeShippingLabel } from "../_shared/shipping-labels.ts";
+import {
+  parseShippingLabelFormat,
+  type ShippingLabelFormat,
+  toSafeShippingLabel,
+} from "../_shared/shipping-labels.ts";
 
 const TRUE_VALUES = new Set(["1", "true", "yes"]);
 const requestSchema = z.object({ jobId: z.string().uuid() });
@@ -137,11 +141,28 @@ serve(async (req) => {
     return jsonServiceError(409, "Shipping automation is not enabled for job");
   }
 
+  let labelFormat: ShippingLabelFormat;
+  try {
+    labelFormat = parseShippingLabelFormat(
+      Deno.env.get("EASYPOST_LABEL_FORMAT") ?? undefined,
+    );
+  } catch {
+    await admin.from("production_jobs").update({
+      fulfillment_status: "shipping_review",
+    }).eq("id", job.id);
+    return jsonResponse(422, {
+      success: false,
+      state: "shipping_review",
+      error: "EasyPost label format is invalid",
+      code: "EASYPOST_LABEL_FORMAT_INVALID",
+    });
+  }
+
   const { data: preparationData, error: preparationError } = await admin.rpc(
     "prepare_easypost_shipping_label",
     {
       p_production_job_id: job.id,
-      p_label_format: "pdf_4x6",
+      p_label_format: labelFormat,
     },
   );
   const label = firstRpcRow(preparationData) as Record<string, unknown> | null;
@@ -189,6 +210,7 @@ serve(async (req) => {
       toAddressId: verifiedAddress.id,
       fromAddressId,
       parcel,
+      labelFormat,
       reference: `snapcase:${job.id}`,
     });
     failureCategory = "rate";

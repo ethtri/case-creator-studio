@@ -1,3 +1,8 @@
+import {
+  isShippingLabelFormat,
+  type ShippingLabelFormat,
+} from "./shipping-labels.ts";
+
 const EASYPOST_API_BASE_URL = "https://api.easypost.com/v2";
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MIN_TIMEOUT_MS = 1_000;
@@ -128,6 +133,7 @@ export interface EasyPostCreateShipmentInput {
   fromAddressId: string;
   returnAddressId?: string;
   parcel: EasyPostParcelConfig;
+  labelFormat?: ShippingLabelFormat;
   reference?: string;
   carrierAccountIds?: string[];
 }
@@ -585,15 +591,22 @@ function validateEasyPostFileUrl(rawUrl: string): URL {
 
 export function extractPdfLabelUrl(
   shipment: EasyPostShipment | Record<string, unknown>,
+  expectedFormat: ShippingLabelFormat = "pdf_4x6",
 ): string {
+  if (!isShippingLabelFormat(expectedFormat)) {
+    throw new Error("EasyPost label format is invalid");
+  }
+  const expectedSize = expectedFormat === "pdf_letter" ? "8.5x11" : "4x6";
   const label = isRecord(shipment.postage_label)
     ? shipment.postage_label
     : null;
   if (
     !label ||
-    (typeof label.label_size === "string" && label.label_size !== "4x6")
+    (typeof label.label_size === "string" && label.label_size !== expectedSize)
   ) {
-    throw new Error("EasyPost shipment does not contain a 4x6 label");
+    throw new Error(
+      "EasyPost shipment label size does not match configuration",
+    );
   }
 
   const candidate = typeof label.label_pdf_url === "string" &&
@@ -1029,6 +1042,11 @@ export class EasyPostClient {
     ) {
       throw new Error("EasyPost carrier account ID is invalid");
     }
+    const labelFormat = input.labelFormat ?? "pdf_4x6";
+    if (!isShippingLabelFormat(labelFormat)) {
+      throw new Error("EasyPost label format is invalid");
+    }
+    const labelSize = labelFormat === "pdf_letter" ? "8.5x11" : "4x6";
 
     const parcel = parseEasyPostParcelConfig(input.parcel);
     return this.#request<Record<string, unknown>>("POST", "/shipments", {
@@ -1041,7 +1059,7 @@ export class EasyPostClient {
         parcel,
         options: {
           label_format: "PDF",
-          label_size: "4x6",
+          label_size: labelSize,
         },
         ...(input.reference ? { reference: input.reference } : {}),
         ...(input.carrierAccountIds

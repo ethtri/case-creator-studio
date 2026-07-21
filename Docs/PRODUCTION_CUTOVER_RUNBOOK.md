@@ -31,7 +31,7 @@ Configure these only after dry-run and TTL/print-mode gates are accepted. Do not
 | Shipping automation | `EASYPOST_AUTOMATION_ENABLED=true` |
 | EasyPost production gate | `EASYPOST_MODE=production`, `EASYPOST_PRODUCTION_ENABLED=true` |
 | EasyPost credentials | `EASYPOST_API_KEY_PRODUCTION`, `EASYPOST_FROM_ADDRESS_ID` |
-| EasyPost package/rates | `EASYPOST_PARCEL_JSON`, `EASYPOST_RATE_POLICY_JSON` |
+| EasyPost package/rates | `EASYPOST_PARCEL_JSON`, `EASYPOST_RATE_POLICY_JSON`, `EASYPOST_LABEL_FORMAT=pdf_4x6|pdf_letter` |
 | EasyPost webhook | `EASYPOST_WEBHOOK_SECRET`, `SHIPPING_WEBHOOK_DRAIN_AUTH_SECRET` |
 | Private label links | `SHIPPING_LABEL_SIGNED_URL_TTL_SECONDS` |
 | Analytics | `GA4_MEASUREMENT_ID`, `GA4_API_SECRET` (server-only Measurement Protocol credential), `GA4_OUTBOX_DRAIN_AUTH_SECRET` |

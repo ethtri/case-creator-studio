@@ -12,6 +12,7 @@ import {
   requireServiceRequest,
 } from "../_shared/service-auth.ts";
 import {
+  isShippingLabelFormat,
   SHIPPING_LABEL_BUCKET,
   toSafeShippingLabel,
 } from "../_shared/shipping-labels.ts";
@@ -146,7 +147,11 @@ serve(async (req) => {
   const labelId = readString(label, "id");
   const shipmentId = readString(label, "provider_shipment_id");
   const rateId = readString(label, "provider_rate_id");
-  if (!labelId || !shipmentId || !rateId) {
+  const labelFormat = readString(label, "label_format");
+  if (
+    !labelId || !shipmentId || !rateId ||
+    !isShippingLabelFormat(labelFormat)
+  ) {
     return jsonServiceError(500, "Persisted shipping state is incomplete");
   }
 
@@ -249,7 +254,7 @@ serve(async (req) => {
     }
 
     const shipmentRecord = shipment as unknown as Record<string, unknown>;
-    const pdfUrl = extractPdfLabelUrl(shipment);
+    const pdfUrl = extractPdfLabelUrl(shipment, labelFormat);
     const pdfBytes = await client.downloadPdfLabel(pdfUrl);
     const storagePath = `easypost/${payload.jobId}/${labelId}.pdf`;
     const { error: uploadError } = await admin.storage
@@ -295,7 +300,7 @@ serve(async (req) => {
           readString(tracker, "status") ?? "pre_transit",
         p_tracking_url: readString(tracker, "public_url"),
         p_label_storage_path: storagePath,
-        p_label_format: "pdf_4x6",
+        p_label_format: labelFormat,
       },
     );
     const finalized = firstRpcRow(finalizedData) as

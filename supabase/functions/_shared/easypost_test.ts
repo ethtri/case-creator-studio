@@ -252,7 +252,7 @@ Deno.test("safe provider errors redact credentials and PII", () => {
   assert(safe.message.length <= 240);
 });
 
-Deno.test("extractPdfLabelUrl accepts only approved EasyPost 4x6 PDF URLs", () => {
+Deno.test("extractPdfLabelUrl enforces the configured PDF label size", () => {
   const shipment = {
     id: "shp_test",
     object: "Shipment",
@@ -268,6 +268,22 @@ Deno.test("extractPdfLabelUrl accepts only approved EasyPost 4x6 PDF URLs", () =
   assertEquals(
     extractPdfLabelUrl(shipment),
     shipment.postage_label.label_pdf_url,
+  );
+  const letterShipment = {
+    ...shipment,
+    postage_label: {
+      ...shipment.postage_label,
+      label_size: "8.5x11",
+    },
+  } satisfies EasyPostShipment;
+  assertEquals(
+    extractPdfLabelUrl(letterShipment, "pdf_letter"),
+    letterShipment.postage_label.label_pdf_url,
+  );
+  assertThrows(
+    () => extractPdfLabelUrl(letterShipment, "pdf_4x6"),
+    Error,
+    "does not match configuration",
   );
   assertThrows(
     () =>
@@ -373,7 +389,8 @@ Deno.test("downloadPdfLabel rejects SSRF redirects and invalid PDF bodies", asyn
   );
 });
 
-Deno.test("EasyPostClient uses Basic auth and requests PDF 4x6 labels", async () => {
+Deno.test("EasyPostClient requests the configured PDF label size", async () => {
+  const requestedSizes: string[] = [];
   const mockFetch: typeof fetch = (
     input: string | URL | Request,
     init?: RequestInit,
@@ -384,10 +401,8 @@ Deno.test("EasyPostClient uses Basic auth and requests PDF 4x6 labels", async ()
       `Basic ${btoa("EZTK_test_key:")}`,
     );
     const body = JSON.parse(String(init?.body));
-    assertEquals(body.shipment.options, {
-      label_format: "PDF",
-      label_size: "4x6",
-    });
+    assertEquals(body.shipment.options.label_format, "PDF");
+    requestedSizes.push(body.shipment.options.label_size);
     return Promise.resolve(
       new Response(
         JSON.stringify({ id: "shp_test", object: "Shipment", rates: [] }),
@@ -406,6 +421,24 @@ Deno.test("EasyPostClient uses Basic auth and requests PDF 4x6 labels", async ()
     parcel: { length: 8, width: 6, height: 2, weight: 12 },
   });
   assertEquals(shipment.id, "shp_test");
+  assertThrows(
+    () =>
+      client.createShipment({
+        toAddressId: "adr_to",
+        fromAddressId: "adr_from",
+        parcel: { length: 8, width: 6, height: 2, weight: 12 },
+        labelFormat: "zpl" as never,
+      }),
+    Error,
+    "label format is invalid",
+  );
+  await client.createShipment({
+    toAddressId: "adr_to",
+    fromAddressId: "adr_from",
+    parcel: { length: 8, width: 6, height: 2, weight: 12 },
+    labelFormat: "pdf_letter",
+  });
+  assertEquals(requestedSizes, ["4x6", "8.5x11"]);
 });
 
 Deno.test("EasyPostClient strictly maps and normalizes verified addresses", async () => {

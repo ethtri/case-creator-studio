@@ -29,7 +29,10 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
   recipient and stores one approved EasyPost rate. Postage is purchased only
   when the job first reaches `printed`; `packed` and `shipped` require a
   purchased label with tracking.
-- EasyPost labels are PDF 4x6 artifacts in the private `shipping-labels` bucket.
+- EasyPost labels are private PDF artifacts. Set
+  `EASYPOST_LABEL_FORMAT=pdf_4x6` for a thermal printer or
+  `EASYPOST_LABEL_FORMAT=pdf_letter` for an 8.5x11 printer; the backward-compatible
+  default is `pdf_4x6`.
   `/operations` requests a short-lived signed print URL and never receives a
   permanent provider or storage URL.
 - Signed EasyPost tracker webhooks update tracking and delivery status through a
@@ -49,6 +52,7 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - EasyPost staging uses `EASYPOST_MODE=test`,
   `EASYPOST_API_KEY_TEST`, `EASYPOST_FROM_ADDRESS_ID`,
   `EASYPOST_PARCEL_JSON`, `EASYPOST_RATE_POLICY_JSON`,
+  `EASYPOST_LABEL_FORMAT`,
   `EASYPOST_WEBHOOK_SECRET`, `SHIPPING_INTERNAL_AUTH_SECRET`, and
   `SHIPPING_WEBHOOK_DRAIN_AUTH_SECRET`. Do not commit their values.
 - Production EasyPost calls require `EASYPOST_MODE=production`,
