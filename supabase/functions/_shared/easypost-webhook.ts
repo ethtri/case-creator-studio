@@ -426,6 +426,10 @@ export async function readBoundedRequestBytes(
   return result;
 }
 
+export function decodeEasyPostWebhookBody(bytes: Uint8Array): string {
+  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+}
+
 export function validateEasyPostWebhookEnvelope(
   req: Request,
 ): string | null {

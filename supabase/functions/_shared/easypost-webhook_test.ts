@@ -2,8 +2,10 @@ import {
   assert,
   assertEquals,
   assertFalse,
+  assertThrows,
 } from "https://deno.land/std@0.190.0/testing/asserts.ts";
 import {
+  decodeEasyPostWebhookBody,
   EASYPOST_WEBHOOK_MAX_BODY_BYTES,
   executeClaimedEasyPostWebhookEvent,
   interpretShippingWebhookClaim,
@@ -211,6 +213,24 @@ Deno.test("webhook envelope requires the exact route and HMAC header", () => {
     ),
     "INVALID_WEBHOOK_PATH",
   );
+  for (
+    const path of [
+      "/functions/v1/easypost-webhook/",
+      "/functions/v1/easypost-webhook/extra",
+      "/easypost-webhook/",
+      "/easypost-webhook/extra",
+    ]
+  ) {
+    assertEquals(
+      validateEasyPostWebhookEnvelope(
+        new Request(`https://example.test${path}`, {
+          method: "POST",
+          headers,
+        }),
+      ),
+      "INVALID_WEBHOOK_PATH",
+    );
+  }
   assertEquals(
     validateEasyPostWebhookEnvelope(
       new Request(
@@ -248,6 +268,17 @@ Deno.test("webhook body reader enforces the byte limit while streaming", async (
     }),
   );
   assertEquals(rejected, null);
+});
+
+Deno.test("webhook body decoding rejects malformed UTF-8", () => {
+  assertEquals(
+    decodeEasyPostWebhookBody(new TextEncoder().encode('{"valid":true}')),
+    '{"valid":true}',
+  );
+  assertThrows(
+    () => decodeEasyPostWebhookBody(new Uint8Array([0xc3, 0x28])),
+    TypeError,
+  );
 });
 
 Deno.test("delivered tracking updates the order and sends one ledger-backed email", async () => {

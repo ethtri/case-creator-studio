@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { validateEasyPostWebhook } from "../_shared/easypost.ts";
 import {
   createSupabaseEasyPostWebhookProcessor,
+  decodeEasyPostWebhookBody,
   EASYPOST_WEBHOOK_LEASE_SECONDS,
   EASYPOST_WEBHOOK_MAX_BODY_BYTES,
   EASYPOST_WEBHOOK_PATH,
@@ -68,7 +69,7 @@ serve(async (req) => {
 
   let rawBody: string;
   try {
-    rawBody = new TextDecoder("utf-8", { fatal: true }).decode(rawBodyBytes);
+    rawBody = decodeEasyPostWebhookBody(rawBodyBytes);
   } catch {
     return jsonResponse(400, { error: "Invalid payload" });
   }
