@@ -105,6 +105,11 @@ Deploy or confirm these Supabase Edge Functions in production before the pilot:
 - `printful-retry`
 - `submit-printful-order`
 
+Deploy the three server-to-server shipping functions from the checked-in
+`supabase/config.toml`. Their gateway JWT verification must remain disabled;
+each handler still rejects browser-origin traffic and requires the project
+service credential or `SHIPPING_INTERNAL_AUTH_SECRET`.
+
 Keep the analytics scheduler disabled before applying its migration chain:
 
 1. Store `project_url`, a matching dedicated scheduler credential, and the
