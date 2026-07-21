@@ -137,12 +137,12 @@ export function validatePullRequestBody({
   }
   if (
     isMissing(fields["Source artifact"]) ||
-    !fields["Source artifact"].startsWith(
-      `https://github.com/${MARKETING_REPOSITORY}/`,
-    )
+    !new RegExp(
+      `^https://github\\.com/${escapeRegex(MARKETING_REPOSITORY)}/blob/[a-f0-9]{40}/.+$`,
+    ).test(fields["Source artifact"])
   ) {
     errors.push(
-      "Source artifact must be a GitHub URL inside the originating marketing repository.",
+      "Source artifact must be an immutable marketing-repo blob URL with a 40-character commit SHA.",
     );
   }
   if (isMissing(fields["Source ID"]))

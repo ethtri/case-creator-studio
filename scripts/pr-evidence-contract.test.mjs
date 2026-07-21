@@ -47,7 +47,7 @@ const provenance = `## Cross-repo provenance
 - Change origin: \`marketing-agency\`
 - Originating repository: \`ethtri/Snapcase_Autonomous_MarketingAgency\`
 - Source issue: \`ethtri/Snapcase_Autonomous_MarketingAgency#174\`
-- Source artifact: \`https://github.com/ethtri/Snapcase_Autonomous_MarketingAgency/issues/174\`
+- Source artifact: \`https://github.com/ethtri/Snapcase_Autonomous_MarketingAgency/blob/300332a6fdfc15906b198de745f5f6fab1055ae9/integrations/ecommerce_site_repo.md\`
 - Source ID: \`cross_repo_coordination_20260721\`
 - Authority or approval ID: \`authority_20260720_zero_spend_marketing\`
 - Marketing execution audit: \`pending\`
