@@ -146,9 +146,10 @@ test("webhooks require EasyPost HMAC and persist only a bounded safe payload", a
 });
 
 test("the production workflow prepares early, purchases after print, and gates packing", async () => {
-  const [route, update] = await Promise.all([
+  const [route, update, prepare] = await Promise.all([
     read("supabase/functions/route-fulfillment-order/index.ts"),
     read("supabase/functions/update-production-job/index.ts"),
+    read("supabase/functions/shipping-prepare-order/index.ts"),
   ]);
 
   assert.match(route, /EASYPOST_AUTOMATION_ENABLED/);
@@ -160,6 +161,7 @@ test("the production workflow prepares early, purchases after print, and gates p
   assert.doesNotMatch(update, /\.select\("state, tracking_number"\)/);
   assert.match(update, /Tracking is managed by EasyPost/);
   assert.match(update, /sendOrderEmail[\s\S]*"order_shipped"/);
+  assert.match(prepare, /fulfillmentStatusAfterSuccessfulRating/);
 
   const transitionIndex = update.indexOf(
     '"transition_easypost_production_job"',

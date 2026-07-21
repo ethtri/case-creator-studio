@@ -13,7 +13,10 @@ import {
   jsonServiceError,
   requireServiceRequest,
 } from "../_shared/service-auth.ts";
-import { toSafeShippingLabel } from "../_shared/shipping-labels.ts";
+import {
+  fulfillmentStatusAfterSuccessfulRating,
+  toSafeShippingLabel,
+} from "../_shared/shipping-labels.ts";
 
 const TRUE_VALUES = new Set(["1", "true", "yes"]);
 const requestSchema = z.object({ jobId: z.string().uuid() });
@@ -221,7 +224,9 @@ serve(async (req) => {
     }
 
     await admin.from("production_jobs").update({
-      fulfillment_status: "onshore_manual_shipping_rated",
+      fulfillment_status: fulfillmentStatusAfterSuccessfulRating(
+        job.fulfillment_status,
+      ),
       shipping_address: normalizedAddressForJob(
         job.shipping_address as Record<string, unknown>,
         verifiedAddress as unknown as Record<string, unknown>,
