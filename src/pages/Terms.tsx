@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
-import { SNAPCASE_EMAILS } from "@/lib/email-identities";
+import { SNAPCASE_COMMERCIAL_ADDRESS, SNAPCASE_EMAILS } from "@/lib/email-identities";
 
 const Terms = () => {
   return (
@@ -95,6 +95,11 @@ const Terms = () => {
                 </a>
                 .
               </p>
+              <address className="mt-3 not-italic">
+                {SNAPCASE_COMMERCIAL_ADDRESS.street}
+                <br />
+                {SNAPCASE_COMMERCIAL_ADDRESS.cityRegionPostal}
+              </address>
             </div>
           </div>
         </div>

@@ -4,7 +4,7 @@ import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
 import { Button } from "@/components/ui/button";
 import { useAnalyticsConsent } from "@/hooks/useAnalyticsConsent";
-import { SNAPCASE_EMAILS } from "@/lib/email-identities";
+import { SNAPCASE_COMMERCIAL_ADDRESS, SNAPCASE_EMAILS } from "@/lib/email-identities";
 import { setAnalyticsConsent } from "@/lib/marketing";
 
 const Privacy = () => {
@@ -126,6 +126,11 @@ const Privacy = () => {
                 </a>
                 .
               </p>
+              <address className="mt-3 not-italic">
+                {SNAPCASE_COMMERCIAL_ADDRESS.street}
+                <br />
+                {SNAPCASE_COMMERCIAL_ADDRESS.cityRegionPostal}
+              </address>
             </div>
           </div>
         </div>
