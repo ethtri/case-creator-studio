@@ -39,6 +39,14 @@ Owner-updated snapshot for AI agents. Keep this short and current.
 - Marketing analytics: the production GA4 command queue uses Google's canonical
   `arguments` shape so consented browser page views reach GA4; opt-out remains
   the default and advertising storage stays denied (#96).
+- Analytics staging reconciliation completed on 2026-07-21 UTC: the three
+  missing analytics migrations are executed and recorded, the merged
+  `stripe-webhook` and `ga4-outbox-drain` are active, and linked migration
+  history is clean. The rollback-only scheduler acceptance passed; unauthenticated
+  worker access returned HTTP 401 and a Vault-authenticated empty drain returned
+  HTTP 200 with no claims or state errors. The Vault gate remains literal
+  `false`, no GA4 cron exists, `analytics_events` is empty, GA credentials are
+  absent, and production was unchanged (#129).
 - Promo codes: pre-checkout apply with Stripe validation; enforce eligibility at checkout.
 - Pricing readiness: catalog, normal checkout, promo validation, and
   Kexiaozhan defaults now share one executable `$29.99 + $4.99` contract.
