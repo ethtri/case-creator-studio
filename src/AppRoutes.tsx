@@ -9,6 +9,7 @@ import {
   loadDesignEditorEDM,
   loadDesigns,
   loadIndex,
+  loadIphonePhotoLanding,
   loadKexiaozhanCheckout,
   loadNotFound,
   loadOperations,
@@ -22,6 +23,7 @@ import {
 } from "./route-loaders";
 
 const Index = lazy(loadIndex);
+const IphonePhotoLanding = lazy(loadIphonePhotoLanding);
 const Catalog = lazy(loadCatalog);
 const SeoLanding = lazy(loadSeoLanding);
 const PhoneCaseSeo = lazy(loadPhoneCaseSeo);
@@ -62,6 +64,10 @@ const AppRoutes = () => (
       <Route path="/catalog" element={<Catalog />} />
       <Route path="/custom-phone-case" element={<SeoLanding />} />
       <Route path="/custom-iphone-case" element={<SeoLanding />} />
+      <Route
+        path="/custom-phone-case/photo-case-for-new-phone"
+        element={<IphonePhotoLanding />}
+      />
       <Route path="/custom-samsung-case" element={<SeoLanding />} />
       <Route
         path="/custom-phone-case/pet-photo-phone-case"

@@ -41,6 +41,7 @@ const toAbsoluteAssetUrl = (assetUrl: string) => new URL(assetUrl, `${SITE_URL}/
 const IPHONE_IMAGE = toAbsoluteAssetUrl(iphoneCaseFront);
 const SAMSUNG_IMAGE = toAbsoluteAssetUrl(samsungCaseFront);
 const PET_PHOTO_IMAGE = `${SITE_URL}/marketing/pet-photo-landing/pet-photo-case-hero.webp`;
+const IPHONE_PHOTO_IMAGE = `${SITE_URL}/marketing/iphone-photo-landing/iphone-photo-case-hero.webp`;
 
 const makeRoute = (
   path: string,
@@ -178,6 +179,39 @@ export const staticSeoPages: StaticSeoPage[] = [
     ],
   },
   {
+    path: "/custom-phone-case/photo-case-for-new-phone",
+    eyebrow: "Custom iPhone Photo Cases",
+    headline:
+      "A photo case for your new iPhone — matched to the exact model.",
+    intro:
+      "Pick the exact iPhone model first, then upload a photo, add optional text, and preview your case before checkout.",
+    cta: "Start designing",
+    featuredBrand: "Apple",
+    sections: [
+      {
+        title: "Choose your iPhone",
+        body: "Select the exact supported iPhone model so the design and order stay tied to the device you have.",
+      },
+      {
+        title: "Upload your photo",
+        body: "Use a clear image and leave space around the main subject so you have room to adjust the crop.",
+      },
+      {
+        title: "Add optional text",
+        body: "Add a short name, date, or message when it helps the design feel more personal.",
+      },
+      {
+        title: "Check the preview",
+        body: "Review the photo, text, spacing, and camera area before adding the case to your cart.",
+      },
+    ],
+    giftAngles: [
+      "Start with the exact model so the product selection stays clear before you personalize anything.",
+      "Use one focused photo or a simple crop rather than crowding the case with too many competing details.",
+      "Review the preview carefully when faces, text, or important details sit near an edge or the camera area.",
+    ],
+  },
+  {
     path: "/gifts/custom-phone-case",
     eyebrow: "Custom Phone Case Gifts",
     headline: "Turn a favorite photo or message into a phone case gift.",
@@ -246,11 +280,14 @@ const staticSeoRoutes = staticSeoPages.map((page) =>
     page.path,
     page.path === "/custom-phone-case/pet-photo-phone-case"
       ? "Custom Pet Photo Phone Case | Snapcase"
-      : `${page.eyebrow} | Snapcase`,
+      : page.path === "/custom-phone-case/photo-case-for-new-phone"
+        ? "Custom iPhone Case with Photo | Snapcase"
+        : `${page.eyebrow} | Snapcase`,
     page.intro,
     page.path === "/custom-phone-case"
       ? "0.9"
-      : page.path === "/custom-phone-case/pet-photo-phone-case"
+      : page.path === "/custom-phone-case/pet-photo-phone-case" ||
+          page.path === "/custom-phone-case/photo-case-for-new-phone"
         ? "0.85"
         : "0.8",
     page.featuredBrand === "Apple"
@@ -259,6 +296,8 @@ const staticSeoRoutes = staticSeoPages.map((page) =>
         ? SAMSUNG_IMAGE
         : page.path === "/custom-phone-case/pet-photo-phone-case"
           ? PET_PHOTO_IMAGE
+          : page.path === "/custom-phone-case/photo-case-for-new-phone"
+            ? IPHONE_PHOTO_IMAGE
           : OG_IMAGE
   )
 );

@@ -269,6 +269,24 @@
   --shadow-medium: 0 8px 30px -4px hsl(260 50% 20% / 0.12);
 }
 
+/* The iPhone photo campaign uses a fixed editorial palette in either saved
+   site theme so its product imagery and contrast remain consistent. */
+.iphone-photo-landing {
+  --background: 42 33% 98%;
+  --foreground: 240 50% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 50% 12%;
+  --muted: 45 22% 92%;
+  --muted-foreground: 240 12% 38%;
+  --border: 240 24% 25%;
+  --cta: 183 93% 23%;
+  --cta-foreground: 0 0% 100%;
+  --cta-emphasis: 183 93% 22%;
+  --surface-sunken: 45 25% 95%;
+  --shadow-soft: 0 4px 20px -2px hsl(240 50% 12% / 0.08);
+  --shadow-medium: 0 8px 30px -4px hsl(240 50% 12% / 0.14);
+}
+
 .catalog-details-action:hover:active {
   background-color: hsl(var(--muted));
   color: hsl(var(--foreground));

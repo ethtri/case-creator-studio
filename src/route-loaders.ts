@@ -1,6 +1,7 @@
 import { normalizeRoutePath } from "./lib/route-path";
 
 export const loadIndex = () => import("./pages/Index");
+export const loadIphonePhotoLanding = () => import("./pages/IphonePhotoLanding");
 export const loadCatalog = () => import("./pages/Catalog");
 export const loadSeoLanding = () => import("./pages/SeoLanding");
 export const loadPhoneCaseSeo = () => import("./pages/PhoneCaseSeo");
@@ -47,6 +48,9 @@ export const preloadInitialRoute = (pathname: string): Promise<unknown> => {
   if (routePath === "/") return loadIndex();
   if (routePath === "/catalog") return loadCatalog();
   if (seoLandingPaths.has(routePath)) return loadSeoLanding();
+  if (routePath === "/custom-phone-case/photo-case-for-new-phone") {
+    return loadIphonePhotoLanding();
+  }
   if (routePath.startsWith("/phone-cases/")) return loadPhoneCaseSeo();
   if (routePath.startsWith("/design/") || routePath.startsWith("/design-edm/")) {
     return loadDesignEditorEDM();
