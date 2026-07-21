@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
-import { SNAPCASE_EMAILS } from "@/lib/email-identities";
+import { SNAPCASE_COMMERCIAL_ADDRESS, SNAPCASE_EMAILS } from "@/lib/email-identities";
 
 const Contact = () => {
   return (
@@ -91,6 +91,16 @@ const Contact = () => {
                   </a>
                   .
                 </p>
+              </div>
+              <div className="sm:col-span-2">
+                <h2 className="text-xl font-semibold text-foreground mb-3">
+                  Commercial mailing address
+                </h2>
+                <address className="not-italic">
+                  {SNAPCASE_COMMERCIAL_ADDRESS.street}
+                  <br />
+                  {SNAPCASE_COMMERCIAL_ADDRESS.cityRegionPostal}
+                </address>
               </div>
             </div>
 
