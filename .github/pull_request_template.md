@@ -3,6 +3,17 @@
 - Closes #TODO
 - Milestone or parent issue: TODO
 
+## Cross-repo provenance
+
+- Change origin: `website-bau` or `marketing-agency`
+- Originating repository: `N/A - website BAU change` or `ethtri/Snapcase_Autonomous_MarketingAgency`
+- Source issue: `N/A - website BAU change` or `ethtri/Snapcase_Autonomous_MarketingAgency#123`
+- Source artifact: `N/A - website BAU change` or an immutable GitHub URL
+- Source ID: `N/A - website BAU change` or the marketing queue/brief/asset ID
+- Authority or approval ID: `N/A - website BAU change` or the exact authority/approval ID
+- Marketing execution audit: `N/A - website BAU change`, `pending`, or an immutable audit URL
+- Post-merge reconciliation owner: `N/A - website BAU change` or `ethtri/Snapcase_Autonomous_MarketingAgency`
+
 ## Summary
 
 - Outcome delivered: TODO
