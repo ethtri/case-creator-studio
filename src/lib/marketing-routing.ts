@@ -3,6 +3,7 @@ import { normalizeRoutePath } from "./route-path.ts";
 const INTERNAL_PAGE_VIEW_PARAMS = new Set([
   "designId",
   "session_id",
+  "token",
   "gclid",
   "fbclid",
   "ttclid",
@@ -12,7 +13,7 @@ const INTERNAL_PAGE_VIEW_PARAMS = new Set([
   "utm_source",
   "utm_term",
 ]);
-const SENSITIVE_LOCATION_PARAMS = new Set(["designId", "session_id"]);
+const SENSITIVE_LOCATION_PARAMS = new Set(["designId", "session_id", "token"]);
 
 const withoutParams = (
   pathname: string,

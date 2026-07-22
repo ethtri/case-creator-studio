@@ -17,6 +17,7 @@ export const loadKexiaozhanCheckout = () => import("./pages/KexiaozhanCheckout")
 export const loadTerms = () => import("./pages/Terms");
 export const loadPrivacy = () => import("./pages/Privacy");
 export const loadContact = () => import("./pages/Contact");
+export const loadEmailPreferences = () => import("./pages/EmailPreferences");
 export const loadNotFound = () => import("./pages/NotFound");
 
 export const loadDesignEditorEDM = async () => {
@@ -69,5 +70,6 @@ export const preloadInitialRoute = (pathname: string): Promise<unknown> => {
   if (routePath === "/terms") return loadTerms();
   if (routePath === "/privacy") return loadPrivacy();
   if (routePath === "/contact") return loadContact();
+  if (routePath === "/email-preferences") return loadEmailPreferences();
   return loadNotFound();
 };

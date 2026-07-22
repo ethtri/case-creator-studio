@@ -17,6 +17,7 @@ import { phoneVariants } from "@/data/phoneVariants";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
 import { SnapcaseLogo } from "@/components/SnapcaseLogo";
+import { LifecycleSignup } from "@/components/LifecycleSignup";
 import { trackMarketingEvent } from "@/lib/marketing";
 import { asMarketingItems, buildAnalyticsItem } from "@/lib/analytics-commerce";
 import {
@@ -378,6 +379,8 @@ const Index = () => {
       </section>
       </main>
 
+      <LifecycleSignup />
+
       {/* Footer */}
       <footer className="py-12 border-t border-border/30">
         <div className="container mx-auto px-6">
@@ -391,6 +394,7 @@ const Index = () => {
               <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
               <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
               <Link to="/contact" className="hover:text-foreground transition-colors">Contact</Link>
+              <Link to="/email-preferences" className="hover:text-foreground transition-colors">Email preferences</Link>
             </div>
             <p className="text-sm text-muted-foreground">
               © {currentYear} snapcase.ai. All rights reserved.

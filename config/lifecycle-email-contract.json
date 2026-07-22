@@ -1,0 +1,26 @@
+{
+  "contractVersion": "1.0.0",
+  "purpose": "lifecycle_marketing",
+  "consentCopyVersion": "lifecycle_marketing_home_v1",
+  "privacyPolicyVersion": "2026-07-22",
+  "provider": {
+    "mode": "disabled",
+    "liveSendEnabled": false,
+    "maximumAttempts": 3,
+    "ambiguousMutationRetry": false
+  },
+  "analytics": {
+    "event": "email_signup",
+    "allowedFields": ["source", "placement", "campaign"]
+  },
+  "flows": {
+    "welcome": "marketing",
+    "abandoned_design": "marketing",
+    "abandoned_cart": "marketing",
+    "post_purchase_receipt": "transactional",
+    "post_purchase_promotion": "marketing",
+    "review_ugc": "marketing",
+    "gift_reminder": "marketing"
+  },
+  "rollback": "Disable the public capture and lifecycle workers, preserve every suppression record, and leave all lifecycle sends blocked."
+}

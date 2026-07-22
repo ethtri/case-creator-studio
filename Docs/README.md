@@ -10,6 +10,9 @@ This folder contains the canonical project docs. Older or redundant material liv
 - [BACKLOG.md](./BACKLOG.md) - P0/P1/P2 backlog
 - [HYGIENE_ROUTINES.md](./HYGIENE_ROUTINES.md) - Repo hygiene routines for PRs, branches, docs, and verification
 - [AGENCY_COORDINATION.md](./AGENCY_COORDINATION.md) - Cross-repo provenance and reconciliation contract for marketing-originated website changes
+- [LIFECYCLE_EMAIL.md](./LIFECYCLE_EMAIL.md) - consent, suppression, preferences, provider safety, and lifecycle activation gates
+- [LIFECYCLE_EMAIL_PROVIDER_DECISION.md](./LIFECYCLE_EMAIL_PROVIDER_DECISION.md) - exact provider decision required before any live lifecycle send
+- [LIFECYCLE_EMAIL_QA.md](./LIFECYCLE_EMAIL_QA.md) - automated and rendered browser evidence for the consent and preference flows
 - [QA_SMOKE_TEST_CHECKLIST.md](./QA_SMOKE_TEST_CHECKLIST.md) - MVP smoke tests
 - [DECISIONS.md](./DECISIONS.md) - Key project decisions
 - [PRINTFUL_NOTES.md](./PRINTFUL_NOTES.md) - Printful EDM, mockups, and order notes
