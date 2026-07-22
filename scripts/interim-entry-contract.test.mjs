@@ -73,6 +73,13 @@ test("public entry-page source removes unsupported merchandising language", () =
   assert.match(indexSource, /Pick from supported iPhone and Samsung models\./);
 });
 
+test("home starting-model cards render the catalog device imagery", () => {
+  assert.match(indexSource, /src=\{variant\.imageUrl\}/);
+  assert.match(indexSource, /data-home-starting-model-image=\{variant\.id\}/);
+  assert.match(indexSource, /phone not included/i);
+  assert.doesNotMatch(indexSource, /w-20 h-40 rounded-2xl/);
+});
+
 test("catalog cards keep two routes and remove the always-selected overlay", () => {
   assert.doesNotMatch(catalogSource, /ring-accent|ring-opacity-0/);
   assert.match(catalogSource, /data-catalog-card=\{variant\.id\}/);
