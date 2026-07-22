@@ -7,6 +7,7 @@ import {
   loadCheckout,
   loadContact,
   loadDesignEditorEDM,
+  loadEmailPreferences,
   loadDesigns,
   loadIndex,
   loadIphonePhotoLanding,
@@ -41,6 +42,7 @@ const Privacy = lazy(loadPrivacy);
 const Contact = lazy(loadContact);
 const NotFound = lazy(loadNotFound);
 const DesignEditorEDM = lazy(loadDesignEditorEDM);
+const EmailPreferences = lazy(loadEmailPreferences);
 
 const LegacyCanvasRedirect = () => {
   const { variantId } = useParams();
@@ -94,6 +96,7 @@ const AppRoutes = () => (
       <Route path="/terms" element={<Terms />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/contact" element={<Contact />} />
+      <Route path="/email-preferences" element={<EmailPreferences />} />
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
     </Routes>

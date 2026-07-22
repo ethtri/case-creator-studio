@@ -75,6 +75,15 @@ verify_jwt = false
 [functions.resend-webhook]
 verify_jwt = false
 
+[functions.lifecycle-email-preferences]
+verify_jwt = false
+
+[functions.lifecycle-email-webhook]
+verify_jwt = false
+
+[functions.lifecycle-email-outbox]
+verify_jwt = false
+
 [functions.send-test-email]
 verify_jwt = false
 

@@ -1,0 +1,29 @@
+{
+  "fixture": "synthetic_no_recipient",
+  "flow": "welcome",
+  "classification": "marketing",
+  "providerMode": "disabled",
+  "dryRun": true,
+  "destination": "redacted@example.invalid",
+  "from": "Snapcase Team <hello@snapcase.ai>",
+  "replyTo": "support@snapcase.ai",
+  "commercialAddress": "1401 21st Street, Sacramento, CA 95811",
+  "preflight": {
+    "consent": "required",
+    "suppression": "must_be_clear",
+    "claims": "approved_copy_only",
+    "unsubscribe": "{{preferences_url}}",
+    "privacy": "no_direct_identifier_in_logs_or_analytics",
+    "audit": "required"
+  },
+  "checks": {
+    "claims": "pass_no_unapproved_claims_present",
+    "consent": "pass_synthetic_eligibility_contract",
+    "unsubscribe": "pass_https_token_placeholder",
+    "destination": "pass_reserved_invalid_domain",
+    "privacy": "pass_no_direct_identifier_in_output",
+    "suppression": "pass_required_before_claim",
+    "audit": "pass"
+  },
+  "result": "preview_only_no_provider_mutation"
+}

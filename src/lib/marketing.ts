@@ -16,6 +16,7 @@ export type MarketingEventName =
   | "primary_cta_click"
   | "editor_error"
   | "checkout_error"
+  | "email_signup"
   | "promo_applied";
 
 export type MarketingViewEventName = Extract<

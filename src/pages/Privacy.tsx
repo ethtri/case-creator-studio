@@ -107,6 +107,17 @@ const Privacy = () => {
             </div>
 
             <div>
+              <h2 className="text-xl font-semibold text-foreground mb-3">Optional marketing email</h2>
+              <p>
+                If you separately choose to receive marketing email, we record the email address,
+                consent source, consent-language version, and preference history needed to honor
+                that choice. Marketing consent is optional and is not required for an account,
+                checkout, fulfillment, or order updates. Unsubscribe and provider suppression
+                records are kept so an automated signup cannot silently turn marketing email back on.
+              </p>
+            </div>
+
+            <div>
               <h2 className="text-xl font-semibold text-foreground mb-3">Data retention</h2>
               <p>
                 We retain order data for record keeping and support. Design assets are stored to
