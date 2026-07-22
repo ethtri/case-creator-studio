@@ -260,6 +260,7 @@ const Index = () => {
               </h2>
               <p className="text-muted-foreground">
                 Four supported Apple models to begin with, or browse the full catalog.
+                {" "}Device imagery identifies compatibility; phone not included.
               </p>
             </div>
             <Button asChild variant="ghost" className="hidden text-muted-foreground hover:text-foreground md:inline-flex">
@@ -290,9 +291,38 @@ const Index = () => {
                   }
                 >
                   <div className="group bg-card rounded-2xl p-6 border border-border/50 hover:border-cta/30 transition-all duration-300 hover:shadow-medium">
-                    <div className="aspect-square rounded-xl bg-muted/50 mb-4 flex items-center justify-center overflow-hidden">
-                      <div className="w-20 h-40 rounded-2xl bg-gradient-to-b from-muted-foreground/20 to-muted-foreground/10 border border-muted-foreground/20 group-hover:scale-105 transition-transform duration-300" />
-                    </div>
+                    <figure className="relative mb-4 aspect-square overflow-hidden rounded-xl border border-border/60 bg-[radial-gradient(circle_at_50%_36%,hsl(var(--card))_0%,hsl(var(--muted))_100%)]">
+                      {variant.imageRole === "open-reference" && (
+                        <>
+                          <img
+                            src={variant.imageUrl}
+                            alt=""
+                            aria-hidden="true"
+                            loading="lazy"
+                            decoding="async"
+                            className="absolute inset-0 h-full w-full scale-110 object-cover opacity-35 blur-xl saturate-75"
+                          />
+                          <div
+                            className="absolute inset-0 bg-gradient-to-b from-background/5 via-background/20 to-background/55"
+                            aria-hidden="true"
+                          />
+                        </>
+                      )}
+                      <img
+                        src={variant.imageUrl}
+                        alt={`${variant.model} device reference for case compatibility; phone not included`}
+                        width={variant.imageWidth ?? 410}
+                        height={variant.imageHeight ?? 450}
+                        loading="lazy"
+                        decoding="async"
+                        className={`relative z-10 h-full w-full transition-transform duration-300 group-hover:scale-[1.025] ${
+                          variant.imageRole === "device-reference"
+                            ? "object-contain"
+                            : "object-contain p-4 drop-shadow-[0_14px_24px_rgba(0,0,0,0.35)]"
+                        }`}
+                        data-home-starting-model-image={variant.id}
+                      />
+                    </figure>
                     <h3 className="font-semibold text-foreground mb-1">{variant.model}</h3>
                     <p className="text-sm text-muted-foreground mb-3">{variant.brand}</p>
                     <div className="flex items-center justify-between">
