@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (path) => readFileSync(resolve(repositoryRoot, path), "utf8");
 const packageJson = JSON.parse(read("package.json"));
+const packageLock = JSON.parse(read("package-lock.json"));
 const verifyWorkflow = read(".github/workflows/verify.yml");
 const hygieneWorkflow = read(".github/workflows/pr-hygiene.yml");
 const dependabot = read(".github/dependabot.yml");
@@ -22,6 +23,27 @@ test("CI audits production and full dependency trees at high severity", () => {
   );
   assert.match(verifyWorkflow, /run:\s*npm run audit:production/);
   assert.match(verifyWorkflow, /run:\s*npm run audit(?:\r?\n|$)/);
+});
+
+test("compatible tooling updates remove the vulnerable glob and minimatch paths", () => {
+  const packages = packageLock.packages;
+  const sucrase = packages["node_modules/sucrase"];
+  const typescriptEstree =
+    packages["node_modules/@typescript-eslint/typescript-estree"];
+  const typescriptEstreeMinimatch =
+    packages[
+      "node_modules/@typescript-eslint/typescript-estree/node_modules/minimatch"
+    ];
+
+  assert.equal(packageJson.devDependencies.tailwindcss, "^3.4.19");
+  assert.equal(packageJson.devDependencies["typescript-eslint"], "^8.65.0");
+  assert.equal(packages["node_modules/tailwindcss"].version, "3.4.19");
+  assert.equal(sucrase.version, "3.35.1");
+  assert.equal(sucrase.dependencies.glob, undefined);
+  assert.equal(sucrase.dependencies.tinyglobby, "^0.2.11");
+  assert.equal(typescriptEstree.version, "8.65.0");
+  assert.equal(typescriptEstree.dependencies.minimatch, "^10.2.2");
+  assert.equal(typescriptEstreeMinimatch.version, "10.2.5");
 });
 
 test("official workflow actions run on Node 24-compatible majors", () => {
