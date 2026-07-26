@@ -54,7 +54,8 @@ export const buildSeoLandingCtaPayload = (
   if (kind === "hero_primary") {
     return {
       placement: "seo_landing_hero_primary",
-      destination: "/catalog",
+      destination:
+        page.path === "/custom-samsung-case" ? "#galaxy-models" : "/catalog",
       label: page.cta,
     };
   }

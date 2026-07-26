@@ -149,33 +149,39 @@ export const staticSeoPages: StaticSeoPage[] = [
   },
   {
     path: "/custom-samsung-case",
-    eyebrow: "Custom Samsung Cases",
-    headline: "Make a personalized Samsung Galaxy case in minutes.",
+    eyebrow: "Samsung photo cases",
+    headline:
+      "Design a custom Samsung Galaxy case with a photo—and start with the exact model.",
     intro:
-      "Choose a supported Galaxy model, design the case, preview it, and check out securely.",
-    cta: "Design a Samsung case",
+      "Choose a supported Galaxy S24-series model, upload one clear photo, and review the crop and camera area in the preview before checkout.",
+    cta: "Choose your Galaxy model",
     featuredBrand: "Samsung",
     sections: [
       {
-        title: "Designed around Galaxy models",
+        title: "Choose the full model name",
         body:
-          "Start with the exact supported Galaxy device so the design and order stay tied to the model selected.",
+          "Select Galaxy S24, Galaxy S24+, or Galaxy S24 Ultra so the design and order stay tied to the device you have.",
       },
       {
-        title: "Simple gift workflow",
+        title: "Upload one clear photo",
         body:
-          "Upload a photo or add text, review the case preview, and keep the cart focused on the selected design.",
+          "Start with a focused image and leave a little room around the subject for crop adjustments.",
       },
       {
-        title: "Secure checkout",
+        title: "Adjust the crop",
         body:
-          "Payments run through Stripe, and shipping details are collected during checkout after the custom case preview is ready.",
+          "Keep faces, text, and other important details away from the edges and the camera area.",
+      },
+      {
+        title: "Check the preview",
+        body:
+          "Review the photo placement, spacing, and camera opening before adding the design to your cart.",
       },
     ],
     giftAngles: [
-      "Samsung Galaxy models vary by size and camera layout, so the best gift workflow starts by selecting the exact supported device.",
-      "A simple design usually works best on a Galaxy case: one image, a name, a date, or a short message that still reads at arm's length.",
-      "Use the preview step to check alignment before cart, especially when the design includes faces, text, or artwork near the camera area.",
+      "Use a photo with one clear subject so the design stays easy to read at phone-case size.",
+      "Leave breathing room around faces and important details so you have space to adjust the crop.",
+      "Treat the preview as the final layout check, especially near the camera area and outer edges.",
     ],
   },
   {
@@ -282,6 +288,8 @@ const staticSeoRoutes = staticSeoPages.map((page) =>
       ? "Custom Pet Photo Phone Case | Snapcase"
       : page.path === "/custom-phone-case/photo-case-for-new-phone"
         ? "Custom iPhone Case with Photo | Snapcase"
+        : page.path === "/custom-samsung-case"
+          ? "Custom Samsung Case with Photo | Snapcase"
         : `${page.eyebrow} | Snapcase`,
     page.intro,
     page.path === "/custom-phone-case"

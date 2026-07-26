@@ -2678,6 +2678,114 @@ try {
   );
   await seoAnalyticsContext.close();
 
+  const samsungSeoContext = await browser.newContext({
+    viewport: { width: 1440, height: 1000 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  await installAnalyticsRecorder(samsungSeoContext, "granted");
+  const samsungSeoPage = await samsungSeoContext.newPage();
+  await samsungSeoPage.goto(`${origin}/custom-samsung-case`);
+  await samsungSeoPage
+    .getByRole("heading", {
+      level: 1,
+      name: /Design a custom Samsung Galaxy case with a photo/,
+    })
+    .waitFor();
+  await waitForAnalyticsEvents(samsungSeoPage, "view_item_list", 1);
+  const samsungSeoList = (
+    await getAnalyticsEvents(samsungSeoPage, "view_item_list")
+  ).find(
+    (event) =>
+      event.payload.item_list_id === "seo_landing_custom_samsung_case",
+  );
+  assert.ok(samsungSeoList, "The Samsung SEO landing list view is missing.");
+  assertCompleteAnalyticsItems(
+    samsungSeoList,
+    3,
+    "Samsung SEO landing view",
+  );
+  auditResults.push(
+    await assertNoSeriousAxeViolations(
+      samsungSeoPage,
+      "analytics-samsung-seo-allow-desktop",
+    ),
+  );
+
+  await samsungSeoPage
+    .getByRole("link", { name: "Choose your Galaxy model" })
+    .click();
+  await samsungSeoPage.waitForURL(
+    `${origin}/custom-samsung-case#galaxy-models`,
+  );
+  await samsungSeoPage
+    .getByRole("heading", {
+      level: 2,
+      name: "Choose the Galaxy you actually have.",
+    })
+    .waitFor();
+  const samsungCtaEvents = await getAnalyticsEvents(
+    samsungSeoPage,
+    "primary_cta_click",
+  );
+  assert.ok(
+    samsungCtaEvents.some(
+      (event) =>
+        event.payload.placement === "seo_landing_hero_primary" &&
+        event.payload.destination === "#galaxy-models" &&
+        event.payload.label === "Choose your Galaxy model",
+    ),
+    "The Samsung model-picker CTA event is missing.",
+  );
+  await samsungSeoPage
+    .getByRole("link", { name: /Galaxy S24 Ultra/ })
+    .click();
+  await samsungSeoPage.waitForURL(/\/phone-cases\/galaxy-s24-ultra/);
+  const samsungSelections = await getAnalyticsEvents(
+    samsungSeoPage,
+    "select_item",
+  );
+  assert.ok(
+    samsungSelections.some(
+      (event) =>
+        event.payload.item_list_id ===
+          "seo_landing_custom_samsung_case" &&
+        event.payload.placement === "seo_landing_popular_models" &&
+        event.payload.items?.length === 1,
+    ),
+    "Samsung model selection must retain its list and placement context.",
+  );
+  await samsungSeoContext.close();
+
+  const samsungMobileContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  await installAnalyticsRecorder(samsungMobileContext, "granted");
+  const samsungMobilePage = await samsungMobileContext.newPage();
+  await samsungMobilePage.goto(`${origin}/custom-samsung-case`);
+  await samsungMobilePage
+    .getByRole("heading", {
+      level: 1,
+      name: /Design a custom Samsung Galaxy case with a photo/,
+    })
+    .waitFor();
+  assert.equal(
+    await samsungMobilePage.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+    true,
+    "The Samsung SEO landing must not overflow the mobile viewport.",
+  );
+  auditResults.push(
+    await assertNoSeriousAxeViolations(
+      samsungMobilePage,
+      "analytics-samsung-seo-allow-mobile",
+    ),
+  );
+  await samsungMobileContext.close();
+
   const declineContext = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
     reducedMotion: "reduce",
