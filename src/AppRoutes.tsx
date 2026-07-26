@@ -19,12 +19,14 @@ import {
   loadPhoneCaseSeo,
   loadPreview,
   loadPrivacy,
+  loadSamsungPhotoLanding,
   loadSeoLanding,
   loadTerms,
 } from "./route-loaders";
 
 const Index = lazy(loadIndex);
 const IphonePhotoLanding = lazy(loadIphonePhotoLanding);
+const SamsungPhotoLanding = lazy(loadSamsungPhotoLanding);
 const Catalog = lazy(loadCatalog);
 const SeoLanding = lazy(loadSeoLanding);
 const PhoneCaseSeo = lazy(loadPhoneCaseSeo);
@@ -70,7 +72,7 @@ const AppRoutes = () => (
         path="/custom-phone-case/photo-case-for-new-phone"
         element={<IphonePhotoLanding />}
       />
-      <Route path="/custom-samsung-case" element={<SeoLanding />} />
+      <Route path="/custom-samsung-case" element={<SamsungPhotoLanding />} />
       <Route
         path="/custom-phone-case/pet-photo-phone-case"
         element={<SeoLanding />}

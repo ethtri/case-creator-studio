@@ -2,6 +2,7 @@ import { normalizeRoutePath } from "./lib/route-path";
 
 export const loadIndex = () => import("./pages/Index");
 export const loadIphonePhotoLanding = () => import("./pages/IphonePhotoLanding");
+export const loadSamsungPhotoLanding = () => import("./pages/SamsungPhotoLanding");
 export const loadCatalog = () => import("./pages/Catalog");
 export const loadSeoLanding = () => import("./pages/SeoLanding");
 export const loadPhoneCaseSeo = () => import("./pages/PhoneCaseSeo");
@@ -33,7 +34,6 @@ export const loadDesignEditorEDM = async () => {
 const seoLandingPaths = new Set([
   "/custom-phone-case",
   "/custom-iphone-case",
-  "/custom-samsung-case",
   "/custom-phone-case/pet-photo-phone-case",
   "/gifts/custom-phone-case",
 ]);
@@ -52,6 +52,7 @@ export const preloadInitialRoute = (pathname: string): Promise<unknown> => {
   if (routePath === "/custom-phone-case/photo-case-for-new-phone") {
     return loadIphonePhotoLanding();
   }
+  if (routePath === "/custom-samsung-case") return loadSamsungPhotoLanding();
   if (routePath.startsWith("/phone-cases/")) return loadPhoneCaseSeo();
   if (routePath.startsWith("/design/") || routePath.startsWith("/design-edm/")) {
     return loadDesignEditorEDM();

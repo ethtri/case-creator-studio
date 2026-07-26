@@ -287,6 +287,24 @@
   --shadow-medium: 0 8px 30px -4px hsl(240 50% 12% / 0.14);
 }
 
+/* The Samsung photo campaign uses a fixed warm editorial palette in either
+   saved site theme so the model guidance remains consistent and legible. */
+.samsung-photo-landing {
+  --background: 43 36% 97%;
+  --foreground: 244 40% 13%;
+  --card: 40 33% 99%;
+  --card-foreground: 244 40% 13%;
+  --muted: 42 24% 91%;
+  --muted-foreground: 244 12% 37%;
+  --border: 244 24% 24%;
+  --cta: 169 67% 25%;
+  --cta-foreground: 0 0% 100%;
+  --cta-emphasis: 169 67% 23%;
+  --surface-sunken: 42 28% 92%;
+  --shadow-soft: 0 4px 20px -2px hsl(244 40% 13% / 0.08);
+  --shadow-medium: 0 10px 32px -6px hsl(244 40% 13% / 0.15);
+}
+
 .catalog-details-action:hover:active {
   background-color: hsl(var(--muted));
   color: hsl(var(--foreground));

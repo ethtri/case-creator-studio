@@ -151,7 +151,8 @@ test("builds complete route-specific SEO landing ecommerce payloads", () => {
     );
     assert.deepEqual(buildSeoLandingCtaPayload(page, "hero_primary"), {
       placement: "seo_landing_hero_primary",
-      destination: "/catalog",
+      destination:
+        page.path === "/custom-samsung-case" ? "#galaxy-models" : "/catalog",
       label: page.cta,
     });
     assert.deepEqual(buildSeoLandingCtaPayload(page, "hero_secondary"), {
