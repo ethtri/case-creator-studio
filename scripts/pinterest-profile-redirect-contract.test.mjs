@@ -12,15 +12,33 @@ const EXPECTED_ATTRIBUTION = {
 
 test("Pinterest profile redirect is temporary, first-party, and attribution-stable", async () => {
   const configuration = JSON.parse(await readFile("vercel.json", "utf8"));
-  const redirects = configuration.redirects ?? [];
+  assert.equal(configuration.bulkRedirectsPath, "redirects.json");
+  assert.equal(
+    configuration.redirects,
+    undefined,
+    "The route must not fall back to static redirects that preserve inbound query parameters.",
+  );
+  const redirects = JSON.parse(await readFile(configuration.bulkRedirectsPath, "utf8"));
   const matches = redirects.filter((redirect) => redirect.source === EXPECTED_SOURCE);
 
   assert.equal(matches.length, 1, "Expected exactly one Pinterest profile redirect.");
   const redirect = matches[0];
-  assert.equal(redirect.permanent, false, "Campaign redirect must remain changeable.");
+  assert.equal(redirect.status, 307, "Campaign redirect must remain temporary and method-safe.");
+  assert.equal(
+    redirect.preserveQueryParams,
+    false,
+    "Inbound query parameters must not be copied to the fixed campaign destination.",
+  );
+  assert.equal(redirect.caseSensitive, false);
   assert.deepEqual(
     Object.keys(redirect).sort(),
-    ["destination", "permanent", "source"],
+    [
+      "caseSensitive",
+      "destination",
+      "preserveQueryParams",
+      "source",
+      "status",
+    ],
     "Redirect must not depend on request headers, cookies, or query parameters.",
   );
 
@@ -51,5 +69,8 @@ test("Pinterest redirect runs before the SPA catch-all rewrite", async () => {
   );
   assert.ok(catchAll, "SPA catch-all rewrite must remain configured.");
   assert.equal(catchAll.destination, "/app.html");
-  assert.equal(configuration.redirects?.[0]?.source, EXPECTED_SOURCE);
+  const redirects = JSON.parse(
+    await readFile(configuration.bulkRedirectsPath, "utf8"),
+  );
+  assert.equal(redirects[0]?.source, EXPECTED_SOURCE);
 });
