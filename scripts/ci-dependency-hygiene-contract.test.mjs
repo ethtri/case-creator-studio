@@ -12,10 +12,13 @@ const hygieneWorkflow = read(".github/workflows/pr-hygiene.yml");
 const dependabot = read(".github/dependabot.yml");
 
 test("CI audits production and full dependency trees at high severity", () => {
-  assert.equal(packageJson.scripts.audit, "npm audit --audit-level=high");
+  assert.equal(
+    packageJson.scripts.audit,
+    "node scripts/run-npm-audit.mjs --audit-level=high",
+  );
   assert.equal(
     packageJson.scripts["audit:production"],
-    "npm audit --omit=dev --audit-level=high",
+    "node scripts/run-npm-audit.mjs --omit=dev --audit-level=high",
   );
   assert.match(verifyWorkflow, /run:\s*npm run audit:production/);
   assert.match(verifyWorkflow, /run:\s*npm run audit(?:\r?\n|$)/);
@@ -31,7 +34,10 @@ test("official workflow actions run on Node 24-compatible majors", () => {
 
 test("workflows stay least privilege and scheduled updates cover both ecosystems", () => {
   assert.match(verifyWorkflow, /permissions:\s*\r?\n\s+contents:\s*read/);
-  assert.match(hygieneWorkflow, /permissions:\s*\r?\n\s+contents:\s*read\s*\r?\n\s+pull-requests:\s*read/);
+  assert.match(
+    hygieneWorkflow,
+    /permissions:\s*\r?\n\s+contents:\s*read\s*\r?\n\s+pull-requests:\s*read/,
+  );
   assert.match(dependabot, /package-ecosystem:\s*npm/);
   assert.match(dependabot, /package-ecosystem:\s*github-actions/);
   assert.equal((dependabot.match(/interval:\s*weekly/g) ?? []).length, 2);
