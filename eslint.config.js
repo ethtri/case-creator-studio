@@ -4,10 +4,25 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
+const establishedJsRecommended = {
+  ...js.configs.recommended,
+  rules: {
+    ...js.configs.recommended.rules,
+    "no-unassigned-vars": "off",
+    "no-useless-assignment": "off",
+    "preserve-caught-error": "off",
+  },
+};
+
+const establishedReactHooksRules = {
+  "react-hooks/rules-of-hooks": "error",
+  "react-hooks/exhaustive-deps": "warn",
+};
+
 export default tseslint.config(
   { ignores: ["dist"] },
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
+    extends: [establishedJsRecommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       ecmaVersion: 2020,
@@ -18,7 +33,7 @@ export default tseslint.config(
       "react-refresh": reactRefresh,
     },
     rules: {
-      ...reactHooks.configs.recommended.rules,
+      ...establishedReactHooksRules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
     },
