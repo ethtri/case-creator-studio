@@ -1,7 +1,7 @@
 [
   {
     "source": "/go/pinterest",
-    "destination": "/gifts/custom-phone-case?utm_source=pinterest&utm_medium=organic_social&utm_campaign=pinterest_profile",
+    "destination": "/gifts/custom-phone-case?utm_source=pinterest&utm_medium=organic_social&utm_campaign=pinterest_profile&utm_content=pinterest_profile_link_v1",
     "status": 307,
     "caseSensitive": false,
     "preserveQueryParams": false

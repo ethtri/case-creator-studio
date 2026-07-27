@@ -8,6 +8,7 @@ const EXPECTED_ATTRIBUTION = {
   utm_source: "pinterest",
   utm_medium: "organic_social",
   utm_campaign: "pinterest_profile",
+  utm_content: "pinterest_profile_link_v1",
 };
 
 test("Pinterest profile redirect is temporary, first-party, and attribution-stable", async () => {
