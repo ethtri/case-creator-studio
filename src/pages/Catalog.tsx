@@ -246,7 +246,7 @@ const Catalog = () => {
                             )
                           }
                         >
-                          Choose model
+                          Design case
                           <span className="sr-only"> for {variant.model}</span>
                           <ChevronRight
                             className="ml-1 h-4 w-4"

@@ -1019,7 +1019,7 @@ try {
     name: "View details for iPhone 17 Pro Max",
   });
   const modelDesignLink = page.getByRole("link", {
-    name: "Choose model for iPhone 17 Pro Max",
+    name: "Design case for iPhone 17 Pro Max",
   });
   await assertTargetSize(modelDetailsLink, "Catalog model details");
   await assertTargetSize(modelDesignLink, "Catalog model design");
@@ -1510,7 +1510,7 @@ try {
     .waitFor();
   await assertTargetSize(
     mobilePage.getByRole("link", {
-      name: "Choose model for iPhone 17 Pro Max",
+      name: "Design case for iPhone 17 Pro Max",
     }),
     "Mobile catalog model action",
   );
@@ -2306,7 +2306,7 @@ try {
       placement: "catalog_view_details",
     },
     {
-      actionName: "Choose model for iPhone 17 Pro Max",
+      actionName: "Design case for iPhone 17 Pro Max",
       destination: /\/design\/iphone-17-pro-max/,
       placement: "catalog_start_design",
     },

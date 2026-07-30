@@ -91,6 +91,8 @@ test("catalog cards keep two routes and remove the always-selected overlay", () 
   assert.match(catalogSource, /to=\{`\/design\/\$\{variant\.id\}`\}/);
   assert.match(catalogSource, /catalog_view_details/);
   assert.match(catalogSource, /catalog_start_design/);
+  assert.match(catalogSource, />\s*Design case\s*</);
+  assert.doesNotMatch(catalogSource, />\s*Choose model\s*</);
   assert.match(catalogSource, /data-catalog-offer=\{variant\.id\}/);
   assert.match(catalogSource, /focus-within:border-cta/);
 });
