@@ -111,7 +111,7 @@ const Preview = () => {
   const autoRetryRef = useRef<{ timer: number | null; count: number }>({ timer: null, count: 0 });
   const autoRetryInFlightRef = useRef(false);
   const previewErrorTimerRef = useRef<number | null>(null);
-  const addInFlightRef = useRef(false);
+  const purchaseInFlightRef = useRef(false);
   const { addToCart, items } = useCart();
   const { user, isEmailVerified } = useAuth();
   const EDM_PREVIEW_CACHE_VERSION = "v4";
@@ -146,8 +146,8 @@ const Preview = () => {
       ? "Added to cart. Continue to checkout when you are ready."
       : "This design is in your cart. Checkout becomes available after every design preview finishes saving."
     : currentDesignReady
-      ? "Your production preview is ready to add to the cart."
-      : "Preparing your production preview. Add to Cart becomes available after it finishes and is saved to this phone model.";
+      ? "Your production preview is ready. Continue to add this design and review checkout details."
+      : "Preparing your production preview. Continue to Checkout becomes available after it finishes and is saved to this phone model.";
 
   const buildDesignKey = (id: string, suffix: string) => `edmDesign:${id}:${suffix}`;
   const editorPath = variantId
@@ -158,7 +158,7 @@ const Preview = () => {
 
   useEffect(() => {
     if (currentDesignInCart) {
-      addInFlightRef.current = false;
+      purchaseInFlightRef.current = false;
     }
   }, [currentDesignInCart]);
 
@@ -523,16 +523,18 @@ const Preview = () => {
   }, [designId, edmTemplateId]);
 
   const handlePrimaryPurchaseAction = () => {
+    if (purchaseInFlightRef.current) return;
+
     if (currentDesignInCart) {
       if (!canProceedToCheckout) {
         toast.error("Finish saving every design preview before checking out.");
         return;
       }
+      purchaseInFlightRef.current = true;
       navigate(`/checkout/${variantId}`);
       return;
     }
 
-    if (addInFlightRef.current) return;
     if (!variant || !designPreview) return;
     if (typeof edmTemplateId !== "number") {
       toast.error("Finish saving your design before adding it to the cart.");
@@ -542,7 +544,7 @@ const Preview = () => {
       toast.error("Wait for the preview to finish before adding it to the cart.");
       return;
     }
-    addInFlightRef.current = true;
+    purchaseInFlightRef.current = true;
     addToCart(variant, designPreview, edmTemplateId, designId, externalProductId);
     trackMarketingEvent("add_to_cart", {
       value: variant.price,
@@ -551,7 +553,13 @@ const Preview = () => {
         [buildAnalyticsItem({ variant, quantity: 1 })].filter(Boolean),
       ),
     });
-    toast.success("Added to cart!");
+    if (hasInvalidCartItems) {
+      toast.success("Added to cart. Finish saving every design preview before checking out.");
+      return;
+    }
+
+    toast.success("Added to cart. Opening checkout...");
+    navigate(`/checkout/${variantId}`);
   };
 
   const handleSaveDesign = async () => {
@@ -941,7 +949,7 @@ const Preview = () => {
                       {currentDesignInCart
                         ? "Your saved preview is in the cart. Continue when you are ready to review checkout details."
                         : currentDesignReady
-                          ? `Review your artwork on the selected ${variant.model} case before adding it to your cart.`
+                          ? `Review your artwork on the selected ${variant.model} case before continuing to checkout.`
                           : `We are generating the production preview for your ${variant.model} case.`}
                     </p>
                   </div>
@@ -963,7 +971,7 @@ const Preview = () => {
               <div className="space-y-3 pt-4">
                 <Button
                   size="xl"
-                  className={`w-full h-14 text-lg font-semibold ${
+                  className={`w-full h-14 px-4 text-base sm:px-10 sm:text-lg font-semibold ${
                     currentDesignInCart
                       ? "bg-success hover:bg-success/90"
                       : "bg-cta hover:bg-cta/90"
@@ -980,7 +988,7 @@ const Preview = () => {
                   ) : (
                     <>
                       <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
-                      Add to Cart — ${variant.price.toFixed(2)}
+                      Continue to Checkout — ${variant.price.toFixed(2)}
                     </>
                   )}
                 </Button>

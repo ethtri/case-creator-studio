@@ -64,8 +64,8 @@ test("editor preview CTAs stay explicit without dropping funnel analytics", asyn
   assert.ok(purchaseHandler, "The Preview primary purchase handler must exist.");
   assert.match(
     purchaseHandler,
-    /if \(currentDesignInCart\) \{[\s\S]*?navigate\(`\/checkout\/\$\{variantId\}`\);[\s\S]*?return;[\s\S]*?\}\n\n    if \(addInFlightRef\.current\) return;/,
-    "An in-cart design must continue to checkout before the add branch can run.",
+    /if \(purchaseInFlightRef\.current\) return;[\s\S]*?if \(currentDesignInCart\) \{[\s\S]*?purchaseInFlightRef\.current = true;[\s\S]*?navigate\(`\/checkout\/\$\{variantId\}`\);/,
+    "Every Preview purchase activation, including an in-cart continuation, must share the rapid-activation guard.",
   );
   assert.equal(
     purchaseHandler.match(/addToCart\(/g)?.length,
@@ -77,6 +77,16 @@ test("editor preview CTAs stay explicit without dropping funnel analytics", asyn
     1,
     "The cart-add branch must emit exactly one ecommerce event.",
   );
+  assert.equal(
+    purchaseHandler.match(/navigate\(`\/checkout\/\$\{variantId\}`\)/g)?.length,
+    2,
+    "Both a new valid design and an already-in-cart design must continue to checkout from one activation.",
+  );
+  assert.match(
+    purchaseHandler,
+    /addToCart\([\s\S]*?trackMarketingEvent\("add_to_cart"[\s\S]*?if \(hasInvalidCartItems\) \{[\s\S]*?return;[\s\S]*?\}[\s\S]*?navigate\(`\/checkout\/\$\{variantId\}`\);/,
+    "A new design must add and emit once before routing, while invalid stored cart state must stop navigation.",
+  );
   assert.match(
     previewSource,
     /item\.variant\.id === variant\.id &&[\s\S]*?item\.edmTemplateId === edmTemplateId &&[\s\S]*?\(item\.designId \?\? null\) === \(designId \?\? null\)/,
@@ -84,6 +94,16 @@ test("editor preview CTAs stay explicit without dropping funnel analytics", asyn
   );
   assert.match(previewSource, /onClick=\{handlePrimaryPurchaseAction\}/);
   assert.match(previewSource, />\s*Continue to Checkout\s*</);
+  assert.match(
+    previewSource,
+    /Continue to Checkout — \$\{variant\.price\.toFixed\(2\)\}/,
+    "The ready Preview action must expose the complete checkout intent and current price.",
+  );
+  assert.doesNotMatch(
+    previewSource,
+    /begin_checkout/,
+    "Arriving at Checkout from Preview must not emit begin_checkout.",
+  );
   assert.doesNotMatch(previewSource, />\s*Proceed to Checkout\s*</);
   assert.doesNotMatch(previewSource, /setTimeout\(\(\) => setAddedToCart/);
 });
