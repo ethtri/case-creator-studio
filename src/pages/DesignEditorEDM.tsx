@@ -872,7 +872,8 @@ const DesignEditorEDM = () => {
             >
               {isSaving ? "Saving..." : (
                 <span className="flex items-center gap-1.5">
-                  Next
+                  <span className="sr-only">Continue to </span>
+                  Preview
                   <ArrowRight className="h-4 w-4" />
                 </span>
               )}

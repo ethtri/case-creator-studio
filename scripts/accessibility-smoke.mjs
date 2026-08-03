@@ -1185,6 +1185,11 @@ try {
     name: "Continue to Preview",
   });
   await assertTargetSize(continueToPreview, "Editor continue");
+  await clearInteractionPresentation(page);
+  await page.screenshot({
+    path: resolve(outputDir, "editor-light-desktop.png"),
+    fullPage: false,
+  });
   await continueToPreview.focus();
   await page.keyboard.press("Enter");
   await page.waitForURL(/\/preview\/iphone-17-pro-max/);
@@ -1642,6 +1647,40 @@ try {
   await mobilePage.goBack();
   await mobilePage.waitForURL(`${origin}/checkout`);
   await mobilePage.getByText("2 items", { exact: true }).waitFor();
+
+  await mobilePage.goto(`${origin}/design/galaxy-s24`);
+  await mobilePage
+    .locator('iframe[title^="Design editor for"]')
+    .waitFor();
+  const mobileContinueToPreview = mobilePage.getByRole("button", {
+    name: "Continue to Preview",
+  });
+  await assertTargetSize(mobileContinueToPreview, "Mobile editor continue");
+  await assertNoHorizontalOverflow(mobilePage, "Mobile editor");
+  auditResults.push(
+    await assertNoSeriousAxeViolations(mobilePage, "editor-dark-mobile"),
+  );
+  await mobilePage.evaluate(() => {
+    window.__snapcaseEdmEvents = [];
+    window.snapcaseTrack = (name, payload) => {
+      window.__snapcaseEdmEvents.push({ name, payload });
+    };
+  });
+  await clearInteractionPresentation(mobilePage);
+  await mobilePage.screenshot({
+    path: resolve(outputDir, "editor-dark-mobile.png"),
+    fullPage: false,
+  });
+  await mobileContinueToPreview.click();
+  await mobilePage.waitForURL(/\/preview\/galaxy-s24/);
+  assert.ok(
+    await mobilePage.evaluate(() =>
+      window.__snapcaseEdmEvents.some(
+        (event) => event.name === "edm_cta_next",
+      ),
+    ),
+    "The mobile preview CTA must retain the edm_cta_next diagnostic event.",
+  );
   await mobile.close();
 
   const entryEvidenceScenarios = [
@@ -2711,6 +2750,10 @@ try {
       "analytics-samsung-seo-allow-desktop",
     ),
   );
+  await samsungSeoPage.screenshot({
+    path: resolve(outputDir, "samsung-seo-light-desktop.png"),
+    fullPage: true,
+  });
 
   await samsungSeoPage
     .getByRole("link", { name: "Choose your Galaxy model" })
@@ -2784,6 +2827,10 @@ try {
       "analytics-samsung-seo-allow-mobile",
     ),
   );
+  await samsungMobilePage.screenshot({
+    path: resolve(outputDir, "samsung-seo-light-mobile.png"),
+    fullPage: true,
+  });
   await samsungMobileContext.close();
 
   const declineContext = await browser.newContext({
@@ -2918,11 +2965,13 @@ try {
           "output/playwright/home-dark-tablet.png",
           "output/playwright/catalog-dark-tablet.png",
           "output/playwright/product-offer-light-desktop.png",
+          "output/playwright/editor-light-desktop.png",
           "output/playwright/preview-light-desktop.png",
           "output/playwright/checkout-light-desktop.png",
           "output/playwright/home-dark-mobile.png",
           "output/playwright/catalog-dark-mobile.png",
           "output/playwright/product-offer-dark-mobile.png",
+          "output/playwright/editor-dark-mobile.png",
           "output/playwright/cart-dark-mobile.png",
           "output/playwright/checkout-dark-mobile.png",
           "output/playwright/checkout-light-mobile.png",
@@ -2933,6 +2982,8 @@ try {
           "output/playwright/order-verification-success-desktop.png",
           "output/playwright/order-verification-review-dark-mobile.png",
           "output/playwright/analytics-allow-product-desktop.png",
+          "output/playwright/samsung-seo-light-desktop.png",
+          "output/playwright/samsung-seo-light-mobile.png",
           "output/playwright/analytics-decline-seo-desktop.png",
         ],
       },

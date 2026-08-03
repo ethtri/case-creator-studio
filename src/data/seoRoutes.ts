@@ -153,7 +153,7 @@ export const staticSeoPages: StaticSeoPage[] = [
     headline:
       "Design a custom Samsung Galaxy case with a photo—and start with the exact model.",
     intro:
-      "Choose a supported Galaxy S24-series model, upload one clear photo, and review the crop and camera area in the preview before checkout.",
+      "Design a custom Samsung Galaxy S24-series case with your photo, then review the crop and camera area in the preview before checkout.",
     cta: "Choose your Galaxy model",
     featuredBrand: "Samsung",
     sections: [
@@ -289,7 +289,7 @@ const staticSeoRoutes = staticSeoPages.map((page) =>
       : page.path === "/custom-phone-case/photo-case-for-new-phone"
         ? "Custom iPhone Case with Photo | Snapcase"
         : page.path === "/custom-samsung-case"
-          ? "Custom Samsung Case with Photo | Snapcase"
+          ? "Custom Samsung Galaxy Case with Photo | Snapcase"
         : `${page.eyebrow} | Snapcase`,
     page.intro,
     page.path === "/custom-phone-case"
