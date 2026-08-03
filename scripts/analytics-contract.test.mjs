@@ -42,6 +42,9 @@ test("editor preview CTAs stay explicit without dropping funnel analytics", asyn
   const continueHandler = editorSource.match(
     /const handleContinue = \(\) => \{[\s\S]*?\n  \};/,
   )?.[0];
+  const purchaseHandler = previewSource.match(
+    /const handlePrimaryPurchaseAction = \(\) => \{[\s\S]*?\n  \};/,
+  )?.[0];
 
   assert.ok(continueHandler, "The editor continue handler must exist.");
   assert.match(continueHandler, /trackEdmEvent\("edm_cta_next"/);
@@ -58,6 +61,31 @@ test("editor preview CTAs stay explicit without dropping funnel analytics", asyn
     /trackMarketingEvent\("preview_success", \{[\s\S]*?variant_id:/,
     "Successful previews must keep emitting the event normalized downstream to preview_generate.",
   );
+  assert.ok(purchaseHandler, "The Preview primary purchase handler must exist.");
+  assert.match(
+    purchaseHandler,
+    /if \(currentDesignInCart\) \{[\s\S]*?navigate\(`\/checkout\/\$\{variantId\}`\);[\s\S]*?return;[\s\S]*?\}\n\n    if \(addInFlightRef\.current\) return;/,
+    "An in-cart design must continue to checkout before the add branch can run.",
+  );
+  assert.equal(
+    purchaseHandler.match(/addToCart\(/g)?.length,
+    1,
+    "The primary action must expose only one cart-add branch.",
+  );
+  assert.equal(
+    purchaseHandler.match(/trackMarketingEvent\("add_to_cart"/g)?.length,
+    1,
+    "The cart-add branch must emit exactly one ecommerce event.",
+  );
+  assert.match(
+    previewSource,
+    /item\.variant\.id === variant\.id &&[\s\S]*?item\.edmTemplateId === edmTemplateId &&[\s\S]*?\(item\.designId \?\? null\) === \(designId \?\? null\)/,
+    "Preview must restore its purchase state from stable variant, template, and design identity.",
+  );
+  assert.match(previewSource, /onClick=\{handlePrimaryPurchaseAction\}/);
+  assert.match(previewSource, />\s*Continue to Checkout\s*</);
+  assert.doesNotMatch(previewSource, />\s*Proceed to Checkout\s*</);
+  assert.doesNotMatch(previewSource, /setTimeout\(\(\) => setAddedToCart/);
 });
 
 test("normalizes generated and campaign query values out of page paths", () => {
