@@ -18,6 +18,10 @@ const catalogSource = await readFile(
   new URL("../src/pages/Catalog.tsx", import.meta.url),
   "utf8",
 );
+const seoRoutesSource = await readFile(
+  new URL("../src/data/seoRoutes.ts", import.meta.url),
+  "utf8",
+);
 const indexHtml = await readFile(
   new URL("../index.html", import.meta.url),
   "utf8",
@@ -64,6 +68,25 @@ test("catalog result copy covers zero, singular, and plural states", () => {
   assert.equal(getCatalogResultCopy(0), "0 phone models shown.");
   assert.equal(getCatalogResultCopy(1), "1 phone model shown.");
   assert.equal(getCatalogResultCopy(18), "18 phone models shown.");
+});
+
+test("catalog search result and visible promise match snap-case intent", () => {
+  assert.match(
+    seoRoutesSource,
+    /"Custom Snap Cases for iPhone & Samsung \| Snapcase"/,
+  );
+  assert.match(
+    seoRoutesSource,
+    /"Choose an iPhone or Samsung Galaxy model, then design and preview your custom snap case before checkout\."/,
+  );
+  assert.match(
+    catalogSource,
+    />\s*Custom Snap Cases for iPhone and Samsung\s*</,
+  );
+  assert.match(
+    catalogSource,
+    /Choose an iPhone or Samsung Galaxy model, then design and preview\s+your custom snap case before checkout\./,
+  );
 });
 
 test("public entry-page source removes unsupported merchandising language", () => {
