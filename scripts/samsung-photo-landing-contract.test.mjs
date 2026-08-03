@@ -33,10 +33,17 @@ test("Samsung photo intent improves the one existing canonical route", async () 
     routeLoaders,
     /routePath === "\/custom-samsung-case"\) return loadSamsungPhotoLanding\(\)/,
   );
-  assert.match(seoRoutes, /Custom Samsung Case with Photo \| Snapcase/);
+  assert.match(
+    seoRoutes,
+    /Custom Samsung Galaxy Case with Photo \| Snapcase/,
+  );
   assert.match(
     seoRoutes,
     /Design a custom Samsung Galaxy case with a photo—and start with the exact model\./,
+  );
+  assert.match(
+    seoRoutes,
+    /Design a custom Samsung Galaxy S24-series case with your photo, then review the crop and camera area in the preview before checkout\./,
   );
   assert.match(pageSource, /variant\.brand === "Samsung"/);
   assert.match(pageSource, /buildSeoLandingSelectionPayload/);
@@ -67,7 +74,7 @@ test("Samsung page gives buyer-useful photo, crop, preview, and model guidance",
   assert.match(pageSource, /samsungCaseFront/);
   assert.match(
     seoRoutes,
-    /page\.path === "\/custom-samsung-case"[\s\S]*Custom Samsung Case with Photo/,
+    /page\.path === "\/custom-samsung-case"[\s\S]*Custom Samsung Galaxy Case with Photo/,
   );
   assert.doesNotMatch(pageSource, /src=["']https?:\/\//i);
   assert.doesNotMatch(

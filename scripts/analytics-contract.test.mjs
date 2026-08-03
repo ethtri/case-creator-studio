@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 import {
@@ -25,6 +26,39 @@ import {
   normalizeGa4BrowserClientId,
   resolveGa4ClientId,
 } from "../supabase/functions/_shared/ga4-client-id.ts";
+
+const edmEditorPath = new URL(
+  "../src/pages/DesignEditorEDM.tsx",
+  import.meta.url,
+);
+const previewPath = new URL("../src/pages/Preview.tsx", import.meta.url);
+
+test("editor preview CTAs stay explicit without dropping funnel analytics", async () => {
+  const [editorSource, previewSource] = await Promise.all([
+    readFile(edmEditorPath, "utf8"),
+    readFile(previewPath, "utf8"),
+  ]);
+
+  const continueHandler = editorSource.match(
+    /const handleContinue = \(\) => \{[\s\S]*?\n  \};/,
+  )?.[0];
+
+  assert.ok(continueHandler, "The editor continue handler must exist.");
+  assert.match(continueHandler, /trackEdmEvent\("edm_cta_next"/);
+  assert.equal(
+    editorSource.match(/onClick=\{handleContinue\}/g)?.length,
+    2,
+    "Mobile and desktop preview CTAs must use the tracked continue handler.",
+  );
+  assert.match(editorSource, /<span className="sr-only">Continue to <\/span>\s*Preview/);
+  assert.match(editorSource, /"Continue to Preview"/);
+  assert.doesNotMatch(editorSource, />\s*Next\s*</);
+  assert.match(
+    previewSource,
+    /trackMarketingEvent\("preview_success", \{[\s\S]*?variant_id:/,
+    "Successful previews must keep emitting the event normalized downstream to preview_generate.",
+  );
+});
 
 test("normalizes generated and campaign query values out of page paths", () => {
   assert.equal(
