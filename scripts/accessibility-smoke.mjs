@@ -84,14 +84,16 @@ const installAppState = async (
         "snapcase_analytics_consent_v1",
         analyticsConsent,
       );
-      window.localStorage.setItem(
-        "snapcase_cart_v1",
-        JSON.stringify([storedCartItem]),
-      );
-      window.sessionStorage.setItem(
-        `snapcase_cart_preview:${storedCartItem.id}`,
-        storedPreviewUrl,
-      );
+      if (window.localStorage.getItem("snapcase_cart_v1") === null) {
+        window.localStorage.setItem(
+          "snapcase_cart_v1",
+          JSON.stringify([storedCartItem]),
+        );
+        window.sessionStorage.setItem(
+          `snapcase_cart_preview:${storedCartItem.id}`,
+          storedPreviewUrl,
+        );
+      }
     },
     {
       expectedOrigin: origin,
@@ -1216,6 +1218,22 @@ try {
     .getByRole("heading", { level: 1, name: "Apple iPhone 17 Pro Max" })
     .waitFor();
 
+  const previewPurchaseState = page.locator("[data-preview-purchase-state]");
+  assert.equal(
+    await previewPurchaseState.getAttribute("data-preview-purchase-state"),
+    "preparing",
+    "Preview must begin with a truthful preparing state.",
+  );
+  await previewPurchaseState
+    .getByRole("heading", { level: 2, name: "Preparing your preview" })
+    .waitFor();
+  assert.equal(
+    await previewPurchaseState
+      .getByRole("heading", { level: 2, name: "Preview ready" })
+      .count(),
+    0,
+    "An incomplete production preview must not claim that it is ready.",
+  );
   const addToCart = page.getByRole("button", { name: /Add to Cart/ });
   await addToCart.waitFor();
   assert.equal(
@@ -1225,38 +1243,91 @@ try {
   );
   assert.equal(
     await addToCart.getAttribute("aria-describedby"),
-    "preview-cart-help",
-    "The disabled Add to Cart control must reference its persistent explanation.",
+    "preview-purchase-status",
+    "The primary purchase control must reference its live state explanation.",
   );
   await page
-    .getByText(/Add to Cart becomes available after your preview finishes/)
+    .getByText(/Preparing your production preview\. Add to Cart becomes available/)
     .waitFor();
-  await page.waitForTimeout(650);
   auditResults.push(
     await assertNoSeriousAxeViolations(page, "preview-loading-light-desktop"),
   );
-  await addToCart.click();
-  await page.getByRole("button", { name: /Added to Cart/ }).waitFor();
-  await page.getByRole("button", { name: "Open cart, 1 item" }).waitFor();
-  const previewSecondaryCta = page.getByRole("button", {
-    name: "Proceed to Checkout",
-  });
-  await assertTextContrast(
-    previewSecondaryCta,
-    "Preview secondary CTA default",
+  await page.waitForTimeout(650);
+  await previewPurchaseState
+    .getByRole("heading", { level: 2, name: "Preview ready" })
+    .waitFor();
+  assert.equal(
+    await previewPurchaseState.getAttribute("data-preview-purchase-state"),
+    "ready",
+    "A valid saved production preview must expose the ready-to-add state.",
   );
-  await previewSecondaryCta.hover();
+  assert.equal(await addToCart.isDisabled(), false);
+  await assertTargetSize(addToCart, "Preview primary purchase action");
+  await addToCart.focus();
+  await page.keyboard.press("Enter");
+  const continueToCheckout = page.getByRole("button", {
+    name: "Continue to Checkout",
+  });
+  await continueToCheckout.waitFor();
+  assert.equal(
+    await continueToCheckout.evaluate(
+      (element) => element === document.activeElement,
+    ),
+    true,
+    "The transformed purchase control must retain keyboard focus after adding.",
+  );
+  await page
+    .getByText("Added to cart. Continue to checkout when you are ready.", {
+      exact: true,
+    })
+    .waitFor();
+  assert.equal(
+    await previewPurchaseState.getAttribute("data-preview-purchase-state"),
+    "in-cart",
+  );
+  await page.getByRole("button", { name: "Open cart, 1 item" }).waitFor();
+  assert.equal(
+    await page.getByRole("button", { name: "Proceed to Checkout" }).count(),
+    0,
+    "Preview must not render a duplicate checkout control.",
+  );
+  await page.waitForTimeout(2200);
+  await continueToCheckout.waitFor();
+  const previewCartItems = await page.evaluate(() =>
+    JSON.parse(window.localStorage.getItem("snapcase_cart_v1") ?? "[]"),
+  );
+  assert.equal(
+    previewCartItems.length,
+    1,
+    "The same saved preview must remain one cart line after the old reset window.",
+  );
+  await page.reload();
+  await waitForStableUi(page);
+  await page
+    .getByRole("heading", { level: 1, name: "Apple iPhone 17 Pro Max" })
+    .waitFor();
+  await continueToCheckout.waitFor();
+  assert.equal(
+    await previewPurchaseState.getAttribute("data-preview-purchase-state"),
+    "in-cart",
+    "Reloading the same saved design must restore the checkout handoff from cart identity.",
+  );
+  await assertTextContrast(
+    continueToCheckout,
+    "Preview continue CTA default",
+  );
+  await continueToCheckout.hover();
   await page.waitForTimeout(20);
-  await assertTextContrast(previewSecondaryCta, "Preview secondary CTA hover");
-  await previewSecondaryCta.focus();
-  await assertTextContrast(previewSecondaryCta, "Preview secondary CTA focus");
+  await assertTextContrast(continueToCheckout, "Preview continue CTA hover");
+  await continueToCheckout.focus();
+  await assertTextContrast(continueToCheckout, "Preview continue CTA focus");
   await assertFocusIndicator(
     page,
-    previewSecondaryCta,
-    "Preview secondary CTA",
+    continueToCheckout,
+    "Preview continue CTA",
   );
   auditResults.push(
-    await assertNoSeriousAxeViolations(page, "preview-ready-light-desktop"),
+    await assertNoSeriousAxeViolations(page, "preview-in-cart-light-desktop"),
   );
   await page.screenshot({
     path: resolve(outputDir, "preview-light-desktop.png"),
@@ -1322,11 +1393,9 @@ try {
     "Closing the cart with Escape must restore focus to the cart trigger.",
   );
 
+  await continueToCheckout.focus();
   await page.keyboard.press("Enter");
-  const checkoutButton = page.getByRole("button", { name: "Checkout" });
-  await checkoutButton.focus();
-  await page.keyboard.press("Enter");
-  await page.waitForURL(`${origin}/checkout`);
+  await page.waitForURL(`${origin}/checkout/iphone-17-pro-max`);
   await waitForStableUi(page);
   await page.getByRole("heading", { level: 1, name: "Checkout" }).waitFor();
   await page.getByText("Apple iPhone 17 Pro Max", { exact: true }).waitFor();
@@ -1361,6 +1430,63 @@ try {
     await assertNoSeriousAxeViolations(page, "checkout-error-light-desktop"),
   );
   await desktop.close();
+
+  const purchaseAnalyticsContext = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  await mockExternalServices(purchaseAnalyticsContext);
+  await installAnalyticsRecorder(purchaseAnalyticsContext, "granted");
+  const purchaseAnalyticsPage = await purchaseAnalyticsContext.newPage();
+  await purchaseAnalyticsPage.goto(`${origin}/design/iphone-17-pro-max`);
+  await purchaseAnalyticsPage
+    .locator('iframe[title="Design editor for Apple iPhone 17 Pro Max"]')
+    .waitFor();
+  await purchaseAnalyticsPage
+    .getByRole("button", { name: "Continue to Preview" })
+    .click();
+  await purchaseAnalyticsPage.waitForURL(/\/preview\/iphone-17-pro-max/);
+  await waitForAnalyticsEvents(purchaseAnalyticsPage, "preview_success", 1);
+  const measuredAddToCart = purchaseAnalyticsPage.getByRole("button", {
+    name: /Add to Cart/,
+  });
+  await measuredAddToCart.click();
+  await waitForAnalyticsEvents(purchaseAnalyticsPage, "add_to_cart", 1);
+  const measuredCartEvents = await getAnalyticsEvents(
+    purchaseAnalyticsPage,
+    "add_to_cart",
+  );
+  assert.equal(measuredCartEvents.length, 1);
+  assert.equal(measuredCartEvents[0].payload.value, 29.99);
+  assertCompleteAnalyticsItems(
+    measuredCartEvents[0],
+    1,
+    "Preview primary cart action",
+  );
+  const measuredContinue = purchaseAnalyticsPage.getByRole("button", {
+    name: "Continue to Checkout",
+  });
+  await purchaseAnalyticsPage.waitForTimeout(2200);
+  await measuredContinue.waitFor();
+  assert.equal(
+    await purchaseAnalyticsPage.evaluate(
+      () => JSON.parse(localStorage.getItem("snapcase_cart_v1") ?? "[]").length,
+    ),
+    1,
+    "The measured preview must remain exactly one cart line.",
+  );
+  await measuredContinue.focus();
+  await purchaseAnalyticsPage.keyboard.press("Enter");
+  await purchaseAnalyticsPage.waitForURL(
+    `${origin}/checkout/iphone-17-pro-max`,
+  );
+  assert.equal(
+    (await getAnalyticsEvents(purchaseAnalyticsPage, "add_to_cart")).length,
+    1,
+    "Continuing to checkout must not emit another add_to_cart event.",
+  );
+  await purchaseAnalyticsContext.close();
 
   const invalidState = await browser.newContext({
     viewport: { width: 1024, height: 900 },
@@ -1426,6 +1552,44 @@ try {
     await assertNoSeriousAxeViolations(
       invalidPage,
       "invalid-checkout-light-desktop",
+    ),
+  );
+
+  await invalidPage.goto(`${origin}/design/iphone-17-pro-max`);
+  await invalidPage
+    .locator('iframe[title="Design editor for Apple iPhone 17 Pro Max"]')
+    .waitFor();
+  await invalidPage
+    .getByRole("button", { name: "Continue to Preview" })
+    .click();
+  await invalidPage.waitForURL(/\/preview\/iphone-17-pro-max/);
+  const invalidPreviewAdd = invalidPage.getByRole("button", {
+    name: /Add to Cart/,
+  });
+  await invalidPreviewAdd.click();
+  const invalidPreviewContinue = invalidPage.getByRole("button", {
+    name: "Continue to Checkout",
+  });
+  await invalidPreviewContinue.waitFor();
+  assert.equal(
+    await invalidPreviewContinue.isDisabled(),
+    true,
+    "The Preview handoff must not bypass another incomplete cart item.",
+  );
+  assert.equal(
+    await invalidPreviewContinue.getAttribute("aria-describedby"),
+    "preview-purchase-status",
+  );
+  await invalidPage
+    .getByText(
+      "This design is in your cart. Checkout becomes available after every design preview finishes saving.",
+      { exact: true },
+    )
+    .waitFor();
+  auditResults.push(
+    await assertNoSeriousAxeViolations(
+      invalidPage,
+      "invalid-preview-light-desktop",
     ),
   );
   await invalidState.close();
@@ -1692,6 +1856,9 @@ try {
   });
   await mobileContinueToPreview.click();
   await mobilePage.waitForURL(/\/preview\/galaxy-s24/);
+  await mobilePage
+    .getByRole("heading", { level: 1, name: "Samsung Galaxy S24" })
+    .waitFor();
   assert.ok(
     await mobilePage.evaluate(() =>
       window.__snapcaseEdmEvents.some(
@@ -1700,6 +1867,46 @@ try {
     ),
     "The mobile preview CTA must retain the edm_cta_next diagnostic event.",
   );
+  await mobilePage
+    .locator('[data-preview-purchase-state="preparing"]')
+    .getByRole("heading", { level: 2, name: "Preparing your preview" })
+    .waitFor();
+  const mobileAddToCart = mobilePage.getByRole("button", {
+    name: /Add to Cart/,
+  });
+  assert.equal(await mobileAddToCart.isDisabled(), true);
+  await assertNoHorizontalOverflow(mobilePage, "Mobile preparing preview");
+  await mobileAddToCart.click();
+  const mobileContinueToCheckout = mobilePage.getByRole("button", {
+    name: "Continue to Checkout",
+  });
+  await mobileContinueToCheckout.waitFor();
+  assert.equal(
+    await mobileContinueToCheckout.evaluate(
+      (element) => element === document.activeElement,
+    ),
+    true,
+    "The mobile purchase action must retain focus when it becomes Continue.",
+  );
+  await mobilePage.getByRole("button", { name: "Open cart, 3 items" }).waitFor();
+  await mobilePage.waitForTimeout(2200);
+  await mobileContinueToCheckout.waitFor();
+  await assertTargetSize(
+    mobileContinueToCheckout,
+    "Mobile preview continue",
+  );
+  await assertNoHorizontalOverflow(mobilePage, "Mobile in-cart preview");
+  auditResults.push(
+    await assertNoSeriousAxeViolations(
+      mobilePage,
+      "preview-in-cart-dark-mobile",
+    ),
+  );
+  await clearInteractionPresentation(mobilePage);
+  await mobilePage.screenshot({
+    path: resolve(outputDir, "preview-dark-mobile.png"),
+    fullPage: true,
+  });
   await mobile.close();
 
   const entryEvidenceScenarios = [
@@ -3006,6 +3213,7 @@ try {
           "output/playwright/catalog-dark-mobile.png",
           "output/playwright/product-offer-dark-mobile.png",
           "output/playwright/editor-dark-mobile.png",
+          "output/playwright/preview-dark-mobile.png",
           "output/playwright/cart-dark-mobile.png",
           "output/playwright/checkout-dark-mobile.png",
           "output/playwright/checkout-light-mobile.png",

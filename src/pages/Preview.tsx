@@ -106,12 +106,12 @@ const Preview = () => {
   const [showPreviewError, setShowPreviewError] = useState(false);
   const [previewKind, setPreviewKind] = useState<"design" | "mockup">("design");
   const [activeView, setActiveView] = useState<MockupView>("front");
-  const [addedToCart, setAddedToCart] = useState(false);
   const [designId, setDesignId] = useState<string | null>(null);
   const [previewRetryNonce, setPreviewRetryNonce] = useState(0);
   const autoRetryRef = useRef<{ timer: number | null; count: number }>({ timer: null, count: 0 });
   const autoRetryInFlightRef = useRef(false);
   const previewErrorTimerRef = useRef<number | null>(null);
+  const addInFlightRef = useRef(false);
   const { addToCart, items } = useCart();
   const { user, isEmailVerified } = useAuth();
   const EDM_PREVIEW_CACHE_VERSION = "v4";
@@ -121,11 +121,33 @@ const Preview = () => {
   const currentDesignReady = Boolean(
     variant && isPreviewUrl(designPreview) && typeof edmTemplateId === "number"
   );
+  const currentDesignInCart = Boolean(
+    variant &&
+      typeof edmTemplateId === "number" &&
+      items.some(
+        (item) =>
+          item.variant.id === variant.id &&
+          item.edmTemplateId === edmTemplateId &&
+          (item.designId ?? null) === (designId ?? null),
+      )
+  );
   const hasInvalidCartItems = items.some(
     (item) =>
       typeof item.edmTemplateId !== "number" || !isPreviewUrl(item.designPreview)
   );
   const canProceedToCheckout = items.length > 0 && !hasInvalidCartItems;
+  const purchaseState = currentDesignInCart
+    ? "in-cart"
+    : currentDesignReady
+      ? "ready"
+      : "preparing";
+  const purchaseStatus = currentDesignInCart
+    ? canProceedToCheckout
+      ? "Added to cart. Continue to checkout when you are ready."
+      : "This design is in your cart. Checkout becomes available after every design preview finishes saving."
+    : currentDesignReady
+      ? "Your production preview is ready to add to the cart."
+      : "Preparing your production preview. Add to Cart becomes available after it finishes and is saved to this phone model.";
 
   const buildDesignKey = (id: string, suffix: string) => `edmDesign:${id}:${suffix}`;
   const editorPath = variantId
@@ -133,6 +155,12 @@ const Preview = () => {
       ? `/design/${variantId}?designId=${designId}`
       : `/design/${variantId}`
     : "/catalog";
+
+  useEffect(() => {
+    if (currentDesignInCart) {
+      addInFlightRef.current = false;
+    }
+  }, [currentDesignInCart]);
 
   useEffect(() => {
     const paramDesignId = searchParams.get("designId");
@@ -494,7 +522,17 @@ const Preview = () => {
     };
   }, [designId, edmTemplateId]);
 
-  const handleAddToCart = () => {
+  const handlePrimaryPurchaseAction = () => {
+    if (currentDesignInCart) {
+      if (!canProceedToCheckout) {
+        toast.error("Finish saving every design preview before checking out.");
+        return;
+      }
+      navigate(`/checkout/${variantId}`);
+      return;
+    }
+
+    if (addInFlightRef.current) return;
     if (!variant || !designPreview) return;
     if (typeof edmTemplateId !== "number") {
       toast.error("Finish saving your design before adding it to the cart.");
@@ -504,6 +542,7 @@ const Preview = () => {
       toast.error("Wait for the preview to finish before adding it to the cart.");
       return;
     }
+    addInFlightRef.current = true;
     addToCart(variant, designPreview, edmTemplateId, designId, externalProductId);
     trackMarketingEvent("add_to_cart", {
       value: variant.price,
@@ -512,21 +551,7 @@ const Preview = () => {
         [buildAnalyticsItem({ variant, quantity: 1 })].filter(Boolean),
       ),
     });
-    setAddedToCart(true);
     toast.success("Added to cart!");
-    setTimeout(() => setAddedToCart(false), 2000);
-  };
-
-  const handleProceedToCheckout = () => {
-    if (!canProceedToCheckout) {
-      if (items.length === 0) {
-        toast.info("Add your design to the cart before checking out.");
-      } else {
-        toast.error("Finish saving your design before checking out.");
-      }
-      return;
-    }
-    navigate(`/checkout/${variantId}`);
   };
 
   const handleSaveDesign = async () => {
@@ -897,14 +922,27 @@ const Preview = () => {
 
               {/* Features */}
               <div className="grid gap-4">
-                <div className="flex items-start gap-4 p-4 rounded-xl bg-card border border-border">
+                <div
+                  className="flex items-start gap-4 p-4 rounded-xl bg-card border border-border"
+                  data-preview-purchase-state={purchaseState}
+                >
                   <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cta/20 to-cta/10 flex items-center justify-center shrink-0">
                     <Eye className="w-5 h-5 text-cta-emphasis" aria-hidden="true" />
                   </div>
                   <div>
-                    <h2 className="font-semibold mb-1">Preview ready</h2>
+                    <h2 className="font-semibold mb-1">
+                      {currentDesignInCart
+                        ? "Ready for checkout"
+                        : currentDesignReady
+                          ? "Preview ready"
+                          : "Preparing your preview"}
+                    </h2>
                     <p className="text-sm text-muted-foreground">
-                      Review your artwork on the selected {variant.model} case before adding it to your cart.
+                      {currentDesignInCart
+                        ? "Your saved preview is in the cart. Continue when you are ready to review checkout details."
+                        : currentDesignReady
+                          ? `Review your artwork on the selected ${variant.model} case before adding it to your cart.`
+                          : `We are generating the production preview for your ${variant.model} case.`}
                     </p>
                   </div>
                 </div>
@@ -926,35 +964,35 @@ const Preview = () => {
                 <Button
                   size="xl"
                   className={`w-full h-14 text-lg font-semibold ${
-                    addedToCart 
-                      ? 'bg-success hover:bg-success/90' 
-                      : 'bg-cta hover:bg-cta/90'
+                    currentDesignInCart
+                      ? "bg-success hover:bg-success/90"
+                      : "bg-cta hover:bg-cta/90"
                   } text-cta-foreground shadow-lg shadow-cta/25`}
-                  onClick={handleAddToCart}
-                  disabled={addedToCart || !currentDesignReady}
-                  aria-describedby={!currentDesignReady ? "preview-cart-help" : undefined}
+                  onClick={handlePrimaryPurchaseAction}
+                  disabled={currentDesignInCart ? !canProceedToCheckout : !currentDesignReady}
+                  aria-describedby="preview-purchase-status"
                 >
-                  {addedToCart ? (
+                  {currentDesignInCart ? (
                     <>
-                      <Check className="w-5 h-5 mr-2" />
-                      Added to Cart!
+                      <Check className="w-5 h-5 mr-2" aria-hidden="true" />
+                      Continue to Checkout
                     </>
                   ) : (
                     <>
-                      <ShoppingCart className="w-5 h-5 mr-2" />
+                      <ShoppingCart className="w-5 h-5 mr-2" aria-hidden="true" />
                       Add to Cart — ${variant.price.toFixed(2)}
                     </>
                   )}
                 </Button>
-                {!currentDesignReady && (
-                  <p
-                    id="preview-cart-help"
-                    className="text-sm text-muted-foreground"
-                    role="status"
-                  >
-                    Add to Cart becomes available after your preview finishes and is saved to this phone model.
-                  </p>
-                )}
+                <p
+                  id="preview-purchase-status"
+                  className="text-sm text-muted-foreground"
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  {purchaseStatus}
+                </p>
                 
                 <Button
                   size="lg"
@@ -967,28 +1005,6 @@ const Preview = () => {
                   {isSavingDesign ? "Saving..." : "Save Design"}
                 </Button>
 
-                <Button
-                  size="lg"
-                  variant="secondary"
-                  className="w-full h-12"
-                  onClick={handleProceedToCheckout}
-                  disabled={!canProceedToCheckout}
-                  aria-describedby={!canProceedToCheckout ? "preview-checkout-help" : undefined}
-                >
-                  Proceed to Checkout
-                </Button>
-                {!canProceedToCheckout && (
-                  <p
-                    id="preview-checkout-help"
-                    className="text-sm text-muted-foreground"
-                    role="status"
-                  >
-                    {items.length === 0
-                      ? "Add this design to your cart before proceeding to checkout."
-                      : "Checkout becomes available after every design preview finishes saving."}
-                  </p>
-                )}
-                
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     variant="outline"
