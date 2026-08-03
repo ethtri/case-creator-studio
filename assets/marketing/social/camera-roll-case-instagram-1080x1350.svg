@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350" role="img" aria-labelledby="title desc">
+  <title id="title">Camera roll to custom case preview workflow</title>
+  <desc id="desc">A four-by-five Snapcase explainer showing three steps: choose a phone model, upload and position one photo, then preview before checkout.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff9ef"/>
+      <stop offset="1" stop-color="#e7f1f6"/>
+    </linearGradient>
+    <linearGradient id="photo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f36f61"/>
+      <stop offset="0.58" stop-color="#f6c65b"/>
+      <stop offset="1" stop-color="#d9e9f4"/>
+    </linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#173a4e" flood-opacity=".15"/></filter>
+    <clipPath id="photoClip"><rect x="128" y="510" width="302" height="322" rx="30"/></clipPath>
+    <clipPath id="caseClip"><rect x="704" y="480" width="224" height="382" rx="52"/></clipPath>
+  </defs>
+
+  <rect width="1080" height="1350" fill="url(#bg)"/>
+  <circle cx="988" cy="112" r="180" fill="#f7d8d0" opacity=".68"/>
+  <circle cx="-22" cy="1125" r="170" fill="#cfe4ef" opacity=".72"/>
+
+  <text x="64" y="88" fill="#7a6857" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" letter-spacing="4">SNAPCASE  •  CAMERA ROLL → CASE</text>
+  <line x1="64" y1="124" x2="1016" y2="124" stroke="#172131" stroke-width="3"/>
+  <text x="64" y="234" fill="#172131" font-family="Georgia, 'Times New Roman', serif" font-size="78" font-weight="700">One photo.</text>
+  <text x="64" y="316" fill="#172131" font-family="Georgia, 'Times New Roman', serif" font-size="78" font-weight="700">Three useful checks.</text>
+  <text x="68" y="372" fill="#44515b" font-family="Arial, Helvetica, sans-serif" font-size="30">See the design path before checkout.</text>
+
+  <g filter="url(#shadow)"><rect x="64" y="420" width="952" height="480" rx="48" fill="#ffffff"/></g>
+
+  <rect x="128" y="510" width="302" height="322" rx="30" fill="url(#photo)"/>
+  <g clip-path="url(#photoClip)">
+    <circle cx="344" cy="612" r="54" fill="#fff3bd"/>
+    <path d="M110 732 198 620 278 720 352 635 452 765v100H110Z" fill="#78a8c8"/>
+    <path d="M110 780 225 690 318 775 402 708 452 805v70H110Z" fill="#356382"/>
+    <path d="M110 824c95-62 195-57 342 12v54H110Z" fill="#163f53"/>
+  </g>
+  <rect x="150" y="536" width="126" height="40" rx="20" fill="#ffffff" opacity=".94"/>
+  <text x="213" y="564" text-anchor="middle" fill="#172131" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700">YOUR PHOTO</text>
+
+  <path d="M478 676h132" stroke="#172131" stroke-width="16" stroke-linecap="round"/>
+  <path d="M576 622l56 54-56 54" fill="none" stroke="#172131" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <rect x="704" y="480" width="224" height="382" rx="52" fill="#172131"/>
+  <rect x="718" y="496" width="196" height="350" rx="42" fill="url(#photo)"/>
+  <g clip-path="url(#caseClip)">
+    <circle cx="850" cy="606" r="48" fill="#fff3bd"/>
+    <path d="M688 746 760 646 820 724 872 664 950 766v118H688Z" fill="#78a8c8"/>
+    <path d="M688 790 778 716 844 784 910 725 950 812v76H688Z" fill="#356382"/>
+    <path d="M688 830c74-50 145-46 262 12v58H688Z" fill="#163f53"/>
+  </g>
+  <rect x="736" y="516" width="78" height="88" rx="23" fill="#172131"/>
+  <circle cx="762" cy="544" r="11" fill="#f7f1e8"/>
+  <circle cx="790" cy="574" r="11" fill="#f7f1e8"/>
+  <circle cx="790" cy="544" r="5" fill="#f36f61"/>
+
+  <g font-family="Arial, Helvetica, sans-serif">
+    <rect x="64" y="934" width="300" height="118" rx="28" fill="#ffffff"/>
+    <circle cx="112" cy="978" r="26" fill="#f36f61"/><text x="112" y="988" text-anchor="middle" fill="#ffffff" font-size="24" font-weight="700">1</text>
+    <text x="151" y="972" fill="#172131" font-size="24" font-weight="700"><tspan x="151" dy="0">Choose your</tspan><tspan x="151" dy="30">phone model</tspan></text>
+
+    <rect x="390" y="934" width="300" height="118" rx="28" fill="#ffffff"/>
+    <circle cx="438" cy="978" r="26" fill="#f36f61"/><text x="438" y="988" text-anchor="middle" fill="#ffffff" font-size="24" font-weight="700">2</text>
+    <text x="477" y="972" fill="#172131" font-size="24" font-weight="700"><tspan x="477" dy="0">Upload + position</tspan><tspan x="477" dy="30">one photo</tspan></text>
+
+    <rect x="716" y="934" width="300" height="118" rx="28" fill="#ffffff"/>
+    <circle cx="764" cy="978" r="26" fill="#f36f61"/><text x="764" y="988" text-anchor="middle" fill="#ffffff" font-size="24" font-weight="700">3</text>
+    <text x="803" y="972" fill="#172131" font-size="24" font-weight="700"><tspan x="803" dy="0">Preview before</tspan><tspan x="803" dy="30">checkout</tspan></text>
+  </g>
+
+  <rect x="64" y="1092" width="952" height="104" rx="52" fill="#172131"/>
+  <text x="540" y="1157" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="35" font-weight="700">Start with a photo you already love</text>
+  <text x="540" y="1284" text-anchor="middle" fill="#56646e" font-family="Arial, Helvetica, sans-serif" font-size="22">Digital workflow illustration — not a finished product photo.</text>
+</svg>
