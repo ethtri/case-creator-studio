@@ -194,6 +194,86 @@ const waitForAnalyticsEvents = async (page, eventName, count) => {
   }
 };
 
+const installEditorScenario = async (
+  context,
+  {
+    designId,
+    initialStatus,
+    manualSaves = false,
+    savedTemplateId = null,
+    saveThrows = false,
+  },
+) => {
+  await context.addInitScript(
+    ({
+      expectedOrigin,
+      designId,
+      initialStatus,
+      manualSaves,
+      savedTemplateId,
+      saveThrows,
+    }) => {
+      if (window.location.origin !== expectedOrigin) return;
+      window.__snapcaseEdmInitialStatus = initialStatus;
+      window.__snapcaseEdmManualSaves = manualSaves;
+      window.__snapcaseEdmSaveThrows = saveThrows;
+      window.__snapcaseEdmSaveCalls = 0;
+      window.__snapcaseEdmAcceptedSaveCalls = 0;
+      window.__snapcaseEdmSaveTrace = [];
+      window.__snapcaseEdmPendingSaves = [];
+      window.__snapcaseEdmMakerCount = 0;
+      window.__snapcaseEdmStatusUpdates = 0;
+      if (savedTemplateId !== null) {
+        window.sessionStorage.setItem(
+          `edmDesign:${designId}:templateId`,
+          String(savedTemplateId),
+        );
+      }
+    },
+    {
+      expectedOrigin: origin,
+      designId,
+      initialStatus,
+      manualSaves,
+      savedTemplateId,
+      saveThrows,
+    },
+  );
+};
+
+const getEditorSaveCalls = (page) =>
+  page.evaluate(() => window.__snapcaseEdmSaveCalls ?? 0);
+
+const waitForEditorSaveCalls = (page, count) =>
+  page.waitForFunction(
+    (expectedCount) => window.__snapcaseEdmSaveCalls === expectedCount,
+    count,
+  );
+
+const getEditorMakerCount = (page) =>
+  page.evaluate(() => window.__snapcaseEdmMakerCount ?? 0);
+
+const waitForEditorMakerCount = (page, count) =>
+  page.waitForFunction(
+    (expectedCount) => window.__snapcaseEdmMakerCount === expectedCount,
+    count,
+  );
+
+const waitForEditorStatus = (page, count = 1) =>
+  page.waitForFunction(
+    (expectedCount) => window.__snapcaseEdmStatusUpdates >= expectedCount,
+    count,
+  );
+
+const emitEditorStatus = (page, status) =>
+  page.evaluate(
+    (nextStatus) => window.__snapcaseEdmEmitStatus?.(nextStatus),
+    status,
+  );
+
+const resolveNextEditorSave = (page) =>
+  page.evaluate(() => window.__snapcaseEdmResolveNextSave?.() ?? false);
+
 const assertCompleteAnalyticsItems = (event, expectedCount, label) => {
   assert.equal(event.payload.currency, "USD", `${label} must use USD.`);
   assert.equal(
@@ -226,6 +306,7 @@ const assertCompleteAnalyticsItems = (event, expectedCount, label) => {
 
 const mockExternalServices = async (context) => {
   let mockupStatusCalls = 0;
+  let edmNonceCalls = 0;
 
   await context.route(
     "https://files.cdn.printful.com/embed/embed.js",
@@ -237,6 +318,24 @@ const mockExternalServices = async (context) => {
           window.PFDesignMaker = class {
             constructor(config) {
               this.config = config;
+              window.__snapcaseEdmMakerCount = (window.__snapcaseEdmMakerCount ?? 0) + 1;
+              this.generation = window.__snapcaseEdmMakerCount;
+              this.saveAccepted = false;
+              window.__snapcaseEdmSaveCalls = window.__snapcaseEdmSaveCalls ?? 0;
+              window.__snapcaseEdmAcceptedSaveCalls = window.__snapcaseEdmAcceptedSaveCalls ?? 0;
+              window.__snapcaseEdmSaveTrace = window.__snapcaseEdmSaveTrace ?? [];
+              window.__snapcaseEdmPendingSaves = window.__snapcaseEdmPendingSaves ?? [];
+              window.__snapcaseEdmStatusUpdates = window.__snapcaseEdmStatusUpdates ?? 0;
+              window.__snapcaseEdmEmitStatus = (status) => {
+                window.__snapcaseEdmStatusUpdates += 1;
+                this.config.onDesignStatusUpdate?.(status);
+              };
+              window.__snapcaseEdmResolveNextSave = () => {
+                const complete = window.__snapcaseEdmPendingSaves.shift();
+                if (!complete) return false;
+                complete();
+                return true;
+              };
               const host = document.getElementById(config.elemId);
               const frame = document.createElement("iframe");
               frame.title = "Design editor for Apple iPhone 17 Pro Max";
@@ -244,16 +343,42 @@ const mockExternalServices = async (context) => {
               host.appendChild(frame);
               setTimeout(() => {
                 config.onIframeLoaded?.();
-                config.onDesignStatusUpdate?.({
-                  hasDesign: true,
-                  designValid: true,
-                  designChange: true,
-                });
+                window.__snapcaseEdmEmitStatus?.(
+                  window.__snapcaseEdmInitialStatus ?? {
+                    hasDesign: true,
+                    designValid: true,
+                    designChange: true,
+                  },
+                );
               }, 0);
             }
             sendMessage(message) {
               if (message?.event === "saveDesign") {
-                setTimeout(() => this.config.onTemplateSaved?.(12345), 0);
+                window.__snapcaseEdmSaveCalls += 1;
+                window.__snapcaseEdmSaveTrace.push({
+                  at: performance.now(),
+                  generation: this.generation,
+                  accepted: false,
+                  stack: new Error().stack,
+                });
+                if (window.__snapcaseEdmSaveThrows) {
+                  throw new Error("Mock save unavailable");
+                }
+                if (this.saveAccepted) {
+                  throw new Error("Mock nonce was already consumed by a save");
+                }
+                this.saveAccepted = true;
+                window.__snapcaseEdmAcceptedSaveCalls += 1;
+                window.__snapcaseEdmSaveTrace.at(-1).accepted = true;
+                const complete = () =>
+                  this.config.onTemplateSaved?.(
+                    window.__snapcaseEdmTemplateId ?? 12345,
+                  );
+                if (window.__snapcaseEdmManualSaves) {
+                  window.__snapcaseEdmPendingSaves.push(complete);
+                } else {
+                  setTimeout(complete, window.__snapcaseEdmSaveDelayMs ?? 0);
+                }
               }
             }
           };
@@ -278,10 +403,11 @@ const mockExternalServices = async (context) => {
       }
 
       if (request.url().endsWith("/edm-nonce")) {
+        edmNonceCalls += 1;
         await route.fulfill({
           status: 200,
           headers,
-          body: JSON.stringify({ nonce: "accessibility-test-nonce" }),
+          body: JSON.stringify({ nonce: `accessibility-test-nonce-${edmNonceCalls}` }),
         });
         return;
       }
@@ -1253,6 +1379,19 @@ try {
       /Preparing your production preview\. Continue to Checkout becomes available/,
     )
     .waitFor();
+  await page.waitForFunction(() => {
+    const purchaseState = document.querySelector("[data-preview-purchase-state]");
+    const animatedDetails = purchaseState?.closest(".space-y-8");
+    return Boolean(
+      animatedDetails &&
+        Number.parseFloat(getComputedStyle(animatedDetails).opacity) >= 0.99,
+    );
+  });
+  assert.equal(
+    await previewPurchaseState.getAttribute("data-preview-purchase-state"),
+    "preparing",
+    "The loading-state contrast audit must run after entry animation but before completion.",
+  );
   auditResults.push(
     await assertNoSeriousAxeViolations(page, "preview-loading-light-desktop"),
   );
@@ -1507,10 +1646,51 @@ try {
   await purchaseAnalyticsPage
     .locator('iframe[title="Design editor for Apple iPhone 17 Pro Max"]')
     .waitFor();
+  await waitForAnalyticsEvents(
+    purchaseAnalyticsPage,
+    "editor_first_action",
+    1,
+  );
+  assert.equal(
+    await getEditorSaveCalls(purchaseAnalyticsPage),
+    0,
+    "Editing must not consume the single-use vendor nonce before continuation.",
+  );
   await purchaseAnalyticsPage
     .getByRole("button", { name: "Continue to Preview" })
     .click();
+  await waitForEditorSaveCalls(purchaseAnalyticsPage, 1);
   await purchaseAnalyticsPage.waitForURL(/\/preview\/iphone-17-pro-max/);
+  await waitForAnalyticsEvents(
+    purchaseAnalyticsPage,
+    "primary_cta_click",
+    1,
+  );
+  assert.equal(
+    await getEditorSaveCalls(purchaseAnalyticsPage),
+    1,
+    "A dirty design must save exactly once before Preview.",
+  );
+  const editorContinueEvents = await getAnalyticsEvents(
+    purchaseAnalyticsPage,
+    "primary_cta_click",
+  );
+  assert.deepEqual(editorContinueEvents, [
+    {
+      name: "primary_cta_click",
+      payload: {
+        placement: "editor_continue",
+        label: "Continue to Preview",
+        destination: "/preview/iphone-17-pro-max",
+        analytics_contract_version: "1.0.0",
+      },
+    },
+  ]);
+  assert.doesNotMatch(
+    JSON.stringify(editorContinueEvents),
+    /designId|artwork|preview_url|https?:\/\//i,
+    "Editor continuation analytics must contain no generated ID, artwork, or URL.",
+  );
   await waitForAnalyticsEvents(purchaseAnalyticsPage, "preview_success", 1);
   const measuredCheckoutAction = purchaseAnalyticsPage.getByRole("button", {
     name: /Continue to Checkout/,
@@ -1543,6 +1723,40 @@ try {
     (await getAnalyticsEvents(purchaseAnalyticsPage, "begin_checkout")).length,
     0,
     "Route arrival must not emit begin_checkout.",
+  );
+  await purchaseAnalyticsPage.waitForFunction(() =>
+    (window.__snapcaseAnalyticsCommands ?? []).some(
+      (command) =>
+        command[0] === "event" &&
+        command[1] === "page_view" &&
+        command[2]?.page_path === "/checkout/iphone-17-pro-max",
+    ),
+  );
+  const funnelEvents = await getAnalyticsEvents(purchaseAnalyticsPage);
+  const funnelIndexes = [
+    funnelEvents.findIndex((event) => event.name === "design_start"),
+    funnelEvents.findIndex((event) => event.name === "editor_first_action"),
+    funnelEvents.findIndex(
+      (event) =>
+        event.name === "primary_cta_click" &&
+        event.payload.placement === "editor_continue",
+    ),
+    funnelEvents.findIndex((event) => event.name === "preview_success"),
+    funnelEvents.findIndex((event) => event.name === "add_to_cart"),
+    funnelEvents.findIndex(
+      (event) =>
+        event.name === "page_view" &&
+        event.payload.page_path === "/checkout/iphone-17-pro-max",
+    ),
+  ];
+  assert.ok(
+    funnelIndexes.every((index) => index >= 0),
+    `The editor-to-checkout funnel is incomplete: ${JSON.stringify(funnelEvents)}`,
+  );
+  assert.deepEqual(
+    [...funnelIndexes].sort((left, right) => left - right),
+    funnelIndexes,
+    "The consented funnel must preserve editor-to-Checkout event order.",
   );
 
   await purchaseAnalyticsPage.goBack();
@@ -1599,6 +1813,437 @@ try {
     "Keyboard route arrival must not emit begin_checkout.",
   );
   await purchaseAnalyticsContext.close();
+
+  const cleanRevisionContext = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  await installEditorScenario(cleanRevisionContext, {
+    designId: "clean-revision-design",
+    initialStatus: {
+      hasDesign: true,
+      designValid: true,
+      designChange: false,
+    },
+    manualSaves: true,
+    savedTemplateId: 22345,
+  });
+  await mockExternalServices(cleanRevisionContext);
+  const cleanRevisionPage = await cleanRevisionContext.newPage();
+  const cleanRevisionUrl = `${origin}/design/iphone-17-pro-max?designId=clean-revision-design`;
+  await cleanRevisionPage.goto(cleanRevisionUrl);
+  await cleanRevisionPage
+    .locator('iframe[title="Design editor for Apple iPhone 17 Pro Max"]')
+    .waitFor();
+  await waitForEditorStatus(cleanRevisionPage);
+  assert.equal(
+    await getEditorSaveCalls(cleanRevisionPage),
+    0,
+    "Loading an already-saved valid revision must not save again.",
+  );
+  await cleanRevisionPage
+    .getByRole("button", { name: "Continue to Preview" })
+    .click();
+  await cleanRevisionPage.waitForURL(
+    `${origin}/preview/iphone-17-pro-max?designId=clean-revision-design`,
+  );
+  assert.equal(
+    await getEditorSaveCalls(cleanRevisionPage),
+    0,
+    "Continuing an already-saved valid revision must use zero vendor saves.",
+  );
+  await cleanRevisionPage.goBack();
+  await cleanRevisionPage.waitForURL(cleanRevisionUrl);
+  await cleanRevisionContext.close();
+
+  const undoneRevisionContext = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  await installEditorScenario(undoneRevisionContext, {
+    designId: "undone-revision-design",
+    initialStatus: {
+      hasDesign: true,
+      designValid: true,
+      designChange: false,
+    },
+    manualSaves: true,
+    savedTemplateId: 32345,
+  });
+  await mockExternalServices(undoneRevisionContext);
+  const undoneRevisionPage = await undoneRevisionContext.newPage();
+  await undoneRevisionPage.goto(
+    `${origin}/design/iphone-17-pro-max?designId=undone-revision-design`,
+  );
+  await undoneRevisionPage
+    .locator('iframe[title="Design editor for Apple iPhone 17 Pro Max"]')
+    .waitFor();
+  await waitForEditorStatus(undoneRevisionPage);
+  await emitEditorStatus(undoneRevisionPage, {
+    hasDesign: true,
+    designValid: true,
+    designChange: true,
+  });
+  await emitEditorStatus(undoneRevisionPage, {
+    hasDesign: true,
+    designValid: true,
+    designChange: false,
+  });
+  await waitForEditorStatus(undoneRevisionPage, 3);
+  await undoneRevisionPage
+    .getByRole("button", { name: "Continue to Preview" })
+    .click();
+  await undoneRevisionPage.waitForURL(
+    `${origin}/preview/iphone-17-pro-max?designId=undone-revision-design`,
+  );
+  assert.equal(
+    await getEditorSaveCalls(undoneRevisionPage),
+    0,
+    "Edit then undo must restore the vendor-reported clean state without consuming a nonce.",
+  );
+  await undoneRevisionContext.close();
+
+  const dirtyRevisionContext = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  await installAnalyticsRecorder(dirtyRevisionContext, "granted");
+  await installEditorScenario(dirtyRevisionContext, {
+    designId: "dirty-revision-design",
+    initialStatus: {
+      hasDesign: true,
+      designValid: true,
+      designChange: true,
+    },
+    manualSaves: true,
+  });
+  await mockExternalServices(dirtyRevisionContext);
+  const dirtyRevisionPage = await dirtyRevisionContext.newPage();
+  await dirtyRevisionPage.goto(
+    `${origin}/design/iphone-17-pro-max?designId=dirty-revision-design`,
+  );
+  await dirtyRevisionPage
+    .locator('iframe[title="Design editor for Apple iPhone 17 Pro Max"]')
+    .waitFor();
+  await waitForEditorStatus(dirtyRevisionPage);
+  assert.equal(
+    await getEditorSaveCalls(dirtyRevisionPage),
+    0,
+    "A dirty design must wait for an explicit continuation before saving.",
+  );
+  const dirtyContinue = dirtyRevisionPage.getByRole("button", {
+    name: "Continue to Preview",
+  });
+  assert.equal(
+    await dirtyContinue.isDisabled(),
+    false,
+    "A valid dirty design must keep the editor continuation CTA enabled.",
+  );
+  const dirtyContinueBox = await dirtyContinue.boundingBox();
+  assert.ok(dirtyContinueBox, "The editor continuation CTA must be visible.");
+  await dirtyContinue.focus();
+  await dirtyRevisionPage.keyboard.press("Enter");
+  await dirtyRevisionPage.keyboard.press("Enter");
+  await waitForEditorSaveCalls(dirtyRevisionPage, 1);
+  await dirtyRevisionPage.mouse.click(
+    dirtyContinueBox.x + dirtyContinueBox.width / 2,
+    dirtyContinueBox.y + dirtyContinueBox.height / 2,
+  );
+  const dirtySaveCalls = await getEditorSaveCalls(dirtyRevisionPage);
+  const dirtySaveTrace = await dirtyRevisionPage.evaluate(
+    () => window.__snapcaseEdmSaveTrace,
+  );
+  assert.equal(
+    dirtySaveCalls,
+    1,
+    `Rapid real keyboard and pointer activation must not duplicate the vendor save: ${JSON.stringify(dirtySaveTrace)}`,
+  );
+  assert.equal(
+    await dirtyRevisionPage.locator("#printful-designer").getAttribute("aria-busy"),
+    "true",
+    "The editor must be exposed as busy while its one allowed save is pending.",
+  );
+  await dirtyRevisionPage.waitForFunction(
+    () => document.querySelector("#printful-designer")?.inert === true,
+  );
+  assert.equal(
+    await dirtyRevisionPage.locator("#printful-designer").getAttribute("inert"),
+    "",
+    "The embedded editor subtree must be inert while its one allowed save is pending.",
+  );
+  await dirtyRevisionPage.keyboard.press("Shift+Tab");
+  assert.notEqual(
+    await dirtyRevisionPage.evaluate(() => document.activeElement?.tagName),
+    "IFRAME",
+    "Real keyboard navigation must not re-enter the editor while saving.",
+  );
+  await waitForAnalyticsEvents(dirtyRevisionPage, "primary_cta_click", 1);
+  assert.equal(
+    (await getAnalyticsEvents(dirtyRevisionPage, "primary_cta_click")).length,
+    1,
+    "Rapid pointer/keyboard activation must emit one editor continuation event.",
+  );
+  assert.equal(await resolveNextEditorSave(dirtyRevisionPage), true);
+  await dirtyRevisionPage.waitForURL(
+    `${origin}/preview/iphone-17-pro-max?designId=dirty-revision-design`,
+  );
+  assert.equal(
+    await getEditorSaveCalls(dirtyRevisionPage),
+    1,
+    "A dirty valid design must save exactly once before Preview.",
+  );
+  await dirtyRevisionContext.close();
+
+  const singleUseSaveContext = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  await installEditorScenario(singleUseSaveContext, {
+    designId: "single-use-save-design",
+    initialStatus: {
+      hasDesign: true,
+      designValid: true,
+      designChange: true,
+    },
+    manualSaves: true,
+  });
+  await mockExternalServices(singleUseSaveContext);
+  const singleUseSavePage = await singleUseSaveContext.newPage();
+  await singleUseSavePage.goto(
+    `${origin}/design/iphone-17-pro-max?designId=single-use-save-design`,
+  );
+  await singleUseSavePage
+    .locator('iframe[title="Design editor for Apple iPhone 17 Pro Max"]')
+    .waitFor();
+  await waitForEditorStatus(singleUseSavePage);
+  await singleUseSavePage
+    .getByRole("button", { name: "Continue to Preview" })
+    .click();
+  await waitForEditorSaveCalls(singleUseSavePage, 1);
+  await emitEditorStatus(singleUseSavePage, {
+    hasDesign: true,
+    designValid: true,
+    designChange: true,
+  });
+  await emitEditorStatus(singleUseSavePage, {
+    hasDesign: true,
+    designValid: true,
+    designChange: false,
+  });
+  await waitForEditorStatus(singleUseSavePage, 3);
+  assert.equal(await resolveNextEditorSave(singleUseSavePage), true);
+  await singleUseSavePage.waitForURL(
+    `${origin}/preview/iphone-17-pro-max?designId=single-use-save-design`,
+  );
+  assert.equal(
+    await getEditorSaveCalls(singleUseSavePage),
+    1,
+    "Status callbacks while the editor is locked must never trigger a second save on a consumed nonce.",
+  );
+  assert.equal(
+    await getEditorMakerCount(singleUseSavePage),
+    1,
+    "A successful continuation must use one editor generation.",
+  );
+  await singleUseSaveContext.close();
+
+  const invalidEditorContext = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  await installEditorScenario(invalidEditorContext, {
+    designId: "invalid-revision-design",
+    initialStatus: {
+      hasDesign: true,
+      designValid: false,
+      designChange: true,
+    },
+    manualSaves: true,
+  });
+  await mockExternalServices(invalidEditorContext);
+  const invalidEditorPage = await invalidEditorContext.newPage();
+  const invalidEditorUrl = `${origin}/design/iphone-17-pro-max?designId=invalid-revision-design`;
+  await invalidEditorPage.goto(invalidEditorUrl);
+  await invalidEditorPage
+    .locator('iframe[title="Design editor for Apple iPhone 17 Pro Max"]')
+    .waitFor();
+  await waitForEditorStatus(invalidEditorPage);
+  await invalidEditorPage
+    .getByRole("button", { name: "Continue to Preview" })
+    .click();
+  await invalidEditorPage
+    .getByText("Finish your design before continuing.", { exact: true })
+    .first()
+    .waitFor();
+  assert.equal(invalidEditorPage.url(), invalidEditorUrl);
+  assert.equal(
+    await getEditorSaveCalls(invalidEditorPage),
+    0,
+    "An invalid design must neither save nor navigate.",
+  );
+  await invalidEditorContext.close();
+
+  const unavailableSaveContext = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  await installAnalyticsRecorder(unavailableSaveContext, "granted");
+  await installEditorScenario(unavailableSaveContext, {
+    designId: "unavailable-save-design",
+    initialStatus: {
+      hasDesign: true,
+      designValid: true,
+      designChange: false,
+    },
+    manualSaves: true,
+    saveThrows: true,
+  });
+  await mockExternalServices(unavailableSaveContext);
+  const unavailableSavePage = await unavailableSaveContext.newPage();
+  await unavailableSavePage.goto(
+    `${origin}/design/iphone-17-pro-max?designId=unavailable-save-design`,
+  );
+  await unavailableSavePage
+    .locator('iframe[title="Design editor for Apple iPhone 17 Pro Max"]')
+    .waitFor();
+  await waitForEditorStatus(unavailableSavePage);
+  await unavailableSavePage
+    .getByRole("button", { name: "Continue to Preview" })
+    .click();
+  await unavailableSavePage
+    .getByRole("button", { name: "Retry save" })
+    .waitFor();
+  await waitForAnalyticsEvents(unavailableSavePage, "editor_error", 1);
+  const unavailableErrors = await getAnalyticsEvents(
+    unavailableSavePage,
+    "editor_error",
+  );
+  assert.equal(unavailableErrors[0].payload.error_code, "designer_save_unavailable");
+  assert.doesNotMatch(
+    JSON.stringify(unavailableErrors),
+    /designId|artwork|preview_url|customer_/i,
+  );
+  await unavailableSavePage.evaluate(() => {
+    window.__snapcaseEdmSaveThrows = false;
+  });
+  await unavailableSavePage
+    .getByRole("button", { name: "Retry save" })
+    .click();
+  await waitForEditorSaveCalls(unavailableSavePage, 2);
+  assert.equal(await resolveNextEditorSave(unavailableSavePage), true);
+  await unavailableSavePage.waitForURL(
+    `${origin}/preview/iphone-17-pro-max?designId=unavailable-save-design`,
+  );
+  assert.equal(
+    await getEditorSaveCalls(unavailableSavePage),
+    2,
+    "A synchronous failure may be retried on the same unconsumed nonce and then continue.",
+  );
+  assert.equal(
+    await unavailableSavePage.evaluate(
+      () => window.__snapcaseEdmAcceptedSaveCalls,
+    ),
+    1,
+    "Only the successful retry may consume the vendor nonce.",
+  );
+  await unavailableSaveContext.close();
+
+  const timeoutSaveContext = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  await installAnalyticsRecorder(timeoutSaveContext, "granted");
+  await installEditorScenario(timeoutSaveContext, {
+    designId: "timeout-save-design",
+    initialStatus: {
+      hasDesign: true,
+      designValid: true,
+      designChange: false,
+    },
+    manualSaves: true,
+  });
+  await mockExternalServices(timeoutSaveContext);
+  const timeoutSavePage = await timeoutSaveContext.newPage();
+  await timeoutSavePage.goto(
+    `${origin}/design/iphone-17-pro-max?designId=timeout-save-design`,
+  );
+  await timeoutSavePage
+    .locator('iframe[title="Design editor for Apple iPhone 17 Pro Max"]')
+    .waitFor();
+  await waitForEditorStatus(timeoutSavePage);
+  await timeoutSavePage
+    .getByRole("button", { name: "Continue to Preview" })
+    .click();
+  await timeoutSavePage
+    .getByRole("button", { name: "Reload editor" })
+    .waitFor({ timeout: 12_000 });
+  await waitForAnalyticsEvents(timeoutSavePage, "editor_error", 1);
+  const timeoutErrors = await getAnalyticsEvents(
+    timeoutSavePage,
+    "editor_error",
+  );
+  assert.equal(timeoutErrors[0].payload.error_code, "designer_save_timeout");
+  assert.equal(await getEditorSaveCalls(timeoutSavePage), 1);
+  assert.equal(
+    await getEditorMakerCount(timeoutSavePage),
+    1,
+    "The timed-out save belongs to the first editor generation.",
+  );
+  assert.equal(await resolveNextEditorSave(timeoutSavePage), true);
+  await timeoutSavePage.waitForTimeout(50);
+  assert.equal(
+    timeoutSavePage.url(),
+    `${origin}/design/iphone-17-pro-max?designId=timeout-save-design`,
+    "A late callback from the timed-out generation must not navigate.",
+  );
+  assert.equal(
+    await timeoutSavePage.evaluate(() =>
+      window.sessionStorage.getItem(
+        "edmDesign:timeout-save-design:templateId",
+      ),
+    ),
+    null,
+    "A late callback from the timed-out generation must not be attributed to the design.",
+  );
+  await timeoutSavePage
+    .getByRole("button", { name: "Reload editor" })
+    .click();
+  await waitForEditorMakerCount(timeoutSavePage, 2);
+  await waitForEditorStatus(timeoutSavePage, 2);
+  assert.equal(
+    await getEditorSaveCalls(timeoutSavePage),
+    1,
+    "Reloading must obtain a fresh editor generation without saving automatically.",
+  );
+  await timeoutSavePage
+    .getByRole("button", { name: "Continue to Preview" })
+    .click();
+  await waitForEditorSaveCalls(timeoutSavePage, 2);
+  assert.equal(await resolveNextEditorSave(timeoutSavePage), true);
+  await timeoutSavePage.waitForURL(
+    `${origin}/preview/iphone-17-pro-max?designId=timeout-save-design`,
+  );
+  assert.deepEqual(
+    await timeoutSavePage.evaluate(() =>
+      window.__snapcaseEdmSaveTrace.map(({ generation, accepted }) => ({
+        generation,
+        accepted,
+      })),
+    ),
+    [
+      { generation: 1, accepted: true },
+      { generation: 2, accepted: true },
+    ],
+    "Timeout recovery must use one accepted save on each of two distinct editor generations.",
+  );
+  await timeoutSaveContext.close();
 
   const invalidState = await browser.newContext({
     viewport: { width: 1024, height: 900 },
@@ -1973,12 +2618,6 @@ try {
   auditResults.push(
     await assertNoSeriousAxeViolations(mobilePage, "editor-dark-mobile"),
   );
-  await mobilePage.evaluate(() => {
-    window.__snapcaseEdmEvents = [];
-    window.snapcaseTrack = (name, payload) => {
-      window.__snapcaseEdmEvents.push({ name, payload });
-    };
-  });
   await clearInteractionPresentation(mobilePage);
   await mobilePage.screenshot({
     path: resolve(outputDir, "editor-dark-mobile.png"),
@@ -1989,14 +2628,6 @@ try {
   await mobilePage
     .getByRole("heading", { level: 1, name: "Samsung Galaxy S24" })
     .waitFor();
-  assert.ok(
-    await mobilePage.evaluate(() =>
-      window.__snapcaseEdmEvents.some(
-        (event) => event.name === "edm_cta_next",
-      ),
-    ),
-    "The mobile preview CTA must retain the edm_cta_next diagnostic event.",
-  );
   await mobilePage
     .locator('[data-preview-purchase-state="preparing"]')
     .getByRole("heading", { level: 2, name: "Preparing your preview" })

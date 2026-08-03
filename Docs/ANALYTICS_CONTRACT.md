@@ -88,6 +88,9 @@ hero-primary, Gift ideas, and Browse all cases CTAs use the existing
 ## Product and diagnostic events
 
 - `primary_cta_click`: placement, label, and destination
+- Editor continuation uses `primary_cta_click` with
+  `placement=editor_continue`. Its analytics payload carries only placement,
+  label, and destination; it never carries a design ID or artwork.
 - `design_start`: selected model
 - `editor_first_action`: first design change only
 - `preview_success`: preview completed
@@ -325,11 +328,20 @@ timezone, owner role, and supported filters:
 
 - acquisition: sessions and new users by source, medium, and campaign;
 - intent: homepage CTA rate by placement and catalog-to-model selection;
-- creation: editor first action and preview success/failure;
+- creation: editor first action, editor continuation, preview completion after
+  continuation, and preview success/failure;
 - commerce: add to cart, checkout start, purchase, checkout completion,
   product revenue, and revenue per consented session;
 - experience: user-visible error rate and Core Web Vitals good-experience rate;
 - trust: purchase/order reconciliation rate.
+
+The two editor continuation metrics use distinct consented GA4 sessions:
+`editor_continue_rate` divides sessions with `primary_cta_click` and
+`placement=editor_continue` by sessions with `editor_first_action`, while
+`editor_preview_completion_rate` divides sessions with `preview_success` by
+sessions with that editor-continuation CTA event. Both are available T+1 from
+`ga4_events` and allow only date, source, medium, campaign, device, and browser
+filters.
 
 Product revenue follows the GA4 purchase payload: item revenue after item
 discounts, excluding shipping and tax. A purchase reconciles only when one

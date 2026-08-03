@@ -47,7 +47,72 @@ test("editor preview CTAs stay explicit without dropping funnel analytics", asyn
   )?.[0];
 
   assert.ok(continueHandler, "The editor continue handler must exist.");
-  assert.match(continueHandler, /trackEdmEvent\("edm_cta_next"/);
+  assert.match(
+    continueHandler,
+    /if \([\s\S]*?continueActivationInFlightRef\.current[\s\S]*?navigationCommittedRef\.current[\s\S]*?\) \{[\s\S]*?return;/,
+    "Rapid editor continuation must be guarded before analytics, save, or navigation work.",
+  );
+  assert.match(
+    continueHandler,
+    /trackMarketingEvent\("primary_cta_click", \{[\s\S]*?placement: "editor_continue",[\s\S]*?label: "Continue to Preview",[\s\S]*?destination: variantId \? `\/preview\/\$\{variantId\}` : "\/preview"/,
+    "Editor continuation must use the consent-aware CTA contract with a normalized destination.",
+  );
+  assert.doesNotMatch(
+    continueHandler,
+    /designId|edm_cta_next|snapcaseTrack/,
+    "Editor continuation analytics must not expose generated or diagnostic-only values.",
+  );
+  assert.match(
+    continueHandler,
+    /templateIdRef\.current !== null &&[\s\S]*?!hasUnsavedChangesRef\.current[\s\S]*?navigateToPreview\(\);[\s\S]*?beginSave\(true, true\);/,
+    "Only an unchanged saved design may skip the vendor save before Preview.",
+  );
+  assert.match(editorSource, /const editorGenerationRef = useRef\(0\);/);
+  assert.match(editorSource, /const savePendingGenerationRef = useRef<number \| null>\(null\);/);
+  assert.match(editorSource, /const saveAttemptedGenerationRef = useRef<number \| null>\(null\);/);
+  assert.match(
+    editorSource,
+    /generation !== editorGenerationRef\.current \|\|[\s\S]*?savePendingGenerationRef\.current !== generation[\s\S]*?Ignoring a stale or untracked template-save callback/,
+    "Callbacks from an expired editor generation must be ignored.",
+  );
+  assert.match(
+    editorSource,
+    /saveAttemptedGenerationRef\.current === currentGeneration[\s\S]*?"reload_editor"/,
+    "A Printful editor generation must never receive a second save request.",
+  );
+  assert.match(
+    editorSource,
+    /const generation = editorGenerationRef\.current \+ 1;[\s\S]*?editorGenerationRef\.current = generation;[\s\S]*?await supabase\.functions\.invoke\('edm-nonce'/,
+    "A replacement editor generation must invalidate old callbacks before requesting its nonce.",
+  );
+  assert.match(
+    editorSource,
+    /if \(generation !== editorGenerationRef\.current\) return;[\s\S]*?new window\.PFDesignMaker/,
+    "A superseded nonce response must not create an editor instance.",
+  );
+  assert.match(
+    editorSource,
+    /const hasChanges = hasExplicitChange[\s\S]*?status\.designChange === true[\s\S]*?hasUnsavedChangesRef\.current = hasChanges;/,
+    "Printful designChange must be treated as current dirty state, including true-to-false transitions.",
+  );
+  assert.match(
+    editorSource,
+    /const container = designerContainerRef\.current;[\s\S]*?container\.inert = isSaving \|\| loading;[\s\S]*?container\.inert = false;/,
+    "The embedded editor must be pointer- and keyboard-inert during its single save.",
+  );
+  const statusHandler = editorSource.match(
+    /onDesignStatusUpdate: \(status\) => \{[\s\S]*?\n        \},/,
+  )?.[0];
+  assert.ok(statusHandler, "The editor status handler must exist.");
+  assert.match(
+    statusHandler,
+    /generation !== editorGenerationRef\.current[\s\S]*?savePendingGenerationRef\.current === generation[\s\S]*?return;/,
+    "Stale generations and status updates received while saving must be ignored.",
+  );
+  assert.doesNotMatch(statusHandler, /beginSave|saveDesign/, "Status updates must not auto-save a single-use nonce.");
+  assert.match(editorSource, /error_code: errorCode/);
+  assert.match(editorSource, /"designer_save_timeout"/);
+  assert.match(editorSource, /"designer_save_unavailable"/);
   assert.equal(
     editorSource.match(/onClick=\{handleContinue\}/g)?.length,
     2,

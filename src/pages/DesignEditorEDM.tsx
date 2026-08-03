@@ -26,6 +26,11 @@ const PRINTFUL_PRODUCT_IDS = {
 };
 
 const EDM_PREVIEW_CACHE_VERSION = "v4";
+const DESIGN_SAVE_TIMEOUT_MS = 8000;
+type EditorSaveErrorCode =
+  | "designer_save_timeout"
+  | "designer_save_unavailable";
+type SaveRecoveryMode = "retry_save" | "reload_editor";
 
 const getProductId = (brand: string): number => {
   return brand.toLowerCase() === 'apple' ? PRINTFUL_PRODUCT_IDS.iphone : PRINTFUL_PRODUCT_IDS.samsung;
@@ -118,20 +123,23 @@ const DesignEditorEDM = () => {
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [templateId, setTemplateId] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveRecoveryMode, setSaveRecoveryMode] = useState<SaveRecoveryMode | null>(null);
   const [isImmersive, setIsImmersive] = useState(false);
   const [showImmersiveHint, setShowImmersiveHint] = useState(false);
   const [designId, setDesignId] = useState<string | null>(null);
   const designMakerRef = useRef<PFDesignMakerInstance | null>(null);
   const continueAfterSaveRef = useRef(false);
+  const continueActivationInFlightRef = useRef(false);
+  const navigationCommittedRef = useRef(false);
   const saveTimeoutRef = useRef<number | null>(null);
   const immersiveHintTimeoutRef = useRef<number | null>(null);
   const immersiveEventReadyRef = useRef(false);
-  const autoSaveInFlightRef = useRef(false);
   const templateIdRef = useRef<number | null>(null);
-  const hasSeenStatusRef = useRef(false);
-  const lastAutoSaveAtRef = useRef(0);
   const hasUnsavedChangesRef = useRef(false);
   const designValidRef = useRef(false);
+  const editorGenerationRef = useRef(0);
+  const savePendingGenerationRef = useRef<number | null>(null);
+  const saveAttemptedGenerationRef = useRef<number | null>(null);
   const scriptLoadedRef = useRef(false);
   const retryEditorButtonRef = useRef<HTMLButtonElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
@@ -200,9 +208,14 @@ const DesignEditorEDM = () => {
   useEffect(() => {
     templateIdRef.current = null;
     setTemplateId(null);
-    autoSaveInFlightRef.current = false;
-    hasSeenStatusRef.current = false;
+    savePendingGenerationRef.current = null;
+    saveAttemptedGenerationRef.current = null;
     hasUnsavedChangesRef.current = false;
+    designValidRef.current = false;
+    continueAfterSaveRef.current = false;
+    continueActivationInFlightRef.current = false;
+    navigationCommittedRef.current = false;
+    setSaveRecoveryMode(null);
   }, [designId]);
 
   const getOrCreateExternalProductId = useCallback((id: string) => {
@@ -267,6 +280,168 @@ const DesignEditorEDM = () => {
     }
   }, [buildDesignKey, designId, variant]);
 
+  const navigateToPreview = useCallback(() => {
+    if (!variantId || navigationCommittedRef.current) return;
+    navigationCommittedRef.current = true;
+    navigate(
+      designId
+        ? `/preview/${variantId}?designId=${designId}`
+        : `/preview/${variantId}`,
+    );
+  }, [designId, navigate, variantId]);
+
+  const finishSaveFailure = useCallback((
+    message: string,
+    errorCode: EditorSaveErrorCode,
+    recoveryMode: SaveRecoveryMode,
+  ) => {
+    if (saveTimeoutRef.current) {
+      window.clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    savePendingGenerationRef.current = null;
+    continueAfterSaveRef.current = false;
+    continueActivationInFlightRef.current = false;
+    setIsSaving(false);
+    setSaveError(message);
+    setSaveRecoveryMode(recoveryMode);
+    trackMarketingEvent("editor_error", {
+      error_code: errorCode,
+      variant_id: variantId ?? null,
+      ...(variant
+        ? {
+            brand: variant.brand,
+            model: variant.model,
+          }
+        : {}),
+    });
+    toast.error(message);
+  }, [variant, variantId]);
+
+  const beginSave = useCallback((
+    shouldContinue: boolean,
+    showProgress = shouldContinue,
+  ) => {
+    const currentGeneration = editorGenerationRef.current;
+    if (savePendingGenerationRef.current === currentGeneration) {
+      if (shouldContinue) {
+        continueAfterSaveRef.current = true;
+        setIsSaving(true);
+        if (showProgress) {
+          toast.info('Saving your latest changes...');
+        }
+      }
+      return false;
+    }
+
+    const designMaker = designMakerRef.current;
+    if (!designMaker || currentGeneration === 0) {
+      finishSaveFailure(
+        "Unable to save right now. Please try again.",
+        "designer_save_unavailable",
+        "retry_save",
+      );
+      return false;
+    }
+
+    if (saveAttemptedGenerationRef.current === currentGeneration) {
+      finishSaveFailure(
+        "Reload the editor before trying the save again.",
+        "designer_save_unavailable",
+        "reload_editor",
+      );
+      return false;
+    }
+
+    continueAfterSaveRef.current = shouldContinue;
+    savePendingGenerationRef.current = currentGeneration;
+    saveAttemptedGenerationRef.current = currentGeneration;
+    setSaveError(null);
+    setSaveRecoveryMode(null);
+    if (showProgress) {
+      setIsSaving(true);
+      toast.info('Saving your design...');
+    }
+
+    if (saveTimeoutRef.current) {
+      window.clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = window.setTimeout(() => {
+      if (savePendingGenerationRef.current !== currentGeneration) return;
+      finishSaveFailure(
+        "Save timed out. Reload the editor before trying again.",
+        "designer_save_timeout",
+        "reload_editor",
+      );
+    }, DESIGN_SAVE_TIMEOUT_MS);
+
+    try {
+      designMaker.sendMessage({ event: 'saveDesign' });
+      return true;
+    } catch {
+      saveAttemptedGenerationRef.current = null;
+      finishSaveFailure(
+        "Unable to save right now. Please try again.",
+        "designer_save_unavailable",
+        "retry_save",
+      );
+      return false;
+    }
+  }, [finishSaveFailure]);
+
+  const handleTemplateSaved = useCallback((id: number, generation: number) => {
+    if (
+      generation !== editorGenerationRef.current ||
+      savePendingGenerationRef.current !== generation
+    ) {
+      debugLog('Ignoring a stale or untracked template-save callback.');
+      return;
+    }
+    if (!designId || !variantId) {
+      finishSaveFailure(
+        "Unable to save right now. Please try again.",
+        "designer_save_unavailable",
+        "reload_editor",
+      );
+      return;
+    }
+
+    debugLog('Template saved:', id, { generation });
+    if (saveTimeoutRef.current) {
+      window.clearTimeout(saveTimeoutRef.current);
+      saveTimeoutRef.current = null;
+    }
+    savePendingGenerationRef.current = null;
+    setTemplateId(id);
+    templateIdRef.current = id;
+    setIsSaving(false);
+    setSaveError(null);
+    setSaveRecoveryMode(null);
+
+    sessionStorage.setItem(buildDesignKey(designId, "templateId"), id.toString());
+    sessionStorage.setItem(buildDesignKey(designId, "variantId"), variantId);
+    sessionStorage.setItem("edmDesign:last", designId);
+    clearPreviewCache(true);
+
+    hasUnsavedChangesRef.current = false;
+
+    if (continueAfterSaveRef.current) {
+      continueAfterSaveRef.current = false;
+      navigateToPreview();
+      return;
+    }
+
+    void prewarmEdmPreview(id);
+  }, [
+    buildDesignKey,
+    clearPreviewCache,
+    designId,
+    finishSaveFailure,
+    navigateToPreview,
+    prewarmEdmPreview,
+    variantId,
+  ]);
+
   // Load the Printful embed.js script
   useEffect(() => {
     if (scriptLoadedRef.current) return;
@@ -305,8 +480,19 @@ const DesignEditorEDM = () => {
     }
 
     setLoading(true);
+    setIframeLoaded(false);
     setError(null);
     setSaveError(null);
+    setSaveRecoveryMode(null);
+
+    const generation = editorGenerationRef.current + 1;
+    editorGenerationRef.current = generation;
+    savePendingGenerationRef.current = null;
+    saveAttemptedGenerationRef.current = null;
+    continueAfterSaveRef.current = false;
+    continueActivationInFlightRef.current = false;
+    setIsSaving(false);
+    designerContainerRef.current?.replaceChildren();
 
     try {
       const externalProductId = getOrCreateExternalProductId(designId);
@@ -327,6 +513,8 @@ const DesignEditorEDM = () => {
       const cachedTemplateId = getStoredTemplateId(designId);
       const resolvedTemplateId = templateIdFromNonce ?? cachedTemplateId;
 
+      if (generation !== editorGenerationRef.current) return;
+
       if (nonceError || !nonceValue) {
         debugLog('Failed to get nonce:', nonceError, data);
         throw new Error(data?.error || nonceError?.message || 'Failed to get authentication token');
@@ -337,10 +525,16 @@ const DesignEditorEDM = () => {
       if (resolvedTemplateId) {
         setTemplateId(resolvedTemplateId);
         templateIdRef.current = resolvedTemplateId;
+        hasUnsavedChangesRef.current = false;
         sessionStorage.setItem(buildDesignKey(designId, "templateId"), resolvedTemplateId.toString());
         sessionStorage.setItem(buildDesignKey(designId, "variantId"), variantId);
         sessionStorage.setItem("edmDesign:last", designId);
+      } else {
+        setTemplateId(null);
+        templateIdRef.current = null;
+        hasUnsavedChangesRef.current = false;
       }
+      designValidRef.current = false;
 
       const initProduct = resolvedTemplateId
         ? undefined
@@ -394,50 +588,23 @@ const DesignEditorEDM = () => {
         preselectedSizes,
         preselectedColors,
         steps: ['design'], // Limit EDM navigation to the Design step
-        onTemplateSaved: (id: number) => {
-          debugLog('Template saved:', id);
-          setTemplateId(id);
-          templateIdRef.current = id;
-          setIsSaving(false);
-          setSaveError(null);
-          autoSaveInFlightRef.current = false;
-          hasUnsavedChangesRef.current = false;
-          if (saveTimeoutRef.current) {
-            window.clearTimeout(saveTimeoutRef.current);
-            saveTimeoutRef.current = null;
-          }
-          // Store template ID for checkout
-          sessionStorage.setItem(buildDesignKey(designId, "templateId"), id.toString());
-          sessionStorage.setItem(buildDesignKey(designId, "variantId"), variantId);
-          sessionStorage.setItem("edmDesign:last", designId);
-          clearPreviewCache(true);
-          if (continueAfterSaveRef.current) {
-            continueAfterSaveRef.current = false;
-            navigate(`/preview/${variantId}?designId=${designId}`);
-          } else {
-            void prewarmEdmPreview(id);
-          }
-        },
+        onTemplateSaved: (id: number) => handleTemplateSaved(id, generation),
         onDesignStatusUpdate: (status) => {
+          if (generation !== editorGenerationRef.current) return;
+          if (savePendingGenerationRef.current === generation) return;
           debugLog('Design status updated:', status);
           const hasExplicitChange = typeof status.designChange === "boolean";
           const hasChanges = hasExplicitChange
-            ? status.designChange
-            : hasSeenStatusRef.current
-              ? status.hasDesign
-              : !templateIdRef.current && status.hasDesign;
+            ? templateIdRef.current
+              ? status.designChange === true
+              : status.hasDesign
+            : templateIdRef.current
+              ? hasUnsavedChangesRef.current
+              : status.hasDesign;
           const isValid = typeof status.designValid === "boolean"
             ? status.designValid
             : status.hasDesign;
-          const now = Date.now();
-          const canAutoSave = now - lastAutoSaveAtRef.current > 1200;
-          if (hasExplicitChange) {
-            hasUnsavedChangesRef.current = status.designChange;
-          } else if (hasSeenStatusRef.current && status.hasDesign) {
-            hasUnsavedChangesRef.current = true;
-          } else if (!templateIdRef.current && status.hasDesign) {
-            hasUnsavedChangesRef.current = true;
-          }
+          hasUnsavedChangesRef.current = hasChanges;
           if (hasChanges) {
             clearPreviewCache(true);
             if (!firstActionTrackedRef.current) {
@@ -450,12 +617,6 @@ const DesignEditorEDM = () => {
             }
           }
           designValidRef.current = isValid;
-          hasSeenStatusRef.current = true;
-          if (hasChanges && isValid && !autoSaveInFlightRef.current && canAutoSave) {
-            autoSaveInFlightRef.current = true;
-            lastAutoSaveAtRef.current = now;
-            handleSaveDesign();
-          }
         },
         onProductChanged: () => {
           reassertDesignStep();
@@ -466,6 +627,7 @@ const DesignEditorEDM = () => {
           }
         },
         onIframeLoaded: () => {
+          if (generation !== editorGenerationRef.current) return;
           debugLog('Iframe loaded');
           applySelectedProduct();
           window.setTimeout(applySelectedProduct, 250);
@@ -474,6 +636,7 @@ const DesignEditorEDM = () => {
           setLoading(false);
         },
         onError: (err) => {
+          if (generation !== editorGenerationRef.current) return;
           debugLog('EDM error:', err);
           trackMarketingEvent("editor_error", {
             error_code: "designer_runtime_error",
@@ -488,6 +651,7 @@ const DesignEditorEDM = () => {
       });
 
     } catch (err) {
+      if (generation !== editorGenerationRef.current) return;
       debugLog('Error initializing EDM:', err);
       trackMarketingEvent("editor_error", {
         error_code: "designer_initialization_failed",
@@ -502,11 +666,10 @@ const DesignEditorEDM = () => {
     variant,
     variantId,
     designId,
-    navigate,
     clearPreviewCache,
     getOrCreateExternalProductId,
     getStoredTemplateId,
-    prewarmEdmPreview,
+    handleTemplateSaved,
     buildDesignKey,
     isMobile,
     isDesignerReady,
@@ -655,6 +818,15 @@ const DesignEditorEDM = () => {
     forceEmbedSizing();
   }, [designerHeight, forceEmbedSizing]);
 
+  useEffect(() => {
+    const container = designerContainerRef.current;
+    if (!container) return;
+    container.inert = isSaving || loading;
+    return () => {
+      container.inert = false;
+    };
+  }, [isSaving, loading]);
+
   // Initialize EDM when variant and script are ready
   useEffect(() => {
     if (variant && scriptLoadedRef.current && window.PFDesignMaker) {
@@ -729,6 +901,9 @@ const DesignEditorEDM = () => {
 
   useEffect(() => {
     return () => {
+      editorGenerationRef.current += 1;
+      savePendingGenerationRef.current = null;
+      continueAfterSaveRef.current = false;
       if (saveTimeoutRef.current) {
         window.clearTimeout(saveTimeoutRef.current);
         saveTimeoutRef.current = null;
@@ -736,81 +911,51 @@ const DesignEditorEDM = () => {
     };
   }, []);
 
-  const handleSaveDesign = () => {
-    if (designMakerRef.current) {
-      designMakerRef.current.sendMessage({ event: 'saveDesign' });
-    } else {
-      setSaveError("Unable to save right now. Please try again.");
-    }
-  };
-
-  const beginSave = (shouldContinue: boolean) => {
-    continueAfterSaveRef.current = shouldContinue;
-    setIsSaving(true);
-    setSaveError(null);
-    toast.info('Saving your design...');
-    if (saveTimeoutRef.current) {
-      window.clearTimeout(saveTimeoutRef.current);
-    }
-    saveTimeoutRef.current = window.setTimeout(() => {
-      setIsSaving(false);
-      continueAfterSaveRef.current = false;
-      autoSaveInFlightRef.current = false;
-      setSaveError("Save timed out. Please try again.");
-      toast.error('Save timed out. Please try again.');
-    }, 8000);
-    autoSaveInFlightRef.current = true;
-    lastAutoSaveAtRef.current = Date.now();
-    handleSaveDesign();
-  };
-
   const handleContinue = () => {
-    trackEdmEvent("edm_cta_next", {
-      variantId,
-      designId,
-      hasTemplate: Boolean(templateId),
-      isSaving,
-      hasUnsavedChanges: hasUnsavedChangesRef.current,
-      isValid: designValidRef.current,
+    if (
+      continueActivationInFlightRef.current ||
+      navigationCommittedRef.current
+    ) {
+      return;
+    }
+    continueActivationInFlightRef.current = true;
+
+    trackMarketingEvent("primary_cta_click", {
+      placement: "editor_continue",
+      label: "Continue to Preview",
+      destination: variantId ? `/preview/${variantId}` : "/preview",
     });
-    if (isSaving || autoSaveInFlightRef.current) {
+
+    if (!variantId || !designValidRef.current) {
+      continueActivationInFlightRef.current = false;
+      toast.info('Finish your design before continuing.');
+      return;
+    }
+
+    if (savePendingGenerationRef.current === editorGenerationRef.current) {
       continueAfterSaveRef.current = true;
+      setIsSaving(true);
       toast.info('Saving your latest changes...');
       return;
     }
-    if (templateId) {
-      if (designValidRef.current === false) {
-        toast.info('Finish your design before continuing.');
-        return;
-      }
-      if (!isSaving && !autoSaveInFlightRef.current) {
-        beginSave(true);
-        return;
-      }
-      if (hasUnsavedChangesRef.current) {
-        if (!designValidRef.current) {
-          toast.info('Finish your design before continuing.');
-          return;
-        }
-        beginSave(true);
-        return;
-      }
-      if (variantId && designId) {
-        navigate(`/preview/${variantId}?designId=${designId}`);
-      } else if (variantId) {
-        navigate(`/preview/${variantId}`);
-      }
-    } else {
-      if (designValidRef.current === false && !hasUnsavedChangesRef.current) {
-        toast.info('Finish your design before continuing.');
-        return;
-      }
-      beginSave(true);
+
+    const currentDesignIsSaved =
+      templateIdRef.current !== null &&
+      !hasUnsavedChangesRef.current;
+    if (currentDesignIsSaved) {
+      navigateToPreview();
+      return;
     }
+
+    beginSave(true, true);
   };
 
   const handleRetrySave = () => {
-    beginSave(false);
+    if (saveRecoveryMode === "reload_editor") {
+      void initializeDesignMaker();
+      return;
+    }
+    beginSave(true, true);
   };
 
   const handleRetryEditor = () => {
@@ -982,7 +1127,7 @@ const DesignEditorEDM = () => {
           >
             <span>{saveError}</span>
             <Button variant="outline" size="sm" onClick={handleRetrySave}>
-              Retry
+              {saveRecoveryMode === "reload_editor" ? "Reload editor" : "Retry save"}
             </Button>
           </div>
         )}
@@ -1009,10 +1154,22 @@ const DesignEditorEDM = () => {
 
         {/* Printful Designer Container */}
         <div className="relative flex-1 w-full">
+          {isSaving && (
+            <div
+              className="absolute inset-0 z-20 flex items-center justify-center bg-background/55 backdrop-blur-[1px]"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm">
+                Saving your design…
+              </div>
+            </div>
+          )}
           <div 
             id="printful-designer" 
-            className="flex-1 w-full"
+            className={`flex-1 w-full ${isSaving ? "pointer-events-none" : ""}`}
             ref={designerContainerRef}
+            aria-busy={isSaving || loading}
             style={{ 
               height: designerHeight ? `${designerHeight}px` : undefined,
               opacity: iframeLoaded ? 1 : 0,
@@ -1039,7 +1196,7 @@ const DesignEditorEDM = () => {
             <div className="flex items-center gap-3">
               {saveError && (
                 <Button variant="outline" size="sm" onClick={handleRetrySave}>
-                  Retry save
+                  {saveRecoveryMode === "reload_editor" ? "Reload editor" : "Retry save"}
                 </Button>
               )}
               <Button 
