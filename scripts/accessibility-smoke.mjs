@@ -879,7 +879,26 @@ try {
   await page.waitForURL(`${origin}/catalog`);
   await waitForStableUi(page);
   await page
-    .getByRole("heading", { level: 1, name: "Choose Your Phone" })
+    .getByRole("heading", {
+      level: 1,
+      name: "Custom Snap Cases for iPhone and Samsung",
+    })
+    .waitFor();
+  assert.equal(
+    await page.title(),
+    "Custom Snap Cases for iPhone & Samsung | Snapcase",
+    "Catalog browser title must match the search-intent promise.",
+  );
+  assert.equal(
+    await page.locator('meta[name="description"]').getAttribute("content"),
+    "Choose an iPhone or Samsung Galaxy model, then design and preview your custom snap case before checkout.",
+    "Catalog description must match the visible catalog journey.",
+  );
+  await page
+    .getByText(
+      "Choose an iPhone or Samsung Galaxy model, then design and preview your custom snap case before checkout.",
+      { exact: true },
+    )
     .waitFor();
   await page.getByRole("textbox", { name: "Search phone models" }).waitFor();
   const catalogResultCount = page.locator(
@@ -2362,7 +2381,10 @@ try {
     const selectionPage = await selectionContext.newPage();
     await selectionPage.goto(`${origin}/catalog`);
     await selectionPage
-      .getByRole("heading", { level: 1, name: "Choose Your Phone" })
+      .getByRole("heading", {
+        level: 1,
+        name: "Custom Snap Cases for iPhone and Samsung",
+      })
       .waitFor();
     await selectionPage
       .getByRole("link", { name: scenario.actionName })
@@ -2414,7 +2436,10 @@ try {
     `${origin}/catalog/?utm_source=launch&foo=first`,
   );
   await lateGrantPage
-    .getByRole("heading", { level: 1, name: "Choose Your Phone" })
+    .getByRole("heading", {
+      level: 1,
+      name: "Custom Snap Cases for iPhone and Samsung",
+    })
     .waitFor();
   assert.equal(lateGrantRecorder.getScriptRequests(), 0);
   assert.equal((await getAnalyticsEvents(lateGrantPage)).length, 0);
@@ -2547,7 +2572,10 @@ try {
   });
   await lateGrantPage.goBack();
   await lateGrantPage
-    .getByRole("heading", { level: 1, name: "Choose Your Phone" })
+    .getByRole("heading", {
+      level: 1,
+      name: "Custom Snap Cases for iPhone and Samsung",
+    })
     .waitFor();
   await lateGrantPage.goForward();
   await lateGrantPage.waitForURL(/\/phone-cases\/iphone-17-pro-max/);
@@ -2580,7 +2608,10 @@ try {
   await remountPage.waitForURL(/\/phone-cases\/iphone-17-pro-max/);
   await remountPage.goBack();
   await remountPage
-    .getByRole("heading", { level: 1, name: "Choose Your Phone" })
+    .getByRole("heading", {
+      level: 1,
+      name: "Custom Snap Cases for iPhone and Samsung",
+    })
     .waitFor();
   await remountPage
     .getByRole("button", { name: "Allow analytics" })
@@ -2632,7 +2663,10 @@ try {
     .click();
   await seoAnalyticsPage.waitForURL(`${origin}/catalog`);
   await seoAnalyticsPage
-    .getByRole("heading", { level: 1, name: "Choose Your Phone" })
+    .getByRole("heading", {
+      level: 1,
+      name: "Custom Snap Cases for iPhone and Samsung",
+    })
     .waitFor();
   await waitForAnalyticsEvents(seoAnalyticsPage, "view_item_list", 2);
   await seoAnalyticsPage.goBack();

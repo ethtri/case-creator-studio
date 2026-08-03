@@ -95,10 +95,11 @@ const Catalog = () => {
         <div className="container mx-auto px-6">
           <div>
             <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              Choose Your Phone
+              Custom Snap Cases for iPhone and Samsung
             </h1>
             <p className="text-muted-foreground text-lg max-w-xl">
-              Select your phone model to start designing your custom case
+              Choose an iPhone or Samsung Galaxy model, then design and preview
+              your custom snap case before checkout.
             </p>
           </div>
 

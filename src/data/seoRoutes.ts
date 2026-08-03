@@ -79,8 +79,8 @@ const baseSeoRoutes = [
   ),
   makeRoute(
     "/catalog",
-    "Phone Case Catalog | Snapcase",
-    "Browse iPhone and Samsung phone cases to start your custom Snapcase design.",
+    "Custom Snap Cases for iPhone & Samsung | Snapcase",
+    "Choose an iPhone or Samsung Galaxy model, then design and preview your custom snap case before checkout.",
     "0.8"
   ),
 ];
