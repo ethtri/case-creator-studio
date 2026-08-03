@@ -1,5 +1,5 @@
 {
-  "contractVersion": "1.1.0",
+  "contractVersion": "1.2.0",
   "analyticsContractVersion": "1.0.0",
   "reportingTimezone": "America/Los_Angeles",
   "currency": "USD",
@@ -374,6 +374,30 @@
         "phone_family": "customEvent:brand",
         "phone_model": "customEvent:model"
       }
+    },
+    {
+      "id": "editor_continue_rate",
+      "name": "Editor continue rate",
+      "numerator": "Distinct sessions with primary_cta_click and placement=editor_continue",
+      "denominator": "Distinct sessions with editor_first_action",
+      "sources": ["ga4_events"],
+      "freshness": "T+1",
+      "timezone": "America/Los_Angeles",
+      "ownerRole": "Product/growth review owner (human assignment pending)",
+      "populationScope": "consented_ga4_sessions",
+      "filters": ["date", "source", "medium", "campaign", "device", "browser"]
+    },
+    {
+      "id": "editor_preview_completion_rate",
+      "name": "Editor preview completion rate",
+      "numerator": "Distinct sessions with preview_success",
+      "denominator": "Distinct sessions with primary_cta_click and placement=editor_continue",
+      "sources": ["ga4_events"],
+      "freshness": "T+1",
+      "timezone": "America/Los_Angeles",
+      "ownerRole": "Product/growth review owner (human assignment pending)",
+      "populationScope": "consented_ga4_sessions",
+      "filters": ["date", "source", "medium", "campaign", "device", "browser"]
     },
     {
       "id": "preview_success_rate",

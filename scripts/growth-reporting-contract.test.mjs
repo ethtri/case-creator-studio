@@ -99,7 +99,8 @@ const bindCompletedReconciliationToReport = (contract, report) => {
 test("defines a complete contract without invented baselines, owners, or winners", async () => {
   const { contract } = await loadFixture();
   assert.deepEqual(validateReportingContract(contract), []);
-  assert.equal(contract.metrics.length, 16);
+  assert.equal(contract.contractVersion, "1.2.0");
+  assert.equal(contract.metrics.length, 18);
   assert.equal(contract.experiments.length, 5);
   assert.deepEqual(contract.experiments.map((experiment) => experiment.rank), [1, 2, 3, 4, 5]);
   assert.ok(contract.experiments.every((experiment) => experiment.baseline.status === "pending"));
@@ -107,6 +108,48 @@ test("defines a complete contract without invented baselines, owners, or winners
   assert.ok(contract.experiments.every((experiment) => experiment.result.winner === null));
   assert.equal(contract.cadence.ownerStatus, "pending_human_assignment");
   assert.equal(contract.dashboard.baseline.status, "pending");
+});
+
+test("defines editor continuation rates from consented GA4 sessions", async () => {
+  const { contract } = await loadFixture();
+  const allowedFilters = [
+    "date",
+    "source",
+    "medium",
+    "campaign",
+    "device",
+    "browser",
+  ];
+  const editorContinue = contract.metrics.find(
+    (metric) => metric.id === "editor_continue_rate",
+  );
+  const previewCompletion = contract.metrics.find(
+    (metric) => metric.id === "editor_preview_completion_rate",
+  );
+
+  assert.equal(
+    editorContinue.numerator,
+    "Distinct sessions with primary_cta_click and placement=editor_continue",
+  );
+  assert.equal(
+    editorContinue.denominator,
+    "Distinct sessions with editor_first_action",
+  );
+  assert.equal(
+    previewCompletion.numerator,
+    "Distinct sessions with preview_success",
+  );
+  assert.equal(
+    previewCompletion.denominator,
+    "Distinct sessions with primary_cta_click and placement=editor_continue",
+  );
+
+  for (const metric of [editorContinue, previewCompletion]) {
+    assert.deepEqual(metric.sources, ["ga4_events"]);
+    assert.equal(metric.freshness, "T+1");
+    assert.equal(metric.populationScope, "consented_ga4_sessions");
+    assert.deepEqual(metric.filters, allowedFilters);
+  }
 });
 
 test("maps every filter and registered custom dimension to the correct GA4 scope", async () => {
