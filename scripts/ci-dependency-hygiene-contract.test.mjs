@@ -50,7 +50,7 @@ test("supported tooling updates remove the vulnerable glob and minimatch paths",
   assert.equal(eslintJs.version, "10.0.1");
   assert.match(reactHooks.peerDependencies.eslint, /\^10\.0\.0/);
   assert.equal(minimatch.version, "10.2.5");
-  assert.equal(braceExpansion.version, "5.0.8");
+  assert.equal(braceExpansion.version, "5.0.9");
   assert.equal(packages["node_modules/tailwindcss"].version, "3.4.19");
   assert.equal(sucrase.version, "3.35.1");
   assert.equal(sucrase.dependencies.glob, undefined);

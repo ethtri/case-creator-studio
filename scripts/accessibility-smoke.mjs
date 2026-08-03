@@ -1234,20 +1234,24 @@ try {
     0,
     "An incomplete production preview must not claim that it is ready.",
   );
-  const addToCart = page.getByRole("button", { name: /Add to Cart/ });
-  await addToCart.waitFor();
+  const previewCheckoutAction = page.getByRole("button", {
+    name: /Continue to Checkout/,
+  });
+  await previewCheckoutAction.waitFor();
   assert.equal(
-    await addToCart.isDisabled(),
+    await previewCheckoutAction.isDisabled(),
     true,
-    "Add to Cart must remain disabled while the production preview is not ready.",
+    "Continue to Checkout must remain disabled while the production preview is not ready.",
   );
   assert.equal(
-    await addToCart.getAttribute("aria-describedby"),
+    await previewCheckoutAction.getAttribute("aria-describedby"),
     "preview-purchase-status",
     "The primary purchase control must reference its live state explanation.",
   );
   await page
-    .getByText(/Preparing your production preview\. Add to Cart becomes available/)
+    .getByText(
+      /Preparing your production preview\. Continue to Checkout becomes available/,
+    )
     .waitFor();
   auditResults.push(
     await assertNoSeriousAxeViolations(page, "preview-loading-light-desktop"),
@@ -1261,21 +1265,86 @@ try {
     "ready",
     "A valid saved production preview must expose the ready-to-add state.",
   );
-  assert.equal(await addToCart.isDisabled(), false);
-  await assertTargetSize(addToCart, "Preview primary purchase action");
-  await addToCart.focus();
-  await page.keyboard.press("Enter");
-  const continueToCheckout = page.getByRole("button", {
-    name: "Continue to Checkout",
-  });
-  await continueToCheckout.waitFor();
+  assert.equal(await previewCheckoutAction.isDisabled(), false);
+  await previewCheckoutAction
+    .getByText("Continue to Checkout — $29.99", { exact: true })
+    .waitFor();
+  await assertTargetSize(
+    previewCheckoutAction,
+    "Preview primary purchase action",
+  );
   assert.equal(
-    await continueToCheckout.evaluate(
+    await page.getByRole("button", { name: "Proceed to Checkout" }).count(),
+    0,
+    "Preview must not render a duplicate checkout control.",
+  );
+  const previewRoute = page.url();
+  await previewCheckoutAction.focus();
+  assert.equal(
+    await previewCheckoutAction.evaluate(
       (element) => element === document.activeElement,
     ),
     true,
-    "The transformed purchase control must retain keyboard focus after adding.",
+    "The one-click checkout action must accept keyboard focus.",
   );
+  const keyboardCheckoutNavigation = page.waitForURL(
+    `${origin}/checkout/iphone-17-pro-max`,
+  );
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+  await keyboardCheckoutNavigation;
+  await page.getByRole("heading", { level: 1, name: "Checkout" }).waitFor();
+  const cartAfterOneClick = await page.evaluate(() =>
+    JSON.parse(window.localStorage.getItem("snapcase_cart_v1") ?? "[]"),
+  );
+  const expectedDesignId = new URL(previewRoute).searchParams.get("designId");
+  const expectedExternalProductId = await page.evaluate(
+    (designId) =>
+      designId
+        ? window.sessionStorage.getItem(
+            `edmDesign:${designId}:externalProductId`,
+          )
+        : null,
+    expectedDesignId,
+  );
+  const storedDesignPreview = await page.evaluate(
+    (cartItemId) =>
+      window.sessionStorage.getItem(`snapcase_cart_preview:${cartItemId}`),
+    cartAfterOneClick[0]?.id,
+  );
+  assert.equal(
+    cartAfterOneClick.length,
+    1,
+    "Rapid keyboard activation must add exactly one cart line before routing.",
+  );
+  assert.deepEqual(
+    {
+      variantId: cartAfterOneClick[0]?.variantId,
+      edmTemplateId: cartAfterOneClick[0]?.edmTemplateId,
+      designId: cartAfterOneClick[0]?.designId,
+      externalProductId: cartAfterOneClick[0]?.externalProductId,
+      designPreview: storedDesignPreview,
+    },
+    {
+      variantId: "iphone-17-pro-max",
+      edmTemplateId: 12345,
+      designId: expectedDesignId,
+      externalProductId: expectedExternalProductId,
+      designPreview: previewUrl,
+    },
+    "The one-click handoff must persist the exact ready design identity and preview.",
+  );
+
+  await page.goBack();
+  await page.waitForURL(previewRoute);
+  await page
+    .getByRole("heading", { level: 1, name: "Apple iPhone 17 Pro Max" })
+    .waitFor();
+  const continueToCheckout = page.getByRole("button", {
+    name: "Continue to Checkout",
+    exact: true,
+  });
+  await continueToCheckout.waitFor();
   await page
     .getByText("Added to cart. Continue to checkout when you are ready.", {
       exact: true,
@@ -1286,11 +1355,6 @@ try {
     "in-cart",
   );
   await page.getByRole("button", { name: "Open cart, 1 item" }).waitFor();
-  assert.equal(
-    await page.getByRole("button", { name: "Proceed to Checkout" }).count(),
-    0,
-    "Preview must not render a duplicate checkout control.",
-  );
   await page.waitForTimeout(2200);
   await continueToCheckout.waitFor();
   const previewCartItems = await page.evaluate(() =>
@@ -1448,10 +1512,14 @@ try {
     .click();
   await purchaseAnalyticsPage.waitForURL(/\/preview\/iphone-17-pro-max/);
   await waitForAnalyticsEvents(purchaseAnalyticsPage, "preview_success", 1);
-  const measuredAddToCart = purchaseAnalyticsPage.getByRole("button", {
-    name: /Add to Cart/,
+  const measuredCheckoutAction = purchaseAnalyticsPage.getByRole("button", {
+    name: /Continue to Checkout/,
   });
-  await measuredAddToCart.click();
+  const measuredPreviewUrl = purchaseAnalyticsPage.url();
+  await measuredCheckoutAction.dblclick({ delay: 10 });
+  await purchaseAnalyticsPage.waitForURL(
+    `${origin}/checkout/iphone-17-pro-max`,
+  );
   await waitForAnalyticsEvents(purchaseAnalyticsPage, "add_to_cart", 1);
   const measuredCartEvents = await getAnalyticsEvents(
     purchaseAnalyticsPage,
@@ -1462,29 +1530,73 @@ try {
   assertCompleteAnalyticsItems(
     measuredCartEvents[0],
     1,
-    "Preview primary cart action",
+    "Preview one-click checkout action",
   );
-  const measuredContinue = purchaseAnalyticsPage.getByRole("button", {
-    name: "Continue to Checkout",
-  });
-  await purchaseAnalyticsPage.waitForTimeout(2200);
-  await measuredContinue.waitFor();
   assert.equal(
     await purchaseAnalyticsPage.evaluate(
       () => JSON.parse(localStorage.getItem("snapcase_cart_v1") ?? "[]").length,
     ),
     1,
-    "The measured preview must remain exactly one cart line.",
+    "Rapid activation must leave exactly one cart line.",
   );
-  await measuredContinue.focus();
-  await purchaseAnalyticsPage.keyboard.press("Enter");
+  assert.equal(
+    (await getAnalyticsEvents(purchaseAnalyticsPage, "begin_checkout")).length,
+    0,
+    "Route arrival must not emit begin_checkout.",
+  );
+
+  await purchaseAnalyticsPage.goBack();
+  await purchaseAnalyticsPage.waitForURL(measuredPreviewUrl);
+  const measuredContinue = purchaseAnalyticsPage.getByRole("button", {
+    name: "Continue to Checkout",
+    exact: true,
+  });
+  await measuredContinue.waitFor();
+  await measuredContinue.click();
   await purchaseAnalyticsPage.waitForURL(
     `${origin}/checkout/iphone-17-pro-max`,
   );
   assert.equal(
     (await getAnalyticsEvents(purchaseAnalyticsPage, "add_to_cart")).length,
     1,
-    "Continuing to checkout must not emit another add_to_cart event.",
+    "An already-in-cart design must navigate without another add_to_cart event.",
+  );
+  assert.equal(
+    (await getAnalyticsEvents(purchaseAnalyticsPage, "begin_checkout")).length,
+    0,
+    "Repeated route arrival must still not emit begin_checkout.",
+  );
+
+  await purchaseAnalyticsPage.goBack();
+  await purchaseAnalyticsPage.waitForURL(measuredPreviewUrl);
+  await purchaseAnalyticsPage.reload();
+  await waitForStableUi(purchaseAnalyticsPage);
+  const reloadedContinue = purchaseAnalyticsPage.getByRole("button", {
+    name: "Continue to Checkout",
+    exact: true,
+  });
+  await reloadedContinue.waitFor();
+  assert.equal(
+    await purchaseAnalyticsPage.evaluate(
+      () => JSON.parse(localStorage.getItem("snapcase_cart_v1") ?? "[]").length,
+    ),
+    1,
+    "Reloading the stable design must preserve exactly one cart line.",
+  );
+  await reloadedContinue.focus();
+  await purchaseAnalyticsPage.keyboard.press("Enter");
+  await purchaseAnalyticsPage.waitForURL(
+    `${origin}/checkout/iphone-17-pro-max`,
+  );
+  assert.equal(
+    (await getAnalyticsEvents(purchaseAnalyticsPage, "add_to_cart")).length,
+    0,
+    "The reloaded in-cart path must not emit add_to_cart.",
+  );
+  assert.equal(
+    (await getAnalyticsEvents(purchaseAnalyticsPage, "begin_checkout")).length,
+    0,
+    "Keyboard route arrival must not emit begin_checkout.",
   );
   await purchaseAnalyticsContext.close();
 
@@ -1563,14 +1675,32 @@ try {
     .getByRole("button", { name: "Continue to Preview" })
     .click();
   await invalidPage.waitForURL(/\/preview\/iphone-17-pro-max/);
-  const invalidPreviewAdd = invalidPage.getByRole("button", {
-    name: /Add to Cart/,
+  const invalidPreviewAction = invalidPage.getByRole("button", {
+    name: /Continue to Checkout/,
   });
-  await invalidPreviewAdd.click();
+  const invalidPreviewUrl = invalidPage.url();
+  await invalidPreviewAction.click({ trial: true });
+  await invalidPreviewAction.evaluate((element) => {
+    element.click();
+    element.click();
+  });
   const invalidPreviewContinue = invalidPage.getByRole("button", {
     name: "Continue to Checkout",
+    exact: true,
   });
   await invalidPreviewContinue.waitFor();
+  assert.equal(
+    invalidPage.url(),
+    invalidPreviewUrl,
+    "The one-click handoff must remain on Preview when another cart item is incomplete.",
+  );
+  assert.equal(
+    await invalidPage.evaluate(
+      () => JSON.parse(localStorage.getItem("snapcase_cart_v1") ?? "[]").length,
+    ),
+    2,
+    "Rapid activation with an invalid cart must add the current design only once.",
+  );
   assert.equal(
     await invalidPreviewContinue.isDisabled(),
     true,
@@ -1871,35 +2001,29 @@ try {
     .locator('[data-preview-purchase-state="preparing"]')
     .getByRole("heading", { level: 2, name: "Preparing your preview" })
     .waitFor();
-  const mobileAddToCart = mobilePage.getByRole("button", {
-    name: /Add to Cart/,
+  const mobileCheckoutAction = mobilePage.getByRole("button", {
+    name: /Continue to Checkout/,
   });
-  assert.equal(await mobileAddToCart.isDisabled(), true);
+  assert.equal(await mobileCheckoutAction.isDisabled(), true);
   await assertNoHorizontalOverflow(mobilePage, "Mobile preparing preview");
-  await mobileAddToCart.click();
-  const mobileContinueToCheckout = mobilePage.getByRole("button", {
-    name: "Continue to Checkout",
-  });
-  await mobileContinueToCheckout.waitFor();
+  await mobilePage
+    .locator('[data-preview-purchase-state="ready"]')
+    .getByRole("heading", { level: 2, name: "Preview ready" })
+    .waitFor();
   assert.equal(
-    await mobileContinueToCheckout.evaluate(
-      (element) => element === document.activeElement,
-    ),
-    true,
-    "The mobile purchase action must retain focus when it becomes Continue.",
+    await mobileCheckoutAction.isDisabled(),
+    false,
+    "The mobile one-click handoff must enable only after the preview is ready.",
   );
-  await mobilePage.getByRole("button", { name: "Open cart, 3 items" }).waitFor();
-  await mobilePage.waitForTimeout(2200);
-  await mobileContinueToCheckout.waitFor();
   await assertTargetSize(
-    mobileContinueToCheckout,
-    "Mobile preview continue",
+    mobileCheckoutAction,
+    "Mobile preview one-click checkout",
   );
-  await assertNoHorizontalOverflow(mobilePage, "Mobile in-cart preview");
+  await assertNoHorizontalOverflow(mobilePage, "Mobile ready preview");
   auditResults.push(
     await assertNoSeriousAxeViolations(
       mobilePage,
-      "preview-in-cart-dark-mobile",
+      "preview-ready-dark-mobile",
     ),
   );
   await clearInteractionPresentation(mobilePage);
@@ -1907,6 +2031,23 @@ try {
     path: resolve(outputDir, "preview-dark-mobile.png"),
     fullPage: true,
   });
+  await mobileCheckoutAction.click();
+  await mobilePage.waitForURL(`${origin}/checkout/galaxy-s24`);
+  await mobilePage.getByRole("heading", { level: 1, name: "Checkout" }).waitFor();
+  assert.equal(
+    await mobilePage.evaluate(
+      () =>
+        JSON.parse(localStorage.getItem("snapcase_cart_v1") ?? "[]").filter(
+          (item) => item.variantId === "galaxy-s24",
+        ).length,
+    ),
+    1,
+    "The mobile handoff must add the ready design exactly once.",
+  );
+  await assertNoHorizontalOverflow(
+    mobilePage,
+    "Mobile one-click checkout arrival",
+  );
   await mobile.close();
 
   const entryEvidenceScenarios = [
