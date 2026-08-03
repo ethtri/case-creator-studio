@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350" role="img" aria-labelledby="title desc">
+  <title id="title">Crop rescue before and after</title>
+  <desc id="desc">A four-by-five Snapcase explainer comparing an awkward crop with a reframed crop using original landscape artwork.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff8ef"/><stop offset="1" stop-color="#e2eff5"/></linearGradient>
+    <linearGradient id="scene" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f36f61"/><stop offset=".58" stop-color="#f6c65b"/><stop offset="1" stop-color="#d9e9f4"/></linearGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="12" stdDeviation="15" flood-color="#173a4e" flood-opacity=".16"/></filter>
+    <clipPath id="before"><rect x="102" y="526" width="390" height="460" rx="46"/></clipPath>
+    <clipPath id="after"><rect x="588" y="526" width="390" height="460" rx="46"/></clipPath>
+  </defs>
+
+  <rect width="1080" height="1350" fill="url(#bg)"/>
+  <circle cx="1000" cy="90" r="165" fill="#f7d8d0" opacity=".55"/>
+  <text x="64" y="88" fill="#7a6857" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" letter-spacing="4">SNAPCASE  •  CROP RESCUE</text>
+  <line x1="64" y1="124" x2="1016" y2="124" stroke="#172131" stroke-width="3"/>
+  <text x="64" y="234" fill="#172131" font-family="Georgia, 'Times New Roman', serif" font-size="78" font-weight="700">Reframe before</text>
+  <text x="64" y="316" fill="#172131" font-family="Georgia, 'Times New Roman', serif" font-size="78" font-weight="700">you commit.</text>
+  <text x="68" y="374" fill="#44515b" font-family="Arial, Helvetica, sans-serif" font-size="30">Move it. Zoom it. Preview it.</text>
+
+  <g filter="url(#shadow)">
+    <rect x="64" y="430" width="466" height="620" rx="58" fill="#ffffff"/>
+    <rect x="550" y="430" width="466" height="620" rx="58" fill="#ffffff"/>
+  </g>
+  <text x="297" y="490" text-anchor="middle" fill="#ad4c43" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" letter-spacing="3">AWKWARD CROP</text>
+  <text x="783" y="490" text-anchor="middle" fill="#356382" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" letter-spacing="3">REFRAMED</text>
+
+  <rect x="102" y="526" width="390" height="460" rx="46" fill="url(#scene)"/>
+  <g clip-path="url(#before)">
+    <circle cx="494" cy="646" r="90" fill="#fff3bd"/>
+    <path d="M72 812 178 662 284 822 404 632 530 858v160H72Z" fill="#78a8c8"/>
+    <path d="M68 884 216 746 338 888 478 772 532 946v80H68Z" fill="#356382"/>
+    <path d="M68 946c128-78 254-72 464 14v76H68Z" fill="#163f53"/>
+  </g>
+  <path d="M142 560 454 950M454 560 142 950" stroke="#ad4c43" stroke-width="12" stroke-linecap="round" opacity=".8"/>
+
+  <rect x="588" y="526" width="390" height="460" rx="46" fill="url(#scene)"/>
+  <g clip-path="url(#after)">
+    <circle cx="800" cy="656" r="72" fill="#fff3bd"/>
+    <path d="M558 814 680 660 790 808 878 688 1010 858v160H558Z" fill="#78a8c8"/>
+    <path d="M554 886 702 758 814 884 932 776 1012 948v82H554Z" fill="#356382"/>
+    <path d="M554 946c118-74 236-67 458 16v78H554Z" fill="#163f53"/>
+  </g>
+  <circle cx="928" cy="574" r="50" fill="#163f53"/>
+  <path d="m904 576 16 17 33-39" fill="none" stroke="#ffffff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <path d="M512 752h36" stroke="#172131" stroke-width="11" stroke-linecap="round"/>
+  <path d="M538 728 566 752 538 776" fill="none" stroke="#172131" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <rect x="64" y="1100" width="952" height="108" rx="54" fill="#f36f61"/>
+  <text x="540" y="1168" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="37" font-weight="700">Preview your crop before checkout</text>
+  <text x="540" y="1290" text-anchor="middle" fill="#56646e" font-family="Arial, Helvetica, sans-serif" font-size="22">Illustrated crop example — not a finished product photo.</text>
+</svg>
