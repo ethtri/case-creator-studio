@@ -5,5 +5,26 @@
     "status": 307,
     "caseSensitive": false,
     "preserveQueryParams": false
+  },
+  {
+    "source": "/go/instagram",
+    "destination": "/custom-phone-case?utm_source=instagram&utm_medium=organic_social&utm_campaign=2026q3_profile&utm_content=instagram_profile_link_v1",
+    "status": 307,
+    "caseSensitive": false,
+    "preserveQueryParams": false
+  },
+  {
+    "source": "/go/tiktok",
+    "destination": "/custom-phone-case?utm_source=tiktok&utm_medium=organic_social&utm_campaign=2026q3_profile&utm_content=tiktok_profile_link_v1",
+    "status": 307,
+    "caseSensitive": false,
+    "preserveQueryParams": false
+  },
+  {
+    "source": "/go/threads",
+    "destination": "/custom-phone-case?utm_source=threads&utm_medium=organic_social&utm_campaign=2026q3_profile&utm_content=threads_profile_link_v1",
+    "status": 307,
+    "caseSensitive": false,
+    "preserveQueryParams": false
   }
 ]
