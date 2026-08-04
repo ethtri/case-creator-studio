@@ -3,7 +3,7 @@
 Owner-updated snapshot for AI agents. GitHub Issues is the operational source
 of truth; `Docs/DECISIONS.md` remains authoritative for recorded decisions.
 
-**Last updated:** 2026-07-21
+**Last updated:** 2026-08-04
 **Last updated by:** Codex
 **MVP target:** Controlled production-ready pilot
 **Sprint goal:** Prove the order-to-physical-case identity chain and finish the
@@ -48,6 +48,10 @@ remaining supervised onshore-pilot gates.
 
 - The public site uses `https://www.snapcase.ai`, the EDM-first design flow,
   live Stripe Checkout, and Printful as the production fulfillment default.
+- Checkout-start analytics now waits for a validated hosted Stripe Session,
+  remains latched through redirect, and excludes customer, design, attribution,
+  URL, and Session data. Production ingestion and QA-exclusion proof remain
+  tracked in #244 until observed by the read-only measurement importer.
 - Onshore fulfillment remains a controlled, fail-closed pilot. Signed
   Kexiaozhan handoff, deferred-print callback, one-job routing, and EasyPost
   shipping foundations are proven in isolated staging; production gates remain
