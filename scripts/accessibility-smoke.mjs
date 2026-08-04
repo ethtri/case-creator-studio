@@ -2915,27 +2915,24 @@ try {
   );
   assert.equal(
     beginCheckoutEvents.length,
-    1,
-    "One checkout attempt must emit begin_checkout exactly once.",
+    0,
+    "A declined Checkout creation must not emit begin_checkout.",
   );
-  assert.deepEqual(beginCheckoutEvents[0].params, {
-    value: 59.98,
-    currency: "USD",
-    shipping: 4.99,
-    items: [
-      {
-        item_id: "iphone-17-pro-max",
-        item_name: "Apple iPhone 17 Pro Max Custom Case",
-        item_brand: "Apple",
-        item_category: "Custom Phone Case",
-        item_variant: "iPhone 17 Pro Max",
-        price: 29.99,
-        quantity: 2,
-        discount: 0,
+  const checkoutErrorEvents = await declinedCheckoutPage.evaluate(() =>
+    window.__checkoutAnalyticsEvents.filter(
+      (event) => event.name === "checkout_error",
+    ),
+  );
+  assert.deepEqual(checkoutErrorEvents, [
+    {
+      name: "checkout_error",
+      params: {
+        error_code: "checkout_start_failed",
+        stage: "create_checkout",
+        analytics_contract_version: "1.0.0",
       },
-    ],
-    analytics_contract_version: "1.0.0",
-  });
+    },
+  ]);
   await declinedCheckoutContext.close();
 
   const emptyCartContext = await browser.newContext({

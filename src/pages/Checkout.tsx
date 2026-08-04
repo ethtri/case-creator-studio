@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -37,9 +37,9 @@ import {
   trackMarketingEvent,
 } from "@/lib/marketing";
 import {
-  asMarketingItems,
-  buildAnalyticsItems,
-} from "@/lib/analytics-commerce";
+  buildBeginCheckoutPayload,
+  createHostedCheckoutRunner,
+} from "@/lib/checkout-session";
 import { SNAPCASE_DEFAULT_SHIPPING } from "../../supabase/functions/_shared/catalog-pricing.ts";
 
 const SHIPPING_COST = SNAPCASE_DEFAULT_SHIPPING;
@@ -62,6 +62,18 @@ const Checkout = () => {
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [promoOpen, setPromoOpen] = useState(false);
+  const checkoutRunner = useMemo(
+    () =>
+      createHostedCheckoutRunner({
+        invoke: (body) =>
+          supabase.functions.invoke("create-checkout", { body }),
+        track: trackMarketingEvent,
+        redirect: (url) => {
+          window.location.href = url;
+        },
+      }),
+    [],
+  );
 
   useEffect(() => {
     const foundVariant = getVariantById(variantId || "");
@@ -171,7 +183,7 @@ const Checkout = () => {
     setPromoError(null);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     if (items.length === 0) {
@@ -185,99 +197,51 @@ const Checkout = () => {
     }
 
     setIsProcessing(true);
-
-    try {
-      // Prepare cart items for checkout
-      const cartItems = items.map((item) => ({
+    const cartItems = items.map((item) => ({
+      variantId: item.variant.id,
+      brand: item.variant.brand,
+      model: item.variant.model,
+      price: item.variant.price,
+      quantity: item.quantity,
+      designPreview: item.designPreview,
+      edmTemplateId: item.edmTemplateId as number,
+      designId: item.designId ?? null,
+      externalProductId: item.externalProductId ?? null,
+    }));
+    const beginCheckoutPayload = buildBeginCheckoutPayload({
+      subtotal: total - SHIPPING_COST,
+      shipping: SHIPPING_COST,
+      items: items.map((item) => ({
         variantId: item.variant.id,
         brand: item.variant.brand,
         model: item.variant.model,
         price: item.variant.price,
         quantity: item.quantity,
-        designPreview: item.designPreview,
-        edmTemplateId: item.edmTemplateId as number,
-        designId: item.designId ?? null,
-        externalProductId: item.externalProductId ?? null,
-      }));
-      const marketingAttribution = getMarketingAttribution();
-      const analyticsConsent = getAnalyticsConsent();
-      const analyticsClientId = await getAnalyticsClientId();
-      const analyticsItems = buildAnalyticsItems(
-        items.map((item) => ({
-          variant: item.variant,
-          quantity: item.quantity,
-          discount:
-            item.quantity > 0
-              ? discountTotal /
-                items.reduce((sum, cartItem) => sum + cartItem.quantity, 0)
-              : 0,
-        })),
-      );
+        discount: totalQuantity > 0 ? discountTotal / totalQuantity : 0,
+      })),
+      coupon: appliedPromo?.code,
+    });
 
-      trackMarketingEvent("begin_checkout", {
-        value: Math.max(0, total - SHIPPING_COST),
-        currency: "USD",
-        shipping: SHIPPING_COST,
-        items: asMarketingItems(analyticsItems),
-        ...(appliedPromo ? { coupon: appliedPromo.code } : {}),
-      });
-
-      const { data, error } = await supabase.functions.invoke(
-        "create-checkout",
-        {
-          body: {
-            items: cartItems,
-            customerEmail: user?.email ?? email,
-            promoCode: appliedPromo ? { code: appliedPromo.code } : undefined,
-            marketingAttribution,
-            analyticsConsent,
-            analyticsClientId,
-          },
-        },
-      );
-
-      if (error) {
-        let message = error.message;
-        const context = (error as { context?: Response }).context;
-        if (context) {
-          try {
-            const errorBody = await context.json();
-            if (errorBody?.error) {
-              message = errorBody.error as string;
-            }
-          } catch (parseError) {
-            console.warn(
-              "Unable to parse checkout error response:",
-              parseError,
-            );
-          }
+    void checkoutRunner.start({
+      buildRequestBody: async () => ({
+        items: cartItems,
+        customerEmail: user?.email ?? email,
+        promoCode: appliedPromo ? { code: appliedPromo.code } : undefined,
+        marketingAttribution: getMarketingAttribution(),
+        analyticsConsent: getAnalyticsConsent(),
+        analyticsClientId: await getAnalyticsClientId(),
+      }),
+      beginCheckoutPayload,
+      onFailure: ({ message, errorCode }) => {
+        console.error("Checkout error:", message);
+        if (errorCode === "promotion_rejected") {
+          setAppliedPromo(null);
+          setPromoError(message);
         }
-        throw new Error(message);
-      }
-
-      if (data?.url) {
-        // Redirect to Stripe Checkout
-        window.location.href = data.url;
-      } else {
-        throw new Error("No checkout URL received");
-      }
-    } catch (error) {
-      console.error("Checkout error:", error);
-      const message =
-        error instanceof Error ? error.message : "Failed to start checkout.";
-      trackMarketingEvent("checkout_error", {
-        error_code: message.toLowerCase().includes("promo")
-          ? "promotion_rejected"
-          : "checkout_start_failed",
-        stage: "create_checkout",
-      });
-      if (message.toLowerCase().includes("promo")) {
-        setAppliedPromo(null);
-        setPromoError(message);
-      }
-      toast.error(message);
-      setIsProcessing(false);
-    }
+        toast.error(message);
+        setIsProcessing(false);
+      },
+    });
   };
 
   if (items.length === 0 && !variant) {
