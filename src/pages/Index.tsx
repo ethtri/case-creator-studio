@@ -18,6 +18,7 @@ import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
 import { SnapcaseLogo } from "@/components/SnapcaseLogo";
 import { LifecycleSignup } from "@/components/LifecycleSignup";
+import { SocialProfileLinks } from "@/components/SocialProfileLinks";
 import { trackMarketingEvent } from "@/lib/marketing";
 import { asMarketingItems, buildAnalyticsItem } from "@/lib/analytics-commerce";
 import {
@@ -384,17 +385,23 @@ const Index = () => {
       {/* Footer */}
       <footer className="py-12 border-t border-border/30">
         <div className="container mx-auto px-6">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
             <SnapcaseLogo className="text-lg" />
-            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground">
-              <Link to="/custom-phone-case" className="hover:text-foreground transition-colors">Custom Cases</Link>
-              <Link to="/custom-iphone-case" className="hover:text-foreground transition-colors">iPhone Cases</Link>
-              <Link to="/custom-samsung-case" className="hover:text-foreground transition-colors">Samsung Cases</Link>
-              <Link to="/gifts/custom-phone-case" className="hover:text-foreground transition-colors">Gift Ideas</Link>
-              <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
-              <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
-              <Link to="/contact" className="hover:text-foreground transition-colors">Contact</Link>
-              <Link to="/email-preferences" className="hover:text-foreground transition-colors">Email preferences</Link>
+            <div className="flex max-w-3xl flex-col items-center gap-4">
+              <nav
+                aria-label="Snapcase links"
+                className="flex flex-wrap items-center justify-center gap-4 text-sm text-muted-foreground"
+              >
+                <Link to="/custom-phone-case" className="hover:text-foreground transition-colors">Custom Cases</Link>
+                <Link to="/custom-iphone-case" className="hover:text-foreground transition-colors">iPhone Cases</Link>
+                <Link to="/custom-samsung-case" className="hover:text-foreground transition-colors">Samsung Cases</Link>
+                <Link to="/gifts/custom-phone-case" className="hover:text-foreground transition-colors">Gift Ideas</Link>
+                <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+                <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+                <Link to="/contact" className="hover:text-foreground transition-colors">Contact</Link>
+                <Link to="/email-preferences" className="hover:text-foreground transition-colors">Email preferences</Link>
+              </nav>
+              <SocialProfileLinks />
             </div>
             <p className="text-sm text-muted-foreground">
               © {currentYear} snapcase.ai. All rights reserved.
