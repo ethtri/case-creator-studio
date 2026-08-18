@@ -123,6 +123,7 @@ const DesignEditorEDM = () => {
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [templateId, setTemplateId] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDesignValid, setIsDesignValid] = useState(false);
   const [saveRecoveryMode, setSaveRecoveryMode] = useState<SaveRecoveryMode | null>(null);
   const [isImmersive, setIsImmersive] = useState(false);
   const [showImmersiveHint, setShowImmersiveHint] = useState(false);
@@ -212,6 +213,7 @@ const DesignEditorEDM = () => {
     saveAttemptedGenerationRef.current = null;
     hasUnsavedChangesRef.current = false;
     designValidRef.current = false;
+    setIsDesignValid(false);
     continueAfterSaveRef.current = false;
     continueActivationInFlightRef.current = false;
     navigationCommittedRef.current = false;
@@ -535,6 +537,7 @@ const DesignEditorEDM = () => {
         hasUnsavedChangesRef.current = false;
       }
       designValidRef.current = false;
+      setIsDesignValid(false);
 
       const initProduct = resolvedTemplateId
         ? undefined
@@ -617,6 +620,7 @@ const DesignEditorEDM = () => {
             }
           }
           designValidRef.current = isValid;
+          setIsDesignValid(isValid);
         },
         onProductChanged: () => {
           reassertDesignStep();
@@ -1014,6 +1018,7 @@ const DesignEditorEDM = () => {
               className="bg-cta hover:bg-cta/90 text-cta-foreground px-3"
               disabled={isSaving}
               onClick={handleContinue}
+              aria-describedby={!isDesignValid ? "design-action-guidance" : undefined}
             >
               {isSaving ? "Saving..." : (
                 <span className="flex items-center gap-1.5">
@@ -1152,6 +1157,16 @@ const DesignEditorEDM = () => {
           </div>
         )}
 
+        {isMobile && iframeLoaded && !isDesignValid && (
+          <p
+            id="design-action-guidance"
+            className="border-b border-border bg-card px-4 py-2 text-center text-xs font-medium text-foreground"
+            role="status"
+          >
+            Start by adding a photo, text, or design.
+          </p>
+        )}
+
         {/* Printful Designer Container */}
         <div className="relative flex-1 w-full">
           {isSaving && (
@@ -1189,8 +1204,12 @@ const DesignEditorEDM = () => {
                 <span className="text-destructive-emphasis">{saveError}</span>
               ) : templateId ? (
                 <span className="text-success-emphasis">Design saved (Template #{templateId})</span>
+              ) : !isDesignValid ? (
+                <span id="design-action-guidance" className="font-medium text-foreground">
+                  Add a photo, text, or design to continue
+                </span>
               ) : (
-                <span>Design your case using our editor</span>
+                <span>Your design is ready to preview</span>
               )}
             </div>
             <div className="flex items-center gap-3">
@@ -1203,6 +1222,7 @@ const DesignEditorEDM = () => {
                 className="bg-cta hover:bg-cta/90 text-cta-foreground"
                 disabled={isSaving}
                 onClick={handleContinue}
+                aria-describedby={!isDesignValid ? "design-action-guidance" : undefined}
               >
                 {isSaving ? "Saving..." : "Continue to Preview"}
               </Button>

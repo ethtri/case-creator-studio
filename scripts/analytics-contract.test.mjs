@@ -109,6 +109,11 @@ test("editor preview CTAs stay explicit without dropping funnel analytics", asyn
     /generation !== editorGenerationRef\.current[\s\S]*?savePendingGenerationRef\.current === generation[\s\S]*?return;/,
     "Stale generations and status updates received while saving must be ignored.",
   );
+  assert.match(
+    statusHandler,
+    /designValidRef\.current = isValid;[\s\S]*?setIsDesignValid\(isValid\);/,
+    "Printful validity must drive the visible editor continuation state.",
+  );
   assert.doesNotMatch(statusHandler, /beginSave|saveDesign/, "Status updates must not auto-save a single-use nonce.");
   assert.match(editorSource, /error_code: errorCode/);
   assert.match(editorSource, /"designer_save_timeout"/);
@@ -120,6 +125,13 @@ test("editor preview CTAs stay explicit without dropping funnel analytics", asyn
   );
   assert.match(editorSource, /<span className="sr-only">Continue to <\/span>\s*Preview/);
   assert.match(editorSource, /"Continue to Preview"/);
+  assert.match(editorSource, /Start by adding a photo, text, or design\./);
+  assert.match(editorSource, /Add a photo, text, or design to continue/);
+  assert.equal(
+    editorSource.match(/aria-describedby=\{!isDesignValid \? "design-action-guidance" : undefined\}/g)?.length,
+    2,
+    "Both continuation controls must expose the persistent first-action guidance.",
+  );
   assert.doesNotMatch(editorSource, />\s*Next\s*</);
   assert.match(
     previewSource,
