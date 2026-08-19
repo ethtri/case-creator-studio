@@ -273,6 +273,37 @@ const Index = () => {
             </Button>
           </div>
 
+          <div className="mb-8 flex flex-col gap-4 rounded-2xl border border-cta/25 bg-[linear-gradient(110deg,hsl(var(--card)),hsl(var(--muted)/0.55))] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-cta-emphasis">
+                Using a Samsung Galaxy?
+              </p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
+                Choose the exact supported Galaxy model, then review your photo
+                crop and camera area before checkout.
+              </p>
+            </div>
+            <Button
+              asChild
+              variant="outline"
+              className="min-h-11 shrink-0 border-foreground/20 bg-background/70 text-foreground hover:border-cta/45 hover:bg-background"
+            >
+              <Link
+                to="/custom-samsung-case"
+                onClick={() =>
+                  trackMarketingEvent("primary_cta_click", {
+                    placement: "home_starting_models_samsung_guide",
+                    destination: "/custom-samsung-case",
+                    label: "Explore Samsung cases",
+                  })
+                }
+              >
+                Explore Samsung cases
+                <ChevronRight className="ml-1 size-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          </div>
+
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {startingModels.map((variant) => (
               <div key={variant.id}>
