@@ -103,6 +103,13 @@ test("home starting-model cards render the catalog device imagery", () => {
   assert.doesNotMatch(indexSource, /w-20 h-40 rounded-2xl/);
 });
 
+test("home gives Samsung visitors a measured path to the Galaxy guide", () => {
+  assert.match(indexSource, /to="\/custom-samsung-case"/);
+  assert.match(indexSource, /Using a Samsung Galaxy\?/);
+  assert.match(indexSource, /placement: "home_starting_models_samsung_guide"/);
+  assert.match(indexSource, /destination: "\/custom-samsung-case"/);
+});
+
 test("catalog cards keep two routes and remove the always-selected overlay", () => {
   assert.doesNotMatch(catalogSource, /ring-accent|ring-opacity-0/);
   assert.match(catalogSource, /data-catalog-card=\{variant\.id\}/);
