@@ -273,35 +273,68 @@ const Index = () => {
             </Button>
           </div>
 
-          <div className="mb-8 flex flex-col gap-4 rounded-2xl border border-cta/25 bg-[linear-gradient(110deg,hsl(var(--card)),hsl(var(--muted)/0.55))] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-cta-emphasis">
-                Using a Samsung Galaxy?
-              </p>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground sm:text-base">
-                Choose the exact supported Galaxy model, then review your photo
-                crop and camera area before checkout.
-              </p>
-            </div>
-            <Button
-              asChild
-              variant="outline"
-              className="min-h-11 shrink-0 border-foreground/20 bg-background/70 text-foreground hover:border-cta/45 hover:bg-background"
-            >
-              <Link
-                to="/custom-samsung-case"
-                onClick={() =>
-                  trackMarketingEvent("primary_cta_click", {
-                    placement: "home_starting_models_samsung_guide",
-                    destination: "/custom-samsung-case",
-                    label: "Explore Samsung cases",
-                  })
-                }
+          <div className="mb-8 grid gap-4 lg:grid-cols-2">
+            <div className="flex flex-col gap-4 rounded-2xl border border-cta/30 bg-[radial-gradient(circle_at_top_right,hsl(var(--cta)/0.14),transparent_42%),linear-gradient(110deg,hsl(var(--card)),hsl(var(--muted)/0.48))] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-cta-emphasis">
+                  Your favorite pet photo?
+                </p>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+                  Choose a clear portrait, add an optional name, and check the
+                  crop on your case preview.
+                </p>
+              </div>
+              <Button
+                asChild
+                variant="outline"
+                className="min-h-11 shrink-0 border-foreground/20 bg-background/70 text-foreground hover:border-cta/45 hover:bg-background"
               >
-                Explore Samsung cases
-                <ChevronRight className="ml-1 size-4" aria-hidden="true" />
-              </Link>
-            </Button>
+                <Link
+                  to="/custom-phone-case/pet-photo-phone-case"
+                  onClick={() =>
+                    trackMarketingEvent("primary_cta_click", {
+                      placement: "home_starting_models_pet_guide",
+                      destination: "/custom-phone-case/pet-photo-phone-case",
+                      label: "Make a pet photo case",
+                    })
+                  }
+                >
+                  Make a pet photo case
+                  <ChevronRight className="ml-1 size-4" aria-hidden="true" />
+                </Link>
+              </Button>
+            </div>
+
+            <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-cta-emphasis">
+                  Using a Samsung Galaxy?
+                </p>
+                <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+                  Choose the exact supported Galaxy model, then review your
+                  photo crop and camera area before checkout.
+                </p>
+              </div>
+              <Button
+                asChild
+                variant="outline"
+                className="min-h-11 shrink-0 border-foreground/20 bg-background/70 text-foreground hover:border-cta/45 hover:bg-background"
+              >
+                <Link
+                  to="/custom-samsung-case"
+                  onClick={() =>
+                    trackMarketingEvent("primary_cta_click", {
+                      placement: "home_starting_models_samsung_guide",
+                      destination: "/custom-samsung-case",
+                      label: "Explore Samsung cases",
+                    })
+                  }
+                >
+                  Explore Samsung cases
+                  <ChevronRight className="ml-1 size-4" aria-hidden="true" />
+                </Link>
+              </Button>
+            </div>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -426,6 +459,7 @@ const Index = () => {
                 <Link to="/custom-phone-case" className="hover:text-foreground transition-colors">Custom Cases</Link>
                 <Link to="/custom-iphone-case" className="hover:text-foreground transition-colors">iPhone Cases</Link>
                 <Link to="/custom-samsung-case" className="hover:text-foreground transition-colors">Samsung Cases</Link>
+                <Link to="/custom-phone-case/pet-photo-phone-case" className="hover:text-foreground transition-colors">Pet Photo Cases</Link>
                 <Link to="/gifts/custom-phone-case" className="hover:text-foreground transition-colors">Gift Ideas</Link>
                 <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
                 <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>

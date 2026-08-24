@@ -110,6 +110,17 @@ test("home gives Samsung visitors a measured path to the Galaxy guide", () => {
   assert.match(indexSource, /destination: "\/custom-samsung-case"/);
 });
 
+test("home gives pet owners a measured path to the pet-photo guide", () => {
+  assert.match(indexSource, /to="\/custom-phone-case\/pet-photo-phone-case"/);
+  assert.match(indexSource, /Your favorite pet photo\?/);
+  assert.match(indexSource, /placement: "home_starting_models_pet_guide"/);
+  assert.match(
+    indexSource,
+    /destination: "\/custom-phone-case\/pet-photo-phone-case"/,
+  );
+  assert.match(indexSource, />Pet Photo Cases<\/Link>/);
+});
+
 test("catalog cards keep two routes and remove the always-selected overlay", () => {
   assert.doesNotMatch(catalogSource, /ring-accent|ring-opacity-0/);
   assert.match(catalogSource, /data-catalog-card=\{variant\.id\}/);
