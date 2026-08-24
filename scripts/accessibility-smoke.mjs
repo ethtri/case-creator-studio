@@ -1635,7 +1635,7 @@ try {
   await desktop.close();
 
   const purchaseAnalyticsContext = await browser.newContext({
-    viewport: { width: 1280, height: 900 },
+    viewport: { width: 390, height: 844 },
     reducedMotion: "reduce",
     colorScheme: "light",
   });
@@ -1646,6 +1646,10 @@ try {
   await purchaseAnalyticsPage
     .locator('iframe[title="Design editor for Apple iPhone 17 Pro Max"]')
     .waitFor();
+  await assertNoHorizontalOverflow(
+    purchaseAnalyticsPage,
+    "Mobile measured editor funnel",
+  );
   await waitForAnalyticsEvents(
     purchaseAnalyticsPage,
     "editor_first_action",
@@ -1661,6 +1665,10 @@ try {
     .click();
   await waitForEditorSaveCalls(purchaseAnalyticsPage, 1);
   await purchaseAnalyticsPage.waitForURL(/\/preview\/iphone-17-pro-max/);
+  await assertNoHorizontalOverflow(
+    purchaseAnalyticsPage,
+    "Mobile measured preview funnel",
+  );
   await waitForAnalyticsEvents(
     purchaseAnalyticsPage,
     "primary_cta_click",
@@ -1695,10 +1703,18 @@ try {
   const measuredCheckoutAction = purchaseAnalyticsPage.getByRole("button", {
     name: /Continue to Checkout/,
   });
+  await assertTargetSize(
+    measuredCheckoutAction,
+    "Mobile measured preview checkout",
+  );
   const measuredPreviewUrl = purchaseAnalyticsPage.url();
   await measuredCheckoutAction.dblclick({ delay: 10 });
   await purchaseAnalyticsPage.waitForURL(
     `${origin}/checkout/iphone-17-pro-max`,
+  );
+  await assertNoHorizontalOverflow(
+    purchaseAnalyticsPage,
+    "Mobile measured checkout funnel",
   );
   await waitForAnalyticsEvents(purchaseAnalyticsPage, "add_to_cart", 1);
   const measuredCartEvents = await getAnalyticsEvents(
@@ -1757,6 +1773,11 @@ try {
     [...funnelIndexes].sort((left, right) => left - right),
     funnelIndexes,
     "The consented funnel must preserve editor-to-Checkout event order.",
+  );
+  assert.doesNotMatch(
+    JSON.stringify(funnelEvents),
+    /designId|artwork|preview_url/i,
+    "The measured mobile funnel must not expose generated IDs, artwork, or preview URLs.",
   );
 
   await purchaseAnalyticsPage.goBack();
