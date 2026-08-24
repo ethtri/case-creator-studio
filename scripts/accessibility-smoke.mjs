@@ -3738,8 +3738,34 @@ try {
   await samsungSeoPage
     .getByRole("heading", {
       level: 1,
-      name: /Design a custom Samsung Galaxy case with a photo/,
+      name: "Create a custom Samsung Galaxy S24 photo case.",
     })
+    .waitFor();
+  assert.equal(
+    await samsungSeoPage.title(),
+    "Custom Samsung Galaxy S24 Photo Case | Snapcase",
+    "The Samsung search title must state the supported S24-series promise.",
+  );
+  assert.equal(
+    await samsungSeoPage.locator('meta[name="description"]').getAttribute("content"),
+    "Choose Galaxy S24, S24+, or S24 Ultra, upload a photo or add text, and preview your custom case before checkout.",
+    "The Samsung search description must match the visible buyer journey.",
+  );
+  assert.equal(
+    await samsungSeoPage.locator('link[rel="canonical"]').getAttribute("href"),
+    "https://www.snapcase.ai/custom-samsung-case",
+    "The Samsung treatment must keep its one canonical route.",
+  );
+  assert.equal(
+    await samsungSeoPage.locator('meta[name="robots"]').getAttribute("content"),
+    "index,follow",
+    "The Samsung treatment must remain indexable.",
+  );
+  await samsungSeoPage
+    .getByText(
+      "Choose Galaxy S24, S24+, or S24 Ultra, upload a photo or add text, and preview your custom case before checkout.",
+      { exact: true },
+    )
     .waitFor();
   await waitForAnalyticsEvents(samsungSeoPage, "view_item_list", 1);
   const samsungSeoList = (
@@ -3766,7 +3792,7 @@ try {
   });
 
   await samsungSeoPage
-    .getByRole("link", { name: "Choose your Galaxy model" })
+    .getByRole("link", { name: "Choose your Galaxy S24 model" })
     .click();
   await samsungSeoPage.waitForURL(
     `${origin}/custom-samsung-case#galaxy-models`,
@@ -3786,7 +3812,7 @@ try {
       (event) =>
         event.payload.placement === "seo_landing_hero_primary" &&
         event.payload.destination === "#galaxy-models" &&
-        event.payload.label === "Choose your Galaxy model",
+        event.payload.label === "Choose your Galaxy S24 model",
     ),
     "The Samsung model-picker CTA event is missing.",
   );
@@ -3821,7 +3847,7 @@ try {
   await samsungMobilePage
     .getByRole("heading", {
       level: 1,
-      name: /Design a custom Samsung Galaxy case with a photo/,
+      name: "Create a custom Samsung Galaxy S24 photo case.",
     })
     .waitFor();
   assert.equal(
