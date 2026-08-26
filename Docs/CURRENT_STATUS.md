@@ -3,7 +3,7 @@
 Owner-updated snapshot for AI agents. GitHub Issues is the operational source
 of truth; `Docs/DECISIONS.md` remains authoritative for recorded decisions.
 
-**Last updated:** 2026-08-04
+**Last updated:** 2026-08-26
 **Last updated by:** Codex
 **MVP target:** Controlled production-ready pilot
 **Sprint goal:** Prove the order-to-physical-case identity chain and finish the
@@ -15,29 +15,33 @@ remaining supervised onshore-pilot gates.
   job, physical case, and shipping label. It blocks the final `/operations`
   workflow (#116), Alejandro dry run (#117), and production pilot (#32).
 - Alejandro must provide the measured packed-case dimensions and weight,
-  confirm the usable label-printer format (#122), and complete the supervised
-  physical release evidence (#35).
+  confirm the usable label-printer format, and confirm the production
+  origin/return address (#122).
+- The device-689 manual release passed: Alejandro reported that the test
+  "printed normally" on 2026-08-26, closing #35, #36, and #40. This proves the
+  deferred-print release and physical printer path, but not the order-to-case-to-
+  label identity chain.
 
 ## Top 3 Next Tasks
 
-1. P0 #148: map the observed identifier chain, run the three-same-model UAT,
-   and approve the normal, quarantine, and concurrency workflow.
-2. P0 #150: test the synthetic production-email prototype with Alejandro and
-   feed the evidence and limitations into #148.
-3. P0 #122: finalize the measured package, origin/return profile, live-rate
-   policy, label format, and sample-printer evidence.
+1. P0 #148/#122: collect one consolidated Alejandro follow-up covering the
+   remaining physical identity, packed-package, label-printer, and origin facts.
+2. P0 #148: approve the normal, quarantine, and concurrency workflow from the
+   observed evidence, then rewrite and implement #116 to match it.
+3. P0 #117: run the synthetic end-to-end Alejandro dry run, including test
+   postage, before any real customer pilot.
 
 ## Now / Next / Later
 
 **Now**
 
-- Execute the #148 identity discovery and the bounded #150 synthetic email
-  prototype; do not implement assumptions as production workflow.
+- Gather the remaining #148/#122 facts from the existing printed test case. No
+  new payment, vendor order, or Kexiaozhan engineering request is needed.
 
 **Next**
 
-- Complete #122 physical shipping inputs, then rewrite and implement #116 from
-  the approved #148 workflow and validate it through #117.
+- Approve the #148 workflow, complete #122, rewrite and implement #116, and
+  validate the complete operator flow through #117.
 
 **Later**
 
@@ -65,3 +69,6 @@ remaining supervised onshore-pilot gates.
   `Docs/PRODUCTION_ROADMAP.md`, and `Docs/PRODUCTION_CUTOVER_RUNBOOK.md`.
   Decisions live in `Docs/DECISIONS.md`; older status snapshots remain
   discoverable through git history.
+- On 2026-08-26 Alejandro reported, "The test printed out normally," for the
+  existing device-689 deferred-print order. That observation closes the physical
+  printer test, but it does not by itself authorize production shipping.

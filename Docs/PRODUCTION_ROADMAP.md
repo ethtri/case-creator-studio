@@ -22,28 +22,31 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 - Merchant Portal verification on 2026-07-16 confirmed both successful rerun
   orders are Payment Successful, Pending Print, Print Time `0`, with `Send to
   Print` still available. No automatic print dispatch occurred.
+- Alejandro released the existing device-689 deferred-print order through the
+  Merchant Portal and reported on 2026-08-26 that the test "printed normally."
+  Issues #35, #36, and #40 are complete.
+- The normal print result does not prove the physical case-to-order-to-label
+  identity chain. #148 and #122 remain the next production gates; no new vendor
+  order or Kexiaozhan engineering request is needed for them.
 
 ## Production Gates
 
-1. The delayed deferred-print staging and physical-release test passes.
-   - Coordinate the vendor test window now that #43 and the #51 implementation
-     gate are complete. Alejandro still has no action until Pending Print is
-     verified.
-   - Kexiaozhan creates one fresh paid and one fresh zero-value unpaid sandbox
-     order through the normal Snapcase staging redirect and provides both
+1. Delayed deferred-print staging and physical release passed. Complete 2026-08-26.
+   - Kexiaozhan created one fresh paid and one fresh zero-value unpaid sandbox
+     order through the normal Snapcase staging redirect and provided both
      complete signed redirect query payloads, including `order_no` and
      `out_trade_no`.
-   - Snapcase runs the signed-URL preflight within five minutes of generation and
-     starts only when it reports `READY`.
-   - Snapcase creates both paid and zero-total Stripe Checkout Sessions first,
-     completes zero promptly, and holds paid until T+16 minutes.
-   - Snapcase enables callbacks only for those two exact `outTradeNo` values.
-   - Verify the valid signed `deferredPrint` callback restores `Pending Print`,
-     creates exactly one `production_jobs` row, and triggers no automatic print.
-     Complete 2026-07-16 for both paid/delayed and zero-total paths.
-   - Alejandro then uses the Kexiaozhan Merchant Portal **Order Center > Order
-     List > Send to Print** once for the identified order and confirms the
-     physical result. He does not need Snapcase `/operations` access, a Snapcase
+   - Snapcase ran the signed-URL preflight within five minutes of generation and
+     started only after it reported `READY`.
+   - Snapcase created both paid and zero-total Stripe Checkout Sessions, completed
+     zero promptly, and held paid until T+16 minutes.
+   - Snapcase enabled callbacks only for those two exact `outTradeNo` values.
+   - The valid signed `deferredPrint` callbacks restored `Pending Print`, created
+     exactly one `production_jobs` row each, and triggered no automatic print.
+     This completed the paid/delayed and zero-total paths on 2026-07-16.
+   - Alejandro used the Kexiaozhan Merchant Portal **Order Center > Order List >
+     Send to Print** once for the identified device-689 order and reported normal
+     physical output. He did not need Snapcase `/operations` access, a Snapcase
      login, or a payment task.
 
 2. Zero-total callback safety is validated. Complete 2026-07-16.
@@ -52,13 +55,22 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
    - Merchant Portal confirmed Pending Print, Print Time `0`, and no automatic
      dispatch for the zero-total order on 2026-07-16.
 
-3. Kexiaozhan print mode remains server-controlled.
+3. Kexiaozhan print mode remains server-controlled. Complete 2026-08-26.
    - The confirmed signed callback field is `fulfillmentMethod`, with
      `deferredPrint` as Snapcase's first-pilot value.
    - Snapcase controls this field server-side; customers do not choose the print behavior.
-   - The evidence from gates 1 and 2 must show no immediate automatic print.
+   - Gates 1 and 2 showed no immediate automatic print, and the manual release
+     produced normal physical output.
 
-4. Production environment is ready.
+4. Physical identity and shipping inputs are approved.
+   - #148 proves how the operator matches the intended Kexiaozhan job, finished
+     case, and shipping label without relying on memory or guessing.
+   - #148 records the safe concurrency and quarantine rules, including multiple
+     orders for the same phone model.
+   - #122 approves the actual packed dimensions and weight, label-printer format,
+     sample-label legibility, origin/return address, and production rate policy.
+
+5. Production environment is ready.
    - Configure production Supabase/Vercel secrets only after gates pass.
    - Required: `FULFILLMENT_PROVIDER=onshore_manual`, `ALLOW_ONSHORE_MANUAL=true`,
      Snapcase administrator `OPERATOR_EMAILS`, Stripe live keys/webhook,
@@ -66,16 +78,16 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
      `machine_sn`, checkout pricing, and callback gate settings.
    - Keep `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false` until go/no-go.
 
-5. Cutover and rollback runbook is approved.
+6. Cutover and rollback runbook is approved.
    - Use `Docs/PRODUCTION_CUTOVER_RUNBOOK.md` for env switch, function deploy list, smoke order, callback enablement, rollback to Printful, and sign-off owners.
    - Rollback for new orders is one env change back to `printful`; already queued onshore jobs need operator disposition.
 
-6. First production pilot order is supervised.
+7. First production pilot order is supervised.
    - Use exact `outTradeNo` callback allowlist if practical.
    - Verify Stripe live payment, Kexiaozhan callback success, one production job, and Alejandro workflow.
    - Disable or narrow callback if anything unexpected appears.
 
-7. Commercial pricing is approved from physical evidence.
+8. Commercial pricing is approved from physical evidence.
    - Keep the current `$29.99` case plus `$4.99` shipping defaults until #134
      records actual blank case, supplies, labor, quality control, packaging,
      postage, payment, remake/refund reserve, and vendor/machine costs.
@@ -91,17 +103,26 @@ Roadmap for moving the proven Kexiaozhan/Snapcase staging integration into a con
 ## Production Board
 
 - #30 - Delayed Stripe Checkout payment recovery test (complete 2026-07-16).
-- #36 - Validate Kexiaozhan deferred-print callback and release flow.
-- #35 - Alejandro Kexiaozhan deferred-print physical release test.
+- #36 - Validate Kexiaozhan deferred-print callback and release flow (complete
+  2026-08-26).
+- #35 - Alejandro Kexiaozhan deferred-print physical release test (complete
+  2026-08-26; reported normal physical output).
 - #38 - Obsolete: no Snapcase login is required for Alejandro's vendor-portal test.
 - #39 - Create and run the vendor-originated staging deferred-print test order
   (complete 2026-07-16).
-- #40 - Verify delayed callback and physical-release evidence.
+- #40 - Verify delayed callback and physical-release evidence (complete
+  2026-08-26).
 - #43 - Clean up and verify the staging Stripe webhook endpoint (complete).
 - #50 - Restore isolated staging domain for Kexiaozhan validation (complete;
   `staging.snapcase.ai` is permanently mapped to the dedicated `snapcase-staging`
   Vercel project as of 2026-07-14).
 - #51 - Enable zero-total Kexiaozhan Checkout validation (complete 2026-07-16).
+- #148 - Prove the order-to-physical-case-to-label identity workflow (active P0).
+- #122 - Approve the package, printer, origin, and rate profile (active P0).
+- #116 - Implement the approved `/operations` workflow after #148 (blocked).
+- #117 - Run the final synthetic Alejandro workflow dry run after #116 (blocked).
+- #135 - Complete the next naturally available exact-order paid reconciliation
+  evidence before production pilot.
 - #33 - Production environment and secret readiness.
 - #34 - Production cutover and rollback runbook.
 - #32 - Production pilot order and monitoring.
@@ -149,43 +170,24 @@ https://www.snapcase.ai/kexiaozhan/checkout
 目前不需要新的接口文档；主要是确认以上三个生产上线事项。谢谢！
 ```
 
-## Current Coordination Messages
+## Current Coordination Message
 
 Alejandro:
 
 ```text
-Hi Alejandro, sorry for the earlier confusing instructions. You do not need to
-create or pay for an order, and you do not need to use the Snapcase operations
-site.
+Hi Alejandro, thank you - that confirms the test case printed normally. We do
+not need you to create, pay for, or print another order.
 
-We will coordinate one staging test order with the Kexiaozhan engineers. Once we
-confirm it appears in the Merchant Portal as Pending Print, we will send you its
-order ID.
-
-At that point, please open Order Center > Order List, find that order, click Send
-to Print once, and tell us whether it printed normally. This is not live customer
-traffic.
+To finish the shipping workflow, could you please tell us what identifiers or
+design preview you saw before printing, whether anything identifying the order
+came out with the case, the packed mailer dimensions and weight, the shipping-
+label printer/model and paper size available, and whether the device-689 site is
+the correct ship-from and returns address? Please keep the printed test case and
+do not include customer or address details in photos.
 ```
 
-Kexiaozhan engineers:
-
-```text
-This request is ready to send once both teams agree on a bounded test window.
-
-For the final staging test, please create the agreed fresh unpaid sandbox orders
-using the approved Snapcase staging redirect. Please send the complete signed
-webhookUrl query payload for each order, including order_no, out_trade_no,
-amount, goods_name, currency, machine_sn, timestamp, nonce, and sign. Please do
-not pay or print either order.
-
-We will use the paid order for the delayed deferredPrint test and the zero-value
-order for the no-cost Checkout test. We will coordinate the bounded test window
-before you generate the signed redirects.
-```
-
-For the 2026-07-16 Pacific / 2026-07-17 China rerun, the requested test time is
-09:30 PDT / 00:30 UTC+8. Kexiaozhan only needs to generate one fresh paid order
-and one fresh zero-value order at that time; Snapcase owns every other test step.
+No Kexiaozhan engineering message is needed at this stage. The next work is
+Snapcase/Alejandro physical identity and shipping-process validation.
 
 ## Verification Before Cutover
 
