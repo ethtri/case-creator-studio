@@ -102,12 +102,11 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
   destination is test-mode-only, listens to the two required Checkout events,
   and returned HTTP 200 for a signed unrelated Checkout fixture. Duplicate
   staging destinations were removed; issue #43 is closed.
-- For the Kexiaozhan physical test, Alejandro needs no Snapcase account, email
-  allowlist entry, or customer checkout action. After Snapcase verifies the
-  vendor order is `Pending Print`, he opens Merchant Portal **Order Center > Order
-  List**, locates the supplied order ID, selects **Send to Print** once, and
-  reports the physical outcome. A Snapcase operator records internal job status
-  separately.
+- For the completed Kexiaozhan physical test, Alejandro needed no Snapcase
+  account, email allowlist entry, or customer checkout action. He released the
+  verified device-689 order once through Merchant Portal and reported on
+  2026-08-26 that the test "printed normally." A Snapcase operator records
+  internal job status separately.
 - A zero-total Kexiaozhan Checkout is disabled by default. It may be enabled only
   in isolated staging with `KEXIAOZHAN_ALLOW_ZERO_TOTAL_CHECKOUTS=true` and both
   checkout price settings at 0, for a vendor handoff whose signed `amount` is 0.
@@ -127,9 +126,8 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Staging smoke on 2026-06-17 UTC proved real Kexiaozhan-originated signed
   redirect payloads, Stripe test payment, webhook update, single onshore job per
   order, and live signed Kexiaozhan callback responses from the vendor sandbox.
-- Do not enable production traffic until issue #30 has staging evidence for the
-  accepted vendor behavior: a delayed valid `deferredPrint` callback restores
-  Pending Print and Snapcase creates only one production job.
+- Issue #30 is complete: staging proved that a delayed valid `deferredPrint`
+  callback restores Pending Print and Snapcase creates only one production job.
 - `route-fulfillment-order` accepts Supabase's runtime service-role key and can also accept `ROUTE_FULFILLMENT_AUTH_SECRET` for staging/QA service-role calls. Never expose that secret to browsers.
 - The isolated Supabase staging project is `snapcase-onshore-staging` (`onztuktjcmjukfhcuphh`). Do not commit keys or service-role credentials.
 - Rollback by environment change affects newly created checkouts. Orders already persisted with `fulfillment_provider=onshore_manual` stay in the manual queue unless an operator explicitly cancels, completes, or reroutes them.
@@ -158,32 +156,30 @@ Concise operating guide for moving Snapcase site orders from Printful fulfillmen
 - Ambiguous EasyPost purchases enter `purchase_reconciliation`; ambiguous
   refunds remain `refund_pending`. Resolve them by provider retrieval, never by
   blind retry.
-- A verified `Pending Print` test order can be released once through the Merchant
-  Portal and the physical result is recorded without output-slot blockage.
+- The verified device-689 `Pending Print` order was released once through the
+  Merchant Portal; Alejandro reported normal physical output on 2026-08-26.
+- Before production postage is authorized, #148 must prove the physical
+  case-to-order-to-label match and safe concurrency rule, and #122 must approve
+  the real package, printer, and origin profile.
 - Rollback for new orders is one environment change from `onshore_manual` back to `printful`; already-queued onshore jobs require manual operator disposition.
 - Machine automation waits until vendor questions are answered and tested in a non-production machine flow.
 
 ## Controlled Production Pilot Checklist
 
-- The #51 zero-total implementation and isolated staging deployment are ready;
-  its live evidence requires the vendor order and is not a prerequisite to
-  requesting it. Coordinate fresh paid and zero-value sandbox handoffs using the
-  approved isolated staging redirect and require the complete signed query
-  payloads. Snapcase
-  waits past the normal cancellation point for the paid order, completes the
-  Stripe test Checkout, and confirms the signed `deferredPrint` callback restores
-  `Pending Print` with exactly one production job.
-- Alejandro then completes the supervised physical release from Merchant Portal
-  **Order Center > Order List > Send to Print**. He does not use Snapcase
-  `/operations`, create an order, or make a payment.
+- Paid delayed and zero-total vendor-originated staging callbacks passed on
+  2026-07-16 with exactly one production job each and no automatic print.
+- Alejandro completed the real device-689 manual release and reported normal
+  physical output on 2026-08-26. No new Kexiaozhan order or payment is needed for
+  this gate.
 - Issue #30 staging evidence confirms the vendor's deferred-print exception:
   after cancellation, a valid signed callback restores Pending Print and does
   not create duplicate Snapcase jobs.
 - Issue #36 now has Kexiaozhan's exact signed callback field contract:
   `fulfillmentMethod=deferredPrint` for admin-controlled printing. Customers do
-  not choose whether orders print immediately. Keep the issue open until the
-  staging positive/zero-amount callbacks and the vendor admin-release procedure
-  are verified.
+  not choose whether orders print immediately. The positive, zero-amount,
+  admin-release, and physical-output evidence is complete; #36 is closed.
+- Complete #148 and #122, implement the approved operator workflow under #116,
+  and pass the synthetic Alejandro dry run under #117 before production traffic.
 - Production secrets are configured without exposing keys; keep `KEXIAOZHAN_PAYMENT_NOTIFY_ENABLED=false` until go/no-go.
 - Production env cutover is approved: `FULFILLMENT_PROVIDER=onshore_manual`, `ALLOW_ONSHORE_MANUAL=true`, exact `OPERATOR_EMAILS`, Stripe live webhook, production Kexiaozhan base URL, production machine key, allowed production machine SN, and checkout pricing.
 - Rollback is reviewed: switch new orders back to `printful`; manually disposition already queued onshore jobs.
