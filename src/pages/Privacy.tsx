@@ -123,6 +123,13 @@ const Privacy = () => {
                 We retain order data for record keeping and support. Design assets are stored to
                 fulfill your order and support order-related requests.
               </p>
+              <p className="mt-3">
+                If you separately consent to marketing email, we may create a short-lived private
+                link to an eligible saved design or unfinished cart. The link contains a random
+                token rather than your email, artwork, or database record ID; it expires, is
+                single-use, and stops working after purchase, deletion, suppression, or a newer
+                design revision.
+              </p>
             </div>
 
             <div>

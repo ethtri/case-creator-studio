@@ -72,7 +72,7 @@ serve(async (req) => {
   const { data: designs, error: queryError } = await supabaseAdmin
     .from("designs")
     .select(
-      "id, design_id, variant_id, edm_template_id, external_product_id, preview_url, preview_url_angled, source, updated_at",
+      "id, design_id, revision, variant_id, edm_template_id, external_product_id, preview_url, preview_url_angled, source, updated_at",
     )
     .eq("user_id", authData.user.id)
     .order("updated_at", { ascending: false })
@@ -89,6 +89,7 @@ serve(async (req) => {
   const safeDesigns = (designs || []).map((design) => ({
     id: design.id,
     designId: design.design_id,
+    revision: design.revision,
     variantId: design.variant_id,
     edmTemplateId: design.edm_template_id,
     externalProductId: design.external_product_id,

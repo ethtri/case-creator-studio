@@ -89,7 +89,7 @@ serve(async (req) => {
   }
 
   const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
-  const { error: saveError } = await supabaseAdmin
+  const { data: savedDesign, error: saveError } = await supabaseAdmin
     .from("designs")
     .upsert({
       user_id: authData.user.id,
@@ -100,7 +100,9 @@ serve(async (req) => {
       preview_url: payload.previewUrl,
       preview_url_angled: payload.previewUrlAngled ?? null,
       source: "manual",
-    }, { onConflict: "user_id,design_id" });
+    }, { onConflict: "user_id,design_id" })
+    .select("id, revision")
+    .single();
 
   if (saveError) {
     console.error("[SAVE-DESIGN] Save failed:", saveError);
@@ -110,7 +112,23 @@ serve(async (req) => {
     });
   }
 
-  return new Response(JSON.stringify({ success: true }), {
+  // Recovery eligibility is derived only from the existing canonical
+  // subscriber record. Saving a design never infers or grants consent.
+  if (savedDesign?.id && authData.user.email) {
+    const { error: recoveryError } = await supabaseAdmin.rpc(
+      "register_saved_design_recovery",
+      {
+        p_design_record_id: savedDesign.id,
+        p_email: authData.user.email,
+        p_user_id: authData.user.id,
+      },
+    );
+    if (recoveryError) {
+      console.warn("[SAVE-DESIGN] Recovery eligibility could not be staged.");
+    }
+  }
+
+  return new Response(JSON.stringify({ success: true, revision: savedDesign?.revision ?? 1 }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
     status: 200,
   });

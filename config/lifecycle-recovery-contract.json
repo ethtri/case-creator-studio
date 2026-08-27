@@ -1,0 +1,52 @@
+{
+  "contractVersion": "1.0.0",
+  "extends": "config/lifecycle-email-contract.json@1.0.0",
+  "providerMode": "disabled",
+  "liveSendEnabled": false,
+  "flows": {
+    "abandoned_design": {
+      "eligibleAfterHours": 24,
+      "expiresAfterDays": 8,
+      "maximumMessages": 1
+    },
+    "abandoned_cart": {
+      "eligibleAfterHours": 4,
+      "expiresAfterDays": 7,
+      "maximumMessages": 1
+    }
+  },
+  "token": {
+    "randomBytes": 32,
+    "urlEncoding": "lowercase_hex",
+    "storedForm": "sha256_digest_only",
+    "singleUse": true,
+    "rawTokenAllowedInLogsAnalyticsOrRepositoryArtifacts": false
+  },
+  "eligibility": {
+    "requiresCanonicalSubscribedState": true,
+    "suppressionWins": true,
+    "excludes": [
+      "purchased",
+      "expired",
+      "deleted",
+      "invalidated",
+      "unsupported_model",
+      "test_fixture_employee_qa",
+      "provider_uncertain"
+    ]
+  },
+  "restoration": {
+    "serverReprices": true,
+    "serverRevalidatesModel": true,
+    "crossCustomerAccess": "reject_when_authenticated_identity_conflicts",
+    "signedOutBearerAccess": true,
+    "staleRevision": "fail_closed",
+    "purchase": "fail_closed"
+  },
+  "analytics": {
+    "events": ["design_save", "recovery_view", "recovery_resume", "add_to_cart", "begin_checkout", "purchase"],
+    "allowedFields": ["flow", "outcome", "repriced"],
+    "prohibitedFields": ["email", "artwork", "preview_url", "raw_token", "subscriber_id", "design_id", "order_id"]
+  },
+  "rollback": "Disable lifecycle-recovery, stop claiming recovery outbox rows, revoke active recovery tokens, and preserve consent, suppression, purchase, and redacted audit records."
+}

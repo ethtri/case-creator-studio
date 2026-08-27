@@ -17,7 +17,9 @@ export type MarketingEventName =
   | "editor_error"
   | "checkout_error"
   | "email_signup"
-  | "promo_applied";
+  | "promo_applied"
+  | "recovery_view"
+  | "recovery_resume";
 
 export type MarketingViewEventName = Extract<
   MarketingEventName,

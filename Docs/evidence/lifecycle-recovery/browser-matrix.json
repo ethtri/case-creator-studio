@@ -1,0 +1,38 @@
+{
+  "contractVersion": "1.0.0",
+  "date": "2026-08-27",
+  "browser": "Chromium via Playwright CLI",
+  "providerMutation": false,
+  "realRecipient": false,
+  "rawTokenRetained": false,
+  "results": [
+    { "state": "ready_design", "viewport": "desktop_1440x1000", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "repriced_cart", "viewport": "mobile_390x844", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "expired", "viewport": "mobile_390x844", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "revoked", "viewport": "mobile_390x844", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "already_purchased", "viewport": "mobile_390x844", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "deleted", "viewport": "mobile_390x844", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "unavailable_model", "viewport": "mobile_390x844", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "stale_revision", "viewport": "mobile_390x844", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "invalid", "viewport": "mobile_390x844", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "already_used", "viewport": "mobile_390x844", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "generic_failure", "viewport": "mobile_390x844", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "missing", "viewport": "mobile_390x844", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "expired", "viewport": "desktop_1440x1000", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "revoked", "viewport": "desktop_1440x1000", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "already_purchased", "viewport": "desktop_1440x1000", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "deleted", "viewport": "desktop_1440x1000", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "unavailable_model", "viewport": "desktop_1440x1000", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "stale_revision", "viewport": "desktop_1440x1000", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "invalid", "viewport": "desktop_1440x1000", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "already_used", "viewport": "desktop_1440x1000", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "generic_failure", "viewport": "desktop_1440x1000", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false },
+    { "state": "missing", "viewport": "desktop_1440x1000", "result": "pass", "tokenInUrl": false, "horizontalOverflow": false }
+  ],
+  "functionalChecks": {
+    "designResume": "navigated to the intended model/design revision with template state restored and no token in the URL",
+    "cartResume": "restored the intended current-price model and quantity, then navigated to checkout with repriced state and no token in the URL",
+    "analyticsBanner": "initial mobile overlap found and fixed; primary restore action is reachable before the consent choice",
+    "accessibility": "named level-one heading, polite status region, keyboard-focusable actions, readable mobile layout"
+  }
+}

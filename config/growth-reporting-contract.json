@@ -601,6 +601,8 @@
       "preview_success",
       "preview_failure",
       "design_save",
+      "recovery_view",
+      "recovery_resume",
       "add_to_cart",
       "begin_checkout",
       "purchase",

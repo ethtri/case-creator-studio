@@ -12,6 +12,15 @@ export interface CartItem {
   quantity: number;
 }
 
+export interface RestoredCartItem {
+  variantId: string;
+  designPreview: string;
+  edmTemplateId: number;
+  designId: string | null;
+  externalProductId: string | null;
+  quantity: number;
+}
+
 interface CartContextType {
   items: CartItem[];
   addToCart: (
@@ -24,6 +33,7 @@ interface CartContextType {
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
+  restoreCart: (items: RestoredCartItem[]) => boolean;
   totalItems: number;
   totalPrice: number;
 }
@@ -261,6 +271,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setItems([]);
   }, []);
 
+  const restoreCart = useCallback((restoredItems: RestoredCartItem[]) => {
+    const restored = restoredItems.flatMap((item, index) => {
+      const variant = getVariantById(item.variantId);
+      if (!variant || item.quantity < 1 || !Number.isInteger(item.quantity)) return [];
+      return [{
+        id: `restored-${variant.id}-${Date.now()}-${index}`,
+        variant,
+        designPreview: item.designPreview,
+        edmTemplateId: item.edmTemplateId,
+        designId: item.designId,
+        externalProductId: item.externalProductId,
+        quantity: item.quantity,
+      }];
+    });
+    if (restored.length !== restoredItems.length || restored.length === 0) return false;
+    setItems(restored);
+    return true;
+  }, []);
+
   const totalItems = useMemo(
     () => items.reduce((sum, item) => sum + item.quantity, 0),
     [items]
@@ -277,10 +306,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
       removeFromCart,
       updateQuantity,
       clearCart,
+      restoreCart,
       totalItems,
       totalPrice,
     }),
-    [items, addToCart, removeFromCart, updateQuantity, clearCart, totalItems, totalPrice]
+    [items, addToCart, removeFromCart, updateQuantity, clearCart, restoreCart, totalItems, totalPrice]
   );
 
   return (

@@ -96,6 +96,8 @@ hero-primary, Gift ideas, and Browse all cases CTAs use the existing
 - `preview_success`: preview completed
 - `preview_failure`: categorical error code only
 - `design_save`: design save completed
+- `recovery_view`: private restoration eligibility result, using only flow and categorical outcome
+- `recovery_resume`: successful saved-design or cart restoration, using only flow, categorical outcome, and repricing flag
 - `editor_error`: categorical error code only
 - `checkout_error`: categorical error code and stage only
 - `promo_applied`: code and discount amount
