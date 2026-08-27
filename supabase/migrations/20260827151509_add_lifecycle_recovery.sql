@@ -534,6 +534,10 @@ REVOKE ALL ON FUNCTION public.register_saved_design_recovery(UUID, TEXT, UUID) F
 REVOKE ALL ON FUNCTION public.register_abandoned_cart_recovery(UUID, TEXT) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.issue_lifecycle_recovery_token(UUID) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.get_lifecycle_recovery_state(TEXT, BOOLEAN) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.lifecycle_recovery_design_revision() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.lifecycle_recovery_design_cancel() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.lifecycle_recovery_order_purchase_cancel() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.lifecycle_recovery_suppression_cancel() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.lifecycle_recovery_variant_supported(TEXT) TO service_role;
 GRANT EXECUTE ON FUNCTION public.cancel_lifecycle_recovery_intent(UUID, TEXT, TEXT) TO service_role;
 GRANT EXECUTE ON FUNCTION public.register_saved_design_recovery(UUID, TEXT, UUID) TO service_role;
