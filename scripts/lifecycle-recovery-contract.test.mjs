@@ -113,6 +113,7 @@ test("server cart restoration rejects unsupported state and replaces stale price
 
 test("edge flow checks conflicting authenticated ownership before consumption", async () => {
   const edge = await read(edgePath);
+  assert.match(edge, /recoveryAuthorizationNeedsUserVerification/);
   const conflict = edge.indexOf("inspected.ownerUserId !== authenticatedUserId");
   const consume = edge.indexOf("readState(true)");
   assert.ok(conflict > -1 && consume > conflict);

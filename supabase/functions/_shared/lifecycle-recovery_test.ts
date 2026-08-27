@@ -1,6 +1,7 @@
 import { assertEquals } from "https://deno.land/std@0.190.0/testing/asserts.ts";
 import {
   buildRecoveryCartItems,
+  recoveryAuthorizationNeedsUserVerification,
   safeRecoveryAnalytics,
   validateRecoveryToken,
 } from "./lifecycle-recovery.ts";
@@ -11,6 +12,19 @@ Deno.test("recovery tokens are exact opaque 256-bit hex values", () => {
   assertEquals(validateRecoveryToken("a".repeat(63)), null);
   assertEquals(validateRecoveryToken("customer@example.com"), null);
   assertEquals(validateRecoveryToken("../design/known-id"), null);
+});
+
+Deno.test("project API authorization is anonymous while user bearer tokens are verified", () => {
+  const anonKey = "project-anon-key";
+  const publishableKey = "sb_publishable_project-key";
+  assertEquals(recoveryAuthorizationNeedsUserVerification(null, publishableKey, anonKey), false);
+  assertEquals(recoveryAuthorizationNeedsUserVerification(`Bearer ${anonKey}`, anonKey, anonKey), false);
+  assertEquals(
+    recoveryAuthorizationNeedsUserVerification(`Bearer ${publishableKey}`, publishableKey, anonKey),
+    false,
+  );
+  assertEquals(recoveryAuthorizationNeedsUserVerification("Bearer signed-user-jwt", publishableKey, anonKey), true);
+  assertEquals(recoveryAuthorizationNeedsUserVerification("Basic invalid", publishableKey, anonKey), true);
 });
 
 Deno.test("cart restoration rejects unsupported and malformed state", () => {
