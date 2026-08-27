@@ -166,7 +166,7 @@ export type LifecycleOutboxClaim = {
   attempts: number;
   id: string;
   maxAttempts: number;
-  operation: "subscribe" | "suppress" | "welcome";
+  operation: "subscribe" | "suppress" | "welcome" | "abandoned_design" | "abandoned_cart";
   subscriberId: string;
 };
 

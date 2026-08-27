@@ -350,7 +350,6 @@ serve(async (req) => {
 
     const resolvedEmail = authUserEmail ?? customerEmail;
 
-    console.log("[CREATE-CHECKOUT] Processing checkout for:", resolvedEmail);
     console.log("[CREATE-CHECKOUT] Items count:", requestItems.length);
 
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
@@ -464,7 +463,7 @@ serve(async (req) => {
       },
     });
 
-    const { error: orderError } = await supabaseClient.from("orders").insert({
+    const { data: createdOrder, error: orderError } = await supabaseClient.from("orders").insert({
       stripe_session_id: session.id,
       customer_email: resolvedEmail,
       user_id: authUserId,
@@ -481,7 +480,7 @@ serve(async (req) => {
       total: total,
       status: "pending",
       fulfillment_provider: fulfillmentProvider,
-    });
+    }).select("id").single();
 
     if (orderError) {
       console.error("[CREATE-CHECKOUT] Error creating order:", orderError);
@@ -494,6 +493,16 @@ serve(async (req) => {
         );
       }
       throw new Error("Database order creation failed");
+    }
+
+    if (createdOrder?.id) {
+      const { error: recoveryError } = await supabaseClient.rpc(
+        "register_abandoned_cart_recovery",
+        { p_email: resolvedEmail, p_order_id: createdOrder.id },
+      );
+      if (recoveryError) {
+        console.warn("[CREATE-CHECKOUT] Recovery eligibility could not be staged.");
+      }
     }
 
     console.log("[CREATE-CHECKOUT] Order created successfully");

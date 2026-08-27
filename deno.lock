@@ -78,7 +78,7 @@
     "packageJson": {
       "dependencies": [
         "npm:@axe-core/playwright@^4.12.1",
-        "npm:@eslint/js@^9.32.0",
+        "npm:@eslint/js@^10.0.1",
         "npm:@hookform/resolvers@^3.10.0",
         "npm:@radix-ui/react-accordion@^1.2.11",
         "npm:@radix-ui/react-alert-dialog@^1.1.14",
@@ -113,16 +113,16 @@
         "npm:@types/node@^22.16.5",
         "npm:@types/react-dom@^18.3.7",
         "npm:@types/react@^18.3.23",
-        "npm:@vitejs/plugin-react-swc@^3.11.0",
+        "npm:@vitejs/plugin-react-swc@4.3.1",
         "npm:autoprefixer@^10.4.21",
         "npm:class-variance-authority@~0.7.1",
         "npm:clsx@^2.1.1",
         "npm:cmdk@^1.1.1",
         "npm:date-fns@^3.6.0",
         "npm:embla-carousel-react@^8.6.0",
-        "npm:eslint-plugin-react-hooks@^5.2.0",
+        "npm:eslint-plugin-react-hooks@^7.1.1",
         "npm:eslint-plugin-react-refresh@~0.4.20",
-        "npm:eslint@^9.32.0",
+        "npm:eslint@^10.8.0",
         "npm:framer-motion@^11.15.0",
         "npm:globals@^15.15.0",
         "npm:input-otp@^1.4.2",
@@ -141,13 +141,19 @@
         "npm:sonner@^1.7.4",
         "npm:tailwind-merge@^2.6.0",
         "npm:tailwindcss-animate@^1.0.7",
-        "npm:tailwindcss@^3.4.17",
-        "npm:typescript-eslint@^8.38.0",
+        "npm:tailwindcss@^3.4.19",
+        "npm:typescript-eslint@^8.65.0",
         "npm:typescript@^5.8.3",
         "npm:vaul@~0.9.9",
-        "npm:vite@^5.4.21",
+        "npm:vite@6.4.3",
         "npm:zod@^3.25.76"
-      ]
+      ],
+      "overrides": {
+        "brace-expansion@^2.0.0": "2.1.2",
+        "esbuild": "0.25.0",
+        "glob": "10.5.0",
+        "js-yaml": "4.3.0"
+      }
     }
   }
 }
