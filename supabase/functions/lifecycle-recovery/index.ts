@@ -4,6 +4,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import {
   buildRecoveryCartItems,
   LIFECYCLE_RECOVERY_CONTRACT_VERSION,
+  recoveryAuthorizationNeedsUserVerification,
   SUPPORTED_RECOVERY_VARIANTS,
   validateRecoveryToken,
 } from "../_shared/lifecycle-recovery.ts";
@@ -54,7 +55,11 @@ serve(async (req) => {
 
   const authorization = req.headers.get("authorization") ?? "";
   let authenticatedUserId: string | null = null;
-  if (authorization) {
+  if (recoveryAuthorizationNeedsUserVerification(
+    authorization,
+    req.headers.get("apikey"),
+    anonKey,
+  )) {
     const authClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authorization } },
     });

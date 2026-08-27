@@ -49,6 +49,19 @@ export function validateRecoveryToken(value: unknown): string | null {
   return RECOVERY_TOKEN_PATTERN.test(token) ? token : null;
 }
 
+export function recoveryAuthorizationNeedsUserVerification(
+  authorization: string | null,
+  requestApiKey: string | null,
+  projectAnonKey: string,
+): boolean {
+  const normalized = authorization?.trim() ?? "";
+  if (!normalized) return false;
+  const match = normalized.match(/^Bearer\s+(.+)$/i);
+  if (!match) return true;
+  const token = match[1].trim();
+  return token.length === 0 || (token !== requestApiKey && token !== projectAnonKey);
+}
+
 export function buildRecoveryCartItems(value: unknown): {
   items: RecoveryCartItem[];
   repriced: boolean;
