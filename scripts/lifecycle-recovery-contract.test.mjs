@@ -53,6 +53,17 @@ test("RLS, grants, and function access keep recovery tables server-only", async 
   }
   assert.match(sql, /REVOKE ALL ON FUNCTION public\.get_lifecycle_recovery_state\(TEXT, BOOLEAN\) FROM PUBLIC, anon, authenticated/);
   assert.match(sql, /GRANT EXECUTE ON FUNCTION public\.get_lifecycle_recovery_state\(TEXT, BOOLEAN\) TO service_role/);
+  for (const triggerFunction of [
+    "lifecycle_recovery_design_revision",
+    "lifecycle_recovery_design_cancel",
+    "lifecycle_recovery_order_purchase_cancel",
+    "lifecycle_recovery_suppression_cancel",
+  ]) {
+    assert.match(
+      sql,
+      new RegExp(`REVOKE ALL ON FUNCTION public\\.${triggerFunction}\\(\\) FROM PUBLIC, anon, authenticated`),
+    );
+  }
 });
 
 test("saved-design revision, deletion, suppression, and purchase transitions stop recovery", async () => {
