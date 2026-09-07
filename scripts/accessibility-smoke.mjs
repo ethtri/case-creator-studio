@@ -3764,12 +3764,12 @@ try {
     .waitFor();
   assert.equal(
     await samsungSeoPage.title(),
-    "Custom Samsung Galaxy S24 Photo Case | Snapcase",
+    "Custom Cases for Galaxy S24, S24+ & S24 Ultra | Snapcase",
     "The Samsung search title must state the supported S24-series promise.",
   );
   assert.equal(
     await samsungSeoPage.locator('meta[name="description"]').getAttribute("content"),
-    "Choose Galaxy S24, S24+, or S24 Ultra, upload a photo or add text, and preview your custom case before checkout.",
+    "Choose Galaxy S24, S24+, or S24 Ultra, add your photo or text, and preview the case before checkout.",
     "The Samsung search description must match the visible buyer journey.",
   );
   assert.equal(
@@ -3784,7 +3784,7 @@ try {
   );
   await samsungSeoPage
     .getByText(
-      "Choose Galaxy S24, S24+, or S24 Ultra, upload a photo or add text, and preview your custom case before checkout.",
+      "Choose Galaxy S24, S24+, or S24 Ultra, add your photo or text, and preview the case before checkout.",
       { exact: true },
     )
     .waitFor();
