@@ -1,0 +1,39 @@
+name: Production checkout canary
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-checkout-canary
+  cancel-in-progress: false
+
+jobs:
+  checkout-handoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify production checkout handoff
+        env:
+          CHECKOUT_CANARY_AUTH_SECRET: ${{ secrets.CHECKOUT_CANARY_AUTH_SECRET }}
+          CHECKOUT_CANARY_SITE_URL: https://snapcase.ai
+        run: npm run checkout:canary
