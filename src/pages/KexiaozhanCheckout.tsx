@@ -14,6 +14,7 @@ import { SiteMenu } from "@/components/SiteMenu";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { normalizeHostedStripeCheckoutUrl } from "@/lib/checkout-session";
 
 const REQUIRED_FIELDS = [
   "order_no",
@@ -94,11 +95,12 @@ const KexiaozhanCheckout = () => {
         throw new Error(message);
       }
 
-      if (typeof data?.url !== "string" || !data.url) {
-        throw new Error("No Stripe Checkout URL was returned.");
+      const checkoutUrl = normalizeHostedStripeCheckoutUrl(data?.url);
+      if (!checkoutUrl) {
+        throw new Error("Checkout is temporarily unavailable.");
       }
 
-      window.location.href = data.url;
+      window.location.href = checkoutUrl;
     } catch (error) {
       const message = error instanceof Error
         ? error.message

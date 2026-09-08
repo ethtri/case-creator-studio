@@ -32,16 +32,14 @@ const buildAttempt = (overrides = {}) => ({
 });
 
 test("accepts only canonical hosted Stripe Checkout Session URLs", () => {
-  assert.equal(
-    normalizeHostedStripeCheckoutUrl(hostedCheckoutUrl),
+  for (const url of [
     hostedCheckoutUrl,
-  );
-  assert.equal(
-    normalizeHostedStripeCheckoutUrl(
-      "https://checkout.stripe.com/c/pay/cs_live_ABC123#another-opaque-fragment",
-    ),
     "https://checkout.stripe.com/c/pay/cs_live_ABC123#another-opaque-fragment",
-  );
+    "https://checkout.stripe.com/f/pay/cs_test_ABC123#opaque-fragment",
+    "https://checkout.stripe.com/f/pay/cs_live_ABC123#another-opaque-fragment",
+  ]) {
+    assert.equal(normalizeHostedStripeCheckoutUrl(url), url);
+  }
   assert.equal(
     normalizeHostedStripeCheckoutUrl(
       "https://checkout.stripe.com:443/c/pay/cs_test_ABC123",
@@ -57,17 +55,43 @@ test("accepts only canonical hosted Stripe Checkout Session URLs", () => {
     "https://checkout.stripe.com/arbitrary",
     "https://checkout.stripe.com/c/pay/",
     "https://checkout.stripe.com/c/pay/cs_test_ABC123/extra",
+    "https://checkout.stripe.com/f/pay/cs_live_ABC123/extra",
     "https://checkout.stripe.com/c/pay/not_a_session",
+    "https://checkout.stripe.com/f/pay/not_a_session",
     "http://checkout.stripe.com/c/pay/cs_test_ABC123",
     "https://checkout.stripe.com.evil.example/c/pay/cs_test_ABC123",
     "https://user:secret@checkout.stripe.com/c/pay/cs_test_ABC123",
     "https://checkout.stripe.com:444/c/pay/cs_test_ABC123",
     "https://checkout.stripe.com/c/pay/cs_test_ABC123?",
     "https://checkout.stripe.com/c/pay/cs_test_ABC123?client_secret=private",
+    "https://checkout.stripe.com/f/pay/cs_live_ABC123?client_secret=private",
+    "https://user:secret@checkout.stripe.com/f/pay/cs_live_ABC123",
+    "https://checkout.stripe.com.evil.example/f/pay/cs_live_ABC123",
+    "https://checkout.stripe.com/f/pay/cs_live_ABC123/%2e%2e/c/pay/cs_live_EVIL",
     "https://buy.stripe.com/c/pay/cs_test_ABC123",
   ]) {
     assert.equal(normalizeHostedStripeCheckoutUrl(value), null, String(value));
   }
+});
+
+test("automatically redirects an f/pay Checkout Session without checkout_error", async () => {
+  const fHostedCheckoutUrl =
+    "https://checkout.stripe.com/f/pay/cs_live_snapcase123#opaque-fragment";
+  const events = [];
+  const redirects = [];
+  const runner = createHostedCheckoutRunner({
+    invoke: async () => ({ data: { url: fHostedCheckoutUrl }, error: null }),
+    track: (eventName) => events.push(eventName),
+    redirect: (url) => redirects.push(url),
+  });
+
+  assert.deepEqual(await runner.start(buildAttempt()), {
+    kind: "redirected",
+    url: fHostedCheckoutUrl,
+  });
+  assert.deepEqual(redirects, [fHostedCheckoutUrl]);
+  assert.deepEqual(events, ["begin_checkout"]);
+  assert.equal(events.includes("checkout_error"), false);
 });
 
 test("builds a whitelist-only begin-checkout payload without private checkout fields", () => {
