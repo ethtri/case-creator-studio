@@ -58,6 +58,22 @@ test("normal checkout resolves provider and quantity before Stripe creation", as
   assert.match(source, /fulfillment_provider:\s*fulfillmentProvider/);
 });
 
+test("checkout schema reconciliation supplies every required order column", async () => {
+  const migration = await read(
+    "supabase/migrations/20260908141849_repair_checkout_schema_drift.sql",
+  );
+
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS marketing_attribution JSONB/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS analytics_client_id TEXT/);
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS analytics_consent TEXT/);
+  assert.match(
+    migration,
+    /ADD COLUMN IF NOT EXISTS fulfillment_provider TEXT NOT NULL DEFAULT 'printful'/,
+  );
+  assert.match(migration, /orders_analytics_consent_check/);
+  assert.match(migration, /orders_fulfillment_provider_check/);
+});
+
 test("promotion behavior is explicit and has one normal entry point", async () => {
   const [normal, vendor, fakeVendor, vendorPage] = await Promise.all([
     read("supabase/functions/create-checkout/index.ts"),
