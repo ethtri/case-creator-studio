@@ -35,5 +35,5 @@ jobs:
       - name: Verify production checkout handoff
         env:
           CHECKOUT_CANARY_AUTH_SECRET: ${{ secrets.CHECKOUT_CANARY_AUTH_SECRET }}
-          CHECKOUT_CANARY_SITE_URL: https://snapcase.ai
+          CHECKOUT_CANARY_SITE_URL: https://www.snapcase.ai
         run: npm run checkout:canary

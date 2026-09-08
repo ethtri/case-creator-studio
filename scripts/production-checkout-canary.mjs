@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { chromium } from "playwright";
 
 const siteUrl = (
-  process.env.CHECKOUT_CANARY_SITE_URL ?? "https://snapcase.ai"
+  process.env.CHECKOUT_CANARY_SITE_URL ?? "https://www.snapcase.ai"
 ).replace(/\/$/, "");
 const secret = process.env.CHECKOUT_CANARY_AUTH_SECRET ?? "";
 assert(
