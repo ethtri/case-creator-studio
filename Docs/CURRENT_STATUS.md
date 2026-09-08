@@ -59,6 +59,15 @@ remaining supervised onshore-pilot gates.
   order with no payment or recovery email. The excluded test records, rollback,
   and release-gate evidence are reconciled in the
   [immutable agency audit](https://github.com/ethtri/Snapcase_Autonomous_MarketingAgency/blob/2396b6c4133d610829a1ee649c42eb7de24d331f/outputs/audit/run_20260908_checkout_redirect_recovery.yml).
+- P0 checkout observability hardening is live through #280/#283 and PRs
+  #281/#282. Every checkout attempt now has a private, PII-free correlation
+  record across the browser, Edge Function, order, Stripe metadata, and
+  structured logs. An authenticated monitor checks every five minutes and
+  sends deduplicated outage/recovery alerts; a server-authenticated no-payment
+  browser canary runs every six hours. The first corrected production run
+  [passed on `/f/pay/`](https://github.com/ethtri/case-creator-studio/actions/runs/34260325399)
+  with one correlated unpaid synthetic order and zero recovery intents. The
+  real paid pilot remains blocked by #32's fulfillment and identity-chain gates.
 - Checkout-start analytics now waits for a validated hosted Stripe Session,
   remains latched through redirect, and excludes customer, design, attribution,
   URL, and Session data. Production ingestion and QA-exclusion proof remain
