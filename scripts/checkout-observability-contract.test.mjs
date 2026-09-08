@@ -100,10 +100,12 @@ test("synthetic canaries require a server-side secret and cannot stage recovery"
   assert.match(source, /createdOrder\?\.id && !isSynthetic/);
   assert.doesNotMatch(source, /isSynthetic[\s\S]{0,80}validationResult\.data/);
   assert.match(canary, /x-snapcase-checkout-canary/);
+  assert.match(canary, /https:\/\/www\.snapcase\.ai/);
   assert.match(canary, /checkout\.stripe\.com/);
   assert.match(canary, /without payment/);
   assert.doesNotMatch(canary, /cardNumber|paymentMethod|4242/);
   assert.match(workflow, /cron: "17 \*\/6 \* \* \*"/);
+  assert.match(workflow, /CHECKOUT_CANARY_SITE_URL: https:\/\/www\.snapcase\.ai/);
   assert.match(workflow, /secrets\.CHECKOUT_CANARY_AUTH_SECRET/);
 });
 
