@@ -92,6 +92,14 @@ test("promotion behavior is explicit and has one normal entry point", async () =
   );
 });
 
+test("vendor checkout reuses the strict hosted Stripe URL validator", async () => {
+  const vendorPage = await read("src/pages/KexiaozhanCheckout.tsx");
+
+  assert.match(vendorPage, /normalizeHostedStripeCheckoutUrl\(data\?\.url\)/);
+  assert.match(vendorPage, /window\.location\.href = checkoutUrl/);
+  assert.doesNotMatch(vendorPage, /window\.location\.href = data\.url/);
+});
+
 test("public tax and production copy matches executable configuration", async () => {
   const [checkout, vendorCheckout, terms] = await Promise.all([
     read("src/pages/Checkout.tsx"),

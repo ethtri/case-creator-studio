@@ -304,7 +304,7 @@ const assertCompleteAnalyticsItems = (event, expectedCount, label) => {
   );
 };
 
-const mockExternalServices = async (context) => {
+const mockExternalServices = async (context, { checkoutUrl = null } = {}) => {
   let mockupStatusCalls = 0;
   let edmNonceCalls = 0;
 
@@ -438,11 +438,13 @@ const mockExternalServices = async (context) => {
 
       if (request.url().endsWith("/create-checkout")) {
         await route.fulfill({
-          status: 400,
+          status: checkoutUrl ? 200 : 400,
           headers,
-          body: JSON.stringify({
-            error: "Checkout is temporarily unavailable.",
-          }),
+          body: JSON.stringify(
+            checkoutUrl
+              ? { url: checkoutUrl }
+              : { error: "Checkout is temporarily unavailable." },
+          ),
         });
         return;
       }
@@ -2888,6 +2890,67 @@ try {
     .waitFor();
   await quantityOnePage.getByText("$34.98 USD", { exact: true }).waitFor();
   await quantityOneContext.close();
+
+  const fPathCheckoutUrl =
+    "https://checkout.stripe.com/f/pay/cs_live_accessibility123#opaque-fragment";
+  const successfulCheckoutContext = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    reducedMotion: "reduce",
+    colorScheme: "light",
+  });
+  await installAppState(successfulCheckoutContext, "light", cartItem, "granted");
+  await mockExternalServices(successfulCheckoutContext, {
+    checkoutUrl: fPathCheckoutUrl,
+  });
+  await successfulCheckoutContext.route(
+    "https://checkout.stripe.com/f/pay/**",
+    (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: "<!doctype html><title>Stripe Checkout canary</title><h1>Stripe Checkout canary</h1>",
+      }),
+  );
+  const successfulCheckoutPage = await successfulCheckoutContext.newPage();
+  await successfulCheckoutPage.goto(`${origin}/checkout`);
+  await waitForStableUi(successfulCheckoutPage);
+  await successfulCheckoutPage.evaluate(() => {
+    window.localStorage.setItem("checkout-canary-events", "[]");
+    window.gtag = (command, ...args) => {
+      if (command === "get") {
+        const callback = args.at(-1);
+        if (typeof callback === "function") callback("123.456");
+        return;
+      }
+      if (command === "event") {
+        const events = JSON.parse(
+          window.localStorage.getItem("checkout-canary-events") ?? "[]",
+        );
+        events.push(args[0]);
+        window.localStorage.setItem(
+          "checkout-canary-events",
+          JSON.stringify(events),
+        );
+      }
+    };
+  });
+  await successfulCheckoutPage.getByLabel("Email").fill("shopper@example.com");
+  await successfulCheckoutPage
+    .getByRole("button", { name: /Continue to Stripe/ })
+    .click();
+  await successfulCheckoutPage.waitForURL(fPathCheckoutUrl);
+  assert.equal(
+    successfulCheckoutPage.url(),
+    fPathCheckoutUrl,
+    "An f/pay Checkout response must automatically navigate to Stripe.",
+  );
+  await successfulCheckoutPage.goto(`${origin}/checkout`);
+  const successfulCheckoutEvents = await successfulCheckoutPage.evaluate(() =>
+    JSON.parse(window.localStorage.getItem("checkout-canary-events") ?? "[]"),
+  );
+  assert.deepEqual(successfulCheckoutEvents, ["begin_checkout"]);
+  assert.equal(successfulCheckoutEvents.includes("checkout_error"), false);
+  await successfulCheckoutContext.close();
 
   const declinedCheckoutContext = await browser.newContext({
     viewport: { width: 390, height: 844 },
