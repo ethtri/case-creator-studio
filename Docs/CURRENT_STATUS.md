@@ -3,7 +3,7 @@
 Owner-updated snapshot for AI agents. GitHub Issues is the operational source
 of truth; `Docs/DECISIONS.md` remains authoritative for recorded decisions.
 
-**Last updated:** 2026-08-26
+**Last updated:** 2026-09-08
 **Last updated by:** Codex
 **MVP target:** Controlled production-ready pilot
 **Sprint goal:** Prove the order-to-physical-case identity chain and finish the
@@ -52,6 +52,13 @@ remaining supervised onshore-pilot gates.
 
 - The public site uses `https://www.snapcase.ai`, the EDM-first design flow,
   live Stripe Checkout, and Printful as the production fulfillment default.
+- P0 checkout redirect recovery is production-proven: #277 / PR #278 now
+  strictly accepts observed Stripe hosted Session paths under both `/c/pay/`
+  and `/f/pay/`. Vercel deployed merge `4421a7e`; a fresh one-click browser
+  canary automatically reached Stripe and created exactly one synthetic pending
+  order with no payment or recovery email. The excluded test records, rollback,
+  and release-gate evidence are reconciled in the
+  [immutable agency audit](https://github.com/ethtri/Snapcase_Autonomous_MarketingAgency/blob/2396b6c4133d610829a1ee649c42eb7de24d331f/outputs/audit/run_20260908_checkout_redirect_recovery.yml).
 - Checkout-start analytics now waits for a validated hosted Stripe Session,
   remains latched through redirect, and excludes customer, design, attribution,
   URL, and Session data. Production ingestion and QA-exclusion proof remain
