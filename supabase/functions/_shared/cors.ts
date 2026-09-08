@@ -80,7 +80,7 @@ export function getCorsHeaders(
   return {
     "Access-Control-Allow-Origin": resolveAllowedOrigin(origin),
     "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type, x-vendor-signature, x-vendor-handoff-secret",
+      "authorization, x-client-info, apikey, content-type, x-snapcase-checkout-canary, x-vendor-signature, x-vendor-handoff-secret",
     "Access-Control-Allow-Methods": methods,
   };
 }

@@ -40,6 +40,7 @@ import {
   buildBeginCheckoutPayload,
   createHostedCheckoutRunner,
 } from "@/lib/checkout-session";
+import { reportCheckoutClientObservation } from "@/lib/checkout-observability";
 import { SNAPCASE_DEFAULT_SHIPPING } from "../../supabase/functions/_shared/catalog-pricing.ts";
 
 const SHIPPING_COST = SNAPCASE_DEFAULT_SHIPPING;
@@ -68,6 +69,7 @@ const Checkout = () => {
         invoke: (body) =>
           supabase.functions.invoke("create-checkout", { body }),
         track: trackMarketingEvent,
+        observe: reportCheckoutClientObservation,
         redirect: (url) => {
           window.location.href = url;
         },
@@ -197,6 +199,7 @@ const Checkout = () => {
     }
 
     setIsProcessing(true);
+    const checkoutAttemptId = crypto.randomUUID();
     const cartItems = items.map((item) => ({
       variantId: item.variant.id,
       brand: item.variant.brand,
@@ -223,7 +226,9 @@ const Checkout = () => {
     });
 
     void checkoutRunner.start({
+      checkoutAttemptId,
       buildRequestBody: async () => ({
+        checkoutAttemptId,
         items: cartItems,
         customerEmail: user?.email ?? email,
         promoCode: appliedPromo ? { code: appliedPromo.code } : undefined,

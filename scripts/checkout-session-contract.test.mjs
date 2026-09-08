@@ -9,6 +9,7 @@ import {
 
 const hostedCheckoutUrl =
   "https://checkout.stripe.com/c/pay/cs_test_snapcase123#opaque-fragment";
+const checkoutAttemptId = "137a7191-5d1b-4f63-8917-a1683e4ebd78";
 
 const beginCheckoutPayload = buildBeginCheckoutPayload({
   subtotal: 59.98,
@@ -26,6 +27,7 @@ const beginCheckoutPayload = buildBeginCheckoutPayload({
 });
 
 const buildAttempt = (overrides = {}) => ({
+  checkoutAttemptId,
   buildRequestBody: () => ({ order: "bounded-checkout-request" }),
   beginCheckoutPayload,
   ...overrides,
@@ -79,9 +81,11 @@ test("automatically redirects an f/pay Checkout Session without checkout_error",
     "https://checkout.stripe.com/f/pay/cs_live_snapcase123#opaque-fragment";
   const events = [];
   const redirects = [];
+  const observations = [];
   const runner = createHostedCheckoutRunner({
     invoke: async () => ({ data: { url: fHostedCheckoutUrl }, error: null }),
     track: (eventName) => events.push(eventName),
+    observe: (observation) => observations.push(observation),
     redirect: (url) => redirects.push(url),
   });
 
@@ -91,7 +95,55 @@ test("automatically redirects an f/pay Checkout Session without checkout_error",
   });
   assert.deepEqual(redirects, [fHostedCheckoutUrl]);
   assert.deepEqual(events, ["begin_checkout"]);
+  assert.deepEqual(observations, [
+    {
+      checkoutAttemptId,
+      outcome: "redirect_accepted",
+    },
+  ]);
   assert.equal(events.includes("checkout_error"), false);
+});
+
+test("records an invalid hosted URL without blocking the bounded failure", async () => {
+  const observations = [];
+  const runner = createHostedCheckoutRunner({
+    invoke: async () => ({
+      data: { url: "https://evil.example/c/pay/cs_live_private" },
+      error: null,
+    }),
+    track: () => undefined,
+    observe: (observation) => observations.push(observation),
+    redirect: () => assert.fail("invalid URL must not redirect"),
+  });
+
+  assert.equal((await runner.start(buildAttempt())).kind, "failed");
+  assert.deepEqual(observations, [
+    {
+      checkoutAttemptId,
+      outcome: "client_rejected",
+      errorCode: "invalid_checkout_url",
+    },
+  ]);
+});
+
+test("observation failures never block a valid Stripe redirect", async () => {
+  for (const observe of [
+    () => {
+      throw new Error("observation unavailable");
+    },
+    () => Promise.reject(new Error("observation unavailable")),
+  ]) {
+    const redirects = [];
+    const runner = createHostedCheckoutRunner({
+      invoke: async () => ({ data: { url: hostedCheckoutUrl }, error: null }),
+      track: () => undefined,
+      observe,
+      redirect: (url) => redirects.push(url),
+    });
+
+    assert.equal((await runner.start(buildAttempt())).kind, "redirected");
+    assert.deepEqual(redirects, [hostedCheckoutUrl]);
+  }
 });
 
 test("builds a whitelist-only begin-checkout payload without private checkout fields", () => {
@@ -369,7 +421,10 @@ test("bounds provider messages and permits a clean retry after failure", async (
     invoke: async () => {
       requests += 1;
       return requests === 1
-        ? { data: null, error: { message: `Provider unavailable ${privateTail}` } }
+        ? {
+            data: null,
+            error: { message: `Provider unavailable ${privateTail}` },
+          }
         : { data: { url: hostedCheckoutUrl }, error: null };
     },
     track: (eventName) => events.push(eventName),

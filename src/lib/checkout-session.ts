@@ -1,11 +1,9 @@
-import {
-  asMarketingItems,
-  buildAnalyticsItems,
-} from "./analytics-commerce.ts";
+import { asMarketingItems, buildAnalyticsItems } from "./analytics-commerce.ts";
 import type {
   MarketingEventPayload,
   MarketingEventValue,
 } from "./marketing.ts";
+import type { CheckoutClientObservation } from "./checkout-observability.ts";
 
 const STRIPE_CHECKOUT_HOST = "checkout.stripe.com";
 const STRIPE_CHECKOUT_SESSION_PATH =
@@ -44,8 +42,7 @@ export type CheckoutStartFailure = {
 };
 
 export type CheckoutStartResult =
-  | { kind: "redirected"; url: string }
-  | CheckoutStartFailure;
+  { kind: "redirected"; url: string } | CheckoutStartFailure;
 
 type CheckoutInvocationResult = {
   data: unknown;
@@ -59,9 +56,11 @@ type CheckoutRunnerDependencies = {
     payload: MarketingEventPayload,
   ) => unknown;
   redirect: (url: string) => void;
+  observe?: (observation: CheckoutClientObservation) => unknown;
 };
 
 type CheckoutAttempt = {
+  checkoutAttemptId?: string;
   buildRequestBody: () => unknown | Promise<unknown>;
   beginCheckoutPayload: BeginCheckoutPayload;
   onFailure?: (failure: CheckoutStartFailure) => void;
@@ -109,10 +108,10 @@ const readProviderErrorMessage = async (error: unknown) => {
   try {
     const payload = await context.clone().json();
     return isRecord(payload)
-      ? normalizeProviderMessage(payload.error) ??
+      ? (normalizeProviderMessage(payload.error) ??
           fallback ??
-          DEFAULT_CHECKOUT_ERROR
-      : fallback ?? DEFAULT_CHECKOUT_ERROR;
+          DEFAULT_CHECKOUT_ERROR)
+      : (fallback ?? DEFAULT_CHECKOUT_ERROR);
   } catch {
     return fallback ?? DEFAULT_CHECKOUT_ERROR;
   }
@@ -135,6 +134,21 @@ const emitBestEffort = (
     track(eventName, payload);
   } catch {
     // Analytics must never block checkout or recovery.
+  }
+};
+
+const observeBestEffort = (
+  observe: CheckoutRunnerDependencies["observe"],
+  observation: CheckoutClientObservation,
+) => {
+  if (!observe) return;
+  try {
+    const result = observe(observation);
+    if (result && typeof (result as PromiseLike<unknown>).then === "function") {
+      void Promise.resolve(result).catch(() => undefined);
+    }
+  } catch {
+    // Observability must never block or replace the Stripe redirect.
   }
 };
 
@@ -217,18 +231,28 @@ export const createHostedCheckoutRunner = ({
   invoke,
   track,
   redirect,
+  observe,
 }: CheckoutRunnerDependencies) => {
   let inFlight: Promise<CheckoutStartResult> | null = null;
 
   const fail = (
     message: string,
     onFailure?: CheckoutAttempt["onFailure"],
+    checkoutAttemptId?: string,
+    observationCode?: "invalid_checkout_url",
   ): CheckoutStartFailure => {
     const failure = classifyFailure(message);
     emitBestEffort(track, "checkout_error", {
       error_code: failure.errorCode,
       stage: "create_checkout",
     });
+    if (checkoutAttemptId && observationCode) {
+      observeBestEffort(observe, {
+        checkoutAttemptId,
+        outcome: "client_rejected",
+        errorCode: observationCode,
+      });
+    }
     try {
       onFailure?.(failure);
     } catch {
@@ -238,6 +262,7 @@ export const createHostedCheckoutRunner = ({
   };
 
   const execute = async ({
+    checkoutAttemptId,
     buildRequestBody,
     beginCheckoutPayload,
     onFailure,
@@ -245,24 +270,43 @@ export const createHostedCheckoutRunner = ({
     try {
       const response = await invoke(await buildRequestBody());
       if (!isRecord(response)) {
-        return fail(DEFAULT_CHECKOUT_ERROR, onFailure);
+        return fail(DEFAULT_CHECKOUT_ERROR, onFailure, checkoutAttemptId);
       }
       if (response.error) {
-        return fail(await readProviderErrorMessage(response.error), onFailure);
+        return fail(
+          await readProviderErrorMessage(response.error),
+          onFailure,
+          checkoutAttemptId,
+        );
       }
 
       const checkoutUrl = normalizeHostedStripeCheckoutUrl(
         isRecord(response.data) ? response.data.url : undefined,
       );
       if (!checkoutUrl) {
-        return fail(INVALID_CHECKOUT_URL_ERROR, onFailure);
+        return fail(
+          INVALID_CHECKOUT_URL_ERROR,
+          onFailure,
+          checkoutAttemptId,
+          "invalid_checkout_url",
+        );
       }
 
+      if (checkoutAttemptId) {
+        observeBestEffort(observe, {
+          checkoutAttemptId,
+          outcome: "redirect_accepted",
+        });
+      }
       emitBestEffort(track, "begin_checkout", beginCheckoutPayload);
       redirect(checkoutUrl);
       return { kind: "redirected", url: checkoutUrl };
     } catch (error) {
-      return fail(await readProviderErrorMessage(error), onFailure);
+      return fail(
+        await readProviderErrorMessage(error),
+        onFailure,
+        checkoutAttemptId,
+      );
     }
   };
 

@@ -19,6 +19,60 @@ import {
 } from "../_shared/checkout-fulfillment.ts";
 
 const TRUE_VALUES = new Set(["1", "true", "yes"]);
+type SupabaseAdminClient = ReturnType<typeof createClient<any>>;
+
+type CheckoutAttemptErrorCode =
+  | "invalid_request"
+  | "origin_rejected"
+  | "promotion_rejected"
+  | "internal_failure";
+
+function classifyCheckoutAttemptError(
+  error: unknown,
+): CheckoutAttemptErrorCode {
+  const message = error instanceof Error ? error.message : String(error);
+  const lowered = message.toLowerCase();
+  if (lowered.includes("origin")) return "origin_rejected";
+  if (lowered.includes("promo") || lowered.includes("first-time")) {
+    return "promotion_rejected";
+  }
+  if (
+    lowered.includes("validation") ||
+    lowered.includes("invalid order") ||
+    lowered.includes("no items") ||
+    lowered.includes("one case per checkout")
+  ) {
+    return "invalid_request";
+  }
+  return "internal_failure";
+}
+
+function checkoutSessionPathVariant(value: string | null): "c" | "f" | null {
+  if (!value) return null;
+  try {
+    const match = new URL(value).pathname.match(/^\/(c|f)\/pay\//);
+    return match?.[1] === "c" || match?.[1] === "f" ? match[1] : null;
+  } catch {
+    return null;
+  }
+}
+
+function logCheckoutAttempt(
+  level: "info" | "warn" | "error",
+  event: string,
+  checkoutAttemptId: string,
+  fields: Record<string, unknown> = {},
+): void {
+  const message = JSON.stringify({
+    level,
+    event,
+    checkoutAttemptId,
+    ...fields,
+  });
+  if (level === "error") console.error(message);
+  else if (level === "warn") console.warn(message);
+  else console.log(message);
+}
 
 function getFulfillmentProvider(): CheckoutFulfillmentProvider {
   const provider = (
@@ -57,13 +111,6 @@ function isOnshoreManualEnabled(): boolean {
 function getSafeErrorMessage(error: unknown): string {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const lowered = errorMessage.toLowerCase();
-
-  // Log full error details server-side for debugging
-  console.error("[CREATE-CHECKOUT] Full error details:", {
-    message: errorMessage,
-    stack: error instanceof Error ? error.stack : undefined,
-    timestamp: new Date().toISOString(),
-  });
 
   // Return safe, generic messages to client
   if (
@@ -150,6 +197,7 @@ const marketingAttributionSchema = z.union([
 ]).nullable().optional();
 
 const checkoutRequestSchema = z.object({
+  checkoutAttemptId: z.string().uuid().optional(),
   items: z.array(itemSchema).min(1).max(50),
   customerEmail: z.string().email().max(255),
   promoCode: promoCodeSchema.optional(),
@@ -185,7 +233,7 @@ function computeDiscount(orderTotal: number, coupon: Stripe.Coupon): number {
 }
 
 async function hasPaidOrder(
-  supabaseClient: ReturnType<typeof createClient>,
+  supabaseClient: SupabaseAdminClient,
   email: string,
 ): Promise<boolean> {
   const { data, error } = await supabaseClient
@@ -196,7 +244,11 @@ async function hasPaidOrder(
     .limit(1);
 
   if (error) {
-    console.error("[CREATE-CHECKOUT] Failed to check order history:", error);
+    console.error(JSON.stringify({
+      level: "error",
+      event: "checkout_promotion_history_lookup_failed",
+      errorCode: "database_lookup_failed",
+    }));
     throw new Error("Unable to validate promo code right now.");
   }
 
@@ -205,7 +257,7 @@ async function hasPaidOrder(
 
 async function resolvePromotionCode(
   stripe: Stripe,
-  supabaseClient: ReturnType<typeof createClient>,
+  supabaseClient: SupabaseAdminClient,
   code: string,
   orderTotal: number,
   customerEmail: string,
@@ -291,6 +343,10 @@ async function resolvePromotionCode(
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
+  const startedAt = Date.now();
+  let checkoutAttemptId: string = crypto.randomUUID();
+  let attemptPersisted = false;
+  let supabaseClient: SupabaseAdminClient | null = null;
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -302,14 +358,17 @@ serve(async (req) => {
     // Validate request data with Zod
     const validationResult = checkoutRequestSchema.safeParse(rawBody);
     if (!validationResult.success) {
-      console.error(
-        "[CREATE-CHECKOUT] Validation error:",
-        validationResult.error.errors,
+      logCheckoutAttempt(
+        "warn",
+        "checkout_request_rejected",
+        checkoutAttemptId,
+        { errorCode: "invalid_request" },
       );
       throw new Error("Invalid order data");
     }
 
     const {
+      checkoutAttemptId: requestedCheckoutAttemptId,
       items: requestItems,
       customerEmail,
       promoCode,
@@ -317,6 +376,7 @@ serve(async (req) => {
       analyticsClientId,
       analyticsConsent,
     } = validationResult.data;
+    checkoutAttemptId = requestedCheckoutAttemptId ?? checkoutAttemptId;
     const fulfillmentProvider = getFulfillmentProvider();
     const totalQuantity = requestItems.reduce(
       (sum, item) => sum + item.quantity,
@@ -338,9 +398,11 @@ serve(async (req) => {
       const { data: authData, error: authError } = await supabaseAuth.auth
         .getUser();
       if (authError) {
-        console.warn(
-          "[CREATE-CHECKOUT] Auth lookup failed:",
-          authError.message,
+        logCheckoutAttempt(
+          "warn",
+          "checkout_optional_auth_lookup_failed",
+          checkoutAttemptId,
+          { errorCode: "auth_lookup_failed" },
         );
       } else {
         authUserId = authData?.user?.id ?? null;
@@ -350,14 +412,42 @@ serve(async (req) => {
 
     const resolvedEmail = authUserEmail ?? customerEmail;
 
-    console.log("[CREATE-CHECKOUT] Items count:", requestItems.length);
-
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     if (!supabaseUrl || !supabaseServiceKey) {
       throw new Error("Database order creation failed");
     }
 
-    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
+    supabaseClient = createClient<any>(supabaseUrl, supabaseServiceKey);
+    const configuredCanarySecret =
+      Deno.env.get("CHECKOUT_CANARY_AUTH_SECRET") ?? "";
+    const suppliedCanarySecret =
+      req.headers.get("x-snapcase-checkout-canary") ?? "";
+    const isSynthetic = configuredCanarySecret.length >= 32 &&
+      suppliedCanarySecret === configuredCanarySecret;
+
+    const { error: attemptInsertError } = await supabaseClient
+      .from("checkout_attempts")
+      .insert({
+        id: checkoutAttemptId,
+        status: "request_received",
+        is_synthetic: isSynthetic,
+      });
+    if (attemptInsertError) {
+      logCheckoutAttempt(
+        "error",
+        "checkout_attempt_persistence_failed",
+        checkoutAttemptId,
+        { errorCode: "database_insert_failed" },
+      );
+      throw new Error("Database order creation failed");
+    }
+    attemptPersisted = true;
+    logCheckoutAttempt("info", "checkout_request_received", checkoutAttemptId, {
+      itemCount: requestItems.length,
+      totalQuantity,
+      fulfillmentProvider,
+      isSynthetic,
+    });
 
     const stripe = new Stripe(getStripeSecretKey("CREATE-CHECKOUT"), {
       apiVersion: "2025-08-27.basil",
@@ -382,7 +472,7 @@ serve(async (req) => {
     const promo = promoCode
       ? await resolvePromotionCode(
         stripe,
-        supabaseClient as ReturnType<typeof createClient>,
+        supabaseClient,
         promoCode.code.trim(),
         subtotal,
         resolvedEmail,
@@ -452,6 +542,7 @@ serve(async (req) => {
       ],
       metadata: {
         source: "snapcase_site",
+        checkoutAttemptId,
         itemsJson: JSON.stringify(items.map((i) => ({
           variantId: i.variantId,
           quantity: i.quantity,
@@ -463,8 +554,31 @@ serve(async (req) => {
       },
     });
 
-    const { data: createdOrder, error: orderError } = await supabaseClient.from("orders").insert({
+    const sessionPathVariant = checkoutSessionPathVariant(session.url);
+    const { error: sessionUpdateError } = await supabaseClient
+      .from("checkout_attempts")
+      .update({
+        status: "session_created",
+        session_path_variant: sessionPathVariant,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", checkoutAttemptId)
+      .eq("status", "request_received");
+    if (sessionUpdateError) {
+      logCheckoutAttempt(
+        "error",
+        "checkout_session_observation_failed",
+        checkoutAttemptId,
+        { errorCode: "database_update_failed" },
+      );
+    }
+
+    const { data: createdOrder, error: orderError } = await supabaseClient.from(
+      "orders",
+    ).insert({
       stripe_session_id: session.id,
+      checkout_attempt_id: checkoutAttemptId,
+      is_synthetic: isSynthetic,
       customer_email: resolvedEmail,
       user_id: authUserId,
       items: items,
@@ -482,45 +596,120 @@ serve(async (req) => {
       fulfillment_provider: fulfillmentProvider,
     }).select("id").single();
 
-    if (orderError) {
-      console.error("[CREATE-CHECKOUT] Error creating order:", orderError);
+    if (orderError || !createdOrder?.id) {
+      logCheckoutAttempt(
+        "error",
+        "checkout_order_persistence_failed",
+        checkoutAttemptId,
+        { errorCode: "database_insert_failed" },
+      );
       try {
         await stripe.checkout.sessions.expire(session.id);
-      } catch (expireError) {
-        console.error(
-          "[CREATE-CHECKOUT] Failed to expire orphaned Checkout session:",
-          expireError,
+      } catch {
+        logCheckoutAttempt(
+          "error",
+          "checkout_orphan_session_expiry_failed",
+          checkoutAttemptId,
+          { errorCode: "provider_expiry_failed" },
         );
       }
       throw new Error("Database order creation failed");
     }
 
-    if (createdOrder?.id) {
+    if (createdOrder?.id && !isSynthetic) {
       const { error: recoveryError } = await supabaseClient.rpc(
         "register_abandoned_cart_recovery",
         { p_email: resolvedEmail, p_order_id: createdOrder.id },
       );
       if (recoveryError) {
-        console.warn("[CREATE-CHECKOUT] Recovery eligibility could not be staged.");
+        console.warn(
+          "[CREATE-CHECKOUT] Recovery eligibility could not be staged.",
+        );
       }
     }
 
-    console.log("[CREATE-CHECKOUT] Order created successfully");
-    console.log("[CREATE-CHECKOUT] Checkout session created:", session.id);
+    const completedAt = new Date().toISOString();
+    const { error: completionError } = await supabaseClient
+      .from("checkout_attempts")
+      .update({
+        order_id: createdOrder.id,
+        status: "server_completed",
+        server_completed_at: completedAt,
+        updated_at: completedAt,
+      })
+      .eq("id", checkoutAttemptId);
+    if (completionError) {
+      logCheckoutAttempt(
+        "error",
+        "checkout_completion_observation_failed",
+        checkoutAttemptId,
+        { errorCode: "database_update_failed" },
+      );
+    }
+
+    logCheckoutAttempt("info", "checkout_server_completed", checkoutAttemptId, {
+      durationMs: Date.now() - startedAt,
+      sessionPathVariant,
+      isSynthetic,
+    });
 
     return new Response(
-      JSON.stringify({ url: session.url, sessionId: session.id }),
+      JSON.stringify({
+        url: session.url,
+        sessionId: session.id,
+        checkoutAttemptId,
+      }),
       {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: {
+          ...corsHeaders,
+          "Access-Control-Expose-Headers": "x-snapcase-checkout-attempt-id",
+          "Content-Type": "application/json",
+          "x-snapcase-checkout-attempt-id": checkoutAttemptId,
+        },
         status: 200,
       },
     );
   } catch (error: unknown) {
     const corsHeaders = getCorsHeaders(req);
-    const safeMessage = getSafeErrorMessage(error);
-    return new Response(JSON.stringify({ error: safeMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+    const errorCode = classifyCheckoutAttemptError(error);
+    if (attemptPersisted && supabaseClient) {
+      const failedAt = new Date().toISOString();
+      const { error: attemptUpdateError } = await supabaseClient
+        .from("checkout_attempts")
+        .update({
+          status: "server_failed",
+          error_code: errorCode,
+          updated_at: failedAt,
+        })
+        .eq("id", checkoutAttemptId);
+      if (attemptUpdateError) {
+        logCheckoutAttempt(
+          "error",
+          "checkout_failure_observation_failed",
+          checkoutAttemptId,
+          { errorCode: "database_update_failed" },
+        );
+      }
+    }
+    logCheckoutAttempt("error", "checkout_server_failed", checkoutAttemptId, {
+      durationMs: Date.now() - startedAt,
+      errorCode,
     });
+    const safeMessage = getSafeErrorMessage(error);
+    return new Response(
+      JSON.stringify({
+        error: safeMessage,
+        checkoutAttemptId,
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          "Access-Control-Expose-Headers": "x-snapcase-checkout-attempt-id",
+          "Content-Type": "application/json",
+          "x-snapcase-checkout-attempt-id": checkoutAttemptId,
+        },
+        status: 500,
+      },
+    );
   }
 });
