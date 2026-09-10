@@ -186,8 +186,9 @@ const SeoLanding = () => {
                     className="h-[470px] w-auto max-w-full rounded-t-[1.5rem] object-cover object-center drop-shadow-2xl sm:h-[540px]"
                   />
                   <figcaption className="absolute inset-x-3 bottom-3 rounded-full bg-background/90 px-4 py-2 text-center text-xs font-medium text-foreground shadow-soft backdrop-blur-sm">
-                    AI-generated product visualization. Preview your design
-                    before checkout.
+                    AI-generated illustration. Product visualization; not a
+                    photograph of a finished case. Preview your design before
+                    checkout.
                   </figcaption>
                 </figure>
               </div>

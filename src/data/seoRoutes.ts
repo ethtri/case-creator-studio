@@ -40,7 +40,7 @@ export const OG_IMAGE = `${SITE_URL}/og-image.png`;
 const toAbsoluteAssetUrl = (assetUrl: string) => new URL(assetUrl, `${SITE_URL}/`).href;
 const IPHONE_IMAGE = toAbsoluteAssetUrl(iphoneCaseFront);
 const SAMSUNG_IMAGE = toAbsoluteAssetUrl(samsungCaseFront);
-const PET_PHOTO_IMAGE = `${SITE_URL}/marketing/pet-photo-landing/pet-photo-case-hero.webp`;
+const PET_PHOTO_IMAGE = `${SITE_URL}/marketing/pet-photo-landing/pet-photo-case-product-concept-social-preview.webp`;
 const IPHONE_PHOTO_IMAGE = `${SITE_URL}/marketing/iphone-photo-landing/iphone-photo-case-hero.webp`;
 
 const makeRoute = (
