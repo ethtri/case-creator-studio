@@ -177,13 +177,19 @@ const SeoLanding = () => {
                   className="pointer-events-none absolute inset-0 opacity-70 [background:radial-gradient(circle_at_35%_25%,rgba(255,255,255,0.95),transparent_42%)]"
                   aria-hidden="true"
                 />
-                <img
-                  src="/marketing/pet-photo-landing/pet-photo-case-hero.webp"
-                  width={427}
-                  height={900}
-                  alt="Illustrated golden retriever design on a phone case"
-                  className="relative z-10 h-[470px] w-auto max-w-full object-contain drop-shadow-2xl sm:h-[540px]"
-                />
+                <figure className="relative z-10 flex h-full w-full items-center justify-center">
+                  <img
+                    src="/marketing/pet-photo-landing/pet-photo-case-product-concept.webp"
+                    width={941}
+                    height={1672}
+                    alt="AI-generated illustrated concept showing two golden retriever photo choices and a custom phone case"
+                    className="h-[470px] w-auto max-w-full rounded-t-[1.5rem] object-cover object-center drop-shadow-2xl sm:h-[540px]"
+                  />
+                  <figcaption className="absolute inset-x-3 bottom-3 rounded-full bg-background/90 px-4 py-2 text-center text-xs font-medium text-foreground shadow-soft backdrop-blur-sm">
+                    AI-generated product visualization. Preview your design
+                    before checkout.
+                  </figcaption>
+                </figure>
               </div>
             </div>
           </section>

@@ -43,7 +43,11 @@ test("pet photo landing uses rights-safe local creative and one primary destinat
 
   assert.match(
     pageSource,
-    /\/marketing\/pet-photo-landing\/pet-photo-case-hero\.webp/,
+    /\/marketing\/pet-photo-landing\/pet-photo-case-product-concept\.webp/,
+  );
+  assert.match(
+    pageSource,
+    /AI-generated product visualization\. Preview your design/,
   );
   assert.match(
     pageSource,
