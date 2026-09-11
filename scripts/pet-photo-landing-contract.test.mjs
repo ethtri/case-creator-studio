@@ -55,7 +55,7 @@ test("pet photo landing uses rights-safe local creative and one primary destinat
   );
   assert.match(
     seoRoutes,
-    /PET_PHOTO_IMAGE = `\$\{SITE_URL\}\/marketing\/pet-photo-landing\/pet-photo-case-product-concept-social-preview\.webp`/,
+    /PET_PHOTO_IMAGE = `\$\{SITE_URL\}\/marketing\/pet-photo-landing\/pet-photo-case-product-concept-social-preview-landscape\.webp`/,
   );
   assert.doesNotMatch(pageSource, /testimonial|five-star|best seller/i);
 });
