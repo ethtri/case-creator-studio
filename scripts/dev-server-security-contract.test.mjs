@@ -16,11 +16,11 @@ const readme = readFileSync(resolve(repositoryRoot, "README.md"), "utf8");
 
 test("Vite tooling stays on the patched compatible release line", () => {
   assert.equal(packageJson.devDependencies.vite, "6.4.3");
-  assert.equal(packageJson.devDependencies["@vitejs/plugin-react-swc"], "4.3.1");
+  assert.equal(packageJson.devDependencies["@vitejs/plugin-react-swc"], "4.3.3");
   assert.equal(packageLock.packages[""].devDependencies.vite, "6.4.3");
   assert.equal(
     packageLock.packages[""].devDependencies["@vitejs/plugin-react-swc"],
-    "4.3.1",
+    "4.3.3",
   );
 });
 
