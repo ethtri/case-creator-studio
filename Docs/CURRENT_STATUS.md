@@ -3,7 +3,7 @@
 Owner-updated snapshot for AI agents. GitHub Issues is the operational source
 of truth; `Docs/DECISIONS.md` remains authoritative for recorded decisions.
 
-**Last updated:** 2026-09-08
+**Last updated:** 2026-09-11
 **Last updated by:** Codex
 **MVP target:** Controlled production-ready pilot
 **Sprint goal:** Prove the order-to-physical-case identity chain and finish the
@@ -68,6 +68,13 @@ remaining supervised onshore-pilot gates.
   [passed on `/f/pay/`](https://github.com/ethtri/case-creator-studio/actions/runs/34260325399)
   with one correlated unpaid synthetic order and zero recovery intents. The
   real paid pilot remains blocked by #32's fulfillment and identity-chain gates.
+- A React Router 7 security migration (#290 / PR #291) was rolled back through
+  P0 #292 / PR #293 after the production checkout canary failed twice at the
+  automatic Stripe handoff. Vercel deployed rollback merge `45431c8`; the
+  unchanged post-merge verification passed and the live production canary
+  [recovered](https://github.com/ethtri/case-creator-studio/actions/runs/34671114143).
+  Checkout is usable; the two moderate React Router advisories remain deferred
+  until an isolated migration preserves the production handoff.
 - Checkout-start analytics now waits for a validated hosted Stripe Session,
   remains latched through redirect, and excludes customer, design, attribution,
   URL, and Session data. Production ingestion and QA-exclusion proof remain
@@ -79,8 +86,10 @@ remaining supervised onshore-pilot gates.
 - `snapcase.ai` transactional email is live through the `hello@snapcase.ai`
   Resend workspace, with separate production/staging keys, signed replay-safe
   webhooks, Supabase Auth SMTP, and Microsoft 365 inbound routing preserved.
-- Dependency audits are clean, GitHub Actions use Node 24-compatible releases,
-  and local Vite development is patched and loopback-only by default.
+- Dependency audits pass the configured high-severity gate but report two
+  deferred moderate React Router advisories. GitHub Actions use Node
+  24-compatible releases, and local Vite development is patched and
+  loopback-only by default.
 - Current pilot evidence and operating detail live in `Docs/ONSHORE_PILOT.md`,
   `Docs/PRODUCTION_ROADMAP.md`, and `Docs/PRODUCTION_CUTOVER_RUNBOOK.md`.
   Decisions live in `Docs/DECISIONS.md`; older status snapshots remain
