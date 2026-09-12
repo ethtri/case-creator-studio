@@ -37,15 +37,15 @@ test("supported tooling updates remove the vulnerable glob and minimatch paths",
   const typescriptEstree =
     packages["node_modules/@typescript-eslint/typescript-estree"];
 
-  assert.equal(packageJson.devDependencies.eslint, "^10.8.0");
+  assert.equal(packageJson.devDependencies.eslint, "^10.10.0");
   assert.equal(packageJson.devDependencies["@eslint/js"], "^10.0.1");
   assert.equal(
     packageJson.devDependencies["eslint-plugin-react-hooks"],
     "^7.1.1",
   );
   assert.equal(packageJson.devDependencies.tailwindcss, "^3.4.19");
-  assert.equal(packageJson.devDependencies["typescript-eslint"], "^8.65.0");
-  assert.equal(eslint.version, "10.8.0");
+  assert.equal(packageJson.devDependencies["typescript-eslint"], "^8.70.0");
+  assert.equal(eslint.version, "10.10.0");
   assert.equal(eslint.dependencies.minimatch, "^10.2.5");
   assert.equal(eslintJs.version, "10.0.1");
   assert.match(reactHooks.peerDependencies.eslint, /\^10\.0\.0/);
@@ -55,7 +55,7 @@ test("supported tooling updates remove the vulnerable glob and minimatch paths",
   assert.equal(sucrase.version, "3.35.1");
   assert.equal(sucrase.dependencies.glob, undefined);
   assert.equal(sucrase.dependencies.tinyglobby, "^0.2.11");
-  assert.equal(typescriptEstree.version, "8.65.0");
+  assert.equal(typescriptEstree.version, "8.70.0");
   assert.equal(typescriptEstree.dependencies.minimatch, "^10.2.2");
 });
 
