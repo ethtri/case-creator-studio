@@ -144,6 +144,11 @@ test("editor preview CTAs stay explicit without dropping funnel analytics", asyn
     /if \(purchaseInFlightRef\.current\) return;[\s\S]*?if \(currentDesignInCart\) \{[\s\S]*?purchaseInFlightRef\.current = true;[\s\S]*?navigate\(`\/checkout\/\$\{variantId\}`\);/,
     "Every Preview purchase activation, including an in-cart continuation, must share the rapid-activation guard.",
   );
+  assert.doesNotMatch(
+    previewSource,
+    /if \(currentDesignInCart\) \{\s*purchaseInFlightRef\.current = false;/,
+    "Adding the design must not reopen the rapid-activation guard before route navigation completes.",
+  );
   assert.equal(
     purchaseHandler.match(/addToCart\(/g)?.length,
     1,
