@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
 import { SNAPCASE_COMMERCIAL_ADDRESS, SNAPCASE_EMAILS } from "@/lib/email-identities";
