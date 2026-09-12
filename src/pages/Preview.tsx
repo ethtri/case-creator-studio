@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, Link, useNavigate, useSearchParams } from "react-router";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
@@ -155,6 +155,12 @@ const Preview = () => {
       ? `/design/${variantId}?designId=${designId}`
       : `/design/${variantId}`
     : "/catalog";
+
+  useEffect(() => {
+    if (currentDesignInCart) {
+      purchaseInFlightRef.current = false;
+    }
+  }, [currentDesignInCart]);
 
   useEffect(() => {
     const paramDesignId = searchParams.get("designId");

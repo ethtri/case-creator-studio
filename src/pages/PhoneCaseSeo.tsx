@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useParams } from "react-router-dom";
 import { ChevronRight, Package, Palette, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {

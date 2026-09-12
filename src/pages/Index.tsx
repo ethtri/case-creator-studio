@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Bell, ChevronRight, CreditCard, Eye, Smartphone } from "lucide-react";
 import heroWide960Avif from "@/assets/hero-wide-960.avif";

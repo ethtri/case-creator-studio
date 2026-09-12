@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import { CheckCircle2, MailX, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SnapcaseLogo } from "@/components/SnapcaseLogo";

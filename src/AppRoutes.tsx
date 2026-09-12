@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Navigate, Routes, Route, useParams } from "react-router";
+import { Navigate, Routes, Route, useParams } from "react-router-dom";
 import {
   loadAuth,
   loadAuthCallback,

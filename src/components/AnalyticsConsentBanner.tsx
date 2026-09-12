@@ -1,4 +1,4 @@
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAnalyticsConsent } from "@/hooks/useAnalyticsConsent";
 import { setAnalyticsConsent } from "@/lib/marketing";
