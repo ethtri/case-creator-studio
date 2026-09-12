@@ -1,5 +1,5 @@
 import { useLayoutEffect } from "react";
-import { useLocation } from "react-router";
+import { useLocation } from "react-router-dom";
 import { getSeoRouteByPath } from "@/data/seoRoutes";
 
 const NOINDEX_TITLES: [RegExp, string][] = [

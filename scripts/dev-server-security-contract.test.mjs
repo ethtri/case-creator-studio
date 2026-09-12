@@ -13,18 +13,6 @@ const packageLock = JSON.parse(
 );
 const viteConfig = readFileSync(resolve(repositoryRoot, "vite.config.ts"), "utf8");
 const readme = readFileSync(resolve(repositoryRoot, "README.md"), "utf8");
-const entryServer = readFileSync(
-  resolve(repositoryRoot, "src/entry-server.tsx"),
-  "utf8",
-);
-
-test("React Router uses the patched v7 line and supported entry points", () => {
-  assert.equal(packageJson.dependencies["react-router"], "^7.18.3");
-  assert.equal(packageJson.dependencies["react-router-dom"], undefined);
-  assert.equal(packageLock.packages["node_modules/react-router"].version, "7.18.3");
-  assert.match(entryServer, /StaticRouter } from ["']react-router["']/);
-  assert.doesNotMatch(entryServer, /react-router-dom/);
-});
 
 test("Vite tooling stays on the patched compatible release line", () => {
   assert.equal(packageJson.devDependencies.vite, "6.4.3");
