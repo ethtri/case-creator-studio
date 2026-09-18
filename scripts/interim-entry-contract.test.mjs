@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import test from "node:test";
 
@@ -87,6 +88,25 @@ test("catalog search result and visible promise match snap-case intent", () => {
     catalogSource,
     /Choose an iPhone or Samsung Galaxy model, then design and preview\s+your custom snap case before checkout\./,
   );
+});
+
+test("catalog concept uses the registered site asset with honest disclosure and a model path", async () => {
+  const concept = await readFile(
+    new URL(
+      "../public/marketing/pet-photo-landing/pet-photo-case-product-concept.webp",
+      import.meta.url,
+    ),
+  );
+  assert.equal(
+    createHash("sha256").update(concept).digest("hex"),
+    "9ee523ff4bea080decab3514169c9a7c5091219f1c251ab2410e436d94c53dd1",
+  );
+  assert.match(catalogSource, /data-catalog-concept-image="true"/);
+  assert.match(catalogSource, /AI-generated illustration\. Product visualization; not a photograph\s+of a finished case\. Preview your design before checkout\./);
+  assert.match(catalogSource, /href="#catalog-models"/);
+  assert.match(catalogSource, /id="catalog-models"/);
+  assert.match(catalogSource, /placement: "catalog_concept_choose_model"/);
+  assert.match(catalogSource, /catalog_start_design/);
 });
 
 test("public entry-page source removes unsupported merchandising language", () => {

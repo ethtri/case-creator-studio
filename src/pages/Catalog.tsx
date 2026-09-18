@@ -103,6 +103,47 @@ const Catalog = () => {
             </p>
           </div>
 
+          <aside
+            className="mt-7 flex items-center gap-4 overflow-hidden rounded-2xl border border-[#d9ddd1] bg-[#f5f2e9] p-3 shadow-soft sm:gap-6 sm:p-4"
+            aria-label="Pet photo case inspiration"
+          >
+            <img
+              src="/marketing/pet-photo-landing/pet-photo-case-product-concept.webp"
+              width={941}
+              height={1672}
+              alt="AI-generated illustrated concept of pet portraits becoming a custom phone case"
+              loading="lazy"
+              decoding="async"
+              className="h-32 w-24 shrink-0 rounded-xl object-cover object-center sm:h-40 sm:w-28"
+              data-catalog-concept-image="true"
+            />
+            <div className="min-w-0 py-1">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#156b5c]">
+                Make it yours
+              </p>
+              <p className="mt-1 text-base font-semibold leading-snug text-[#25251f] sm:text-xl">
+                That favorite photo can start here.
+              </p>
+              <a
+                href="#catalog-models"
+                onClick={() =>
+                  trackMarketingEvent("primary_cta_click", {
+                    placement: "catalog_concept_choose_model",
+                    destination: "#catalog-models",
+                    label: "Choose your phone",
+                  })
+                }
+                className="mt-2 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-[#156b5c] underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
+              >
+                Choose your phone <ChevronRight className="size-4" aria-hidden="true" />
+              </a>
+              <p className="max-w-xl text-[11px] leading-snug text-[#545a53]">
+                AI-generated illustration. Product visualization; not a photograph
+                of a finished case. Preview your design before checkout.
+              </p>
+            </div>
+          </aside>
+
           {/* Search & Brand Filter */}
           <div className="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-center">
             <div className="relative w-full sm:w-64">
@@ -160,7 +201,7 @@ const Catalog = () => {
       </section>
 
       {/* Phone Models Grid */}
-      <section className="pb-24">
+      <section id="catalog-models" className="scroll-mt-24 pb-24">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {visibleVariants.map((variant) => (
