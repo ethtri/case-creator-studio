@@ -118,7 +118,7 @@ const Catalog = () => {
               data-catalog-concept-image="true"
             />
             <div className="min-w-0 py-1">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-cta-emphasis">
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#156b5c]">
                 Make it yours
               </p>
               <p className="mt-1 text-base font-semibold leading-snug text-[#25251f] sm:text-xl">
@@ -133,7 +133,7 @@ const Catalog = () => {
                     label: "Choose your phone",
                   })
                 }
-                className="mt-2 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-cta-emphasis underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
+                className="mt-2 inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-[#156b5c] underline-offset-4 hover:underline focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cta"
               >
                 Choose your phone <ChevronRight className="size-4" aria-hidden="true" />
               </a>
