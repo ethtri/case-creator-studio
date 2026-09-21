@@ -905,7 +905,7 @@ try {
   const homeHero = page.locator('[data-home-design-bench="true"]');
   const homeHeroHeading = homeHero.getByRole("heading", {
     level: 1,
-    name: "Print your story.",
+    name: "Your photo. Your phone case.",
   });
   const lightHeroSignature = await homeHero.evaluate((element) => {
     const style = getComputedStyle(element);
