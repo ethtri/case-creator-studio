@@ -173,13 +173,13 @@ const Index = () => {
               The Snapcase design bench
             </p>
             <h1 className="mb-6 font-display text-5xl font-bold tracking-tight text-[#fff9fc] md:text-7xl lg:text-8xl">
-              Print your
+              Your photo.
               <br />
-              story.
+              Your phone case.
             </h1>
 
             <p className="mb-8 max-w-md text-lg text-[#ddd5df] md:text-xl">
-              Choose your phone, create the design, and review a preview before checkout.
+              Choose your iPhone or Samsung model, add a photo or text, and review the preview before checkout.
             </p>
 
             <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
