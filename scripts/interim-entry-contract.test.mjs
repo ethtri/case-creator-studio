@@ -71,10 +71,10 @@ test("catalog result copy covers zero, singular, and plural states", () => {
   assert.equal(getCatalogResultCopy(18), "18 phone models shown.");
 });
 
-test("catalog search result and visible promise match snap-case intent", () => {
+test("catalog search result and visible promise match phone-case intent", () => {
   assert.match(
     seoRoutesSource,
-    /"Custom Snap Cases for iPhone & Samsung \| Snapcase"/,
+    /"Custom Phone Cases for iPhone & Samsung \| Snapcase"/,
   );
   assert.match(
     seoRoutesSource,
@@ -82,7 +82,7 @@ test("catalog search result and visible promise match snap-case intent", () => {
   );
   assert.match(
     catalogSource,
-    />\s*Custom Snap Cases for iPhone and Samsung\s*</,
+    />\s*Custom Phone Cases for iPhone and Samsung\s*</,
   );
   assert.match(
     catalogSource,
