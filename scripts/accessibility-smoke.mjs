@@ -1011,12 +1011,12 @@ try {
   await page
     .getByRole("heading", {
       level: 1,
-      name: "Custom Snap Cases for iPhone and Samsung",
+      name: "Custom Phone Cases for iPhone and Samsung",
     })
     .waitFor();
   assert.equal(
     await page.title(),
-    "Custom Snap Cases for iPhone & Samsung | Snapcase",
+    "Custom Phone Cases for iPhone & Samsung | Snapcase",
     "Catalog browser title must match the search-intent promise.",
   );
   assert.equal(
@@ -3443,7 +3443,7 @@ try {
     await selectionPage
       .getByRole("heading", {
         level: 1,
-        name: "Custom Snap Cases for iPhone and Samsung",
+        name: "Custom Phone Cases for iPhone and Samsung",
       })
       .waitFor();
     await selectionPage
@@ -3498,7 +3498,7 @@ try {
   await lateGrantPage
     .getByRole("heading", {
       level: 1,
-      name: "Custom Snap Cases for iPhone and Samsung",
+      name: "Custom Phone Cases for iPhone and Samsung",
     })
     .waitFor();
   assert.equal(lateGrantRecorder.getScriptRequests(), 0);
@@ -3634,7 +3634,7 @@ try {
   await lateGrantPage
     .getByRole("heading", {
       level: 1,
-      name: "Custom Snap Cases for iPhone and Samsung",
+      name: "Custom Phone Cases for iPhone and Samsung",
     })
     .waitFor();
   await lateGrantPage.goForward();
@@ -3670,7 +3670,7 @@ try {
   await remountPage
     .getByRole("heading", {
       level: 1,
-      name: "Custom Snap Cases for iPhone and Samsung",
+      name: "Custom Phone Cases for iPhone and Samsung",
     })
     .waitFor();
   await remountPage
@@ -3725,7 +3725,7 @@ try {
   await seoAnalyticsPage
     .getByRole("heading", {
       level: 1,
-      name: "Custom Snap Cases for iPhone and Samsung",
+      name: "Custom Phone Cases for iPhone and Samsung",
     })
     .waitFor();
   await waitForAnalyticsEvents(seoAnalyticsPage, "view_item_list", 2);
