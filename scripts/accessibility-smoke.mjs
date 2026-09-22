@@ -3822,17 +3822,17 @@ try {
   await samsungSeoPage
     .getByRole("heading", {
       level: 1,
-      name: "Create a custom Samsung Galaxy S24 photo case.",
+      name: "Create a custom Samsung Galaxy case.",
     })
     .waitFor();
   assert.equal(
     await samsungSeoPage.title(),
-    "Custom Cases for Galaxy S24, S24+ & S24 Ultra | Snapcase",
-    "The Samsung search title must state the supported S24-series promise.",
+    "Custom Samsung Galaxy Cases | S24 Photo Cases | Snapcase",
+    "The Samsung search title must align the broad query with the supported S24-series promise.",
   );
   assert.equal(
     await samsungSeoPage.locator('meta[name="description"]').getAttribute("content"),
-    "Choose Galaxy S24, S24+, or S24 Ultra, add your photo or text, and preview the case before checkout.",
+    "Add your photo or text to a Galaxy S24, S24+, or S24 Ultra case, then preview the design before checkout.",
     "The Samsung search description must match the visible buyer journey.",
   );
   assert.equal(
@@ -3847,7 +3847,7 @@ try {
   );
   await samsungSeoPage
     .getByText(
-      "Choose Galaxy S24, S24+, or S24 Ultra, add your photo or text, and preview the case before checkout.",
+      "Add your photo or text to a Galaxy S24, S24+, or S24 Ultra case, then preview the design before checkout.",
       { exact: true },
     )
     .waitFor();
@@ -3876,17 +3876,9 @@ try {
   });
 
   await samsungSeoPage
-    .getByRole("link", { name: "Choose your Galaxy S24 model" })
+    .getByRole("link", { name: "Start Galaxy S24 Ultra" })
     .click();
-  await samsungSeoPage.waitForURL(
-    `${origin}/custom-samsung-case#galaxy-models`,
-  );
-  await samsungSeoPage
-    .getByRole("heading", {
-      level: 2,
-      name: "Choose the Galaxy you actually have.",
-    })
-    .waitFor();
+  await samsungSeoPage.waitForURL(`${origin}/design/galaxy-s24-ultra`);
   const samsungCtaEvents = await getAnalyticsEvents(
     samsungSeoPage,
     "primary_cta_click",
@@ -3894,13 +3886,35 @@ try {
   assert.ok(
     samsungCtaEvents.some(
       (event) =>
-        event.payload.placement === "seo_landing_hero_primary" &&
-        event.payload.destination === "#galaxy-models" &&
-        event.payload.label === "Choose your Galaxy S24 model",
+        event.payload.placement === "seo_landing_hero_models" &&
+        event.payload.destination === "/design/galaxy-s24-ultra" &&
+        event.payload.label === "Start designing for Galaxy S24 Ultra",
     ),
-    "The Samsung model-picker CTA event is missing.",
+    "The Samsung direct design CTA event is missing.",
   );
+  const samsungHeroSelections = await getAnalyticsEvents(
+    samsungSeoPage,
+    "select_item",
+  );
+  assert.ok(
+    samsungHeroSelections.some(
+      (event) =>
+        event.payload.item_list_id ===
+          "seo_landing_custom_samsung_case" &&
+        event.payload.placement === "seo_landing_hero_models" &&
+        event.payload.items?.length === 1,
+    ),
+    "The Samsung hero model selection event is missing.",
+  );
+  await samsungSeoPage.goBack();
   await samsungSeoPage
+    .getByRole("heading", {
+      level: 1,
+      name: "Create a custom Samsung Galaxy case.",
+    })
+    .waitFor();
+  await samsungSeoPage.locator("#galaxy-models").scrollIntoViewIfNeeded();
+  await samsungSeoPage.locator("#galaxy-models")
     .getByRole("link", { name: /Galaxy S24 Ultra/ })
     .click();
   await samsungSeoPage.waitForURL(/\/phone-cases\/galaxy-s24-ultra/);
@@ -3931,7 +3945,7 @@ try {
   await samsungMobilePage
     .getByRole("heading", {
       level: 1,
-      name: "Create a custom Samsung Galaxy S24 photo case.",
+      name: "Create a custom Samsung Galaxy case.",
     })
     .waitFor();
   assert.equal(
