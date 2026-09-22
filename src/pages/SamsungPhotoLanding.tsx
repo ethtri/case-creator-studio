@@ -69,6 +69,18 @@ const SamsungPhotoLanding = () => {
       buildSeoLandingCtaPayload(page, kind),
     );
 
+  const trackHeroModel = (variant: (typeof models)[number]) => {
+    trackMarketingEvent("select_item", {
+      ...buildSeoLandingSelectionPayload(page, variant),
+      placement: "seo_landing_hero_models",
+    });
+    trackMarketingEvent("primary_cta_click", {
+      placement: "seo_landing_hero_models",
+      destination: `/design/${variant.id}`,
+      label: `Start designing for ${variant.model}`,
+    });
+  };
+
   return (
     <div className="samsung-photo-landing min-h-screen bg-background text-foreground">
       <JsonLd
@@ -124,43 +136,37 @@ const SamsungPhotoLanding = () => {
                 <p className="mt-7 max-w-2xl text-lg leading-8 text-muted-foreground">
                   {page.intro}
                 </p>
-                <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-                  <Button
-                    asChild
-                    size="lg"
-                    className="min-h-12 rounded-md bg-cta px-6 text-cta-foreground shadow-medium hover:bg-cta/90"
-                  >
-                    <a
-                      href="#galaxy-models"
-                      onClick={() => trackCta("hero_primary")}
-                    >
-                      {page.cta}
-                      <ArrowRight className="ml-2 size-4" aria-hidden="true" />
-                    </a>
-                  </Button>
-                  <Button asChild size="lg" variant="outline">
-                    <Link
-                      to="/gifts/custom-phone-case"
-                      onClick={() => trackCta("hero_secondary")}
-                    >
-                      Photo gift ideas
-                    </Link>
-                  </Button>
-                </div>
-                <ul
-                  className="mt-8 flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold"
-                  aria-label="Supported Samsung Galaxy models"
+                <p className="mt-8 text-sm font-bold text-foreground">
+                  Choose your exact model to open the designer:
+                </p>
+                <div
+                  className="mt-3 grid gap-2 sm:grid-cols-3"
+                  aria-label="Start designing a supported Samsung Galaxy case"
                 >
                   {models.map((variant) => (
-                    <li key={variant.id} className="flex items-center gap-2">
-                      <Check
-                        className="size-4 text-cta-emphasis"
-                        aria-hidden="true"
-                      />
-                      {variant.model}
-                    </li>
+                    <Button
+                      key={variant.id}
+                      asChild
+                      size="lg"
+                      className="min-h-12 justify-between rounded-md bg-cta px-4 text-cta-foreground shadow-medium hover:bg-cta/90"
+                    >
+                      <Link
+                        to={`/design/${variant.id}`}
+                        onClick={() => trackHeroModel(variant)}
+                      >
+                        <span>Start {variant.model}</span>
+                        <ArrowRight className="ml-2 size-4" aria-hidden="true" />
+                      </Link>
+                    </Button>
                   ))}
-                </ul>
+                </div>
+                <Link
+                  to="/gifts/custom-phone-case"
+                  onClick={() => trackCta("hero_secondary")}
+                  className="mt-5 inline-flex min-h-11 items-center text-sm font-bold text-cta-emphasis underline-offset-4 hover:underline"
+                >
+                  Looking for photo gift ideas?
+                </Link>
               </div>
             </div>
 
