@@ -118,6 +118,16 @@ test("editor preview CTAs stay explicit without dropping funnel analytics", asyn
   assert.match(editorSource, /error_code: errorCode/);
   assert.match(editorSource, /"designer_save_timeout"/);
   assert.match(editorSource, /"designer_save_unavailable"/);
+  assert.match(
+    editorSource,
+    /Retry the editor first\. If it still will not load, return to the catalog and choose your phone model again\./,
+    "The editor failure state must keep buyers on a concrete Snapcase recovery path.",
+  );
+  assert.doesNotMatch(
+    editorSource,
+    /printful\.com\/enterprise|embedded design tool requires enterprise access/i,
+    "The buyer-facing recovery state must not divert customers to vendor sales material.",
+  );
   assert.equal(
     editorSource.match(/onClick=\{handleContinue\}/g)?.length,
     2,
