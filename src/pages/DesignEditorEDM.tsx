@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Loader2, AlertCircle, ExternalLink, ArrowLeft, ArrowRight, Maximize2, Minimize2 } from "lucide-react";
+import { Loader2, AlertCircle, ArrowLeft, ArrowRight, Maximize2, Minimize2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { trackMarketingEvent } from "@/lib/marketing";
@@ -1094,15 +1094,7 @@ const DesignEditorEDM = () => {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground pt-2">
-                Note: The embedded design tool requires enterprise access. 
-                <a 
-                  href="https://www.printful.com/enterprise/embedded-design-maker" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-primary-emphasis hover:underline inline-flex items-center gap-1 ml-1"
-                >
-                  Learn more <ExternalLink className="w-3 h-3" aria-hidden="true" />
-                </a>
+                Retry the editor first. If it still will not load, return to the catalog and choose your phone model again.
               </p>
             </DialogContent>
           )}
