@@ -288,9 +288,11 @@ const staticSeoRoutes = staticSeoPages.map((page) =>
       : page.path === "/custom-phone-case/photo-case-for-new-phone"
         ? "Custom iPhone Case with Photo | Snapcase"
         : page.path === "/custom-samsung-case"
-          ? "Custom Samsung Galaxy Cases | S24 Photo Cases | Snapcase"
+          ? "Custom Samsung Case With Photo | Galaxy S24 | Snapcase"
         : `${page.eyebrow} | Snapcase`,
-    page.intro,
+    page.path === "/custom-samsung-case"
+      ? "Make a custom Galaxy S24, S24+, or S24 Ultra case with your photo or text, then preview the design before checkout."
+      : page.intro,
     page.path === "/custom-phone-case"
       ? "0.9"
       : page.path === "/custom-phone-case/pet-photo-phone-case" ||
