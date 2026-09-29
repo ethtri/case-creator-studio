@@ -3827,13 +3827,13 @@ try {
     .waitFor();
   assert.equal(
     await samsungSeoPage.title(),
-    "Custom Samsung Galaxy Cases | S24 Photo Cases | Snapcase",
-    "The Samsung search title must align the broad query with the supported S24-series promise.",
+    "Custom Samsung Case With Photo | Galaxy S24 | Snapcase",
+    "The Samsung search title must lead with the concrete photo-case intent and retain the supported family.",
   );
   assert.equal(
     await samsungSeoPage.locator('meta[name="description"]').getAttribute("content"),
-    "Add your photo or text to a Galaxy S24, S24+, or S24 Ultra case, then preview the design before checkout.",
-    "The Samsung search description must match the visible buyer journey.",
+    "Make a custom Galaxy S24, S24+, or S24 Ultra case with your photo or text, then preview the design before checkout.",
+    "The Samsung search description must state the supported models and existing buyer journey.",
   );
   assert.equal(
     await samsungSeoPage.locator('link[rel="canonical"]').getAttribute("href"),
