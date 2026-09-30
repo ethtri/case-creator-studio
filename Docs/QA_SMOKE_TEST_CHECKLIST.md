@@ -33,5 +33,7 @@ evidence.
 ## Expected
 - Pricing consistent across cart, Stripe, and order records.
 - No errors or regressions in editor → preview → checkout.
-- Hosted Stripe URLs using either current `/c/pay/` or observed `/f/pay/` paths
-  redirect automatically without a `checkout_error` event.
+- Hosted Stripe Session URLs under `/c/pay/`, `/f/pay/`, and `/g/pay/` redirect
+  automatically without a `checkout_error` event. A single-letter hosted UI
+  variant must not block a legitimate Session route; exact HTTPS host and the
+  remaining URL security checks must still reject malformed or spoofed links.

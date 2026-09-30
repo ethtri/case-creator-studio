@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: "17 */6 * * *"
   workflow_dispatch:
+    inputs:
+      attempts:
+        description: "Bounded no-payment probes for intermittent handoff diagnosis"
+        type: choice
+        options: ["1", "10"]
+        default: "1"
 
 permissions:
   contents: read
@@ -36,4 +42,5 @@ jobs:
         env:
           CHECKOUT_CANARY_AUTH_SECRET: ${{ secrets.CHECKOUT_CANARY_AUTH_SECRET }}
           CHECKOUT_CANARY_SITE_URL: https://www.snapcase.ai
+          CHECKOUT_CANARY_ATTEMPTS: ${{ inputs.attempts || '1' }}
         run: npm run checkout:canary

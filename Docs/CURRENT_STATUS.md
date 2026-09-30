@@ -3,7 +3,7 @@
 Owner-updated snapshot for AI agents. GitHub Issues is the operational source
 of truth; `Docs/DECISIONS.md` remains authoritative for recorded decisions.
 
-**Last updated:** 2026-09-11
+**Last updated:** 2026-09-30
 **Last updated by:** Codex
 **MVP target:** Controlled production-ready pilot
 **Sprint goal:** Prove the order-to-physical-case identity chain and finish the
@@ -52,9 +52,15 @@ remaining supervised onshore-pilot gates.
 
 - The public site uses `https://www.snapcase.ai`, the EDM-first design flow,
   live Stripe Checkout, and Printful as the production fulfillment default.
-- P0 checkout redirect recovery is production-proven: #277 / PR #278 now
-  strictly accepts observed Stripe hosted Session paths under both `/c/pay/`
-  and `/f/pay/`. Vercel deployed merge `4421a7e`; a fresh one-click browser
+- P0 checkout redirect recovery: #277 / PR #278 initially accepted Stripe
+  hosted Session paths under `/c/pay/` and `/f/pay/`. #316 subsequently
+  reproduced rejection of Stripe's legitimate `/g/pay/` route. Validation now
+  accepts a single lowercase hosted UI variant while retaining exact HTTPS
+  host, Session path, credential, port, and query checks. The canary shares
+  the validator and reports bounded URL structure without private identifiers;
+  regression tests cover `/g/` and future single-letter variants. Production
+  deployment and no-payment recovery evidence are tracked in #316.
+  Vercel deployed the earlier merge `4421a7e`; a fresh one-click browser
   canary automatically reached Stripe and created exactly one synthetic pending
   order with no payment or recovery email. The excluded test records, rollback,
   and release-gate evidence are reconciled in the

@@ -7,7 +7,9 @@ import type { CheckoutClientObservation } from "./checkout-observability.ts";
 
 const STRIPE_CHECKOUT_HOST = "checkout.stripe.com";
 const STRIPE_CHECKOUT_SESSION_PATH =
-  /^\/(?:c|f)\/pay\/cs_(?:test|live)_[A-Za-z0-9]+$/;
+  // Stripe selects the single-letter hosted UI variant (including c, f, and g).
+  // The exact HTTPS host and session route define trust; the UI letter does not.
+  /^\/[a-z]\/pay\/cs_(?:test|live)_[A-Za-z0-9]+$/;
 const SAFE_COUPON_CODE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 const EMAIL_LIKE_VALUE =
   /\b[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+\b/i;

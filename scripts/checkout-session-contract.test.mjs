@@ -39,6 +39,8 @@ test("accepts only canonical hosted Stripe Checkout Session URLs", () => {
     "https://checkout.stripe.com/c/pay/cs_live_ABC123#another-opaque-fragment",
     "https://checkout.stripe.com/f/pay/cs_test_ABC123#opaque-fragment",
     "https://checkout.stripe.com/f/pay/cs_live_ABC123#another-opaque-fragment",
+    "https://checkout.stripe.com/g/pay/cs_live_ABC123#opaque-fragment",
+    "https://checkout.stripe.com/g/pay/cs_test_ABC123#opaque-fragment",
   ]) {
     assert.equal(normalizeHostedStripeCheckoutUrl(url), url);
   }
@@ -55,6 +57,11 @@ test("accepts only canonical hosted Stripe Checkout Session URLs", () => {
     "not-a-url",
     "https://checkout.stripe.com/",
     "https://checkout.stripe.com/arbitrary",
+    "https://checkout.stripe.com/evil/pay/cs_live_ABC123",
+    "https://checkout.stripe.com/G/pay/cs_live_ABC123",
+    "https://checkout.stripe.com/g/pay/cs_live_ABC123/extra",
+    "https://checkout.stripe.com/g/pay/cs_live_ABC123?redirect=evil",
+    "https://checkout.stripe.com.evil.example/g/pay/cs_live_ABC123",
     "https://checkout.stripe.com/c/pay/",
     "https://checkout.stripe.com/c/pay/cs_test_ABC123/extra",
     "https://checkout.stripe.com/f/pay/cs_live_ABC123/extra",
@@ -74,6 +81,32 @@ test("accepts only canonical hosted Stripe Checkout Session URLs", () => {
   ]) {
     assert.equal(normalizeHostedStripeCheckoutUrl(value), null, String(value));
   }
+});
+
+test("hosted UI variant changes never block a valid Stripe Session route", () => {
+  for (const variant of "abcdefghijklmnopqrstuvwxyz") {
+    const url = `https://checkout.stripe.com/${variant}/pay/cs_live_ABC123#opaque`;
+    assert.equal(normalizeHostedStripeCheckoutUrl(url), url);
+  }
+});
+
+test("automatically redirects the production g/pay route and records acceptance", async () => {
+  const url = "https://checkout.stripe.com/g/pay/cs_live_ABC123#opaque";
+  const redirects = [];
+  const observations = [];
+  const events = [];
+  const runner = createHostedCheckoutRunner({
+    invoke: async () => ({ data: { url }, error: null }),
+    track: (event) => events.push(event),
+    observe: (observation) => observations.push(observation),
+    redirect: (target) => redirects.push(target),
+  });
+  assert.equal((await runner.start(buildAttempt())).kind, "redirected");
+  assert.deepEqual(redirects, [url]);
+  assert.deepEqual(observations, [
+    { checkoutAttemptId, outcome: "redirect_accepted" },
+  ]);
+  assert.deepEqual(events, ["begin_checkout"]);
 });
 
 test("automatically redirects an f/pay Checkout Session without checkout_error", async () => {
