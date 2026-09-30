@@ -43,6 +43,29 @@ try {
   );
 
   const page = await context.newPage();
+  page.on("response", async (response) => {
+    if (!response.url().endsWith("/functions/v1/create-checkout")) return;
+    try {
+      const data = await response.json();
+      const url = typeof data.url === "string" ? new URL(data.url) : null;
+      // Report bounded link structure, never the Session ID, fragment, or body.
+      const pathPrefix = url?.pathname.split("/").slice(0, -1).join("/");
+      console.log(JSON.stringify({
+        event: "checkout_canary_response",
+        status: response.status(),
+        hasUrl: Boolean(url),
+        secure: url?.protocol === "https:",
+        stripeHost: url?.hostname === "checkout.stripe.com",
+        pathPrefix: pathPrefix && /^\/[a-z/]{1,24}$/.test(pathPrefix)
+          ? pathPrefix
+          : "unrecognized",
+        hasQuery: Boolean(url?.search),
+        hasFragment: Boolean(url?.hash),
+      }));
+    } catch {
+      console.log(JSON.stringify({ event: "checkout_canary_response_unreadable" }));
+    }
+  });
   await page.goto(`${siteUrl}/checkout/iphone-17-pro-max`, {
     waitUntil: "domcontentloaded",
     timeout: 45_000,
