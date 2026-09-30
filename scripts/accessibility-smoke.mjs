@@ -3428,6 +3428,12 @@ try {
       destination: /\/design\/iphone-17-pro-max/,
       placement: "catalog_start_design",
     },
+    {
+      actionName: "Catalog card surface for iPhone 17 Pro Max",
+      destination: /\/design\/iphone-17-pro-max/,
+      placement: "catalog_start_design",
+      selector: '[data-catalog-image="iphone-17-pro-max"]',
+    },
   ];
 
   for (const scenario of catalogSelectionScenarios) {
@@ -3446,9 +3452,36 @@ try {
         name: "Custom Phone Cases for iPhone and Samsung",
       })
       .waitFor();
-    await selectionPage
-      .getByRole("link", { name: scenario.actionName })
-      .click();
+    if (scenario.selector) {
+      const target = selectionPage.locator(scenario.selector);
+      await target.scrollIntoViewIfNeeded();
+      const surfaceHref = await target.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        return document
+          .elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+          ?.closest("a")
+          ?.getAttribute("href");
+      });
+      assert.equal(
+        surfaceHref,
+        "/design/iphone-17-pro-max",
+        `${scenario.actionName} must resolve to the existing design link.`,
+      );
+      await target.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        const link = document
+          .elementFromPoint(box.left + box.width / 2, box.top + box.height / 2)
+          ?.closest("a");
+        if (!(link instanceof HTMLAnchorElement)) {
+          throw new Error("Catalog card surface did not resolve to a link.");
+        }
+        link.click();
+      });
+    } else {
+      await selectionPage
+        .getByRole("link", { name: scenario.actionName })
+        .click();
+    }
     await selectionPage.waitForURL(scenario.destination);
     await waitForAnalyticsEvents(selectionPage, "select_item", 1);
     await selectionPage.waitForTimeout(50);

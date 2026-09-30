@@ -268,7 +268,7 @@ const Catalog = () => {
                         onClick={() =>
                           trackCatalogSelection(variant, "catalog_view_details")
                         }
-                        className="catalog-details-action inline-flex min-h-11 items-center justify-center rounded-md px-2 text-sm font-medium text-cta-emphasis underline-offset-4 transition-colors hover:bg-muted/60 hover:underline"
+                        className="catalog-details-action relative z-20 inline-flex min-h-11 items-center justify-center rounded-md px-2 text-sm font-medium text-cta-emphasis underline-offset-4 transition-colors hover:bg-muted/60 hover:underline"
                       >
                         View details
                         <span className="sr-only"> for {variant.model}</span>
@@ -281,6 +281,7 @@ const Catalog = () => {
                         <Link
                           to={`/design/${variant.id}`}
                           data-model-selection-cue="true"
+                          className="after:absolute after:inset-0 after:z-10 after:rounded-xl after:content-['']"
                           onClick={() =>
                             trackCatalogSelection(
                               variant,

@@ -152,6 +152,16 @@ test("catalog cards keep two routes and remove the always-selected overlay", () 
   assert.match(catalogSource, /to=\{`\/design\/\$\{variant\.id\}`\}/);
   assert.match(catalogSource, /catalog_view_details/);
   assert.match(catalogSource, /catalog_start_design/);
+  assert.match(
+    catalogSource,
+    /catalog-details-action relative z-20/,
+    "The details action must remain above the expanded card link.",
+  );
+  assert.match(
+    catalogSource,
+    /className="after:absolute after:inset-0 after:z-10 after:rounded-xl after:content-\[''\]"/,
+    "The existing design link must make the visual card surface actionable.",
+  );
   assert.match(catalogSource, />\s*Design case\s*</);
   assert.doesNotMatch(catalogSource, />\s*Choose model\s*</);
   assert.match(catalogSource, /data-catalog-offer=\{variant\.id\}/);
