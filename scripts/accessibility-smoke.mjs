@@ -407,9 +407,7 @@ const mockExternalServices = async (context, { checkoutUrl = null } = {}) => {
         await route.fulfill({
           status: 200,
           headers,
-          body: JSON.stringify({
-            nonce: `accessibility-test-nonce-${edmNonceCalls}`,
-          }),
+          body: JSON.stringify({ nonce: `accessibility-test-nonce-${edmNonceCalls}` }),
         });
         return;
       }
@@ -568,10 +566,7 @@ const installVerificationState = async (context, theme = "light") => {
       if (window.location.origin !== expectedOrigin) return;
       window.localStorage.setItem("theme", selectedTheme);
       window.localStorage.setItem("snapcase_analytics_consent_v1", "granted");
-      window.localStorage.setItem(
-        "snapcase_cart_v1",
-        JSON.stringify([storedCartItem]),
-      );
+      window.localStorage.setItem("snapcase_cart_v1", JSON.stringify([storedCartItem]));
       window.sessionStorage.setItem(
         `snapcase_cart_preview:${storedCartItem.id}`,
         storedPreviewUrl,
@@ -595,16 +590,13 @@ const installVerificationState = async (context, theme = "light") => {
 const mockVerificationService = async (context, responses) => {
   let verificationCalls = 0;
 
-  await context.route(
-    "https://www.googletagmanager.com/gtag/js**",
-    async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/javascript",
-        body: "",
-      });
-    },
-  );
+  await context.route("https://www.googletagmanager.com/gtag/js**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/javascript",
+      body: "",
+    });
+  });
 
   await context.route(
     "https://placeholder.supabase.co/functions/v1/verify-payment",
@@ -619,13 +611,10 @@ const mockVerificationService = async (context, responses) => {
         return;
       }
 
-      const response =
-        responses[Math.min(verificationCalls, responses.length - 1)];
+      const response = responses[Math.min(verificationCalls, responses.length - 1)];
       verificationCalls += 1;
       if (response.delay) {
-        await new Promise((resolveDelay) =>
-          setTimeout(resolveDelay, response.delay),
-        );
+        await new Promise((resolveDelay) => setTimeout(resolveDelay, response.delay));
       }
       await route.fulfill({
         status: response.status ?? 200,
@@ -854,36 +843,40 @@ const assertFullyOpaqueFrames = async (page, locators, label) => {
 
 const waitForImage = async (locator, label) => {
   await locator.waitFor({ state: "visible" });
-  const dimensions = await locator.evaluate(async (image) => {
-    const loadedDimensions = await new Promise((resolveImage, rejectImage) => {
-      const finish = () =>
-        image.naturalWidth > 0
-          ? resolveImage({
-              width: image.naturalWidth,
-              height: image.naturalHeight,
-            })
-          : rejectImage(
-              new Error("Image loaded without intrinsic dimensions."),
-            );
-      if (image.complete) {
-        finish();
-        return;
-      }
-      image.addEventListener("load", finish, { once: true });
-      image.addEventListener(
-        "error",
-        () => rejectImage(new Error("Image failed to load.")),
-        {
-          once: true,
-        },
+  const dimensions = await locator.evaluate(
+    async (image) => {
+      const loadedDimensions = await new Promise((resolveImage, rejectImage) => {
+        const finish = () =>
+          image.naturalWidth > 0
+            ? resolveImage({
+                width: image.naturalWidth,
+                height: image.naturalHeight,
+              })
+            : rejectImage(
+                new Error("Image loaded without intrinsic dimensions."),
+              );
+        if (image.complete) {
+          finish();
+          return;
+        }
+        image.addEventListener("load", finish, { once: true });
+        image.addEventListener(
+          "error",
+          () => rejectImage(new Error("Image failed to load.")),
+          {
+            once: true,
+          },
+        );
+      });
+      await image.decode();
+      await new Promise((resolveFrame) =>
+        requestAnimationFrame(() =>
+          requestAnimationFrame(resolveFrame),
+        ),
       );
-    });
-    await image.decode();
-    await new Promise((resolveFrame) =>
-      requestAnimationFrame(() => requestAnimationFrame(resolveFrame)),
-    );
-    return loadedDimensions;
-  });
+      return loadedDimensions;
+    },
+  );
   assert.ok(
     dimensions.width > 0 && dimensions.height > 0,
     `${label} did not load.`,
@@ -963,7 +956,9 @@ try {
     "The home hero must declare its theme-independent dark surface.",
   );
   await assertTextContrast(homeHeroHeading, "Home hero heading");
-  await homeHero.getByText("Cases $29.99 USD", { exact: true }).waitFor();
+  await homeHero
+    .getByText("Cases $29.99 USD", { exact: true })
+    .waitFor();
   await assertTargetSize(
     page.getByRole("link", { name: "Snapcase", exact: true }),
     "Home logo",
@@ -1036,7 +1031,9 @@ try {
     )
     .waitFor();
   await page.getByRole("textbox", { name: "Search phone models" }).waitFor();
-  const catalogResultCount = page.locator('[data-catalog-result-count="true"]');
+  const catalogResultCount = page.locator(
+    '[data-catalog-result-count="true"]',
+  );
   await catalogResultCount
     .getByText("18 phone models shown.", { exact: true })
     .waitFor();
@@ -1060,9 +1057,9 @@ try {
     "Catalog links must never be nested.",
   );
   assert.equal(
-    await firstCatalogCard
-      .locator(":scope > .pointer-events-none.absolute.inset-0")
-      .count(),
+    await firstCatalogCard.locator(
+      ':scope > .pointer-events-none.absolute.inset-0',
+    ).count(),
     0,
     "Catalog cards must not include a selected-ring overlay.",
   );
@@ -1273,7 +1270,11 @@ try {
   );
   await page.mouse.move(0, 0);
   await page.mouse.up();
-  await assertFocusIndicator(page, modelDetailsLink, "Catalog model details");
+  await assertFocusIndicator(
+    page,
+    modelDetailsLink,
+    "Catalog model details",
+  );
   const focusCatalogFrame = await getFrameStyle(firstCatalogCard);
   assert.notEqual(
     focusCatalogFrame.borderColor,
@@ -1309,7 +1310,11 @@ try {
   await page.goBack();
   await page.waitForURL(`${origin}/catalog`);
   await waitForStableUi(page);
-  await assertFocusIndicator(page, modelDesignLink, "Catalog model design");
+  await assertFocusIndicator(
+    page,
+    modelDesignLink,
+    "Catalog model design",
+  );
   await page.keyboard.press("Enter");
   await page.waitForURL(/\/design\/iphone-17-pro-max/);
   await page
@@ -1377,13 +1382,11 @@ try {
     )
     .waitFor();
   await page.waitForFunction(() => {
-    const purchaseState = document.querySelector(
-      "[data-preview-purchase-state]",
-    );
+    const purchaseState = document.querySelector("[data-preview-purchase-state]");
     const animatedDetails = purchaseState?.closest(".space-y-8");
     return Boolean(
       animatedDetails &&
-      Number.parseFloat(getComputedStyle(animatedDetails).opacity) >= 0.99,
+        Number.parseFloat(getComputedStyle(animatedDetails).opacity) >= 0.99,
     );
   });
   assert.equal(
@@ -1514,13 +1517,20 @@ try {
     "in-cart",
     "Reloading the same saved design must restore the checkout handoff from cart identity.",
   );
-  await assertTextContrast(continueToCheckout, "Preview continue CTA default");
+  await assertTextContrast(
+    continueToCheckout,
+    "Preview continue CTA default",
+  );
   await continueToCheckout.hover();
   await page.waitForTimeout(20);
   await assertTextContrast(continueToCheckout, "Preview continue CTA hover");
   await continueToCheckout.focus();
   await assertTextContrast(continueToCheckout, "Preview continue CTA focus");
-  await assertFocusIndicator(page, continueToCheckout, "Preview continue CTA");
+  await assertFocusIndicator(
+    page,
+    continueToCheckout,
+    "Preview continue CTA",
+  );
   auditResults.push(
     await assertNoSeriousAxeViolations(page, "preview-in-cart-light-desktop"),
   );
@@ -1642,7 +1652,11 @@ try {
     purchaseAnalyticsPage,
     "Mobile measured editor funnel",
   );
-  await waitForAnalyticsEvents(purchaseAnalyticsPage, "editor_first_action", 1);
+  await waitForAnalyticsEvents(
+    purchaseAnalyticsPage,
+    "editor_first_action",
+    1,
+  );
   assert.equal(
     await getEditorSaveCalls(purchaseAnalyticsPage),
     0,
@@ -1657,7 +1671,11 @@ try {
     purchaseAnalyticsPage,
     "Mobile measured preview funnel",
   );
-  await waitForAnalyticsEvents(purchaseAnalyticsPage, "primary_cta_click", 1);
+  await waitForAnalyticsEvents(
+    purchaseAnalyticsPage,
+    "primary_cta_click",
+    1,
+  );
   assert.equal(
     await getEditorSaveCalls(purchaseAnalyticsPage),
     1,
@@ -1967,9 +1985,7 @@ try {
     `Rapid real keyboard and pointer activation must not duplicate the vendor save: ${JSON.stringify(dirtySaveTrace)}`,
   );
   assert.equal(
-    await dirtyRevisionPage
-      .locator("#printful-designer")
-      .getAttribute("aria-busy"),
+    await dirtyRevisionPage.locator("#printful-designer").getAttribute("aria-busy"),
     "true",
     "The editor must be exposed as busy while its one allowed save is pending.",
   );
@@ -2131,10 +2147,7 @@ try {
     unavailableSavePage,
     "editor_error",
   );
-  assert.equal(
-    unavailableErrors[0].payload.error_code,
-    "designer_save_unavailable",
-  );
+  assert.equal(unavailableErrors[0].payload.error_code, "designer_save_unavailable");
   assert.doesNotMatch(
     JSON.stringify(unavailableErrors),
     /designId|artwork|preview_url|customer_/i,
@@ -2142,7 +2155,9 @@ try {
   await unavailableSavePage.evaluate(() => {
     window.__snapcaseEdmSaveThrows = false;
   });
-  await unavailableSavePage.getByRole("button", { name: "Retry save" }).click();
+  await unavailableSavePage
+    .getByRole("button", { name: "Retry save" })
+    .click();
   await waitForEditorSaveCalls(unavailableSavePage, 2);
   assert.equal(await resolveNextEditorSave(unavailableSavePage), true);
   await unavailableSavePage.waitForURL(
@@ -2213,12 +2228,16 @@ try {
   );
   assert.equal(
     await timeoutSavePage.evaluate(() =>
-      window.sessionStorage.getItem("edmDesign:timeout-save-design:templateId"),
+      window.sessionStorage.getItem(
+        "edmDesign:timeout-save-design:templateId",
+      ),
     ),
     null,
     "A late callback from the timed-out generation must not be attributed to the design.",
   );
-  await timeoutSavePage.getByRole("button", { name: "Reload editor" }).click();
+  await timeoutSavePage
+    .getByRole("button", { name: "Reload editor" })
+    .click();
   await waitForEditorMakerCount(timeoutSavePage, 2);
   await waitForEditorStatus(timeoutSavePage, 2);
   assert.equal(
@@ -2437,7 +2456,9 @@ try {
     lightHeroSignature,
     "The design-bench hero colors must remain fixed across themes.",
   );
-  await mobileHero.getByText("Cases $29.99 USD", { exact: true }).waitFor();
+  await mobileHero
+    .getByText("Cases $29.99 USD", { exact: true })
+    .waitFor();
   await assertNoHorizontalOverflow(mobilePage, "Mobile home");
   await assertTargetSize(
     mobilePage.getByRole("link", { name: "Snapcase", exact: true }),
@@ -2506,7 +2527,10 @@ try {
     .waitFor();
   await assertNoHorizontalOverflow(mobilePage, "Mobile product offer");
   auditResults.push(
-    await assertNoSeriousAxeViolations(mobilePage, "product-offer-dark-mobile"),
+    await assertNoSeriousAxeViolations(
+      mobilePage,
+      "product-offer-dark-mobile",
+    ),
   );
   await mobilePage.screenshot({
     path: resolve(outputDir, "product-offer-dark-mobile.png"),
@@ -2606,7 +2630,9 @@ try {
   await mobilePage.getByText("2 items", { exact: true }).waitFor();
 
   await mobilePage.goto(`${origin}/design/galaxy-s24`);
-  await mobilePage.locator('iframe[title^="Design editor for"]').waitFor();
+  await mobilePage
+    .locator('iframe[title^="Design editor for"]')
+    .waitFor();
   const mobileContinueToPreview = mobilePage.getByRole("button", {
     name: "Continue to Preview",
   });
@@ -2649,7 +2675,10 @@ try {
   );
   await assertNoHorizontalOverflow(mobilePage, "Mobile ready preview");
   auditResults.push(
-    await assertNoSeriousAxeViolations(mobilePage, "preview-ready-dark-mobile"),
+    await assertNoSeriousAxeViolations(
+      mobilePage,
+      "preview-ready-dark-mobile",
+    ),
   );
   await clearInteractionPresentation(mobilePage);
   await mobilePage.screenshot({
@@ -2658,9 +2687,7 @@ try {
   });
   await mobileCheckoutAction.click();
   await mobilePage.waitForURL(`${origin}/checkout/galaxy-s24`);
-  await mobilePage
-    .getByRole("heading", { level: 1, name: "Checkout" })
-    .waitFor();
+  await mobilePage.getByRole("heading", { level: 1, name: "Checkout" }).waitFor();
   assert.equal(
     await mobilePage.evaluate(
       () =>
@@ -2711,7 +2738,9 @@ try {
       entryPage.locator("picture img").first(),
       `${scenario.name} hero image`,
     );
-    const scenarioHero = entryPage.locator('[data-home-design-bench="true"]');
+    const scenarioHero = entryPage.locator(
+      '[data-home-design-bench="true"]',
+    );
     const scenarioHeroSignature = await scenarioHero.evaluate((element) => {
       const style = getComputedStyle(element);
       const headingStyle = getComputedStyle(element.querySelector("h1"));
@@ -2729,10 +2758,18 @@ try {
     await scenarioHero
       .getByRole("link", { name: "Choose your phone", exact: true })
       .waitFor();
-    await scenarioHero.getByText("Cases $29.99 USD", { exact: true }).waitFor();
-    await assertNoHorizontalOverflow(entryPage, `${scenario.name} home`);
+    await scenarioHero
+      .getByText("Cases $29.99 USD", { exact: true })
+      .waitFor();
+    await assertNoHorizontalOverflow(
+      entryPage,
+      `${scenario.name} home`,
+    );
     auditResults.push(
-      await assertNoSeriousAxeViolations(entryPage, `home-${scenario.name}`),
+      await assertNoSeriousAxeViolations(
+        entryPage,
+        `home-${scenario.name}`,
+      ),
     );
     await clearInteractionPresentation(entryPage);
     await entryPage.screenshot({
@@ -2761,10 +2798,16 @@ try {
       reducedMotionDuration.every((duration) => duration <= 1),
       `${scenario.name} catalog transitions must honor reduced motion.`,
     );
-    await assertNoHorizontalOverflow(entryPage, `${scenario.name} catalog`);
+    await assertNoHorizontalOverflow(
+      entryPage,
+      `${scenario.name} catalog`,
+    );
     await clearInteractionPresentation(entryPage);
     auditResults.push(
-      await assertNoSeriousAxeViolations(entryPage, `catalog-${scenario.name}`),
+      await assertNoSeriousAxeViolations(
+        entryPage,
+        `catalog-${scenario.name}`,
+      ),
     );
     await entryPage.screenshot({
       path: resolve(outputDir, `catalog-${scenario.name}.png`),
@@ -2849,18 +2892,14 @@ try {
   await quantityOneContext.close();
 
   for (const hostedVariant of ["f", "g"]) {
-    const hostedVariantUrl = `https://checkout.stripe.com/${hostedVariant}/pay/cs_live_accessibility123#opaque-fragment`;
+    const hostedVariantUrl =
+      `https://checkout.stripe.com/${hostedVariant}/pay/cs_live_accessibility123#opaque-fragment`;
     const successfulCheckoutContext = await browser.newContext({
       viewport: { width: 390, height: 844 },
       reducedMotion: "reduce",
       colorScheme: "light",
     });
-    await installAppState(
-      successfulCheckoutContext,
-      "light",
-      cartItem,
-      "granted",
-    );
+    await installAppState(successfulCheckoutContext, "light", cartItem, "granted");
     await mockExternalServices(successfulCheckoutContext, {
       checkoutUrl: hostedVariantUrl,
     });
@@ -2896,9 +2935,7 @@ try {
         }
       };
     });
-    await successfulCheckoutPage
-      .getByLabel("Email")
-      .fill("shopper@example.com");
+    await successfulCheckoutPage.getByLabel("Email").fill("shopper@example.com");
     await successfulCheckoutPage
       .getByRole("button", { name: /Continue to Stripe/ })
       .click();
@@ -3017,24 +3054,13 @@ try {
   await missingSessionPage.goto(`${origin}/order-success`);
   await waitForStableUi(missingSessionPage);
   await missingSessionPage
-    .getByRole("heading", {
-      level: 1,
-      name: "We can’t verify this return page",
-    })
+    .getByRole("heading", { level: 1, name: "We can’t verify this return page" })
     .waitFor();
-  await missingSessionPage
-    .getByRole("link", { name: "View My Orders" })
-    .waitFor();
-  await missingSessionPage
-    .getByRole("link", { name: "Contact support" })
-    .waitFor();
-  await missingSessionPage
-    .getByRole("link", { name: "Browse cases" })
-    .waitFor();
+  await missingSessionPage.getByRole("link", { name: "View My Orders" }).waitFor();
+  await missingSessionPage.getByRole("link", { name: "Contact support" }).waitFor();
+  await missingSessionPage.getByRole("link", { name: "Browse cases" }).waitFor();
   assert.equal(
-    await missingSessionPage
-      .getByRole("button", { name: "Retry verification" })
-      .count(),
+    await missingSessionPage.getByRole("button", { name: "Retry verification" }).count(),
     0,
     "A missing secure return reference must not make a verification request available.",
   );
@@ -3105,8 +3131,8 @@ try {
   });
   await retryableHeading.waitFor();
   assert.equal(
-    await retryableHeading.evaluate(
-      (heading) => document.activeElement === heading,
+    await retryableHeading.evaluate((heading) =>
+      document.activeElement === heading
     ),
     true,
     "The retryable result heading should receive focus after verification.",
@@ -3150,9 +3176,7 @@ try {
     .getByRole("button", { name: "Checking again…" })
     .waitFor();
   assert.equal(
-    await verificationPage
-      .getByRole("button", { name: "Checking again…" })
-      .isDisabled(),
+    await verificationPage.getByRole("button", { name: "Checking again…" }).isDisabled(),
     true,
     "Retry must be disabled while verification is active.",
   );
@@ -3162,8 +3186,8 @@ try {
   });
   await verifiedHeading.waitFor();
   assert.equal(
-    await verifiedHeading.evaluate(
-      (heading) => document.activeElement === heading,
+    await verifiedHeading.evaluate((heading) =>
+      document.activeElement === heading
     ),
     true,
     "The verified result heading should receive focus after retry.",
@@ -3249,22 +3273,20 @@ try {
     { origin },
   );
   await installVerificationState(verificationMobile, "dark");
-  await mockVerificationService(verificationMobile, [
-    {
-      body: {
-        success: false,
-        retryable: false,
-        code: "order_requires_review",
-        supportReference: "SC-222222222222",
-        order: {
-          id: "22222222-2222-4222-8222-222222222222",
-          items: [{ quantity: 2 }],
-          total: 59.98,
-          status: "payment_review",
-        },
+  await mockVerificationService(verificationMobile, [{
+    body: {
+      success: false,
+      retryable: false,
+      code: "order_requires_review",
+      supportReference: "SC-222222222222",
+      order: {
+        id: "22222222-2222-4222-8222-222222222222",
+        items: [{ quantity: 2 }],
+        total: 59.98,
+        status: "payment_review",
       },
     },
-  ]);
+  }]);
   const verificationMobilePage = await verificationMobile.newPage();
   await verificationMobilePage.goto(
     `${origin}/order-success?session_id=test-session-review`,
@@ -3275,8 +3297,8 @@ try {
   });
   await supportReviewHeading.waitFor();
   assert.equal(
-    await supportReviewHeading.evaluate(
-      (heading) => document.activeElement === heading,
+    await supportReviewHeading.evaluate((heading) =>
+      document.activeElement === heading
     ),
     true,
     "The support-review result heading should receive focus.",
@@ -3335,7 +3357,11 @@ try {
     .getByRole("link", { name: "Choose your phone", exact: true })
     .click();
   await homeAnalyticsPage.waitForURL(`${origin}/catalog`);
-  await waitForAnalyticsEvents(homeAnalyticsPage, "primary_cta_click", 1);
+  await waitForAnalyticsEvents(
+    homeAnalyticsPage,
+    "primary_cta_click",
+    1,
+  );
   const homeCtaEvents = await getAnalyticsEvents(
     homeAnalyticsPage,
     "primary_cta_click",
@@ -3367,7 +3393,10 @@ try {
   await waitForAnalyticsEvents(homeAnalyticsPage, "select_item", 1);
   const homeStartingSelections = (
     await getAnalyticsEvents(homeAnalyticsPage, "select_item")
-  ).filter((event) => event.payload.item_list_id === "home_starting_models");
+  ).filter(
+    (event) =>
+      event.payload.item_list_id === "home_starting_models",
+  );
   assert.equal(
     homeStartingSelections.length,
     1,
@@ -3498,7 +3527,9 @@ try {
     "unset",
   );
   const lateGrantPage = await lateGrantContext.newPage();
-  await lateGrantPage.goto(`${origin}/catalog/?utm_source=launch&foo=first`);
+  await lateGrantPage.goto(
+    `${origin}/catalog/?utm_source=launch&foo=first`,
+  );
   await lateGrantPage
     .getByRole("heading", {
       level: 1,
@@ -3508,7 +3539,9 @@ try {
   assert.equal(lateGrantRecorder.getScriptRequests(), 0);
   assert.equal((await getAnalyticsEvents(lateGrantPage)).length, 0);
 
-  await lateGrantPage.getByRole("button", { name: "Allow analytics" }).click();
+  await lateGrantPage
+    .getByRole("button", { name: "Allow analytics" })
+    .click();
   await waitForAnalyticsEvents(lateGrantPage, "view_item_list", 1);
   assert.equal(lateGrantRecorder.getScriptRequests(), 1);
   const lateCatalogViews = await getAnalyticsEvents(
@@ -3536,11 +3569,7 @@ try {
   );
 
   await lateGrantPage.evaluate(() => {
-    history.pushState(
-      { rerender: 1 },
-      "",
-      "/catalog?foo=second&utm_medium=email",
-    );
+    history.pushState({ rerender: 1 }, "", "/catalog?foo=second&utm_medium=email");
     window.dispatchEvent(new PopStateEvent("popstate"));
   });
   await lateGrantPage.waitForURL(/\/catalog\?foo=second/);
@@ -3562,8 +3591,9 @@ try {
     const createRoot =
       reactDomClientModule.createRoot ??
       reactDomClientModule.default?.createRoot;
-    const { trackMarketingViewOnce } =
-      await import("/src/lib/consent-aware-marketing-view.ts");
+    const { trackMarketingViewOnce } = await import(
+      "/src/lib/consent-aware-marketing-view.ts"
+    );
     const Probe = () => {
       React.useEffect(() => {
         trackMarketingViewOnce({
@@ -3585,7 +3615,11 @@ try {
       document.body.appendChild(host);
       const root = createRoot(host);
       root.render(
-        React.createElement(React.StrictMode, null, React.createElement(Probe)),
+        React.createElement(
+          React.StrictMode,
+          null,
+          React.createElement(Probe),
+        ),
       );
       await new Promise((resolveWait) => setTimeout(resolveWait, 75));
       root.unmount();
@@ -3617,7 +3651,10 @@ try {
     (await getAnalyticsEvents(lateGrantPage, "select_item")).length,
     1,
   );
-  const lateProductViews = await getAnalyticsEvents(lateGrantPage, "view_item");
+  const lateProductViews = await getAnalyticsEvents(
+    lateGrantPage,
+    "view_item",
+  );
   assert.equal(lateProductViews.length, 1);
   assertCompleteAnalyticsItems(
     lateProductViews[0],
@@ -3638,9 +3675,9 @@ try {
   await lateGrantPage.goForward();
   await lateGrantPage.waitForURL(/\/phone-cases\/iphone-17-pro-max/);
   assert.equal(
-    (await getAnalyticsEvents(lateGrantPage, "view_item_list")).filter(
-      (event) => event.payload.item_list_id === "phone_models",
-    ).length,
+    (await getAnalyticsEvents(lateGrantPage, "view_item_list"))
+      .filter((event) => event.payload.item_list_id === "phone_models")
+      .length,
     1,
   );
   assert.equal(
@@ -3671,7 +3708,9 @@ try {
       name: "Custom Phone Cases for iPhone and Samsung",
     })
     .waitFor();
-  await remountPage.getByRole("button", { name: "Allow analytics" }).click();
+  await remountPage
+    .getByRole("button", { name: "Allow analytics" })
+    .click();
   await waitForAnalyticsEvents(remountPage, "view_item_list", 1);
   assert.equal(
     (await getAnalyticsEvents(remountPage, "view_item_list")).length,
@@ -3702,7 +3741,8 @@ try {
   const iphoneSeoList = (
     await getAnalyticsEvents(seoAnalyticsPage, "view_item_list")
   ).find(
-    (event) => event.payload.item_list_id === "seo_landing_custom_iphone_case",
+    (event) =>
+      event.payload.item_list_id === "seo_landing_custom_iphone_case",
   );
   assert.ok(iphoneSeoList, "The iPhone SEO landing list view is missing.");
   assertCompleteAnalyticsItems(iphoneSeoList, 6, "iPhone SEO landing view");
@@ -3734,7 +3774,9 @@ try {
     0,
     "The gift landing page must not render a self-referential Gift ideas link.",
   );
-  await seoAnalyticsPage.getByRole("link", { name: "Start designing" }).click();
+  await seoAnalyticsPage
+    .getByRole("link", { name: "Start designing" })
+    .click();
   await seoAnalyticsPage.waitForURL(`${origin}/catalog`);
   await seoAnalyticsPage.goBack();
   await seoAnalyticsPage.waitForURL(`${origin}/gifts/custom-phone-case`);
@@ -3795,7 +3837,8 @@ try {
   assert.ok(
     seoSelections.some(
       (event) =>
-        event.payload.item_list_id === "seo_landing_custom_iphone_case" &&
+        event.payload.item_list_id ===
+          "seo_landing_custom_iphone_case" &&
         event.payload.placement === "seo_landing_popular_models" &&
         event.payload.items?.length === 1,
     ),
@@ -3823,9 +3866,7 @@ try {
     "The Samsung search title must lead with the concrete photo-case intent and retain the supported family.",
   );
   assert.equal(
-    await samsungSeoPage
-      .locator('meta[name="description"]')
-      .getAttribute("content"),
+    await samsungSeoPage.locator('meta[name="description"]').getAttribute("content"),
     "Make a custom Galaxy S24, S24+, or S24 Ultra case with your photo or text, then preview the design before checkout.",
     "The Samsung search description must state the supported models and existing buyer journey.",
   );
@@ -3849,10 +3890,15 @@ try {
   const samsungSeoList = (
     await getAnalyticsEvents(samsungSeoPage, "view_item_list")
   ).find(
-    (event) => event.payload.item_list_id === "seo_landing_custom_samsung_case",
+    (event) =>
+      event.payload.item_list_id === "seo_landing_custom_samsung_case",
   );
   assert.ok(samsungSeoList, "The Samsung SEO landing list view is missing.");
-  assertCompleteAnalyticsItems(samsungSeoList, 3, "Samsung SEO landing view");
+  assertCompleteAnalyticsItems(
+    samsungSeoList,
+    3,
+    "Samsung SEO landing view",
+  );
   auditResults.push(
     await assertNoSeriousAxeViolations(
       samsungSeoPage,
@@ -3888,7 +3934,8 @@ try {
   assert.ok(
     samsungHeroSelections.some(
       (event) =>
-        event.payload.item_list_id === "seo_landing_custom_samsung_case" &&
+        event.payload.item_list_id ===
+          "seo_landing_custom_samsung_case" &&
         event.payload.placement === "seo_landing_hero_models" &&
         event.payload.items?.length === 1,
     ),
@@ -3902,8 +3949,7 @@ try {
     })
     .waitFor();
   await samsungSeoPage.locator("#galaxy-models").scrollIntoViewIfNeeded();
-  await samsungSeoPage
-    .locator("#galaxy-models")
+  await samsungSeoPage.locator("#galaxy-models")
     .getByRole("link", { name: /Galaxy S24 Ultra/ })
     .click();
   await samsungSeoPage.waitForURL(/\/phone-cases\/galaxy-s24-ultra/);
@@ -3914,7 +3960,8 @@ try {
   assert.ok(
     samsungSelections.some(
       (event) =>
-        event.payload.item_list_id === "seo_landing_custom_samsung_case" &&
+        event.payload.item_list_id ===
+          "seo_landing_custom_samsung_case" &&
         event.payload.placement === "seo_landing_popular_models" &&
         event.payload.items?.length === 1,
     ),
@@ -4025,7 +4072,9 @@ try {
   const crossTabPageA = await crossTabContext.newPage();
   const crossTabPageB = await crossTabContext.newPage();
   await Promise.all([
-    crossTabPageA.goto(`${origin}/phone-cases/iphone-17-pro-max`),
+    crossTabPageA.goto(
+      `${origin}/phone-cases/iphone-17-pro-max`,
+    ),
     crossTabPageB.goto(`${origin}/phone-cases/galaxy-s24-ultra`),
   ]);
   assert.equal((await getAnalyticsEvents(crossTabPageA)).length, 0);
@@ -4047,13 +4096,14 @@ try {
     const { setAnalyticsConsent } = await import("/src/lib/marketing.ts");
     setAnalyticsConsent("denied");
   });
-  await crossTabPageB.waitForFunction(() =>
-    (window.__snapcaseAnalyticsCommands ?? []).some(
-      (command) =>
-        command[0] === "consent" &&
-        command[1] === "update" &&
-        command[2]?.analytics_storage === "denied",
-    ),
+  await crossTabPageB.waitForFunction(
+    () =>
+      (window.__snapcaseAnalyticsCommands ?? []).some(
+        (command) =>
+          command[0] === "consent" &&
+          command[1] === "update" &&
+          command[2]?.analytics_storage === "denied",
+      ),
   );
   await crossTabPageB.evaluate(() => {
     history.pushState({}, "", "/phone-cases/galaxy-s25-ultra");
