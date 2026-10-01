@@ -32,6 +32,27 @@ const JsonLd = ({ value }: { value: Record<string, unknown> }) => (
   />
 );
 
+const productInspirations = [
+  {
+    title: "Their favorite face",
+    description: "Start with one clear pet photo and let the expression carry the design.",
+    image: "/marketing/pinterest/pet-case-product-pin.png",
+    alt: "AI-generated product concept showing a golden retriever photo on a custom phone case",
+  },
+  {
+    title: "A family favorite",
+    description: "Choose a shared moment that still feels good every time it appears.",
+    image: "/marketing/pinterest/family-case-product-pin.png",
+    alt: "AI-generated product concept showing a family sunset photo on a custom phone case",
+  },
+  {
+    title: "The trip you replay",
+    description: "Turn one unmistakable place into a case that keeps the memory close.",
+    image: "/marketing/pinterest/vacation-case-product-pin.png",
+    alt: "AI-generated product concept showing a coastal vacation photo on a custom phone case",
+  },
+] as const;
+
 const PhoneCaseSeo = () => {
   const { variantSlug } = useParams();
   const variant = getVariantById(variantSlug ?? "");
@@ -255,6 +276,91 @@ const PhoneCaseSeo = () => {
             </article>
           </div>
         </section>
+
+        {variant.brand === "Apple" && (
+          <section
+            className="overflow-hidden border-y border-white/10 bg-[#071a35] py-20 text-[#fff7e9]"
+            data-product-inspiration="true"
+          >
+            <div className="container mx-auto px-6">
+              <div className="grid gap-10 lg:grid-cols-[0.8fr_2.2fr] lg:gap-14">
+                <div className="max-w-md lg:sticky lg:top-28 lg:self-start">
+                  <p className="mb-4 text-xs font-semibold uppercase tracking-[0.24em] text-[#ff8b70]">
+                    Make it unmistakably yours
+                  </p>
+                  <h2 className="font-display text-4xl font-bold leading-[0.95] tracking-tight sm:text-5xl">
+                    Three photos. Three completely different cases.
+                  </h2>
+                  <p className="mt-6 text-base leading-7 text-[#d8e4f3]">
+                    Pet, family, or favorite trip—begin with the memory you want to see every day,
+                    then shape it for your {variant.model} in the editor.
+                  </p>
+                  <p className="mt-5 border-l-2 border-[#ff8b70] pl-4 text-sm leading-6 text-[#aebfd3]">
+                    AI-generated product concepts. Case silhouette and camera area are inspiration,
+                    not an exact-model proof. Your preview is the exact design review step before checkout.
+                  </p>
+                </div>
+
+                <div className="grid gap-5 sm:grid-cols-3 lg:gap-6">
+                  {productInspirations.map((inspiration, index) => (
+                    <Link
+                      key={inspiration.image}
+                      to={`/design/${variant.id}`}
+                      className={`group relative overflow-hidden rounded-[1.6rem] border border-white/15 bg-white/5 shadow-[0_24px_70px_rgba(0,0,0,0.28)] transition duration-300 hover:-translate-y-2 hover:border-[#ff8b70]/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ff8b70] focus-visible:ring-offset-4 focus-visible:ring-offset-[#071a35] ${
+                        index === 1 ? "lg:translate-y-8 lg:hover:translate-y-6" : ""
+                      }`}
+                      onClick={() => {
+                        const items = asMarketingItems(
+                          [buildAnalyticsItem({ variant })].filter(Boolean),
+                        );
+                        trackMarketingEvent("select_item", {
+                          item_list_id: "model_product_inspiration",
+                          item_list_name: "Product inspiration",
+                          placement: "model_product_inspiration",
+                          items,
+                        });
+                        trackMarketingEvent("primary_cta_click", {
+                          placement: "model_product_inspiration",
+                          destination: `/design/${variant.id}`,
+                          label: inspiration.title,
+                        });
+                      }}
+                    >
+                      <div className="aspect-[2/3] overflow-hidden">
+                        <img
+                          src={inspiration.image}
+                          width={1000}
+                          height={1500}
+                          alt={inspiration.alt}
+                          loading="lazy"
+                          className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.035]"
+                        />
+                      </div>
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#071a35] via-[#071a35]/95 to-transparent px-5 pb-5 pt-20">
+                        <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[#ff8b70]">
+                          Product concept
+                        </p>
+                        <h3 className="mt-2 text-xl font-semibold text-[#fff7e9]">
+                          {inspiration.title}
+                        </h3>
+                        <p className="mt-2 text-sm leading-5 text-[#d8e4f3]">
+                          {inspiration.description}
+                        </p>
+                        <span className="mt-4 inline-flex items-center text-sm font-semibold text-white">
+                          Try this idea on {variant.model}
+                          <ChevronRight
+                            className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1"
+                            aria-hidden="true"
+                          />
+                        </span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         <section className="py-16 border-y border-border/60">
           <div className="container mx-auto px-6 grid lg:grid-cols-[320px_1fr] gap-10">

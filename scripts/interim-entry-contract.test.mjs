@@ -19,6 +19,10 @@ const catalogSource = await readFile(
   new URL("../src/pages/Catalog.tsx", import.meta.url),
   "utf8",
 );
+const phoneCaseSeoSource = await readFile(
+  new URL("../src/pages/PhoneCaseSeo.tsx", import.meta.url),
+  "utf8",
+);
 const seoRoutesSource = await readFile(
   new URL("../src/data/seoRoutes.ts", import.meta.url),
   "utf8",
@@ -166,6 +170,31 @@ test("catalog cards keep two routes and remove the always-selected overlay", () 
   assert.doesNotMatch(catalogSource, />\s*Choose model\s*</);
   assert.match(catalogSource, /data-catalog-offer=\{variant\.id\}/);
   assert.match(catalogSource, /focus-within:border-cta/);
+});
+
+test("Apple model pages use registered product concepts with exact-model actions", async () => {
+  const concepts = [
+    ["pet-case-product-pin.png", "a4ee716cd186174b359c6c3d68cdf4345fc6d69aa2ccf316b459bf86fdfe28c4"],
+    ["family-case-product-pin.png", "673caba854fc38e3bc686d24d265011f240b0149d1475fa2a521f2b22ad56f1d"],
+    ["vacation-case-product-pin.png", "23824691356b05ddc6405bdc85ab345b9ed743585287d2eed0233324bcc1255a"],
+  ];
+
+  for (const [fileName, expectedHash] of concepts) {
+    const concept = await readFile(
+      new URL(`../public/marketing/pinterest/${fileName}`, import.meta.url),
+    );
+    assert.equal(createHash("sha256").update(concept).digest("hex"), expectedHash);
+    assert.match(phoneCaseSeoSource, new RegExp(fileName.replace(".", "\\.")));
+  }
+
+  assert.match(phoneCaseSeoSource, /variant\.brand === "Apple"/);
+  assert.match(phoneCaseSeoSource, /data-product-inspiration="true"/);
+  assert.match(phoneCaseSeoSource, /AI-generated product concepts/);
+  assert.match(phoneCaseSeoSource, /not an exact-model proof/);
+  assert.match(phoneCaseSeoSource, /Your preview is the exact design review step before checkout/);
+  assert.match(phoneCaseSeoSource, /to=\{`\/design\/\$\{variant\.id\}`\}/);
+  assert.match(phoneCaseSeoSource, /item_list_id: "model_product_inspiration"/);
+  assert.match(phoneCaseSeoSource, /placement: "model_product_inspiration"/);
 });
 
 test("browser metadata uses only Snapcase-named icon URLs", () => {
