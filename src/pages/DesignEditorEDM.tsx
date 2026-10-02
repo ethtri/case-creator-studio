@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useLayoutEffect, useState, useRef, useCallback } from "react";
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { getVariantById, PhoneVariant } from "@/data/phoneVariants";
@@ -116,6 +116,10 @@ const DesignEditorEDM = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const isMobile = useIsMobile();
+  const isMobileRef = useRef(isMobile);
+  useEffect(() => {
+    isMobileRef.current = isMobile;
+  }, [isMobile]);
   const [variant, setVariant] = useState<PhoneVariant | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -145,6 +149,9 @@ const DesignEditorEDM = () => {
   const retryEditorButtonRef = useRef<HTMLButtonElement | null>(null);
   const headerRef = useRef<HTMLDivElement | null>(null);
   const footerRef = useRef<HTMLDivElement | null>(null);
+  const editorShellRef = useRef<HTMLDivElement | null>(null);
+  const editorAreaRef = useRef<HTMLDivElement | null>(null);
+  const guidanceRef = useRef<HTMLParagraphElement | null>(null);
   const designerContainerRef = useRef<HTMLDivElement | null>(null);
   const [designerHeight, setDesignerHeight] = useState<number | null>(null);
   const resizeIntervalRef = useRef<number | null>(null);
@@ -560,7 +567,7 @@ const DesignEditorEDM = () => {
       };
 
       const reassertDesignStep = () => {
-        if (!isMobile) return;
+        if (!isMobileRef.current) return;
         lockDesignStep();
         window.setTimeout(lockDesignStep, 350);
         window.setTimeout(lockDesignStep, 1200);
@@ -675,25 +682,27 @@ const DesignEditorEDM = () => {
     getStoredTemplateId,
     handleTemplateSaved,
     buildDesignKey,
-    isMobile,
     isDesignerReady,
   ]);
 
   const updateDesignerHeight = useCallback(() => {
-    const headerHeight = isMobile && isImmersive ? 0 : (headerRef.current?.offsetHeight ?? 0);
-    const footerHeight = footerRef.current?.offsetHeight ?? 0;
+    const shell = editorShellRef.current;
+    const area = editorAreaRef.current;
+    if (!shell || !area) return;
     const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-    const buffer = isMobile ? 4 : 0;
-    const available = viewportHeight - headerHeight - footerHeight - buffer;
-    setDesignerHeight(Math.max(available, 200));
-  }, [isMobile, isImmersive]);
+    // Let flex layout account for every visible row, including blank-design
+    // guidance. 100vh and a minimum embed height can exceed the visible area
+    // when browser chrome or a keyboard reduces the visual viewport.
+    shell.style.height = `${viewportHeight}px`;
+    setDesignerHeight(area.getBoundingClientRect().height);
+  }, []);
 
   const forceEmbedSizing = useCallback(() => {
     const container = designerContainerRef.current;
     if (!container) return;
 
-    container.style.setProperty("height", designerHeight ? `${designerHeight}px` : "100%", "important");
-    container.style.setProperty("min-height", designerHeight ? `${designerHeight}px` : "100%", "important");
+    container.style.setProperty("height", designerHeight !== null ? `${designerHeight}px` : "100%", "important");
+    container.style.setProperty("min-height", "0", "important");
     container.style.setProperty("width", "100%", "important");
 
     const iframe = container.querySelector("iframe");
@@ -753,9 +762,13 @@ const DesignEditorEDM = () => {
     };
   }, [updateDesignerHeight]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     updateDesignerHeight();
-  }, [isMobile, isImmersive, updateDesignerHeight]);
+    const rows = [editorShellRef.current, headerRef.current, footerRef.current, guidanceRef.current];
+    const observer = new ResizeObserver(updateDesignerHeight);
+    rows.forEach((row) => row && observer.observe(row));
+    return () => observer.disconnect();
+  }, [variant, isMobile, isImmersive, iframeLoaded, isDesignValid, updateDesignerHeight]);
 
   useEffect(() => {
     if (!isMobile) {
@@ -984,7 +997,10 @@ const DesignEditorEDM = () => {
   }
 
   return (
-    <div className="min-h-screen bg-surface-sunken flex flex-col">
+    <div
+      ref={editorShellRef}
+      className="h-dvh min-h-0 bg-surface-sunken flex flex-col"
+    >
       {/* Header */}
       {isMobile ? (
         isImmersive ? null : (
@@ -1151,8 +1167,9 @@ const DesignEditorEDM = () => {
 
         {isMobile && iframeLoaded && !isDesignValid && (
           <p
+            ref={guidanceRef}
             id="design-action-guidance"
-            className="border-b border-border bg-card px-4 py-2 text-center text-xs font-medium text-foreground"
+            className="shrink-0 border-b border-border bg-card px-4 py-2 text-center text-xs font-medium text-foreground"
             role="status"
           >
             Start by adding a photo, text, or design.
@@ -1160,7 +1177,7 @@ const DesignEditorEDM = () => {
         )}
 
         {/* Printful Designer Container */}
-        <div className="relative flex-1 w-full">
+        <div ref={editorAreaRef} className="relative flex-1 min-h-0 w-full">
           {isSaving && (
             <div
               className="absolute inset-0 z-20 flex items-center justify-center bg-background/55 backdrop-blur-[1px]"
@@ -1178,7 +1195,7 @@ const DesignEditorEDM = () => {
             ref={designerContainerRef}
             aria-busy={isSaving || loading}
             style={{ 
-              height: designerHeight ? `${designerHeight}px` : undefined,
+              height: designerHeight !== null ? `${designerHeight}px` : undefined,
               opacity: iframeLoaded ? 1 : 0,
               transition: 'opacity 0.3s ease-in-out',
             }}

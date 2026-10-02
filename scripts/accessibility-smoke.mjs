@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import AxeBuilder from "@axe-core/playwright";
@@ -889,6 +889,93 @@ const auditResults = [];
 try {
   await waitForServer();
   browser = await chromium.launch({ headless: true });
+
+  // Host layout regression only: the embedded vendor UI is mocked. Real
+  // Safari/Android controls, artwork and keyboard behavior need separate QA.
+  const editorBounds = [];
+  for (const viewport of [
+    { width: 375, height: 667 },
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+    { width: 820, height: 1180 },
+    { width: 1440, height: 1000 },
+  ]) {
+    const context = await browser.newContext({ viewport, reducedMotion: "reduce" });
+    await installAppState(context, "light");
+    await installEditorScenario(context, {
+      designId: "viewport-regression",
+      initialStatus: { hasDesign: false, designValid: false, designChange: false },
+    });
+    await mockExternalServices(context);
+    const editorPage = await context.newPage();
+    await editorPage.goto(`${origin}/design/iphone-17-pro-max?utm_source=qa&utm_medium=internal_qa&utm_campaign=growth_mobile_p0_322&utm_term=qa_growth_team_mobile_322`);
+    await waitForEditorStatus(editorPage);
+
+    const assertEditorFits = async (state) => {
+      await editorPage.waitForFunction(() => {
+        const host = document.getElementById("printful-designer");
+        const iframe = host?.querySelector("iframe");
+        if (!host || !iframe) return false;
+        const expectedBottom = (window.visualViewport?.height ?? window.innerHeight)
+          - (window.innerWidth >= 768 ? 48 : 0);
+        return Math.abs(iframe.getBoundingClientRect().bottom - expectedBottom) < 1;
+      });
+      const bounds = await editorPage.evaluate(() => {
+        const host = document.getElementById("printful-designer");
+        const frame = host.querySelector("iframe");
+        const rect = frame.getBoundingClientRect();
+        return {
+          viewportWidth: window.innerWidth,
+          visualHeight: window.visualViewport?.height ?? window.innerHeight,
+          top: rect.top, height: rect.height, bottom: rect.bottom,
+          shellHeight: host.closest("main").parentElement.getBoundingClientRect().height,
+          guidanceHeight: document.querySelector("p#design-action-guidance")?.getBoundingClientRect().height ?? 0,
+          makers: window.__snapcaseEdmMakerCount,
+        };
+      });
+      assert.equal(bounds.shellHeight, bounds.visualHeight, "Editor shell must fit the visible viewport.");
+      assert.equal(bounds.makers, 1, "Resizing must preserve the editor instance and its design.");
+      await assertNoHorizontalOverflow(editorPage, `Editor viewport ${state}`);
+      editorBounds.push({ state, ...bounds });
+      return bounds;
+    };
+
+    const blank = await assertEditorFits("blank");
+    await editorPage.screenshot({ path: resolve(outputDir, `editor-viewport-${viewport.width}-blank.png`) });
+    await emitEditorStatus(editorPage, { hasDesign: true, designValid: true, designChange: false });
+    const valid = await assertEditorFits("valid");
+    if (viewport.width < 768) {
+      assert.ok(Math.abs(valid.height - blank.height - blank.guidanceHeight) < 1,
+        "Removing blank-design guidance must return its full height to the editor.");
+      await editorPage.getByRole("button", { name: "Hide top bar" }).click();
+      const immersive = await assertEditorFits("immersive");
+      assert.ok(Math.abs(immersive.height - valid.height - 56) < 1,
+        "Immersive mode must recover the header height without a gap.");
+      await editorPage.getByRole("button", { name: "Show top bar" }).click();
+      await assertEditorFits("restored");
+
+      // Deterministic visualViewport events model browser-chrome/keyboard size
+      // changes; these are not physical-device keyboard or browser-chrome tests.
+      for (const height of [viewport.height - 100, 160, viewport.height]) {
+        await editorPage.evaluate((height) => {
+          Object.defineProperty(window.visualViewport, "height", { configurable: true, value: height });
+          window.visualViewport.dispatchEvent(new Event("resize"));
+        }, height);
+        await assertEditorFits(`visual-height-${height}`);
+      }
+      await editorPage.evaluate(() => {
+        delete window.visualViewport.height;
+        window.visualViewport.dispatchEvent(new Event("resize"));
+      });
+      await editorPage.setViewportSize({ width: viewport.height, height: viewport.width });
+      await assertEditorFits("landscape");
+      await editorPage.setViewportSize(viewport);
+      await assertEditorFits("portrait-restored");
+    }
+    await editorPage.screenshot({ path: resolve(outputDir, `editor-viewport-${viewport.width}-valid.png`) });
+    await context.close();
+  }
+  await writeFile(resolve(outputDir, "editor-viewport-bounds.json"), JSON.stringify(editorBounds, null, 2));
 
   const desktop = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
