@@ -159,7 +159,9 @@ export async function runLifecycleWorker(
     if (providerEligibility !== "eligible") {
       await d.finish(
         claim,
-        providerEligibility === "suppressed" ? "suppressed" : "deferred",
+        providerEligibility === "suppressed"
+          ? "provider_suppressed"
+          : "deferred",
       );
       return {
         result: providerEligibility === "suppressed"

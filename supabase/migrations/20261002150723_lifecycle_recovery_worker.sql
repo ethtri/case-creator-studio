@@ -201,14 +201,29 @@ CREATE FUNCTION public.lifecycle_worker_finish(p_id UUID,p_claim UUID,p_status T
 RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
 DECLARE v_event public.lifecycle_worker_events%ROWTYPE; v_done BOOLEAN;
 BEGIN
- IF p_status NOT IN ('completed','suppressed','dead_letter','uncertain','deferred') THEN RAISE EXCEPTION 'invalid_worker_result'; END IF;
+ IF p_status NOT IN ('completed','suppressed','provider_suppressed','dead_letter','uncertain','deferred') THEN RAISE EXCEPTION 'invalid_worker_result'; END IF;
  IF p_status='completed' AND coalesce(p_message,'') !~ '^[a-zA-Z0-9_-]{1,128}$' THEN RAISE EXCEPTION 'missing_provider_acceptance'; END IF;
  IF p_message IS NOT NULL THEN
   PERFORM pg_advisory_xact_lock(hashtextextended('lifecycle_message:'||p_message,0));
  END IF;
  PERFORM 1 FROM public.lifecycle_marketing_subscribers WHERE id=(
   SELECT subscriber_id FROM public.lifecycle_marketing_outbox WHERE id=p_id) FOR UPDATE;
- UPDATE public.lifecycle_marketing_outbox SET status=CASE WHEN status='suppressed' THEN status WHEN p_status='deferred' THEN 'pending' ELSE p_status END,
+ IF p_status='provider_suppressed' THEN
+  PERFORM 1 FROM public.lifecycle_marketing_outbox WHERE id=p_id AND claim_token=p_claim
+   AND status IN ('sending','uncertain','suppressed') FOR UPDATE;
+  IF NOT FOUND THEN RETURN false; END IF;
+  UPDATE public.lifecycle_marketing_subscribers SET status='suppressed',revoked_at=coalesce(revoked_at,now()),
+   suppression_reason=coalesce(suppression_reason,'provider_unsubscribe'),
+   provider_event_at=greatest(coalesce(provider_event_at,now()),now()),updated_at=now()
+  WHERE id=(SELECT subscriber_id FROM public.lifecycle_marketing_outbox WHERE id=p_id);
+  INSERT INTO public.lifecycle_marketing_consent_events(subscriber_id,request_id,event_type,source,placement,
+   consent_copy_version,privacy_policy_version,metadata)
+  SELECT id,p_claim,'provider_suppressed','resend','provider_poll',consent_copy_version,
+   privacy_policy_version,jsonb_build_object('reason','provider_unsubscribe') FROM public.lifecycle_marketing_subscribers
+  WHERE id=(SELECT subscriber_id FROM public.lifecycle_marketing_outbox WHERE id=p_id)
+  ON CONFLICT(request_id) DO NOTHING;
+ END IF;
+ UPDATE public.lifecycle_marketing_outbox SET status=CASE WHEN status='suppressed' OR p_status='provider_suppressed' THEN 'suppressed' WHEN p_status='deferred' THEN 'pending' ELSE p_status END,
   attempts=CASE WHEN p_status='deferred' THEN 0 ELSE attempts END,
   preparation_deferrals=preparation_deferrals+CASE WHEN p_status='deferred' THEN 1 ELSE 0 END,
   next_attempt_at=CASE WHEN p_status='deferred' THEN now()+interval '5 minutes' ELSE next_attempt_at END,

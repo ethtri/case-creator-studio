@@ -252,7 +252,7 @@ test("provider missing synchronization defers; explicit global/topic suppression
     );
     assert.deepEqual(m.calls.at(-1), [
       "finish",
-      status === "unavailable" ? "deferred" : "suppressed",
+      status === "unavailable" ? "deferred" : "provider_suppressed",
       undefined,
     ]);
     assert.ok(!m.calls.includes("send"));

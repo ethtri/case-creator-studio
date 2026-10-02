@@ -137,7 +137,12 @@ checks precede token preparation and are rechecked immediately before sending.
 Welcome grants and events must remain within 24 hours. Existing provider contact
 identity, explicit global `unsubscribed=false`, and explicit opt-in to the exact
 marketing topic are read immediately before sending. Missing/unavailable sync
-defers the job; it never invents provider consent or creates a contact. Legacy
+defers the job; it never invents provider consent or creates a contact.
+An explicit provider global/topic opt-out is durably recorded as canonical
+suppression with a consent event; existing recovery triggers revoke active
+links, and later signup/sync cannot clear it. Missing provider information
+never changes canonical consent.
+Legacy
 `subscribe`/`suppress` synchronization rows are not claimed by this message
 worker; provider synchronization must already be verified. Canonical website
 unsubscribe remains authoritative before any provider state.

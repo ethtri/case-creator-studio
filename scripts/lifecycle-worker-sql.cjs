@@ -817,6 +817,67 @@ async function cart(n) {
       1,
     );
   });
+  await test("observed provider opt-out irreversibly suppresses canonical consent and all recovery", async () => {
+    await reset();
+    const f = await design(106);
+    const cl = await claim();
+    const p = await prepare(cl);
+    assert(p);
+    const other = await welcome(f.s);
+    assert.equal(
+      await val(
+        "SELECT lifecycle_worker_finish($1,$2,'provider_suppressed',null)",
+        [cl.id, cl.claim_token],
+      ),
+      true,
+    );
+    assert.equal(
+      await val(
+        "SELECT status FROM lifecycle_marketing_subscribers WHERE id=$1",
+        [f.s],
+      ),
+      "suppressed",
+    );
+    assert.equal(
+      await val(
+        "SELECT count(*)::int FROM lifecycle_marketing_consent_events WHERE subscriber_id=$1 AND event_type='provider_suppressed'",
+        [f.s],
+      ),
+      1,
+    );
+    assert.equal(
+      (await val("SELECT get_lifecycle_recovery_state($1,false)", [
+        p.recoveryToken,
+      ])).status,
+      "revoked",
+    );
+    assert.equal(
+      await val("SELECT lifecycle_worker_eligible($1)", [other]),
+      false,
+    );
+    assert.equal(
+      (await val(
+        "SELECT register_lifecycle_marketing_consent($1,$2,'website','homepage_email_card',null,'lifecycle_marketing_home_v1','2026-07-22',true)",
+        ["synthetic106@fixture.test", crypto.randomUUID()],
+      )).status,
+      "suppressed",
+    );
+    assert.equal(await claim(), null);
+    assert.equal(
+      await val(
+        "SELECT lifecycle_worker_finish($1,$2,'provider_suppressed',null)",
+        [cl.id, cl.claim_token],
+      ),
+      true,
+    );
+    assert.equal(
+      await val(
+        "SELECT count(*)::int FROM lifecycle_marketing_consent_events WHERE subscriber_id=$1 AND event_type='provider_suppressed'",
+        [f.s],
+      ),
+      1,
+    );
+  });
   await test("depleted quota leaves next job pending with zero attempts", async () => {
     await reset();
     await welcome(await sub(24));
