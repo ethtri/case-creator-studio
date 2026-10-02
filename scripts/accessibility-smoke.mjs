@@ -330,6 +330,7 @@ const mockExternalServices = async (context, { checkoutUrl = null } = {}) => {
                 window.__snapcaseEdmStatusUpdates += 1;
                 this.config.onDesignStatusUpdate?.(status);
               };
+              window.__snapcaseEdmEmitError = (error) => this.config.onError?.(error);
               window.__snapcaseEdmResolveNextSave = () => {
                 const complete = window.__snapcaseEdmPendingSaves.shift();
                 if (!complete) return false;
@@ -911,6 +912,7 @@ try {
     await editorPage.goto(`${origin}/design/iphone-17-pro-max?utm_source=qa&utm_medium=internal_qa&utm_campaign=growth_mobile_p0_322&utm_term=qa_growth_team_mobile_322`);
     await waitForEditorStatus(editorPage);
 
+    let expectedMakers = 1;
     const assertEditorFits = async (state) => {
       await editorPage.waitForFunction(() => {
         const host = document.getElementById("printful-designer");
@@ -934,7 +936,7 @@ try {
         };
       });
       assert.equal(bounds.shellHeight, bounds.visualHeight, "Editor shell must fit the visible viewport.");
-      assert.equal(bounds.makers, 1, "Resizing must preserve the editor instance and its design.");
+      assert.equal(bounds.makers, expectedMakers, "Resizing must preserve the editor instance and its design.");
       await assertNoHorizontalOverflow(editorPage, `Editor viewport ${state}`);
       editorBounds.push({ state, ...bounds });
       return bounds;
@@ -972,6 +974,20 @@ try {
       await editorPage.setViewportSize(viewport);
       await assertEditorFits("portrait-restored");
     }
+    await emitEditorStatus(editorPage, { hasDesign: false, designValid: false, designChange: false });
+    const reset = await assertEditorFits("design-cleared");
+    assert.ok(Math.abs(reset.height - blank.height) < 1,
+      "Restoring blank-design guidance must keep the bottom controls visible.");
+    if (viewport.width === 375) {
+      await editorPage.evaluate(() => window.__snapcaseEdmEmitError("Mock runtime failure"));
+      await editorPage.getByRole("alertdialog").waitFor();
+      await editorPage.getByRole("button", { name: "Retry", exact: true }).click();
+      expectedMakers = 2;
+      await waitForEditorMakerCount(editorPage, expectedMakers);
+      await assertEditorFits("error-retry");
+    }
+    await emitEditorStatus(editorPage, { hasDesign: true, designValid: true, designChange: false });
+    await assertEditorFits("valid-final");
     await editorPage.screenshot({ path: resolve(outputDir, `editor-viewport-${viewport.width}-valid.png`) });
     await context.close();
   }
