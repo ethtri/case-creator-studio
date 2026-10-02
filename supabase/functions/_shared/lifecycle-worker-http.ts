@@ -31,7 +31,21 @@ export const createLifecycleOutboxHandler =
     }
     const workerSecret = env("LIFECYCLE_OUTBOX_WORKER_SECRET") ?? "";
     const serviceRole = env("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-    if (!workerAuthorized(req, [workerSecret, serviceRole])) {
+    // Only the existing platform default server key is an additional operator.
+    // Publishable keys and arbitrary named keys never confer worker access.
+    let defaultSecret = "";
+    try {
+      const keys = JSON.parse(env("SUPABASE_SECRET_KEYS") ?? "null");
+      if (keys && typeof keys === "object" && !Array.isArray(keys) &&
+        typeof keys.default === "string" &&
+        keys.default.startsWith("sb_secret_") &&
+        keys.default.length > "sb_secret_".length) {
+        defaultSecret = keys.default;
+      }
+    } catch { /* malformed platform dictionary fails closed */ }
+    const secretAuthorized = Boolean(defaultSecret) &&
+      req.headers.get("apikey") === defaultSecret;
+    if (!workerAuthorized(req, [workerSecret, serviceRole]) && !secretAuthorized) {
       return json({ error: "unauthorized" }, 401);
     }
     let body: { dryRun: boolean };
