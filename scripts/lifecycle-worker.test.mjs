@@ -350,6 +350,53 @@ test("real HTTP wrapper rejects browser, unauthorized and malformed input withou
   }
   assert.deepEqual(m.calls, []);
 });
+test("platform default secret authenticates only exact apikey and preserves bearer paths", async () => {
+  const current = "sb_secret_fixture_default";
+  const m = httpMock({
+    SUPABASE_SECRET_KEYS: JSON.stringify({ default: current, other: "sb_secret_other" }),
+    LIFECYCLE_OUTBOX_WORKER_SECRET: "dedicated",
+  });
+  for (const headers of [
+    { authorization: "", apikey: current },
+    { authorization: "Bearer service" },
+    { authorization: "Bearer dedicated" },
+  ]) {
+    assert.equal((await m.handler(request({ dryRun: false }, headers))).status, 503);
+  }
+  assert.deepEqual(m.calls, []);
+  assert.equal((await m.handler(request({ dryRun: true }, {
+    authorization: "", apikey: current,
+  }))).status, 200);
+  assert.deepEqual(m.calls.map(([name]) => name), ["lifecycle_worker_aggregate"]);
+  m.calls.length = 0;
+  for (const headers of [
+    { authorization: "", apikey: "sb_publishable_public" },
+    { authorization: "", apikey: "sb_secret_other" },
+    { authorization: "", apikey: `${current}wrong` },
+    { authorization: `Bearer ${current}` },
+    { authorization: "", apikey: "" },
+  ]) {
+    assert.equal((await m.handler(request({ dryRun: true }, headers))).status, 401);
+  }
+  assert.equal((await m.handler(request({ dryRun: true }, {
+    authorization: "", apikey: current, origin: "https://www.snapcase.ai",
+  }))).status, 403);
+  assert.deepEqual(m.calls, []);
+});
+test("malformed or public platform secret dictionaries fail closed without I/O", async () => {
+  for (const dictionary of [undefined, "not-json", "null", "[]", '"string"',
+    '{"default":false}', '{"default":123}', '{"default":""}',
+    '{"default":"sb_secret_"}', '{"default":"sb_publishable_public"}',
+    '{"other":"sb_secret_other"}']) {
+    const m = httpMock({ SUPABASE_SECRET_KEYS: dictionary });
+    assert.equal((await m.handler(request({ dryRun: true }, {
+      authorization: "", apikey: "sb_publishable_public",
+    }))).status, 401);
+    assert.deepEqual(m.calls, []);
+    assert.equal((await m.handler(request({ dryRun: false }))).status, 503);
+    assert.deepEqual(m.calls, []);
+  }
+});
 test("real HTTP disabled and dry-run are nonmutating and do not call provider", async () => {
   const m = httpMock();
   assert.equal((await m.handler(request({ dryRun: false }))).status, 503);

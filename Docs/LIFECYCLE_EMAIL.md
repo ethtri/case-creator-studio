@@ -94,7 +94,16 @@ deployment secrets. See the bounded activation and verification contract below.
 The operator-only `lifecycle-email-outbox` accepts POST with an explicit boolean
 `dryRun`. Browser origins and ordinary user/anon credentials are rejected. A
 server-only service-role bearer remains supported; an optional dedicated
-`LIFECYCLE_OUTBOX_WORKER_SECRET` is also accepted.
+`LIFECYCLE_OUTBOX_WORKER_SECRET` is also accepted. The existing platform-injected
+`SUPABASE_SECRET_KEYS.default` server key is accepted through `apikey` only;
+publishable keys and other named keys are rejected. No key creation or rotation
+is required by this compatibility path.
+
+The reviewed worker SQL originally named `20261002150723_lifecycle_recovery_worker.sql`
+was applied by the management API as version `20261002155310`. Its filename now
+matches that existing history entry; SQL bytes are unchanged (SHA256
+`9032964c07251bb65b3f784e6996d55ded83e1e1e3fdab8fcce839624c3ecd21`).
+This is a filename reconciliation, not a second database application or history repair.
 
 Keep `LIFECYCLE_EMAIL_ENABLED=false` and `LIFECYCLE_EMAIL_PROVIDER=disabled` for
 this release. No schedule, contact creation, subscription change or seed is

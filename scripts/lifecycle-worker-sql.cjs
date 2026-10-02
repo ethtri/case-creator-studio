@@ -138,7 +138,7 @@ async function cart(n) {
   await q(
     `DO $$BEGIN CREATE ROLE anon;EXCEPTION WHEN duplicate_object THEN NULL;END$$;DO $$BEGIN CREATE ROLE authenticated;EXCEPTION WHEN duplicate_object THEN NULL;END$$;DO $$BEGIN CREATE ROLE service_role;EXCEPTION WHEN duplicate_object THEN NULL;END$$;GRANT USAGE ON SCHEMA public TO anon,authenticated,service_role;CREATE TABLE auth.users(id uuid primary key);CREATE TABLE public.designs(id uuid primary key,user_id uuid,design_id text,variant_id text,edm_template_id integer,external_product_id text,preview_url text,preview_url_angled text);CREATE TABLE public.orders(id uuid primary key,user_id uuid,customer_email text,status text,items jsonb);`,
   );
-  for (const prefix of ["20260722120000", "20260827151509", "20261002150723"]) {
+  for (const prefix of ["20260722120000", "20260827151509", "20261002155310"]) {
     const name = fs.readdirSync(repo).find((n) => n.startsWith(prefix));
     const sql = fs.readFileSync(repo + name, "utf8");
     hashes[name] = crypto.createHash("sha256").update(sql).digest("hex");
