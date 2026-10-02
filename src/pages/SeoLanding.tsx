@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
+import { PhotoFitCheck } from "@/components/PhotoFitCheck";
 import { getStaticSeoPage, SITE_URL } from "@/data/seoRoutes";
 import { phoneVariants } from "@/data/phoneVariants";
 import { useConsentAwareMarketingView } from "@/hooks/useConsentAwareMarketingView";
@@ -194,6 +195,8 @@ const SeoLanding = () => {
               </div>
             </div>
           </section>
+
+          <PhotoFitCheck audience="pet" />
 
           <section
             className="border-b border-border/60 py-20"
@@ -645,6 +648,8 @@ const SeoLanding = () => {
             </div>
           </div>
         </section>
+
+        {isGiftLanding && <PhotoFitCheck audience="gift" />}
 
         <section
           className="py-16"
