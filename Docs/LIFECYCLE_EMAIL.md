@@ -126,6 +126,10 @@ leaves eligible pending rows untouched. Reservations are conservatively counted
 against residual quota for the current UTC day/month; deferred work crossing a
 day boundary must reserve in the new period. This may under-use free capacity.
 No reservation is automatically refunded after any provider attempt.
+Preparation and the final send recheck also require a current-day reservation;
+an in-flight rollover defers work without treating it as recipient suppression.
+Sending stops within 20 seconds of lease expiry or UTC midnight (provider
+requests have a 10-second timeout).
 
 Current canonical consent, exact source/copy/policy versions, grant ordering,
 QA/internal exclusions, frequency, expiry, purchase, design revision and model

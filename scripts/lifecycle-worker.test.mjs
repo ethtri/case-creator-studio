@@ -91,7 +91,7 @@ function mock(extra = {}) {
       },
       recheck: async () => {
         calls.push("recheck");
-        return true;
+        return "eligible";
       },
       deliver: async () => {
         calls.push("send");
@@ -177,11 +177,20 @@ test("scope and exhausted quota stay inside atomic claim and leave work pending"
   assert.deepEqual(m.calls, ["domain"]);
 });
 test("fresh consent or suppression diff prevents provider action", async () => {
-  const m = mock({ recheck: async () => false });
+  const m = mock({ recheck: async () => "suppressed" });
   const r = await runLifecycleWorker(input(), m.d);
   assert.equal(r.result, "eligibility_or_capacity_blocked");
   assert.ok(!m.calls.includes("send"));
   assert.deepEqual(m.calls.at(-1), ["finish", "suppressed", undefined]);
+});
+test("period or lease change immediately before send defers without suppression", async () => {
+  const m = mock({ recheck: async () => "deferred" });
+  assert.equal(
+    (await runLifecycleWorker(input(), m.d)).result,
+    "eligibility_or_capacity_blocked",
+  );
+  assert.deepEqual(m.calls.at(-1), ["finish", "deferred", undefined]);
+  assert.ok(!m.calls.includes("send"));
 });
 test("success durably records acceptance once", async () => {
   const m = mock();
@@ -288,6 +297,7 @@ function httpMock(settings = {}) {
           idempotencyKey: "stable",
         };
       }
+      if (name === "lifecycle_worker_recheck") return "eligible";
       return true;
     },
     providerFetch: async (url, opts) => {

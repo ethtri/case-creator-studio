@@ -163,6 +163,10 @@ BEGIN
  PERFORM 1 FROM public.lifecycle_recovery_intents WHERE id=(
   SELECT recovery_intent_id FROM public.lifecycle_marketing_outbox WHERE id=p_id) FOR UPDATE;
  SELECT * INTO v FROM public.lifecycle_marketing_outbox WHERE id=p_id FOR UPDATE;
+ IF v.status='sending' AND v.claim_token=p_claim AND (v.lease_expires_at<=now()+interval '20 seconds'
+  OR NOT EXISTS (SELECT 1 FROM public.lifecycle_worker_reservations WHERE outbox_id=p_id
+   AND reserved_at>=date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'))
+ THEN RAISE EXCEPTION 'worker_capacity_period_or_lease_changed'; END IF;
  IF NOT FOUND OR v.claim_token IS DISTINCT FROM p_claim OR v.status<>'sending' OR v.lease_expires_at<=now()
   OR NOT public.lifecycle_worker_eligible(p_id) OR length(p_account) NOT BETWEEN 1 AND 128
   OR p_daily NOT BETWEEN 1 AND 100 OR p_monthly NOT BETWEEN 1 AND 3000 THEN RETURN NULL; END IF;
@@ -183,10 +187,15 @@ BEGIN
 END;
 $$;
 
-CREATE FUNCTION public.lifecycle_worker_recheck(p_id UUID,p_claim UUID) RETURNS BOOLEAN
+CREATE FUNCTION public.lifecycle_worker_recheck(p_id UUID,p_claim UUID) RETURNS TEXT
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,pg_temp AS $$
- SELECT EXISTS (SELECT 1 FROM public.lifecycle_marketing_outbox WHERE id=p_id AND claim_token=p_claim
-  AND status='sending' AND lease_expires_at>now() AND public.lifecycle_worker_eligible(p_id));
+ SELECT CASE
+  WHEN EXISTS (SELECT 1 FROM public.lifecycle_marketing_outbox WHERE id=p_id AND claim_token=p_claim AND status='suppressed') THEN 'suppressed'
+  WHEN NOT EXISTS (SELECT 1 FROM public.lifecycle_marketing_outbox o JOIN public.lifecycle_worker_reservations r ON r.outbox_id=o.id
+   WHERE o.id=p_id AND o.claim_token=p_claim AND o.status='sending' AND o.lease_expires_at>now()+interval '20 seconds'
+    AND r.reserved_at>=date_trunc('day',now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+    AND now()+interval '20 seconds'<(date_trunc('day',now() AT TIME ZONE 'UTC')+interval '1 day') AT TIME ZONE 'UTC') THEN 'deferred'
+  WHEN public.lifecycle_worker_eligible(p_id) THEN 'eligible' ELSE 'suppressed' END;
 $$;
 CREATE FUNCTION public.lifecycle_worker_finish(p_id UUID,p_claim UUID,p_status TEXT,p_message TEXT DEFAULT NULL)
 RETURNS BOOLEAN LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$

@@ -51,7 +51,7 @@ export type WorkerDependencies = {
     prepared: Prepared,
     activation: Activation,
   ) => Promise<"eligible" | "suppressed" | "unavailable">;
-  recheck: (claim: Claim) => Promise<boolean>;
+  recheck: (claim: Claim) => Promise<"eligible" | "suppressed" | "deferred">;
   deliver: (claim: Claim, prepared: Prepared) => Promise<string>;
   finish: (claim: Claim, status: string, messageId?: string) => Promise<void>;
 };
@@ -167,8 +167,9 @@ export async function runLifecycleWorker(
           : "provider_synchronization_unavailable",
       };
     }
-    if (!(await d.recheck(claim))) {
-      await d.finish(claim, "suppressed");
+    const recheck = await d.recheck(claim);
+    if (recheck !== "eligible") {
+      await d.finish(claim, recheck === "deferred" ? "deferred" : "suppressed");
       return { result: "eligibility_or_capacity_blocked" };
     }
     attempted = true;

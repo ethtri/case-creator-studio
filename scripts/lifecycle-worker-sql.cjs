@@ -351,6 +351,59 @@ async function cart(n) {
       1,
     );
   });
+  await test("in-flight claim crossing UTC day cannot prepare or send on old reservation", async () => {
+    await reset();
+    await welcome(await sub(105));
+    const cl = await claim("inflight", 1, 10);
+    await q(
+      "UPDATE lifecycle_worker_reservations SET reserved_at=now()-interval '1 day' WHERE outbox_id=$1",
+      [cl.id],
+    );
+    await assert.rejects(
+      () => prepare(cl, "inflight", 1, 10),
+      /worker_capacity_period_or_lease_changed/,
+    );
+    assert.equal(
+      await val("SELECT lifecycle_worker_recheck($1,$2)", [
+        cl.id,
+        cl.claim_token,
+      ]),
+      "deferred",
+    );
+    assert.equal(
+      await val(
+        "SELECT count(*)::int FROM lifecycle_marketing_preference_tokens",
+      ),
+      0,
+    );
+    assert.equal(
+      await val("SELECT lifecycle_worker_finish($1,$2,'deferred',null)", [
+        cl.id,
+        cl.claim_token,
+      ]),
+      true,
+    );
+    assert.equal(
+      await val("SELECT status FROM lifecycle_marketing_outbox WHERE id=$1", [
+        cl.id,
+      ]),
+      "pending",
+    );
+    await q(
+      "UPDATE lifecycle_marketing_outbox SET next_attempt_at=now()-interval '1 minute' WHERE id=$1",
+      [cl.id],
+    );
+    const next = await claim("inflight", 1, 10);
+    assert(next);
+    assert(await prepare(next, "inflight", 1, 10));
+    assert.equal(
+      await val("SELECT lifecycle_worker_recheck($1,$2)", [
+        next.id,
+        next.claim_token,
+      ]),
+      "eligible",
+    );
+  });
   await test("monthly capacity depletion", async () => {
     await reset();
     await welcome(await sub(4));
@@ -373,7 +426,7 @@ async function cart(n) {
         cl.id,
         cl.claim_token,
       ]),
-      false,
+      "suppressed",
     );
   });
   await test("consent missing / QA campaign / exclusion fail closed", async () => {
@@ -455,7 +508,7 @@ async function cart(n) {
         cl.id,
         cl.claim_token,
       ]),
-      false,
+      "suppressed",
     );
   });
   await test("purchase after claim cancels cart", async () => {
