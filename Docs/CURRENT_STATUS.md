@@ -50,6 +50,14 @@ remaining supervised onshore-pilot gates.
 
 ## Current Baseline
 
+- Mobile designer #322: the host shell now follows the visual viewport and
+  allocates the embed through flex layout, including blank-design guidance and
+  the desktop footer. Removing guidance or hiding the top bar returns that space
+  to the embed; rotation across the mobile breakpoint retains its editor
+  instance. Mocked Chromium regression checks cover small/large phones, tablet,
+  desktop, rotation, and synthetic viewport-height changes. The issue remains
+  open for the owner's loaded-artwork bottom gap and real iOS Safari/Android
+  Chrome acceptance evidence; simulated viewport events are not device proof.
 - The public site uses `https://www.snapcase.ai`, the EDM-first design flow,
   live Stripe Checkout, and Printful as the production fulfillment default.
 - P0 checkout redirect recovery: #277 / PR #278 initially accepted Stripe
