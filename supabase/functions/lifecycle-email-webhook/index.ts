@@ -4,6 +4,7 @@ import {
   parseLifecycleProviderEvent,
   verifyLifecycleWebhook,
 } from "../_shared/lifecycle-marketing-webhook.ts";
+import { handleLifecycleNativeWebhook } from "../_shared/lifecycle-native-webhook.ts";
 
 const jsonResponse = (body: Record<string, unknown>, status: number) =>
   new Response(JSON.stringify(body), {
@@ -24,6 +25,21 @@ serve(async (req) => {
   const webhookSecret = Deno.env.get("LIFECYCLE_EMAIL_WEBHOOK_SECRET");
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (provider === "resend") {
+    const secret = Deno.env.get("LIFECYCLE_RESEND_WEBHOOK_SECRET");
+    if (!secret || supabaseUrl !== "https://mdprdbaykuordozfctud.supabase.co" || !serviceRoleKey)
+      return jsonResponse({ error: "not_configured" }, 503);
+    const client = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+    return handleLifecycleNativeWebhook(req, {
+      secret,
+      persist: async args => {
+        // Never persist provider payload, email address, or free-form error text.
+        const { data, error } = await client.rpc("lifecycle_worker_apply_event", args);
+        if (error) throw new Error("native_lifecycle_persistence_failed");
+        return data;
+      },
+    });
+  }
   if (provider === "disabled" || !webhookSecret || !supabaseUrl || !serviceRoleKey) {
     console.error("[LIFECYCLE-WEBHOOK] Provider synchronization is disabled");
     return jsonResponse({ error: "not_configured" }, 503);

@@ -83,10 +83,108 @@ provider contact ID. Receipt IDs are unique and replay-safe. Older provider
 events cannot overwrite newer state, and a provider `subscribed` event cannot
 clear a website or provider suppression.
 
-No worker schedule is created by this change. The outbox endpoint returns a
-redacted welcome preview only when `dryRun: true`; live execution returns 503
-while either the provider or live flag is disabled. Provider credentials belong
-only in deployment secrets.
+No worker schedule is created. The #325 worker returns real aggregate eligibility
+when `dryRun: true`, with exact activation blockers; it never claims work, issues
+tokens, or contacts a provider in dry-run. Live mode returns 503 before database
+or provider mutation while disabled. Provider credentials belong only in
+deployment secrets. See the bounded activation and verification contract below.
+
+## #325 worker and activation
+
+The operator-only `lifecycle-email-outbox` accepts POST with an explicit boolean
+`dryRun`. Browser origins and ordinary user/anon credentials are rejected. A
+server-only service-role bearer remains supported; an optional dedicated
+`LIFECYCLE_OUTBOX_WORKER_SECRET` is also accepted.
+
+Keep `LIFECYCLE_EMAIL_ENABLED=false` and `LIFECYCLE_EMAIL_PROVIDER=disabled` for
+this release. No schedule, contact creation, subscription change or seed is
+installed. `LIFECYCLE_RESEND_API_KEY` is a separate reviewed lifecycle credential;
+the transactional key is never silently reused. Native callback verification
+uses `LIFECYCLE_RESEND_WEBHOOK_SECRET` and Svix headers. Other providers retain
+the existing generic signed callback contract.
+
+Live execution additionally requires `LIFECYCLE_ACTIVATION_EVIDENCE`, a reviewed
+production JSON object whose `observedAt` is no more than 15 minutes old. Required
+binding values are source `production_contract`, evidence class `production`,
+the exact production `projectUrl`, from/reply-to `hello@snapcase.ai`, contract
+version `1.0.0`, standing authority ID, exact `accountId`, `domainId`, `webhookId`
+and `marketingTopicId`, and webhook schema `svix_resend_native`. Boolean fields
+`bindingVerified`, `keyAccountVerified`, `suppressionVerified`,
+`unsubscribeVerified`, `restorationVerified`, `freePlanVerified`,
+`noOverageVerified` and `seedAndQaExcluded` must be actual `true` booleans from
+independent evidence, never settings inferred from an API key or fixture.
+`dailyRemaining`/`monthlyRemaining` must be verified positive integers no greater
+than 100/3000. These are residual zero-cost capacity, not authorization to buy a
+plan or exceed it. `flows` must be a nonempty distinct subset of `welcome`,
+`abandoned_design`, `abandoned_cart`. Do not populate this object until actual
+production provider/account, DNS, headers, suppression and restoration proofs
+pass. The pre-existing custom webhook is not proof of native Resend support.
+
+An enabled invocation reads the exact domain using its lifecycle key, claims at
+most one approved-flow row, and reserves capacity atomically. Exhausted capacity
+leaves eligible pending rows untouched. Reservations are conservatively counted
+against residual quota for the current UTC day/month; deferred work crossing a
+day boundary must reserve in the new period. This may under-use free capacity.
+No reservation is automatically refunded after any provider attempt.
+
+Current canonical consent, exact source/copy/policy versions, grant ordering,
+QA/internal exclusions, frequency, expiry, purchase, design revision and model
+checks precede token preparation and are rechecked immediately before sending.
+Welcome grants and events must remain within 24 hours. Existing provider contact
+identity, explicit global `unsubscribed=false`, and explicit opt-in to the exact
+marketing topic are read immediately before sending. Missing/unavailable sync
+defers the job; it never invents provider consent or creates a contact. Legacy
+`subscribe`/`suppress` synchronization rows are not claimed by this message
+worker; provider synchronization must already be verified. Canonical website
+unsubscribe remains authoritative before any provider state.
+
+Approved plain-text copies are pinned from marketing main `2b78d91` and retain
+their template IDs, campaigns and UTMs. Preference and recovery tokens remain
+private and only their digests persist in the existing tables. The message
+contains the private recovery URL where applicable, body unsubscribe and RFC8058
+headers. Acceptance IDs, unique outbox keys and redacted event joins persist;
+the endpoint response contains no recipient, private token or provider payload.
+
+Token preparation is once per claim. Pre-provider failures can defer at most
+three times (five minutes apart), using one reservation. Any attempted send,
+timeout, malformed provider acceptance, stale sending lease or completion
+failure becomes `uncertain` and is never requeued automatically. Reconciliation
+uses the same key and preserved acceptance ID before any further decision;
+there is no blind retry after Resend's 24-hour idempotency retention. Acceptance
+is retained even when suppression wins while the request is in flight. Native
+bounce/complaint/suppressed events serialize with completion by message ID,
+including callbacks arriving before completion; they cannot re-enable consent.
+Deletion preserves terminal recovery audit history and revokes active links.
+
+## Worker verification and release
+
+Normal `npm test` imports `scripts/lifecycle-worker.test.mjs`, including actual
+HTTP handler auth/input, disabled/dry-run behavior, strict evidence, provider
+payload and native Svix fixtures. Provider requests are mocked. Check the actual
+Edge entrypoints with `deno check`, in addition to repository lint/type/build.
+
+`scripts/lifecycle-worker-sql.cjs` runs actual native PostgreSQL migrations and
+synthetic concurrency/eligibility/token/callback fixtures. It requires an
+isolated database **only** at `127.0.0.1:55439/lifecycle_qa`; it drops the public
+fixture schema after this explicit guard. Set `LIFECYCLE_SQL_CONNECTION_FILE`
+to a private local connection JSON, `LIFECYCLE_PG_DRIVER_PATH` to an existing
+`pg` module (or install it only in TEMP), and `LIFECYCLE_SQL_RESULTS_DIR` to TEMP.
+Never use production credentials or export the connection file. Tests emit
+redacted results and exact migration hashes, not recipients or tokens.
+
+Apply only the reviewed additive worker migration after reconciling current
+production schema. Never blanket-push or repair historical migrations. Deploy
+both functions with existing disablement unchanged, then verify authenticated
+disabled and aggregate dry-run responses and unchanged recipient/message counts.
+Activation and the first real welcome/recovery delivery remain separate gates.
+Rollback disables the worker, restores the previous function version, and
+preserves all reservations, message joins, consent and suppression records.
+
+API references reviewed 2026-10-02:
+[Resend sending](https://resend.com/docs/api-reference/emails/send-email),
+[idempotency retention](https://resend.com/docs/dashboard/emails/idempotency-keys),
+[contact status](https://resend.com/docs/api-reference/contacts/get-contact),
+[contact topics](https://resend.com/docs/api-reference/contacts/get-contact-topics).
 
 ## Flow boundary
 
@@ -107,7 +205,7 @@ only in deployment secrets.
    `lifecycle-email-webhook` with provider mode still `disabled`.
 3. Verify desktop, mobile, keyboard, screen-reader labels, network failure,
    duplicate neutral response, unsubscribe, and blocked resubscribe behavior.
-4. Run the redacted welcome dry-run and record its audit.
+4. Run the authenticated aggregate dry-run and record its audit.
 5. Complete the provider decision in `LIFECYCLE_EMAIL_PROVIDER_DECISION.md`.
 6. Only after provider configuration, webhook, unsubscribe headers, audience,
    claims, destination, suppression, rollback, and audit gates pass may a
