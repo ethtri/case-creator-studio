@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import "./lifecycle-worker.test.mjs";
 import {
   LIFECYCLE_CONSENT_COPY_VERSION,
   LIFECYCLE_FLOW_CLASSIFICATION,
@@ -260,8 +261,7 @@ test("repository contract encodes neutral public responses, immediate suppressio
   assert.match(preferenceFunction, /List-Unsubscribe/);
   assert.match(preferenceFunction, /One-Click/);
   assert.match(preferenceFunction, /preference_preserved/);
-  assert.match(outboxFunction, /provider_not_configured/);
-  assert.match(outboxFunction, /preview_only_no_provider_mutation/);
+  assert.match(outboxFunction, /createLifecycleOutboxHandler/);
   assert.equal(JSON.parse(config).provider.liveSendEnabled, false);
   const welcomeFixture = JSON.parse(fixture);
   assert.equal(welcomeFixture.destination, "redacted@example.invalid");
