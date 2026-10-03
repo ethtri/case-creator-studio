@@ -59,8 +59,13 @@ remaining supervised onshore-pilot gates.
   open for the owner's bottom gap and real iOS Safari/Android
   Chrome acceptance evidence; simulated viewport events are not device proof.
   The October 3 owner screenshot shows the gap with an empty design on a
-  reported iPhone 17; browser identity remains unconfirmed. Child #330 adds
-  opt-in `viewportDebug=1` host readings, not a viewport fix. Open Layout
+  reported iPhone 17; the owner confirms Chrome, with versions still unknown.
+  Child #332 corrects the shell's omitted visual-viewport top offset: panned
+  visible bottom includes both offset and height. The correction stays bounded
+  by layout height and avoids scroll-rect feedback; keyboard and zoom still use
+  visual-viewport bounds. Controlled mocked regression cases verify this source
+  defect, not the owner's physical cause. Child #330 adds
+  opt-in `viewportDebug=1` host readings. Open Layout
   readings, capture each browser/panel state, then copy or screenshot the
   measurements. The fixed card can collapse or move sides; copied readings
   contain geometry, timestamps and browser/OS version tokens only. No readings

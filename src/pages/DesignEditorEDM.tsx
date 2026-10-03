@@ -18,6 +18,7 @@ import { trackMarketingEvent } from "@/lib/marketing";
 import { asMarketingItems, buildAnalyticsItem } from "@/lib/analytics-commerce";
 import { EditorViewportDebug } from "@/components/EditorViewportDebug";
 import { isViewportDebugEnabled } from "@/lib/editor-viewport-debug";
+import { editorViewportHeight } from "@/lib/editor-viewport-height";
 
 // Printful product IDs for snap cases
 const PRINTFUL_PRODUCT_IDS = {
@@ -691,7 +692,7 @@ const DesignEditorEDM = () => {
     const shell = editorShellRef.current;
     const area = editorAreaRef.current;
     if (!shell || !area) return;
-    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const viewportHeight = editorViewportHeight(window.innerHeight, window.visualViewport);
     // Let flex layout account for every visible row, including blank-design
     // guidance. 100vh and a minimum embed height can exceed the visible area
     // when browser chrome or a keyboard reduces the visual viewport.
