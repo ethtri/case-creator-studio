@@ -16,6 +16,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { trackMarketingEvent } from "@/lib/marketing";
 import { asMarketingItems, buildAnalyticsItem } from "@/lib/analytics-commerce";
+import { EditorViewportDebug } from "@/components/EditorViewportDebug";
+import { isViewportDebugEnabled } from "@/lib/editor-viewport-debug";
 
 // Printful product IDs for snap cases
 const PRINTFUL_PRODUCT_IDS = {
@@ -1240,6 +1242,9 @@ const DesignEditorEDM = () => {
         )}
       </main>
       {isMobile && <div ref={footerRef} className="h-0" />}
+      {isViewportDebugEnabled(searchParams) && (
+        <EditorViewportDebug shell={editorShellRef} area={editorAreaRef} container={designerContainerRef} />
+      )}
     </div>
   );
 };

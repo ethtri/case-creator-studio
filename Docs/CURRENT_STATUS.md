@@ -56,8 +56,15 @@ remaining supervised onshore-pilot gates.
   to the embed; rotation across the mobile breakpoint retains its editor
   instance. Mocked Chromium regression checks cover small/large phones, tablet,
   desktop, rotation, and synthetic viewport-height changes. The issue remains
-  open for the owner's loaded-artwork bottom gap and real iOS Safari/Android
+  open for the owner's bottom gap and real iOS Safari/Android
   Chrome acceptance evidence; simulated viewport events are not device proof.
+  The October 3 owner screenshot shows the gap with an empty design on a
+  reported iPhone 17; browser identity remains unconfirmed. Child #330 adds
+  opt-in `viewportDebug=1` host readings, not a viewport fix. Open Layout
+  readings, capture each browser/panel state, then copy or screenshot the
+  measurements. The fixed card can collapse or move sides; copied readings
+  contain geometry, timestamps and browser/OS version tokens only. No readings
+  are sent or stored. Parent #322 remains open until physical acceptance.
 - The public site uses `https://www.snapcase.ai`, the EDM-first design flow,
   live Stripe Checkout, and Printful as the production fulfillment default.
 - P0 checkout redirect recovery: #277 / PR #278 initially accepted Stripe
