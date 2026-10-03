@@ -5,6 +5,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import AxeBuilder from "@axe-core/playwright";
 import { chromium } from "playwright";
+import { hasVisibleFocusRing } from "./focus-ring-contract.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const outputDir = resolve(root, "output", "playwright");
@@ -736,9 +737,21 @@ const assertTextContrast = async (locator, label) => {
 };
 
 const assertFocusIndicator = async (page, locator, label) => {
+  const unfocusedRingShadow = await locator.evaluate((element) => {
+    element.blur();
+    return getComputedStyle(element).getPropertyValue("--tw-ring-shadow");
+  });
   await locator.focus();
   await page.keyboard.press("Tab");
   await page.keyboard.press("Shift+Tab");
+  // Wait for the existing 200ms button shadow transition to finish. Tailwind 4
+  // composes rings with transparent inset slots; those slots are not the ring.
+  await locator.evaluate((element) => Promise.race([
+    Promise.all(element.getAnimations()
+      .filter((animation) => animation.effect?.getTiming().iterations !== Infinity)
+      .map((animation) => animation.finished.catch(() => {}))),
+    new Promise((resolveWait) => setTimeout(resolveWait, 500)),
+  ]));
   const focusStyle = await locator.evaluate((element) => {
     const style = getComputedStyle(element);
     return {
@@ -746,15 +759,14 @@ const assertFocusIndicator = async (page, locator, label) => {
       outlineWidth: Number.parseFloat(style.outlineWidth),
       outlineColor: style.outlineColor,
       boxShadow: style.boxShadow,
+      ringShadow: style.getPropertyValue("--tw-ring-shadow"),
     };
   });
   const hasOutline =
     focusStyle.outlineStyle !== "none" &&
     focusStyle.outlineWidth >= 2 &&
     !focusStyle.outlineColor.endsWith(", 0)");
-  const hasFocusRing =
-    focusStyle.boxShadow !== "none" &&
-    !focusStyle.boxShadow.includes("rgba(0, 0, 0, 0)");
+  const hasFocusRing = focusStyle.ringShadow !== unfocusedRingShadow && hasVisibleFocusRing(focusStyle.boxShadow);
   assert.ok(
     hasOutline || hasFocusRing,
     `${label} does not expose a clear focus outline or ring.`,
@@ -2535,14 +2547,18 @@ try {
   );
   const mobileHeroScrim = await mobileHero
     .locator('[data-hero-mobile-scrim="true"]')
-    .evaluate((element) => ({
-      display: getComputedStyle(element).display,
-      backgroundImage: getComputedStyle(element).backgroundImage,
-    }));
+    .evaluate((element) => {
+      const style = getComputedStyle(element);
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = 1;
+      const context = canvas.getContext("2d");
+      context.fillStyle = style.backgroundImage.match(/(?:rgba?|oklab)\([^)]*\)/)?.[0] ?? "transparent";
+      context.fillRect(0, 0, 1, 1);
+      return { display: style.display, firstStop: Array.from(context.getImageData(0, 0, 1, 1).data) };
+    });
   assert.equal(mobileHeroScrim.display, "block");
-  assert.match(
-    mobileHeroScrim.backgroundImage,
-    /rgba\(8, 5, 15, 0\.15\)/,
+  assert.ok(
+    mobileHeroScrim.firstStop.every((channel, index) => Math.abs(channel - [8, 5, 15, 38][index]) <= 3),
     "Mobile hero scrim must retain its translucent artwork reveal.",
   );
   const darkMobileHeroSignature = await mobileHero.evaluate((element) => {

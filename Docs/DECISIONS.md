@@ -2,6 +2,27 @@
 
 Lightweight record of key decisions for AI agents.
 
+## 2026-10-03
+- Website #333 replaces the unpatched Tailwind 3/braces build chain with official
+  Tailwind 4.3.3/PostCSS. Both production and full-tree high-severity audit gates
+  remain required. This removes the vulnerable dependency; it does not claim an
+  upstream braces patch. Existing moderate React Router findings remain outside
+  this bounded change.
+- Retain the existing theme/config and animation plugin as build dependencies;
+  remove development-only Lovable tagging because it pins Tailwind 3. Preserve
+  container width/padding, v3 shadow/blur/ring defaults, sRGB gradients, control
+  cursor/placeholder colors and visible forced-color keyboard focus. Reusable
+  sidebar/chart variable classes use explicit `var(...)` syntax.
+- Tailwind 4's official minimum browsers are Safari 16.4, Chrome 111 and Firefox
+  128 (https://tailwindcss.com/docs/upgrade-guide, retrieved 2026-10-03). No older
+  minimum-version contract exists in current repository docs; older browsers are
+  a compatibility risk, not silently verified coverage. Required real iOS
+  Safari/Android Chrome and the owner's iPhone Chrome acceptance remain open in
+  #322. Chromium fixtures and production CSS checks do not establish device proof.
+- Roll back the exact reviewed dependency merge independently of editor changes
+  if needed; rollback restores the known vulnerable build chain and re-blocks
+  release until another maintained remediation passes both audits.
+
 ## 2025-12-22
 - EDM is the primary editor; Fabric.js editor is archived.
 - Preview images come from Printful mockup generation tasks.

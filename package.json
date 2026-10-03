@@ -35,8 +35,8 @@
     "kexiaozhan:preflight": "node scripts/kexiaozhan-test-preflight.mjs",
     "kexiaozhan:staging": "node scripts/kexiaozhan-staging-mode.mjs",
     "pretest": "node --experimental-strip-types --test scripts/lifecycle-recovery-contract.test.mjs",
-    "test": "node --experimental-strip-types --test scripts/lifecycle-email-contract.test.mjs scripts/analytics-contract.test.mjs scripts/analytics-outbox-contract.test.mjs scripts/analytics-reconciliation-preflight.test.mjs scripts/business-address-contract.test.mjs scripts/catalog-image-contract.test.mjs scripts/editor-viewport-debug.test.mjs scripts/checkout-observability-contract.test.mjs scripts/checkout-review-contract.test.mjs scripts/checkout-truth-contract.test.mjs scripts/ci-dependency-hygiene-contract.test.mjs scripts/claim-safety-contract.test.mjs scripts/consent-aware-analytics-contract.test.mjs scripts/dev-server-security-contract.test.mjs scripts/easypost-shipping-contract.test.mjs scripts/email-routing-contract.test.mjs scripts/gift-landing-contract.test.mjs scripts/growth-reporting-contract.test.mjs scripts/interim-entry-contract.test.mjs scripts/iphone-photo-landing-contract.test.mjs scripts/kexiaozhan-designer-contract.test.mjs scripts/kexiaozhan-reconciliation-contract.test.mjs scripts/kexiaozhan-test-preflight.test.mjs scripts/merchant-catalog-contract.test.mjs scripts/npm-audit-transport.test.mjs scripts/order-verification-contract.test.mjs scripts/pet-photo-landing-contract.test.mjs scripts/pinterest-profile-redirect-contract.test.mjs scripts/pr-evidence-contract.test.mjs scripts/pricing-contract.test.mjs scripts/route-path-contract.test.mjs scripts/samsung-photo-landing-contract.test.mjs scripts/shipping-label-foundation-contract.test.mjs scripts/social-profile-links-contract.test.mjs scripts/social-profile-redirect-contract.test.mjs scripts/unit-economics.test.mjs",
-    "test:a11y": "node scripts/accessibility-smoke.mjs"
+    "test": "node --experimental-strip-types --test scripts/lifecycle-email-contract.test.mjs scripts/analytics-contract.test.mjs scripts/analytics-outbox-contract.test.mjs scripts/analytics-reconciliation-preflight.test.mjs scripts/business-address-contract.test.mjs scripts/catalog-image-contract.test.mjs scripts/editor-viewport-debug.test.mjs scripts/editor-viewport-height.test.mjs scripts/checkout-observability-contract.test.mjs scripts/checkout-review-contract.test.mjs scripts/checkout-truth-contract.test.mjs scripts/ci-dependency-hygiene-contract.test.mjs scripts/focus-ring-contract.test.mjs scripts/claim-safety-contract.test.mjs scripts/consent-aware-analytics-contract.test.mjs scripts/dev-server-security-contract.test.mjs scripts/easypost-shipping-contract.test.mjs scripts/email-routing-contract.test.mjs scripts/gift-landing-contract.test.mjs scripts/growth-reporting-contract.test.mjs scripts/interim-entry-contract.test.mjs scripts/iphone-photo-landing-contract.test.mjs scripts/kexiaozhan-designer-contract.test.mjs scripts/kexiaozhan-reconciliation-contract.test.mjs scripts/kexiaozhan-test-preflight.test.mjs scripts/merchant-catalog-contract.test.mjs scripts/npm-audit-transport.test.mjs scripts/order-verification-contract.test.mjs scripts/pet-photo-landing-contract.test.mjs scripts/pinterest-profile-redirect-contract.test.mjs scripts/pr-evidence-contract.test.mjs scripts/pricing-contract.test.mjs scripts/route-path-contract.test.mjs scripts/samsung-photo-landing-contract.test.mjs scripts/shipping-label-foundation-contract.test.mjs scripts/social-profile-links-contract.test.mjs scripts/social-profile-redirect-contract.test.mjs scripts/unit-economics.test.mjs",
+    "test:a11y": "node scripts/tailwind-compatibility-smoke.mjs && node scripts/accessibility-smoke.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -87,7 +87,6 @@
     "recharts": "^2.15.4",
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.6.0",
-    "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
     "zod": "^3.25.76"
   },
@@ -104,13 +103,14 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.6",
     "globals": "^15.15.0",
-    "lovable-tagger": "^1.3.3",
     "playwright": "^1.63.0",
     "postcss": "^8.5.28",
-    "tailwindcss": "^3.4.19",
+    "tailwindcss": "4.3.3",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.70.0",
-    "vite": "6.4.3"
+    "vite": "6.4.3",
+    "tailwindcss-animate": "^1.0.7",
+    "@tailwindcss/postcss": "4.3.3"
   },
   "overrides": {
     "brace-expansion@^2.0.0": "2.1.2",
