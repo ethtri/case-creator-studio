@@ -33,7 +33,6 @@ test("supported tooling updates remove the vulnerable glob and minimatch paths",
   const reactHooks = packages["node_modules/eslint-plugin-react-hooks"];
   const minimatch = packages["node_modules/minimatch"];
   const braceExpansion = packages["node_modules/brace-expansion"];
-  const sucrase = packages["node_modules/sucrase"];
   const typescriptEstree =
     packages["node_modules/@typescript-eslint/typescript-estree"];
 
@@ -43,7 +42,7 @@ test("supported tooling updates remove the vulnerable glob and minimatch paths",
     packageJson.devDependencies["eslint-plugin-react-hooks"],
     "^7.1.1",
   );
-  assert.equal(packageJson.devDependencies.tailwindcss, "^3.4.19");
+  assert.equal(packageJson.devDependencies.tailwindcss, "4.3.3");
   assert.equal(packageJson.devDependencies["typescript-eslint"], "^8.70.0");
   assert.equal(eslint.version, "10.10.0");
   assert.equal(eslint.dependencies.minimatch, "^10.2.5");
@@ -51,12 +50,20 @@ test("supported tooling updates remove the vulnerable glob and minimatch paths",
   assert.match(reactHooks.peerDependencies.eslint, /\^10\.0\.0/);
   assert.equal(minimatch.version, "10.2.5");
   assert.equal(braceExpansion.version, "5.0.12");
-  assert.equal(packages["node_modules/tailwindcss"].version, "3.4.19");
-  assert.equal(sucrase.version, "3.35.1");
-  assert.equal(sucrase.dependencies.glob, undefined);
-  assert.equal(sucrase.dependencies.tinyglobby, "^0.2.11");
+  assert.equal(packages["node_modules/tailwindcss"].version, "4.3.3");
   assert.equal(typescriptEstree.version, "8.70.0");
   assert.equal(typescriptEstree.dependencies.minimatch, "^10.2.2");
+});
+
+test("maintained CSS compiler removes the vulnerable braces build paths", () => {
+  assert.equal(packageJson.dependencies["tailwindcss-animate"], undefined);
+  assert.equal(packageJson.devDependencies["tailwindcss-animate"], "^1.0.7");
+  assert.equal(packageJson.devDependencies["@tailwindcss/postcss"], "4.3.3");
+  assert.equal(packageJson.devDependencies["lovable-tagger"], undefined);
+  for (const [path, pkg] of Object.entries(packageLock.packages)) {
+    assert.doesNotMatch(path, /node_modules\/(braces|micromatch|fast-glob|chokidar|lovable-tagger)$/);
+    if (path.endsWith("node_modules/tailwindcss")) assert.equal(pkg.version, "4.3.3");
+  }
 });
 
 test("ESLint 10 preserves the established core and React Hooks rule gates", () => {

@@ -99,10 +99,18 @@ export default {
         "2xl": "calc(var(--radius) + 8px)",
       },
       boxShadow: {
+        DEFAULT: "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
+        sm: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
         soft: "var(--shadow-soft)",
         medium: "var(--shadow-medium)",
         strong: "var(--shadow-strong)",
         glow: "0 0 40px hsl(var(--cta) / 0.3)",
+      },
+      blur: { DEFAULT: "8px", sm: "4px" },
+      backdropBlur: { DEFAULT: "8px", sm: "4px" },
+      dropShadow: {
+        DEFAULT: ["0 1px 2px rgb(0 0 0 / 0.1)", "0 1px 1px rgb(0 0 0 / 0.06)"],
+        sm: "0 1px 1px rgb(0 0 0 / 0.05)",
       },
       keyframes: {
         "accordion-down": {
