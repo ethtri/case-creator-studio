@@ -4,8 +4,9 @@ Website issue: [#336](https://github.com/ethtri/case-creator-studio/issues/336).
 Agency coordination: [#423 claim](https://github.com/ethtri/Snapcase_Autonomous_MarketingAgency/issues/423#issuecomment-5981461705).
 Source ID: `samsung_purchase_facts_20261004`. Authority:
 `authority_20260720_zero_spend_marketing` and explicit user implementation direction.
-User boundary: draft PR only; no merge or deployment. This is information-gap
-remediation, not evidence of conversion lift.
+Prepared as a draft under the delegated scope; production release approval
+pending. Ethan requested implementation; the parent task set the draft/no-release
+boundary. This is information-gap remediation, not evidence of conversion lift.
 
 ## Source verification (2026-10-04)
 
