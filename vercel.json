@@ -2,7 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "git": {
     "deploymentEnabled": {
-      "agent/agency-samsung-purchase-facts-20261004": false
+      "agent/agency-samsung-purchase-facts-20261004": false,
+      "agent/source-map-js-audit-fix-20261006": false
     }
   },
   "bulkRedirectsPath": "redirects.json",
