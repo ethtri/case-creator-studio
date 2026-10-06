@@ -14,10 +14,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { CartSheet } from "@/components/CartSheet";
 import { SiteMenu } from "@/components/SiteMenu";
-import { phoneVariants } from "@/data/phoneVariants";
+import { formatProductPrice, phoneVariants } from "@/data/phoneVariants";
 import { getStaticSeoPage, SITE_URL } from "@/data/seoRoutes";
 import { useConsentAwareMarketingView } from "@/hooks/useConsentAwareMarketingView";
 import { trackMarketingEvent } from "@/lib/marketing";
+import { SNAPCASE_EMAILS } from "@/lib/email-identities";
 import {
   buildSeoLandingCtaPayload,
   buildSeoLandingListPayload,
@@ -38,6 +39,7 @@ const SamsungPhotoLanding = () => {
   const location = useLocation();
   const page = getStaticSeoPage(location.pathname);
   const models = phoneVariants.filter((variant) => variant.brand === "Samsung");
+  const modelPrices = [...new Set(models.map(formatProductPrice))];
   const itemListId = getSeoLandingItemListId(page);
   const supportedModelNames = models.map((variant) => variant.model).join(", ");
   const faqs = [
@@ -160,6 +162,39 @@ const SamsungPhotoLanding = () => {
                     </Button>
                   ))}
                 </div>
+                <section
+                  aria-label="Purchase details"
+                  className="mt-5 space-y-1 text-sm leading-6 text-muted-foreground"
+                >
+                  <p className="font-bold text-foreground">
+                    {modelPrices.length === 1
+                      ? `Custom case: ${modelPrices[0]}`
+                      : models
+                          .map(
+                            (variant) =>
+                              `${variant.model}: ${formatProductPrice(variant)}`,
+                          )
+                          .join(" · ")}
+                  </p>
+                  <p>Preview your design before adding it to your cart.</p>
+                  <p>
+                    Shipping is shown before payment. Production time varies.
+                  </p>
+                  <div className="flex flex-wrap gap-x-5">
+                    <a
+                      href={`mailto:${SNAPCASE_EMAILS.support}`}
+                      className="inline-flex min-h-11 items-center font-medium text-cta-emphasis underline underline-offset-4"
+                    >
+                      {SNAPCASE_EMAILS.support}
+                    </a>
+                    <Link
+                      to="/terms"
+                      className="inline-flex min-h-11 items-center font-medium text-cta-emphasis underline underline-offset-4"
+                    >
+                      Terms
+                    </Link>
+                  </div>
+                </section>
                 <Link
                   to="/gifts/custom-phone-case"
                   onClick={() => trackCta("hero_secondary")}

@@ -1,5 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "agent/agency-samsung-purchase-facts-20261004": false
+    }
+  },
   "bulkRedirectsPath": "redirects.json",
   "rewrites": [
     {
