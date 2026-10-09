@@ -69,3 +69,21 @@ and merchandising #69/#70 and agency CRO/CMO ownership remain unchanged. Revert
 this focused patch through a reviewed PR if necessary. Release requires separate
 approval and production verification; no checkout, orders, billing, supplier,
 customer-data, security or job changes are part of this work.
+
+
+## Approved review preview and mobile correction — October 9
+
+At 03:00:34 UTC the owner approved a review preview and conditional release only
+when manual visual review and current-head checks pass. The existing project
+created preview `dpl_Ar1vPCmQen5tWZoGRJy5w3zzbPDh` for `dee4153e`.
+The normal cloud browser was signed out; the already-authenticated local Chrome
+session could inspect the preview without login or protection changes.
+
+Manual review at 1440×900 and 390×844 passed purchase facts, Terms/Back,
+keyboard access, catalog ordering/search/filters, 36 exact-model link destinations,
+and wrapping/overflow. It identified that the inherited desktop-only hero wrapper
+hid the new device reference and caption on mobile. This follow-up makes only the
+iPhone 17 figure visible at both sizes, after the original CTA/facts block on mobile,
+and requires image/disclosure visibility at both test viewports. Other model
+hero behavior remains unchanged. A fresh exact-head preview and visual re-review
+are required before merging. This does not close physical-device #322.

@@ -922,11 +922,9 @@ try {
     const reference = clarityPage.locator('[data-product-device-reference="true"]');
     assert.equal(await reference.getAttribute("src"), "/catalog/commons/iphone-17.jpg");
     assert.equal(await clarityPage.locator('[data-product-mockup="true"]').count(), 0);
-    if (label === "desktop") {
-      assert.ok(await reference.isVisible());
-      assert.ok(await reference.evaluate((image) => image.complete && image.naturalWidth === 960));
-      await clarityPage.getByText("iPhone 17 device reference. Phone not included. Preview your custom case in the designer.", { exact: true }).waitFor();
-    }
+    assert.ok(await reference.isVisible(), `The exact-model reference must remain visible on ${label}.`);
+    assert.ok(await reference.evaluate((image) => image.complete && image.naturalWidth === 960));
+    await clarityPage.getByText("iPhone 17 device reference. Phone not included. Preview your custom case in the designer.", { exact: true }).waitFor();
     for (const name of ["support@snapcase.ai", "Terms"]) {
       const link = facts.getByRole("link", { name, exact: true });
       assert.ok((await link.boundingBox()).height >= 44);

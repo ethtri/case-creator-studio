@@ -262,7 +262,7 @@ const PhoneCaseSeo = () => {
               </div>
 
               {usesDeviceReference ? (
-                <figure className="hidden lg:block">
+                <figure className="mx-auto w-full max-w-sm">
                   <img
                     src={variant.imageUrl}
                     width={variant.imageWidth}
