@@ -4300,6 +4300,44 @@ try {
   );
   await crossTabContext.close();
 
+  // Offer UI uses isolated fixtures only: no production flag or Stripe Session.
+  for (const [label, viewport] of [["desktop", { width: 1440, height: 900 }], ["mobile", { width: 390, height: 844 }]]) {
+    const offerContext = await browser.newContext({ viewport, reducedMotion: "reduce" });
+    await installAppState(offerContext, "light", { ...cartItem, variantId: "iphone-15", quantity: 1 });
+    await mockExternalServices(offerContext);
+    const submitted = [];
+    await offerContext.route("https://placeholder.supabase.co/functions/v1/create-checkout", async (route) => {
+      const headers = { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "content-type": "application/json" };
+      if (route.request().method() === "OPTIONS") return route.fulfill({ status: 200, headers, body: "{}" });
+      const body = route.request().postDataJSON();
+      if (body.action === "quote") return route.fulfill({ status: 200, headers, body: JSON.stringify({ shippingCents: body.promoCode ? 499 : 0, endsAt: "2026-10-16T05:00:00Z" }) });
+      submitted.push(body);
+      return route.fulfill({ status: 200, headers, body: JSON.stringify({ quoteChanged: true, shippingCents: 499 }) });
+    });
+    const offerPage = await offerContext.newPage();
+    await offerPage.goto(`${origin}/checkout`);
+    await offerPage.getByLabel("Email", { exact: true }).fill("offer-fixture@example.test");
+    await offerPage.getByText("Free standard US shipping on one eligible case", { exact: false }).waitFor();
+    const summary = offerPage.locator('[data-checkout-region="summary"]');
+    assert.match(await summary.innerText(), /\$0\.00/);
+    assert.match(await summary.innerText(), /\$29\.99/);
+    await waitForStableUi(offerPage);
+    await offerPage.waitForFunction(() => Array.from(document.querySelectorAll("[data-checkout-region]")).every((element) => Number.parseFloat(getComputedStyle(element).opacity) >= 0.99));
+    auditResults.push(await assertNoSeriousAxeViolations(offerPage, `shipping-offer-${label}`));
+    await offerPage.screenshot({ path: resolve(outputDir, `shipping-offer-${label}.png`), fullPage: true });
+    await offerPage.getByRole("button", { name: "Continue to Stripe" }).click();
+    await offerPage.getByText("Shipping changed. Review your updated total before continuing.", { exact: false }).waitFor();
+    assert.equal(submitted.length, 1);
+    assert.equal(submitted[0].expectedShippingCents, 0);
+    assert.equal(submitted[0].analyticsConsent, "denied");
+    assert.equal(new URL(offerPage.url()).pathname, "/checkout");
+    assert.match(await summary.innerText(), /\$4\.99/);
+    assert.match(await summary.innerText(), /\$34\.98/);
+    await offerPage.getByRole("button", { name: "Continue to Stripe" }).waitFor({ state: "visible" });
+    await offerPage.screenshot({ path: resolve(outputDir, `shipping-offer-review-${label}.png`), fullPage: true });
+    await offerContext.close();
+  }
+
   console.log(
     JSON.stringify(
       {

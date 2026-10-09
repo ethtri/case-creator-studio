@@ -66,6 +66,7 @@ type CheckoutAttempt = {
   buildRequestBody: () => unknown | Promise<unknown>;
   beginCheckoutPayload: BeginCheckoutPayload;
   onFailure?: (failure: CheckoutStartFailure) => void;
+  onQuoteChanged?: (shippingCents: number) => void;
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -268,6 +269,7 @@ export const createHostedCheckoutRunner = ({
     buildRequestBody,
     beginCheckoutPayload,
     onFailure,
+    onQuoteChanged,
   }: CheckoutAttempt): Promise<CheckoutStartResult> => {
     try {
       const response = await invoke(await buildRequestBody());
@@ -280,6 +282,12 @@ export const createHostedCheckoutRunner = ({
           onFailure,
           checkoutAttemptId,
         );
+      }
+
+      if (isRecord(response.data) && response.data.quoteChanged === true) {
+        const cents = response.data.shippingCents;
+        if (cents === 0 || cents === 499) onQuoteChanged?.(cents);
+        return fail("Shipping changed. Review your updated total before continuing.", onFailure, checkoutAttemptId);
       }
 
       const checkoutUrl = normalizeHostedStripeCheckoutUrl(

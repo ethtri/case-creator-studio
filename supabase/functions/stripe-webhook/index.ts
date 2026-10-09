@@ -1,3 +1,4 @@
+import { reconcileShippingOffer } from "../_shared/shipping-offer-checkout.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
@@ -215,6 +216,14 @@ serve(async (req) => {
   if (!session?.id) {
     console.error("[STRIPE-WEBHOOK] Missing session ID in event");
     return new Response("Missing session", { status: 400 });
+  }
+
+  // Reconcile before any order/analytics early return, including orphan Sessions.
+  // This stays active after issuance is disabled and never recycles paid/refunded slots.
+  try {
+    await reconcileShippingOffer(supabaseClient, stripe, session);
+  } catch {
+    return new Response("Offer reconciliation failed", { status: 500 });
   }
 
   if (
