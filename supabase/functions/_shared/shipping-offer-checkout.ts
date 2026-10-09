@@ -32,6 +32,7 @@ export async function reconcileShippingOffer(db: any, stripe: any, eventSession:
     p_state: offerLifecycle(current),
   });
   if (error) throw new Error("Offer reconciliation unavailable");
+  return current;
 }
 
 // Separate from normal checkout: no coupon/payment-method/attribution changes
