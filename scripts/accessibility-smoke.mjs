@@ -4321,6 +4321,8 @@ try {
     const summary = offerPage.locator('[data-checkout-region="summary"]');
     assert.match(await summary.innerText(), /\$0\.00/);
     assert.match(await summary.innerText(), /\$29\.99/);
+    await waitForStableUi(offerPage);
+    await offerPage.waitForFunction(() => Array.from(document.querySelectorAll("[data-checkout-region]")).every((element) => Number.parseFloat(getComputedStyle(element).opacity) >= 0.99));
     auditResults.push(await assertNoSeriousAxeViolations(offerPage, `shipping-offer-${label}`));
     await offerPage.screenshot({ path: resolve(outputDir, `shipping-offer-${label}.png`), fullPage: true });
     await offerPage.getByRole("button", { name: "Continue to Stripe" }).click();
