@@ -981,7 +981,27 @@ export const validateMerchantCatalog = ({
     }
 
     const productMockup = getProductMockup(html);
-    if (productMockup.count !== 1 || !productMockup.mockup) {
+    if (variant.id === "iphone-17") {
+      const references = [...html.matchAll(/<img\b(?=[^>]*\bdata-product-device-reference="true")[^>]*>/gi)];
+      const reference = references[0]?.[0] ?? "";
+      const alt = getAttribute(reference, "alt");
+      const caption = textContent(html.match(/<figcaption\b[^>]*>([\s\S]*?)<\/figcaption>/i)?.[1] ?? "");
+      if (
+        productMockup.count !== 0 || references.length !== 1 ||
+        getAttribute(reference, "src") !== "/catalog/commons/iphone-17.jpg" ||
+        Number(getAttribute(reference, "width")) !== 960 ||
+        Number(getAttribute(reference, "height")) !== 1440 ||
+        alt !== "iPhone 17 device reference for case compatibility; phone not included" ||
+        !caption.includes("iPhone 17 device reference. Phone not included.") ||
+        product?.image !== undefined
+      ) {
+        findings.push({
+          code: "inaccurate_device_reference",
+          variantId: variant.id,
+          message: "iPhone 17 must use the labeled exact-model compatibility reference, not a case product image",
+        });
+      }
+    } else if (productMockup.count !== 1 || !productMockup.mockup) {
       findings.push({
         code: "missing_product_mockup_contract",
         variantId: variant.id,

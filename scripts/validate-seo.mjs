@@ -98,7 +98,17 @@ for (const file of indexFiles) {
     const product = getJsonLd(route, html).find((value) => value?.["@type"] === "Product");
     if (!product) fail(`${route}: missing Product JSON-LD`);
     if (product.url !== canonical[0]) fail(`${route}: Product JSON-LD URL does not match canonical`);
-    if (product.image !== ogImage[0]) fail(`${route}: Product JSON-LD image does not match og:image`);
+    if (route === "/phone-cases/iphone-17") {
+      if (product.image !== undefined) fail(`${route}: device reference must not be offered as a case product image`);
+      if (ogImage[0] !== `${SITE_URL}/catalog/commons/iphone-17.jpg`) fail(`${route}: expected exact-model social reference`);
+      for (const attribute of ['property="og:description"', 'name="twitter:description"']) {
+        if (!html.includes(`${attribute} content="Design a personalized iPhone 17 phone case with your own photo, text, or artwork. Device shown for compatibility; phone not included."`)) {
+          fail(`${route}: social description must disclose the device reference`);
+        }
+      }
+    } else if (product.image !== ogImage[0]) {
+      fail(`${route}: Product JSON-LD image does not match og:image`);
+    }
     if (product.offers?.url !== canonical[0]) {
       fail(`${route}: Product offer URL does not match canonical`);
     }

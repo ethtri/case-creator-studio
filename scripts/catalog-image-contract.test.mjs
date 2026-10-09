@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import test from "node:test";
 
 import { phoneVariants } from "../src/data/phoneVariants.ts";
@@ -50,4 +50,32 @@ test("iPhone 17 uses exact-model open references without a finish fallback", () 
     phoneVariants.find((variant) => variant.id === "iphone-17-air")?.model,
     "iPhone Air",
   );
+});
+
+
+test("catalog puts exact-model selection before inspiration without changing actions", async () => {
+  const source = await readFile(new URL("../src/pages/Catalog.tsx", import.meta.url), "utf8");
+  const gridIndex = source.indexOf('id="catalog-models"');
+  const inspirationIndex = source.indexOf('aria-label="Pet photo case inspiration"');
+  assert.ok(gridIndex >= 0);
+  assert.ok(inspirationIndex >= 0);
+  assert.ok(gridIndex < inspirationIndex);
+  assert.match(source, /id="phone-search"/);
+  assert.match(source, /aria-label="Filter by brand"/);
+  assert.match(source, /catalog_view_details/);
+  assert.match(source, /catalog_start_design/);
+  assert.match(source, /href="#catalog-models"/);
+});
+
+test("Apple product facts reuse the approved policy and shared support identity", async () => {
+  const source = await readFile(new URL("../src/pages/PhoneCaseSeo.tsx", import.meta.url), "utf8");
+  const samsung = await readFile(new URL("../src/pages/SamsungPhotoLanding.tsx", import.meta.url), "utf8");
+  for (const fact of ["Preview your design before adding it to your cart.", "Shipping is shown before payment. Production time varies."]) {
+    assert.ok(source.includes(fact));
+    assert.ok(samsung.includes(fact));
+  }
+  assert.match(source, /variant.brand === "Apple" && \(\s*<section\s*aria-label="Purchase details"/);
+  assert.match(source, /mailto:\$\{SNAPCASE_EMAILS.support\}/);
+  assert.match(source, /to="\/terms"/);
+  assert.match(source, /const visiblePrice = formatProductPrice\(variant\)/);
 });

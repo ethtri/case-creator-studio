@@ -412,3 +412,33 @@ test("detects analytics identifier and price drift", () => {
     }).some((finding) => finding.code === "analytics_price_drift"),
   );
 });
+
+const iphone17ReferenceHtml = () => pageHtml()
+  .replaceAll("iphone-test", "iphone-17")
+  .replaceAll("iPhone Test", "iPhone 17")
+  .replace(/<img data-product-mockup[^>]*>/, '<figure><img data-product-device-reference="true" src="/catalog/commons/iphone-17.jpg" width="960" height="1440" alt="iPhone 17 device reference for case compatibility; phone not included" /><figcaption>iPhone 17 device reference. Phone not included. Preview your custom case in the designer.</figcaption></figure>');
+
+const validateIphone17Reference = (html = iphone17ReferenceHtml()) => validateMerchantCatalog({
+  variants: [{ ...variant, id: "iphone-17", model: "iPhone 17" }],
+  analyticsItems: [{ ...analyticsItem, item_id: "iphone-17", item_name: "Apple iPhone 17 Custom Case", item_variant: "iPhone 17" }],
+  checkoutPrice: 29.99,
+  checkoutCurrency: "usd",
+  pages: new Map([["iphone-17", html]]),
+  internalPages: new Map([["/catalog", '<a href="/phone-cases/iphone-17">View iPhone 17 details</a>'], ["/phone-cases/iphone-17", html]]),
+  siteUrl,
+});
+
+test("iPhone 17 permits only a disclosed exact-model device reference, without a Product image claim", () => {
+  assert.deepEqual(validateIphone17Reference(), []);
+  for (const html of [
+    iphone17ReferenceHtml().replace('/catalog/commons/iphone-17.jpg', '/catalog/commons/iphone-17-pro.jpg'),
+    iphone17ReferenceHtml().replace('width="960"', 'width="0"'),
+    iphone17ReferenceHtml().replace('height="1440"', 'height="0"'),
+    iphone17ReferenceHtml().replace('alt="iPhone 17 device reference for case compatibility; phone not included"', 'alt="iPhone 17 case"'),
+    iphone17ReferenceHtml().replace('iPhone 17 device reference. Phone not included.', 'Case photo'),
+    iphone17ReferenceHtml().replace('"productID":"iphone-17"', '"image":"/catalog/commons/iphone-17.jpg","productID":"iphone-17"'),
+    iphone17ReferenceHtml().replace('data-product-device-reference="true"', 'data-product-mockup="true"'),
+  ]) {
+    assert.ok(validateIphone17Reference(html).some(({ code }) => code === "inaccurate_device_reference"));
+  }
+});
