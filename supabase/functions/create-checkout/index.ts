@@ -113,6 +113,7 @@ function getSafeErrorMessage(error: unknown): string {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const lowered = errorMessage.toLowerCase();
 
+  if (errorMessage === "Your previous offer checkout needs confirmation. Check your order or contact support before trying again.") return errorMessage;
   if (errorMessage === "Offer checkout is already paid. Check your order confirmation before ordering again.") return errorMessage;
 
   // Return safe, generic messages to client

@@ -46,14 +46,24 @@ export async function createOfferCheckout(deps: Dependencies, input: any) {
     marketingAttribution: request.marketingAttribution ?? null,
     analyticsConsent: request.analyticsConsent ?? "unset",
     analyticsClientId: request.analyticsClientId ?? null });
+  let reservation: any;
   if (!enabled || synthetic || provider !== "printful" || request.promoCode) {
-    return { quoteChanged: true, shippingCents: OFFER_WAIVER_CENTS };
+    const { data: existing, error } = await db.from("shipping_offer_reservations")
+      .select("*").eq("attempt_id", request.checkoutAttemptId).maybeSingle();
+    if (error) throw new Error("Offer checkout unavailable. Retry without changing your cart.");
+    if (!existing) return { quoteChanged: true, shippingCents: OFFER_WAIVER_CENTS };
+    if (existing.request_hash !== requestHash || !existing.session_id) {
+      throw new Error("Your previous offer checkout needs confirmation. Check your order or contact support before trying again.");
+    }
+    reservation = existing; // Issuance off must not invite a duplicate of an existing payment.
+  } else {
+    const { data, error } = await db.rpc("reserve_shipping_offer", {
+      p_attempt_id: request.checkoutAttemptId, p_request_hash: requestHash,
+      p_items: items.map((i: any) => ({ variantId: i.variantId, quantity: i.quantity })),
+    });
+    if (error) throw new Error("Offer checkout unavailable. Retry without changing your cart.");
+    reservation = data;
   }
-  const { data: reservation, error: reservationError } = await db.rpc("reserve_shipping_offer", {
-    p_attempt_id: request.checkoutAttemptId, p_request_hash: requestHash,
-    p_items: items.map((i: any) => ({ variantId: i.variantId, quantity: i.quantity })),
-  });
-  if (reservationError) throw new Error("Offer checkout unavailable. Retry without changing your cart.");
   if (!reservation) return { quoteChanged: true, shippingCents: OFFER_WAIVER_CENTS };
   if (reservation.state === "released") return { quoteChanged: true, shippingCents: OFFER_WAIVER_CENTS };
   if (reservation.state !== "reserved") throw new Error("Offer checkout is already paid. Check your order confirmation before ordering again.");
@@ -81,13 +91,25 @@ export async function createOfferCheckout(deps: Dependencies, input: any) {
         designId: i.designId ?? null, externalProductId: i.externalProductId ?? null }))) },
   };
   // Never recreate an unknown Session after the pinned expiry / idempotency window.
-  if (reservation.expires_at_seconds <= Date.now() / 1000) {
-    return { quoteChanged: true, shippingCents: OFFER_WAIVER_CENTS };
+  if (!reservation.session_id && reservation.expires_at_seconds <= Date.now() / 1000) {
+    throw new Error("Your previous offer checkout needs confirmation. Check your order or contact support before trying again.");
   }
   const session = reservation.session_id
     ? await stripe.checkout.sessions.retrieve(reservation.session_id)
     : await stripe.checkout.sessions.create(params, { idempotencyKey: `shipping-offer:${request.checkoutAttemptId}` });
-  if (session.metadata?.shippingOfferRequestHash !== requestHash || session.status !== "open" ||
+  if (session.metadata?.shippingOfferRequestHash !== requestHash) throw new Error("Offer session mismatch");
+  if (session.status === "complete") {
+    await reconcileShippingOffer(db, stripe, session);
+    throw new Error("Your previous offer checkout needs confirmation. Check your order or contact support before trying again.");
+  }
+  if (session.status === "expired" && session.payment_status === "unpaid") {
+    await reconcileShippingOffer(db, stripe, session);
+    return { quoteChanged: true, shippingCents: OFFER_WAIVER_CENTS };
+  }
+  if (reservation.expires_at_seconds <= Date.now() / 1000) {
+    throw new Error("Your previous offer checkout needs confirmation. Check your order or contact support before trying again.");
+  }
+  if (session.status !== "open" ||
     session.expires_at !== reservation.expires_at_seconds || session.total_details?.amount_shipping !== 0) {
     throw new Error("Offer checkout requires reconciliation");
   }

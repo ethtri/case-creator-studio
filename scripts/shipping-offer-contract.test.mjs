@@ -63,7 +63,7 @@ function fixture() {
     select(){operation='select';return q;},eq(k,v){filter=[k,v];return q;},neq(){return q;},
     single(){return q;},maybeSingle(){return q;},then(resolve,reject){return Promise.resolve().then(()=>{
       if(table==='shipping_offer_config')return {data:config};
-      if(table==='shipping_offer_reservations')return {count:[...rows.values()].filter(r=>r.state!=='released').length};
+      if(table==='shipping_offer_reservations')return filter ? {data:rows.get(filter[1])??null} : {count:[...rows.values()].filter(r=>r.state!=='released').length};
       if(table==='orders'){
         if(operation==='upsert') {if(failOrder)return {error:Error('db failure')};if(!orders.has(body.stripe_session_id))orders.set(body.stripe_session_id,{...body,id:randomUUID()});return {};}
         return {data:orders.get(filter[1])};
@@ -129,12 +129,36 @@ test('migration defaults disabled/empty; SQL uses one row lock and no client gra
 test('ended attempt requires buyer review without releasing an uncertain slot',async()=>{
   const f=fixture();await f.run();const row=[...f.rows.values()][0];
   row.expires_at_seconds=now-1;
-  assert.deepEqual(await f.run(),{quoteChanged:true,shippingCents:499});
+  await assert.rejects(f.run(),/needs confirmation/);
   assert.equal(row.state,'reserved');assert.equal(f.sessions.size,1);
+  const session=[...f.sessions.values()][0];session.status='expired';session.payment_status='unpaid';
+  assert.deepEqual(await f.run(),{quoteChanged:true,shippingCents:499});
+  assert.equal(row.state,'released');
   row.state='released';assert.deepEqual(await f.run(),{quoteChanged:true,shippingCents:499});
   row.state='paid';await assert.rejects(f.run(),/already paid/);
 });
 test('legacy frontend retains normal checkout instead of an unknown quote handshake',()=>{
   const source=fs.readFileSync(new URL('../supabase/functions/create-checkout/index.ts',import.meta.url),'utf8');
   assert.match(source,/offerEnabled && validationResult.data.expectedShippingCents === 499/);
+});
+
+test('delayed/paid completion after local expiry cannot invite duplicate checkout',async()=>{
+  for (const paymentStatus of ['unpaid','paid']) {
+    const f=fixture();await f.run();const row=[...f.rows.values()][0];
+    row.expires_at_seconds=now-1;
+    const session=[...f.sessions.values()][0];session.status='complete';session.payment_status=paymentStatus;
+    await assert.rejects(f.run(),/needs confirmation/);
+    assert.equal(f.sessions.size,1);assert.equal(row.state,paymentStatus==='paid'?'paid':'reserved');
+  }
+  const f=fixture();await f.run();const row=[...f.rows.values()][0];
+  row.expires_at_seconds=now-1;row.session_id=null;
+  await assert.rejects(f.run(),/needs confirmation/);assert.equal(row.state,'reserved');
+});
+
+test('disabling issuance never invites a duplicate of an existing pending payment',async()=>{
+  const f=fixture();await f.run();const session=[...f.sessions.values()][0];
+  session.status='complete';session.payment_status='unpaid';
+  await assert.rejects(createOfferCheckout({db:f.db,stripe:f.stripe,enabled:false,origin:'https://www.snapcase.ai'},
+    {request:f.request,email:'fixture@example.test',userId:null,provider:'printful',synthetic:false}),/needs confirmation/);
+  assert.equal(f.sessions.size,1);assert.equal([...f.rows.values()][0].state,'reserved');
 });
