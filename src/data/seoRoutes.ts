@@ -315,9 +315,11 @@ const productSeoRoutes = phoneVariants.map((variant) =>
   makeRoute(
     `/phone-cases/${variant.id}`,
     `${variant.model} Custom Phone Case | Snapcase`,
-    `Design a personalized ${variant.model} phone case with your own photo, text, or artwork.`,
+    `Design a personalized ${variant.model} phone case with your own photo, text, or artwork.${variant.id === "iphone-17" ? " Device shown for compatibility; phone not included." : ""}`,
     "0.6",
-    variant.brand === "Apple" ? IPHONE_IMAGE : SAMSUNG_IMAGE
+    variant.id === "iphone-17"
+      ? toAbsoluteAssetUrl(variant.imageUrl)
+      : variant.brand === "Apple" ? IPHONE_IMAGE : SAMSUNG_IMAGE
   )
 );
 

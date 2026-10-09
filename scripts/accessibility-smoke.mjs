@@ -903,6 +903,69 @@ try {
   await waitForServer();
   browser = await chromium.launch({ headless: true });
 
+  // Exact-model imagery and purchase guidance; all vendor services stay mocked.
+  for (const [label, viewport] of [
+    ["desktop", { width: 1440, height: 1000 }],
+    ["mobile", { width: 390, height: 844 }],
+  ]) {
+    const context = await browser.newContext({ viewport, reducedMotion: "reduce" });
+    await installAppState(context, "dark");
+    await mockExternalServices(context);
+    const clarityPage = await context.newPage();
+    const pageErrors = [];
+    clarityPage.on("pageerror", (error) => pageErrors.push(error.message));
+    await clarityPage.goto(`${origin}/phone-cases/iphone-17`);
+    await waitForStableUi(clarityPage);
+    const facts = clarityPage.getByRole("region", { name: "Purchase details" });
+    await facts.getByText("Shipping is shown before payment. Production time varies.", { exact: true }).waitFor();
+    assert.equal(await clarityPage.getByRole("link", { name: "Start designing", exact: true }).getAttribute("href"), "/design/iphone-17");
+    const reference = clarityPage.locator('[data-product-device-reference="true"]');
+    assert.equal(await reference.getAttribute("src"), "/catalog/commons/iphone-17.jpg");
+    assert.equal(await clarityPage.locator('[data-product-mockup="true"]').count(), 0);
+    assert.ok(await reference.isVisible(), `The exact-model reference must remain visible on ${label}.`);
+    assert.ok(await reference.evaluate((image) => image.complete && image.naturalWidth === 960));
+    await clarityPage.getByText("iPhone 17 device reference. Phone not included. Preview your custom case in the designer.", { exact: true }).waitFor();
+    for (const name of ["support@snapcase.ai", "Terms"]) {
+      const link = facts.getByRole("link", { name, exact: true });
+      assert.ok((await link.boundingBox()).height >= 44);
+      await link.focus();
+      assert.ok(await link.evaluate((element) => element === document.activeElement));
+    }
+    await assertNoHorizontalOverflow(clarityPage, `iPhone 17 facts ${label}`);
+    auditResults.push(await assertNoSeriousAxeViolations(clarityPage, `iphone17-clarity-${label}`));
+    await clarityPage.screenshot({ path: resolve(outputDir, `iphone17-clarity-${label}.png`), fullPage: true });
+    await facts.getByRole("link", { name: "Terms", exact: true }).click();
+    await clarityPage.getByRole("heading", { name: "Terms of Service", exact: true }).waitFor();
+    await clarityPage.goBack();
+    await clarityPage.getByRole("link", { name: "Change phone model", exact: true }).click();
+    await clarityPage.waitForURL(`${origin}/catalog`);
+    await waitForStableUi(clarityPage);
+    const grid = clarityPage.locator("#catalog-models");
+    const inspiration = clarityPage.getByRole("complementary", { name: "Pet photo case inspiration" });
+    assert.ok((await grid.boundingBox()).y < (await inspiration.boundingBox()).y);
+    await assertNoHorizontalOverflow(clarityPage, `Catalog clarity ${label}`);
+    await clarityPage.screenshot({ path: resolve(outputDir, `catalog-clarity-${label}.png`) });
+    await clarityPage.getByRole("button", { name: "Samsung", exact: true }).click();
+    assert.equal(await clarityPage.locator("[data-catalog-card]").count(), 3);
+    await clarityPage.getByRole("button", { name: "All", exact: true }).click();
+    const search = clarityPage.getByRole("textbox", { name: "Search phone models" });
+    await search.fill("no such phone");
+    assert.equal(await clarityPage.locator("[data-catalog-card]").count(), 0);
+    await search.fill("iPhone 17");
+    assert.equal(await clarityPage.locator("[data-catalog-card]").count(), 3);
+    const card = clarityPage.locator('[data-catalog-card="iphone-17"]');
+    assert.equal(await card.getByRole("link", { name: "Design case for iPhone 17", exact: true }).getAttribute("href"), "/design/iphone-17");
+    await card.getByRole("link", { name: "View details for iPhone 17", exact: true }).click();
+    await clarityPage.waitForURL(`${origin}/phone-cases/iphone-17`);
+    await clarityPage.goBack();
+    await clarityPage.waitForURL(`${origin}/catalog`);
+    await inspiration.getByRole("link", { name: "Choose your phone", exact: true }).click();
+    await clarityPage.waitForURL(`${origin}/catalog#catalog-models`);
+    assert.equal(await clarityPage.locator("[data-catalog-card]").count(), 18);
+    assert.deepEqual(pageErrors, []);
+    await context.close();
+  }
+
   // Host layout regression only: the embedded vendor UI is mocked. Real
   // Safari/Android controls, artwork and keyboard behavior need separate QA.
   const editorBounds = [];

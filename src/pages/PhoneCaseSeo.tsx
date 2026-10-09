@@ -24,6 +24,7 @@ import { useConsentAwareMarketingView } from "@/hooks/useConsentAwareMarketingVi
 import { trackMarketingEvent } from "@/lib/marketing";
 import { asMarketingItems, buildAnalyticsItem } from "@/lib/analytics-commerce";
 import { SITE_URL } from "@/data/seoRoutes";
+import { SNAPCASE_EMAILS } from "@/lib/email-identities";
 
 const JsonLd = ({ value }: { value: Record<string, unknown> }) => (
   <script
@@ -85,6 +86,7 @@ const PhoneCaseSeo = () => {
     { name: "Phone cases", url: `${SITE_URL}/catalog` },
     { name: `${variant.model} custom case`, url: productUrl },
   ];
+  const usesDeviceReference = variant.id === "iphone-17";
   const mockup = variant.brand === "Apple" ? iphoneCaseFront : samsungCaseFront;
   const designIdeas =
     variant.brand === "Apple"
@@ -109,7 +111,8 @@ const PhoneCaseSeo = () => {
           name: productName,
           description: `Design a personalized ${variant.model} phone case with your own photo, text, or artwork.`,
           url: productUrl,
-          image: new URL(mockup, `${SITE_URL}/`).href,
+          // A compatibility photo is not a photograph of the case being sold.
+          ...(usesDeviceReference ? {} : { image: new URL(mockup, `${SITE_URL}/`).href }),
           brand: {
             "@type": "Brand",
             name: "Snapcase",
@@ -232,18 +235,58 @@ const PhoneCaseSeo = () => {
                     </Link>
                   </Button>
                 </div>
+                {variant.brand === "Apple" && (
+                  <section
+                    aria-label="Purchase details"
+                    className="mt-5 space-y-2 text-sm text-muted-foreground"
+                    data-product-purchase-facts="true"
+                  >
+                    <p>Preview your design before adding it to your cart.</p>
+                    <p>Shipping is shown before payment. Production time varies.</p>
+                    <div className="flex flex-wrap gap-x-5">
+                      <a
+                        href={`mailto:${SNAPCASE_EMAILS.support}`}
+                        className="inline-flex min-h-11 items-center font-medium text-cta-emphasis underline underline-offset-4"
+                      >
+                        {SNAPCASE_EMAILS.support}
+                      </a>
+                      <Link
+                        to="/terms"
+                        className="inline-flex min-h-11 items-center font-medium text-cta-emphasis underline underline-offset-4"
+                      >
+                        Terms
+                      </Link>
+                    </div>
+                  </section>
+                )}
               </div>
 
-              <div className="hidden lg:flex justify-center">
-                <img
-                  src={mockup}
-                  width={1600}
-                  height={800}
-                  alt={`Digital illustration of a ${variant.model} custom phone case mockup`}
-                  data-product-mockup="true"
-                  className="w-72 drop-shadow-2xl"
-                />
-              </div>
+              {usesDeviceReference ? (
+                <figure className="mx-auto w-full max-w-sm">
+                  <img
+                    src={variant.imageUrl}
+                    width={variant.imageWidth}
+                    height={variant.imageHeight}
+                    alt={`${variant.model} device reference for case compatibility; phone not included`}
+                    data-product-device-reference="true"
+                    className="mx-auto max-h-96 w-64 rounded-xl object-contain"
+                  />
+                  <figcaption className="mx-auto mt-4 max-w-xs text-center text-sm leading-6 text-muted-foreground">
+                    iPhone 17 device reference. Phone not included. Preview your custom case in the designer.
+                  </figcaption>
+                </figure>
+              ) : (
+                <div className="hidden lg:flex justify-center">
+                  <img
+                    src={mockup}
+                    width={1600}
+                    height={800}
+                    alt={`Digital illustration of a ${variant.model} custom phone case mockup`}
+                    data-product-mockup="true"
+                    className="w-72 drop-shadow-2xl"
+                  />
+                </div>
+              )}
             </div>
           </div>
         </section>
