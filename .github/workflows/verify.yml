@@ -62,3 +62,30 @@ jobs:
           name: accessibility-browser-evidence
           path: output/playwright/
           if-no-files-found: warn
+
+  shipping-offer-database:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: shipping_offer_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci_fixture_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGDATABASE: shipping_offer_ci
+      PGUSER: postgres
+      PGPASSWORD: ci_fixture_only
+    steps:
+      - uses: actions/checkout@v7
+      - name: Verify capped offer with concurrent PostgreSQL connections
+        run: bash scripts/shipping-offer-postgres-test.sh

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -63,6 +63,32 @@ const Checkout = () => {
   const [promoLoading, setPromoLoading] = useState(false);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [promoOpen, setPromoOpen] = useState(false);
+  const [shippingCost, setShippingCost] = useState(SHIPPING_COST);
+  const [offerEndsAt, setOfferEndsAt] = useState<string | null>(null);
+  const offerRequest = useRef<{ signature: string; id: string; body?: unknown } | null>(null);
+  useEffect(() => {
+    let current = true;
+    setShippingCost(SHIPPING_COST);
+    setOfferEndsAt(null);
+    if (!email.includes("@") || !items.length) return;
+    const body = {
+      action: "quote", customerEmail: user?.email ?? email,
+      promoCode: appliedPromo ? { code: appliedPromo.code } : undefined,
+      items: items.map((item) => ({ variantId: item.variant.id,
+        brand: item.variant.brand, model: item.variant.model, price: item.variant.price,
+        quantity: item.quantity, designPreview: item.designPreview,
+        edmTemplateId: item.edmTemplateId, designId: item.designId ?? null,
+        externalProductId: item.externalProductId ?? null })),
+    };
+    void supabase.functions.invoke("create-checkout", { body }).then(({ data, error }) => {
+      if (!current || error) return;
+      if (data?.shippingCents === 0 || data?.shippingCents === 499) {
+        setShippingCost(data.shippingCents / 100);
+        setOfferEndsAt(typeof data.endsAt === "string" ? data.endsAt : null);
+      }
+    }).catch(() => undefined);
+    return () => { current = false; };
+  }, [items, email, user?.email, appliedPromo]);
   const checkoutRunner = useMemo(
     () =>
       createHostedCheckoutRunner({
@@ -102,8 +128,8 @@ const Checkout = () => {
   );
   const discountTotal = appliedPromo?.discountAmount ?? 0;
   const total = Math.max(
-    totalPrice + SHIPPING_COST - discountTotal,
-    SHIPPING_COST,
+    totalPrice + shippingCost - discountTotal,
+    shippingCost,
   );
   const totalQuantity = getCheckoutUnitCount(items);
   const checkoutHelpIds = [
@@ -199,7 +225,7 @@ const Checkout = () => {
     }
 
     setIsProcessing(true);
-    const checkoutAttemptId = crypto.randomUUID();
+
     const cartItems = items.map((item) => ({
       variantId: item.variant.id,
       brand: item.variant.brand,
@@ -211,9 +237,16 @@ const Checkout = () => {
       designId: item.designId ?? null,
       externalProductId: item.externalProductId ?? null,
     }));
+    const signature = JSON.stringify({ cartItems, email: user?.email ?? email,
+      promo: appliedPromo?.code, shippingCost, analyticsConsent: getAnalyticsConsent() });
+    if (offerRequest.current?.signature !== signature) {
+      offerRequest.current = { signature, id: crypto.randomUUID() };
+    }
+    const cachedAttempt = offerRequest.current;
+    const checkoutAttemptId = shippingCost === 0 ? cachedAttempt.id : crypto.randomUUID();
     const beginCheckoutPayload = buildBeginCheckoutPayload({
-      subtotal: total - SHIPPING_COST,
-      shipping: SHIPPING_COST,
+      subtotal: total - shippingCost,
+      shipping: shippingCost,
       items: items.map((item) => ({
         variantId: item.variant.id,
         brand: item.variant.brand,
@@ -227,15 +260,23 @@ const Checkout = () => {
 
     void checkoutRunner.start({
       checkoutAttemptId,
-      buildRequestBody: async () => ({
-        checkoutAttemptId,
-        items: cartItems,
-        customerEmail: user?.email ?? email,
-        promoCode: appliedPromo ? { code: appliedPromo.code } : undefined,
-        marketingAttribution: getMarketingAttribution(),
-        analyticsConsent: getAnalyticsConsent(),
-        analyticsClientId: await getAnalyticsClientId(),
-      }),
+      buildRequestBody: async () => {
+        if (shippingCost === 0 && cachedAttempt.body) return cachedAttempt.body;
+        const body = {
+          checkoutAttemptId, expectedShippingCents: Math.round(shippingCost * 100),
+          items: cartItems, customerEmail: user?.email ?? email,
+          promoCode: appliedPromo ? { code: appliedPromo.code } : undefined,
+          marketingAttribution: getMarketingAttribution(),
+          analyticsConsent: getAnalyticsConsent(),
+          analyticsClientId: await getAnalyticsClientId(),
+        };
+        if (shippingCost === 0) cachedAttempt.body = body;
+        return body;
+      },
+      onQuoteChanged: (cents) => {
+        setShippingCost(cents / 100);
+        offerRequest.current = null;
+      },
       beginCheckoutPayload,
       onFailure: ({ message, errorCode }) => {
         console.error("Checkout error:", message);
@@ -378,8 +419,15 @@ const Checkout = () => {
                       <Package className="h-3 w-3" aria-hidden="true" />
                       Shipping
                     </span>
-                    <span>${SHIPPING_COST.toFixed(2)}</span>
+                    <span>${shippingCost.toFixed(2)}</span>
                   </div>
+                  {shippingCost === 0 && (
+                    <p className="text-xs text-muted-foreground" role="status">
+                      Free standard US shipping on one eligible case, while offer slots remain.
+                      No promo-code stacking. Availability is confirmed when you continue.
+                      {offerEndsAt && <> Checkout closes by {new Date(offerEndsAt).toLocaleString()}.</>}
+                    </p>
+                  )}
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Tax</span>
                     <span>$0.00</span>

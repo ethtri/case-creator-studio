@@ -79,7 +79,7 @@ test("client observation is narrow and cannot mutate order or payment state", as
   );
   assert.match(transport, /keepalive: true/);
   assert.match(transport, /checkout-client-observation/);
-  assert.match(page, /const checkoutAttemptId = crypto\.randomUUID\(\)/);
+  assert.match(page, /const checkoutAttemptId = shippingCost === 0 \? cachedAttempt\.id : crypto\.randomUUID\(\)/);
   assert.match(page, /checkoutAttemptId,\s*\n\s*buildRequestBody/);
   assert.match(
     config,

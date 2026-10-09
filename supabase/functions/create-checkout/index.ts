@@ -1,3 +1,4 @@
+import { createOfferCheckout, quoteShippingOffer } from "../_shared/shipping-offer-checkout.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
@@ -112,6 +113,8 @@ function getSafeErrorMessage(error: unknown): string {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const lowered = errorMessage.toLowerCase();
 
+  if (errorMessage === "Offer checkout is already paid. Check your order confirmation before ordering again.") return errorMessage;
+
   // Return safe, generic messages to client
   if (
     errorMessage.includes("Customer email is required") ||
@@ -198,6 +201,8 @@ const marketingAttributionSchema = z.union([
 
 const checkoutRequestSchema = z.object({
   checkoutAttemptId: z.string().uuid().optional(),
+  action: z.enum(["quote", "checkout"]).optional(),
+  expectedShippingCents: z.union([z.literal(0), z.literal(499)]).optional(),
   items: z.array(itemSchema).min(1).max(50),
   customerEmail: z.string().email().max(255),
   promoCode: promoCodeSchema.optional(),
@@ -424,6 +429,39 @@ serve(async (req) => {
       req.headers.get("x-snapcase-checkout-canary") ?? "";
     const isSynthetic = configuredCanarySecret.length >= 32 &&
       suppliedCanarySecret === configuredCanarySecret;
+
+    const offerEnabled = Deno.env.get("SHIPPING_OFFER_ENABLED") === "true";
+    const offerInput = { items: requestItems, hasPromo: Boolean(promoCode),
+      provider: fulfillmentProvider, synthetic: isSynthetic };
+    const offerResponse = (body: unknown) => new Response(JSON.stringify(body), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200,
+    });
+    if (validationResult.data.action === "quote") {
+      return offerResponse(await quoteShippingOffer(supabaseClient, offerEnabled, offerInput));
+    }
+    if (validationResult.data.expectedShippingCents === 0) {
+      const { error: offerAttemptError } = await supabaseClient.from("checkout_attempts").upsert({
+        id: checkoutAttemptId, status: "request_received", is_synthetic: isSynthetic,
+      }, { onConflict: "id", ignoreDuplicates: true });
+      if (offerAttemptError) throw new Error("Database offer attempt creation failed");
+      attemptPersisted = true;
+      const offerResult = await createOfferCheckout({ db: supabaseClient,
+        stripe: new Stripe(getStripeSecretKey("CREATE-CHECKOUT"), { apiVersion: "2025-08-27.basil" }),
+        enabled: offerEnabled, origin: requireAllowedOrigin(req, "CREATE-CHECKOUT"),
+      }, { request: validationResult.data, email: resolvedEmail, userId: authUserId,
+        provider: fulfillmentProvider, synthetic: isSynthetic });
+      if (offerResult.quoteChanged) {
+        await supabaseClient.from("checkout_attempts").update({ status: "server_failed",
+          error_code: "promotion_rejected", updated_at: new Date().toISOString(),
+        }).eq("id", checkoutAttemptId);
+      }
+      return offerResponse(offerResult);
+    }
+    // Do not silently charge shipping when a fresh eligible offer quote is lower.
+    if (offerEnabled && validationResult.data.expectedShippingCents === 499 && !promoCode && !isSynthetic) {
+      const quote = await quoteShippingOffer(supabaseClient, true, offerInput);
+      if (quote.shippingCents === 0) return offerResponse({ ...quote, quoteChanged: true });
+    }
 
     const { error: attemptInsertError } = await supabaseClient
       .from("checkout_attempts")
